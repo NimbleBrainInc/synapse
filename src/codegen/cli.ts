@@ -3,29 +3,41 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { ToolDefinition } from "../types.js";
-import { readFromManifest, readFromSchemaDir, readFromServer } from "./schema-reader.js";
-import { generateTypes } from "./type-generator.js";
-import { writeOutput } from "./writer.js";
 
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
+const args = process.argv.slice(2);
+const command = args[0];
 
-  // Strip "codegen" subcommand if present
-  if (args[0] === "codegen") args.shift();
+if (command === "codegen") {
+  runCodegen(args.slice(1));
+} else if (command === "preview") {
+  runPreview(args.slice(1));
+} else {
+  console.log("Usage:");
+  console.log("  synapse codegen   Generate TypeScript types from tool schemas");
+  console.log("  synapse preview   Run a standalone preview of an MCP app with UI");
+  process.exit(command === "--help" || command === "-h" ? 0 : 1);
+}
 
-  const flags = parseFlags(args);
+// ---------------------------------------------------------------------------
+// codegen
+// ---------------------------------------------------------------------------
 
-  if (!flags.fromManifest && !flags.fromServer && !flags.fromSchema) {
-    console.error("Error: Specify a source with --from-manifest, --from-server, or --from-schema");
-    console.error("");
+async function runCodegen(args: string[]): Promise<void> {
+  const { readFromManifest, readFromSchemaDir, readFromServer } = await import(
+    "./schema-reader.js"
+  );
+  const { generateTypes } = await import("./type-generator.js");
+  const { writeOutput } = await import("./writer.js");
+
+  const flags = parseFlags(args, ["from-manifest", "from-server", "from-schema", "out", "app"]);
+
+  if (!flags["from-manifest"] && !flags["from-server"] && !flags["from-schema"]) {
     console.error("Usage:");
     console.error(
-      "  synapse codegen --from-manifest ./manifest.json [--out ./types.ts] [--app my-app]",
+      "  synapse codegen --from-manifest ./manifest.json [--out ./types.ts] [--app name]",
     );
-    console.error(
-      "  synapse codegen --from-server http://localhost:3000/mcp [--out ./types.ts] [--app my-app]",
-    );
-    console.error("  synapse codegen --from-schema ./schemas/ [--out ./types.ts] [--app my-app]");
+    console.error("  synapse codegen --from-server http://localhost:3000/mcp [--out ./types.ts]");
+    console.error("  synapse codegen --from-schema ./schemas/ [--out ./types.ts]");
     process.exit(1);
   }
 
@@ -33,29 +45,26 @@ async function main(): Promise<void> {
     let tools: ToolDefinition[];
     let appName = flags.app;
 
-    if (flags.fromManifest) {
-      const manifestPath = resolve(flags.fromManifest);
+    if (flags["from-manifest"]) {
+      const manifestPath = resolve(flags["from-manifest"]);
       tools = readFromManifest(manifestPath);
       if (!appName) {
         const raw = JSON.parse(readFileSync(manifestPath, "utf-8"));
         appName = raw.name ?? "app";
       }
-    } else if (flags.fromServer) {
-      tools = await readFromServer(flags.fromServer);
+    } else if (flags["from-server"]) {
+      tools = await readFromServer(flags["from-server"]);
       appName = appName ?? "app";
     } else {
-      tools = readFromSchemaDir(resolve(flags.fromSchema as string));
+      tools = readFromSchemaDir(resolve(flags["from-schema"] as string));
       appName = appName ?? "app";
     }
 
-    if (tools.length === 0) {
-      console.error("Warning: No tools found in source");
-    }
+    if (tools.length === 0) console.error("Warning: No tools found");
 
     const output = generateTypes(tools, appName ?? "app");
     const outPath = resolve(flags.out ?? "src/generated/types.ts");
     writeOutput(output, outPath);
-
     console.log(`Generated ${tools.length} tool types -> ${outPath}`);
   } catch (err) {
     console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
@@ -63,36 +72,50 @@ async function main(): Promise<void> {
   }
 }
 
-interface Flags {
-  fromManifest?: string;
-  fromServer?: string;
-  fromSchema?: string;
-  out?: string;
-  app?: string;
+// ---------------------------------------------------------------------------
+// preview
+// ---------------------------------------------------------------------------
+
+async function runPreview(args: string[]): Promise<void> {
+  const { startPreview } = await import("../preview/server.js");
+
+  const flags = parseFlags(args, ["server", "ui", "server-port", "ui-port", "port"]);
+
+  if (!flags.server || !flags.ui) {
+    console.error("Usage:");
+    console.error(
+      '  synapse preview --server "uv run uvicorn mcp_hello.server:app --port 8001" --ui ./ui',
+    );
+    console.error("");
+    console.error("Options:");
+    console.error("  --server <cmd>        Shell command to start the MCP server (HTTP mode)");
+    console.error("  --ui <path>           Path to UI directory (must have package.json)");
+    console.error("  --server-port <port>  MCP server port (default: 8001)");
+    console.error("  --ui-port <port>      Vite dev server port (default: 5173)");
+    console.error("  --port <port>         Preview harness port (default: 5180)");
+    process.exit(1);
+  }
+
+  await startPreview({
+    serverCmd: flags.server,
+    uiDir: flags.ui,
+    serverPort: Number(flags["server-port"] ?? 8001),
+    uiPort: Number(flags["ui-port"] ?? 5173),
+    previewPort: Number(flags.port ?? 5180),
+  });
 }
 
-function parseFlags(args: string[]): Flags {
-  const flags: Flags = {};
+// ---------------------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------------------
+
+function parseFlags(args: string[], known: string[]): Record<string, string> {
+  const flags: Record<string, string> = {};
   for (let i = 0; i < args.length; i++) {
-    switch (args[i]) {
-      case "--from-manifest":
-        flags.fromManifest = args[++i];
-        break;
-      case "--from-server":
-        flags.fromServer = args[++i];
-        break;
-      case "--from-schema":
-        flags.fromSchema = args[++i];
-        break;
-      case "--out":
-        flags.out = args[++i];
-        break;
-      case "--app":
-        flags.app = args[++i];
-        break;
+    const key = args[i].replace(/^--/, "");
+    if (known.includes(key) && i + 1 < args.length) {
+      flags[key] = args[++i];
     }
   }
   return flags;
 }
-
-main();

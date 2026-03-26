@@ -210,9 +210,30 @@ Creates a Synapse instance. Returns a `Synapse` object.
 
 ```bash
 npm install
-npm run build    # Build ESM + CJS + IIFE
-npm test         # Run tests
-npm run typecheck # Type-check
+npm run build      # Build ESM + CJS + IIFE
+npm test           # Run tests
+npm run typecheck  # Type-check
+npm run lint       # Lint with Biome
+npm run lint:fix   # Auto-fix lint issues
+npm run ci         # Run full CI pipeline locally (lint → typecheck → build → test)
+```
+
+## Publishing
+
+Requires npm login with access to the `@nimblebrain` org.
+
+```bash
+# First time: log in to npm
+npm login
+
+# Bump version (updates package.json and creates a git tag)
+npm version patch   # or minor / major
+
+# Publish (build runs automatically via prepublishOnly)
+npm publish --access public
+
+# Push the version tag
+git push origin main --tags
 ```
 
 ## License

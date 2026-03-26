@@ -20,17 +20,21 @@ npm test
 | `npm test` | Run tests with vitest |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run typecheck` | Type-check with tsc |
+| `npm run lint` | Lint with Biome |
+| `npm run lint:fix` | Auto-fix lint + formatting issues |
+| `npm run ci` | Full CI pipeline: lint, typecheck, build, test |
 
 ## Pull Requests
 
 1. Fork the repo and create a feature branch from `main`
 2. Make your changes
-3. Ensure `npm run build && npm test && npm run typecheck` all pass
+3. Run `npm run ci` to verify everything passes
 4. Open a PR with a clear description of what changed and why
 
 ## Code Style
 
 - TypeScript strict mode
+- [Biome](https://biomejs.dev/) for linting and formatting (run `npm run lint:fix` before committing)
 - No default exports
 - Tests live in `src/__tests__/` mirroring the source structure
 

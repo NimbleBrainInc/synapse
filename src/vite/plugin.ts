@@ -321,14 +321,17 @@ function previewHostHtml(appName: string): string {
 
       // Tool calls — proxy via Vite middleware
       if (msg.method === "tools/call" && msg.id) {
+        var originalId = msg.id;
         try {
           var r = await fetch("/__mcp", {
             method:"POST", headers:{"Content-Type":"application/json"},
             body: JSON.stringify({jsonrpc:"2.0",id:msg.id,method:"tools/call",params:{name:msg.params.name,arguments:msg.params.arguments||{}}})
           });
-          post(await r.json());
+          var response = await r.json();
+          response.id = originalId;
+          post(response);
         } catch(err) {
-          post({jsonrpc:"2.0",id:msg.id,error:{code:-32000,message:err.message}});
+          post({jsonrpc:"2.0",id:originalId,error:{code:-32000,message:err.message}});
         }
         return;
       }

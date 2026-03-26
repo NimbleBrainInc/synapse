@@ -1,20 +1,14 @@
-import {
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-  useSyncExternalStore,
-} from "react";
-import { useSynapseContext, SynapseProvider } from "./provider.js";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
-  Synapse,
-  SynapseTheme,
+  ActionReducer,
   DataChangedEvent,
-  ToolCallResult,
   Store,
   StoreDispatch,
-  ActionReducer,
+  Synapse,
+  SynapseTheme,
+  ToolCallResult,
 } from "../types.js";
+import { SynapseProvider, useSynapseContext } from "./provider.js";
 
 // Re-export provider components
 export { SynapseProvider };
@@ -44,10 +38,7 @@ export function useCallTool<TOutput = unknown>(
       setError(null);
 
       try {
-        const result = await synapse.callTool<Record<string, unknown>, TOutput>(
-          toolName,
-          args,
-        );
+        const result = await synapse.callTool<Record<string, unknown>, TOutput>(toolName, args);
         // Stale guard: only update if this is still the latest call
         if (id === callIdRef.current) {
           setData(result.data);
@@ -69,9 +60,7 @@ export function useCallTool<TOutput = unknown>(
   return { call, isPending, error, data };
 }
 
-export function useDataSync(
-  callback: (event: DataChangedEvent) => void,
-): void {
+export function useDataSync(callback: (event: DataChangedEvent) => void): void {
   const synapse = useSynapseContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
@@ -94,14 +83,10 @@ export function useTheme(): SynapseTheme {
   return theme;
 }
 
-export function useAction(): (
-  action: string,
-  params?: Record<string, unknown>,
-) => void {
+export function useAction(): (action: string, params?: Record<string, unknown>) => void {
   const synapse = useSynapseContext();
   return useCallback(
-    (action: string, params?: Record<string, unknown>) =>
-      synapse.action(action, params),
+    (action: string, params?: Record<string, unknown>) => synapse.action(action, params),
     [synapse],
   );
 }
@@ -118,22 +103,15 @@ export function useChat(): (
   );
 }
 
-export function useVisibleState(): (
-  state: Record<string, unknown>,
-  summary?: string,
-) => void {
+export function useVisibleState(): (state: Record<string, unknown>, summary?: string) => void {
   const synapse = useSynapseContext();
   return useCallback(
-    (state: Record<string, unknown>, summary?: string) =>
-      synapse.setVisibleState(state, summary),
+    (state: Record<string, unknown>, summary?: string) => synapse.setVisibleState(state, summary),
     [synapse],
   );
 }
 
-export function useStore<
-  TState,
-  TActions extends Record<string, ActionReducer<TState, any>>,
->(
+export function useStore<TState, TActions extends Record<string, ActionReducer<TState, any>>>(
   store: Store<TState, TActions>,
 ): {
   state: TState;

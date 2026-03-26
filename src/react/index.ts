@@ -1,12 +1,12 @@
 export {
   SynapseProvider,
-  useSynapse,
-  useCallTool,
-  useDataSync,
-  useTheme,
   useAction,
+  useCallTool,
   useChat,
-  useVisibleState,
+  useDataSync,
   useStore,
+  useSynapse,
+  useTheme,
+  useVisibleState,
 } from "./hooks.js";
 export type { SynapseProviderProps } from "./provider.js";

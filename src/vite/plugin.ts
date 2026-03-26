@@ -18,11 +18,7 @@ export interface SynapseVitePluginOptions {
  * - Exposes platform URL as `import.meta.env.SYNAPSE_PLATFORM_URL`
  */
 export function synapseVite(options: SynapseVitePluginOptions): Plugin {
-  const {
-    appName,
-    platformUrl = "http://localhost:4321",
-    injectBridge = true,
-  } = options;
+  const { appName, platformUrl = "http://localhost:4321", injectBridge = true } = options;
 
   return {
     name: "synapse",

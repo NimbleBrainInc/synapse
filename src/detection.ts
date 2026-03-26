@@ -15,8 +15,7 @@ export function detectHost(initResponse: unknown): HostInfo {
   const resp = initResponse as Record<string, unknown> | null | undefined;
 
   const serverInfo = safeObj(resp?.serverInfo);
-  const serverName =
-    typeof serverInfo?.name === "string" ? serverInfo.name : "unknown";
+  const serverName = typeof serverInfo?.name === "string" ? serverInfo.name : "unknown";
 
   const protocolVersion =
     typeof resp?.protocolVersion === "string" ? resp.protocolVersion : "unknown";
@@ -36,27 +35,20 @@ function extractTheme(raw: unknown): SynapseTheme {
   const obj = safeObj(raw);
   if (!obj) return { ...DEFAULT_THEME };
 
-  const mode =
-    obj.mode === "light" || obj.mode === "dark" ? obj.mode : DEFAULT_THEME.mode;
+  const mode = obj.mode === "light" || obj.mode === "dark" ? obj.mode : DEFAULT_THEME.mode;
 
   const primaryColor =
-    typeof obj.primaryColor === "string"
-      ? obj.primaryColor
-      : DEFAULT_THEME.primaryColor;
+    typeof obj.primaryColor === "string" ? obj.primaryColor : DEFAULT_THEME.primaryColor;
 
   const tokens =
-    obj.tokens !== null &&
-    typeof obj.tokens === "object" &&
-    !Array.isArray(obj.tokens)
+    obj.tokens !== null && typeof obj.tokens === "object" && !Array.isArray(obj.tokens)
       ? (obj.tokens as Record<string, string>)
       : {};
 
   return { mode, primaryColor, tokens };
 }
 
-function safeObj(
-  value: unknown,
-): Record<string, unknown> | undefined {
+function safeObj(value: unknown): Record<string, unknown> | undefined {
   if (value !== null && typeof value === "object" && !Array.isArray(value)) {
     return value as Record<string, unknown>;
   }

@@ -1,15 +1,15 @@
+import { detectHost } from "./detection.js";
+import { KeyboardForwarder } from "./keyboard.js";
+import { parseToolResult } from "./result-parser.js";
+import { SynapseTransport } from "./transport.js";
 import type {
+  DataChangedEvent,
+  HostInfo,
   Synapse,
   SynapseOptions,
   SynapseTheme,
-  DataChangedEvent,
   ToolCallResult,
-  HostInfo,
 } from "./types.js";
-import { SynapseTransport } from "./transport.js";
-import { detectHost } from "./detection.js";
-import { parseToolResult } from "./result-parser.js";
-import { KeyboardForwarder } from "./keyboard.js";
 
 /**
  * Create a Synapse instance.
@@ -58,27 +58,22 @@ export function createSynapse(options: SynapseOptions): Synapse {
     });
 
   // Listen for theme changes from the host
-  const unsubTheme = transport.onMessage(
-    "ui/notifications/host-context-changed",
-    (params) => {
-      if (!params) return;
-      const mode = params.theme === "dark" ? "dark" : "light";
-      const tokens =
-        params.tokens && typeof params.tokens === "object"
-          ? (params.tokens as Record<string, string>)
-          : currentTheme.tokens;
-      currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
-      for (const cb of themeCallbacks) cb(currentTheme);
-    },
-  );
+  const unsubTheme = transport.onMessage("ui/notifications/host-context-changed", (params) => {
+    if (!params) return;
+    const mode = params.theme === "dark" ? "dark" : "light";
+    const tokens =
+      params.tokens && typeof params.tokens === "object"
+        ? (params.tokens as Record<string, string>)
+        : currentTheme.tokens;
+    currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
+    for (const cb of themeCallbacks) cb(currentTheme);
+  });
 
   // Also listen for NB-specific theme change message
   const unsubNbTheme = transport.onMessage("ui/themeChanged", (params) => {
     if (!params) return;
     const mode =
-      params.mode === "dark" || params.mode === "light"
-        ? params.mode
-        : currentTheme.mode;
+      params.mode === "dark" || params.mode === "light" ? params.mode : currentTheme.mode;
     const tokens =
       params.tokens && typeof params.tokens === "object"
         ? (params.tokens as Record<string, string>)
@@ -151,18 +146,12 @@ export function createSynapse(options: SynapseOptions): Synapse {
       transport.send("ui/action", { action, ...params });
     },
 
-    chat(
-      message: string,
-      context?: { action?: string; entity?: string },
-    ): void {
+    chat(message: string, context?: { action?: string; entity?: string }): void {
       if (!isNB()) return;
       transport.send("ui/chat", { message, context });
     },
 
-    setVisibleState(
-      state: Record<string, unknown>,
-      summary?: string,
-    ): void {
+    setVisibleState(state: Record<string, unknown>, summary?: string): void {
       if (!isNB()) return;
 
       // Debounce: 250ms
@@ -176,14 +165,9 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }, 250);
     },
 
-    downloadFile(
-      filename: string,
-      content: string | Blob,
-      mimeType?: string,
-    ): void {
+    downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
       if (!isNB()) return;
-      const data =
-        typeof content === "string" ? content : "[Blob content not serializable]";
+      const data = typeof content === "string" ? content : "[Blob content not serializable]";
       transport.send("ui/downloadFile", {
         data,
         filename,
@@ -206,10 +190,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       return transport.onMessage(method, callback);
     },
 
-    _request(
-      method: string,
-      params?: Record<string, unknown>,
-    ): Promise<unknown> {
+    _request(method: string, params?: Record<string, unknown>): Promise<unknown> {
       return transport.request(method, params);
     },
 

@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useRef,
-  useEffect,
-  type ReactNode,
-} from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef } from "react";
 import { createSynapse } from "../core.js";
 import type { Synapse, SynapseOptions } from "../types.js";
 
@@ -30,11 +24,7 @@ export function SynapseProvider({ children, ...options }: SynapseProviderProps) 
     };
   }, []);
 
-  return (
-    <SynapseContext.Provider value={ref.current}>
-      {children}
-    </SynapseContext.Provider>
-  );
+  return <SynapseContext.Provider value={ref.current}>{children}</SynapseContext.Provider>;
 }
 
 export function useSynapseContext(): Synapse {

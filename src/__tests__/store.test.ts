@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createStore } from "../store.js";
 import type { Synapse } from "../types.js";
 
@@ -152,10 +152,7 @@ describe("createStore", () => {
 
     store.dispatch.increment();
 
-    expect(synapse.setVisibleState).toHaveBeenCalledWith(
-      { count: 1, label: "default" },
-      undefined,
-    );
+    expect(synapse.setVisibleState).toHaveBeenCalledWith({ count: 1, label: "default" }, undefined);
     store.destroy();
   });
 

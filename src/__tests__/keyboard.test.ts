@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardForwarder } from "../keyboard.js";
 import type { SynapseTransport } from "../transport.js";
 
@@ -11,7 +11,10 @@ function createMockTransport(): SynapseTransport {
   } as unknown as SynapseTransport;
 }
 
-function fireKeydown(key: string, modifiers: Partial<Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "shiftKey" | "altKey">> = {}) {
+function fireKeydown(
+  key: string,
+  modifiers: Partial<Pick<KeyboardEvent, "ctrlKey" | "metaKey" | "shiftKey" | "altKey">> = {},
+) {
   const event = new KeyboardEvent("keydown", {
     key,
     ctrlKey: modifiers.ctrlKey ?? false,
@@ -74,9 +77,12 @@ describe("KeyboardForwarder", () => {
     forwarder = new KeyboardForwarder(transport);
     fireKeydown("Escape");
 
-    expect(transport.send).toHaveBeenCalledWith("ui/keydown", expect.objectContaining({
-      key: "Escape",
-    }));
+    expect(transport.send).toHaveBeenCalledWith(
+      "ui/keydown",
+      expect.objectContaining({
+        key: "Escape",
+      }),
+    );
   });
 
   it("custom config [{ key: 'k', ctrl: true }] only forwards Ctrl+K", () => {

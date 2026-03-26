@@ -1,5 +1,5 @@
-import type { KeyForwardConfig } from "./types.js";
 import type { SynapseTransport } from "./transport.js";
+import type { KeyForwardConfig } from "./types.js";
 
 /**
  * Forward keyboard shortcuts from the iframe document to the host.
@@ -11,10 +11,7 @@ export class KeyboardForwarder {
   private listener: (event: KeyboardEvent) => void;
   private destroyed = false;
 
-  constructor(
-    private transport: SynapseTransport,
-    customKeys?: KeyForwardConfig[],
-  ) {
+  constructor(transport: SynapseTransport, customKeys?: KeyForwardConfig[]) {
     const config = customKeys ?? null; // null = default behavior
 
     this.listener = (event: KeyboardEvent) => {
@@ -40,10 +37,7 @@ export class KeyboardForwarder {
     document.removeEventListener("keydown", this.listener);
   }
 
-  private shouldForward(
-    event: KeyboardEvent,
-    config: KeyForwardConfig[] | null,
-  ): boolean {
+  private shouldForward(event: KeyboardEvent, config: KeyForwardConfig[] | null): boolean {
     // Empty array = forwarding disabled
     if (config && config.length === 0) return false;
 

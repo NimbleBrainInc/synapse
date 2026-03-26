@@ -1,5 +1,5 @@
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { join, basename } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import type { ToolDefinition } from "../types.js";
 
 /**

@@ -1,8 +1,8 @@
 import type {
+  JsonRpcMessage,
+  JsonRpcNotification,
   JsonRpcRequest,
   JsonRpcResponse,
-  JsonRpcNotification,
-  JsonRpcMessage,
 } from "./types.js";
 
 type PendingEntry = {
@@ -58,7 +58,7 @@ export class SynapseTransport {
     if (!this.handlers.has(method)) {
       this.handlers.set(method, new Set());
     }
-    this.handlers.get(method)!.add(callback);
+    this.handlers.get(method)?.add(callback);
 
     return () => {
       const set = this.handlers.get(method);

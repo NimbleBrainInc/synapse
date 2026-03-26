@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { readFromManifest } from "../../codegen/schema-reader";
 import { resolve } from "node:path";
+import { describe, expect, it } from "vitest";
+import { readFromManifest } from "../../codegen/schema-reader";
 
 const fixtureDir = resolve(__dirname, "fixtures");
 
@@ -31,8 +31,6 @@ describe("readFromManifest", () => {
   });
 
   it("throws for missing file", () => {
-    expect(() =>
-      readFromManifest("/nonexistent/manifest.json"),
-    ).toThrow("Manifest not found");
+    expect(() => readFromManifest("/nonexistent/manifest.json")).toThrow("Manifest not found");
   });
 });

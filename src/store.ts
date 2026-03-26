@@ -1,10 +1,4 @@
-import type {
-  Synapse,
-  StoreConfig,
-  Store,
-  StoreDispatch,
-  ActionReducer,
-} from "./types.js";
+import type { ActionReducer, Store, StoreConfig, StoreDispatch, Synapse } from "./types.js";
 
 /**
  * Create a typed state store with optional persistence and agent visibility.
@@ -19,10 +13,7 @@ export function createStore<
     string,
     ActionReducer<TState, any>
   >,
->(
-  synapse: Synapse,
-  config: StoreConfig<TState> & { actions: TActions },
-): Store<TState, TActions> {
+>(synapse: Synapse, config: StoreConfig<TState> & { actions: TActions }): Store<TState, TActions> {
   let state = structuredClone(config.initialState);
   const subscribers = new Set<(state: TState) => void>();
   let destroyed = false;
@@ -46,21 +37,20 @@ export function createStore<
 
   function pushToAgent(): void {
     const summary = config.summarize?.(state);
-    synapse.setVisibleState(
-      state as unknown as Record<string, unknown>,
-      summary,
-    );
+    synapse.setVisibleState(state as unknown as Record<string, unknown>, summary);
   }
 
   function schedulePersist(): void {
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
-      synapse._request("ui/persistState", {
-        state: state as unknown as Record<string, unknown>,
-        version: config.version,
-      }).catch(() => {
-        // Silently ignore persist failures (host may not support it)
-      });
+      synapse
+        ._request("ui/persistState", {
+          state: state as unknown as Record<string, unknown>,
+          version: config.version,
+        })
+        .catch(() => {
+          // Silently ignore persist failures (host may not support it)
+        });
       persistTimer = null;
     }, 500);
   }

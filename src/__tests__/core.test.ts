@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSynapse } from "../core.js";
 import type { Synapse } from "../types.js";
 
@@ -35,10 +35,7 @@ function completeHandshake(serverName = "nimblebrain") {
   );
 }
 
-function dispatchNotification(
-  method: string,
-  params?: Record<string, unknown>,
-) {
+function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
       data: {
@@ -146,11 +143,10 @@ describe("createSynapse", () => {
 
     // Verify the tools/call message was sent
     const toolCall = postMessageSpy.mock.calls.find(
-      (c: unknown[]) =>
-        (c[0] as Record<string, unknown>).method === "tools/call",
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "tools/call",
     );
     expect(toolCall).toBeDefined();
-    expect(toolCall![0]).toMatchObject({
+    expect(toolCall?.[0]).toMatchObject({
       jsonrpc: "2.0",
       method: "tools/call",
       params: { name: "echo", arguments: { text: "hello" } },

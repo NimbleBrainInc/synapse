@@ -2,7 +2,8 @@
 
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { readFromManifest, readFromServer, readFromSchemaDir } from "./schema-reader.js";
+import type { ToolDefinition } from "../types.js";
+import { readFromManifest, readFromSchemaDir, readFromServer } from "./schema-reader.js";
 import { generateTypes } from "./type-generator.js";
 import { writeOutput } from "./writer.js";
 
@@ -15,19 +16,21 @@ async function main(): Promise<void> {
   const flags = parseFlags(args);
 
   if (!flags.fromManifest && !flags.fromServer && !flags.fromSchema) {
-    console.error(
-      "Error: Specify a source with --from-manifest, --from-server, or --from-schema",
-    );
+    console.error("Error: Specify a source with --from-manifest, --from-server, or --from-schema");
     console.error("");
     console.error("Usage:");
-    console.error("  synapse codegen --from-manifest ./manifest.json [--out ./types.ts] [--app my-app]");
-    console.error("  synapse codegen --from-server http://localhost:3000/mcp [--out ./types.ts] [--app my-app]");
+    console.error(
+      "  synapse codegen --from-manifest ./manifest.json [--out ./types.ts] [--app my-app]",
+    );
+    console.error(
+      "  synapse codegen --from-server http://localhost:3000/mcp [--out ./types.ts] [--app my-app]",
+    );
     console.error("  synapse codegen --from-schema ./schemas/ [--out ./types.ts] [--app my-app]");
     process.exit(1);
   }
 
   try {
-    let tools;
+    let tools: ToolDefinition[];
     let appName = flags.app;
 
     if (flags.fromManifest) {
@@ -55,9 +58,7 @@ async function main(): Promise<void> {
 
     console.log(`Generated ${tools.length} tool types -> ${outPath}`);
   } catch (err) {
-    console.error(
-      `Error: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 }

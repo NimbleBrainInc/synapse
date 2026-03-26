@@ -46,21 +46,11 @@ export interface Synapse {
   onThemeChanged(callback: (theme: SynapseTheme) => void): () => void;
 
   action(action: string, params?: Record<string, unknown>): void;
-  chat(
-    message: string,
-    context?: { action?: string; entity?: string },
-  ): void;
+  chat(message: string, context?: { action?: string; entity?: string }): void;
 
-  setVisibleState(
-    state: Record<string, unknown>,
-    summary?: string,
-  ): void;
+  setVisibleState(state: Record<string, unknown>, summary?: string): void;
 
-  downloadFile(
-    filename: string,
-    content: string | Blob,
-    mimeType?: string,
-  ): void;
+  downloadFile(filename: string, content: string | Blob, mimeType?: string): void;
   openLink(url: string): void;
 
   /** @internal — used by createStore for ui/stateLoaded */
@@ -111,7 +101,10 @@ export type StoreDispatch<TActions extends Record<string, ActionReducer<any, any
 
 export interface Store<
   TState,
-  TActions extends Record<string, ActionReducer<TState, any>> = Record<string, ActionReducer<TState, any>>,
+  TActions extends Record<string, ActionReducer<TState, any>> = Record<
+    string,
+    ActionReducer<TState, any>
+  >,
 > {
   getState(): TState;
   subscribe(callback: (state: TState) => void): () => void;

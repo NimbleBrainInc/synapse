@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Agent-aware app SDK for the NimbleBrain platform",
   "type": "module",
   "exports": {

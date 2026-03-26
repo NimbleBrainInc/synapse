@@ -1,0 +1,63 @@
+{
+  "manifest_version": "0.4",
+  "name": "@nimblebraininc/tasks",
+  "description": "Task management app",
+  "tools": [
+    {
+      "name": "create_task",
+      "description": "Create a new task",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": { "type": "string", "description": "Task title" },
+          "description": { "type": "string" },
+          "due_date": { "type": "string", "format": "date" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "priority": { "type": "string", "enum": ["low", "medium", "high"] }
+        },
+        "required": ["title"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "archived", "deleted"] },
+          "created_at": { "type": "string" }
+        },
+        "required": ["id", "title", "status", "created_at"]
+      }
+    },
+    {
+      "name": "read_task",
+      "description": "Read a task by ID",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" }
+        },
+        "required": ["id"]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "string", "enum": ["active", "archived", "deleted"] }
+        },
+        "required": ["id", "title", "status"]
+      }
+    },
+    {
+      "name": "list_tasks",
+      "description": "List all tasks",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "filter": { "type": "string" },
+          "limit": { "type": "number" }
+        }
+      }
+    }
+  ]
+}

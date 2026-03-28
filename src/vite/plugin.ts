@@ -276,7 +276,7 @@ function previewHostHtml(appName: string): string {
     <button id="toggle">Toggle Theme</button>
     <span class="url">Synapse Preview</span>
   </header>
-  <iframe id="app" src="/"></iframe>
+  <iframe id="app"></iframe>
 
   <script>
     var iframe = document.getElementById("app");
@@ -330,6 +330,12 @@ function previewHostHtml(appName: string): string {
           var response = await r.json();
           response.id = originalId;
           post(response);
+          // Notify the app that data changed so hooks auto-refresh
+          // Only for mutating operations (not list/search/get which are read-only)
+          var tn = msg.params.name || "";
+          if (!response.error && !tn.startsWith("list_") && !tn.startsWith("search_") && !tn.startsWith("get_") && !tn.startsWith("query_")) {
+            post({jsonrpc:"2.0",method:"ui/datachanged",params:{tool:tn,server:"preview"}});
+          }
         } catch(err) {
           post({jsonrpc:"2.0",id:originalId,error:{code:-32000,message:err.message}});
         }
@@ -349,6 +355,10 @@ function previewHostHtml(appName: string): string {
       document.body.style.background = dark ? "#0f172a" : "#f1f5f9";
       post({jsonrpc:"2.0",method:"ui/themeChanged",params:{mode:dark?"dark":"light",tokens:getTokens(dark)}});
     };
+
+    // Load the iframe AFTER the message listener is attached to avoid
+    // a race where the app sends ui/initialize before the bridge is ready.
+    iframe.src = "/";
   </script>
 </body>
 </html>`;

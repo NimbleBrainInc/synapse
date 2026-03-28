@@ -69,9 +69,16 @@ describe("preview host HTML", () => {
     expect(html).toContain("<title>hello — Synapse Preview</title>");
   });
 
-  it("uses relative iframe src (no hardcoded port)", () => {
+  it("sets iframe src after message listener to avoid race", () => {
     const html = getPreviewHtml("hello");
-    expect(html).toContain('src="/"');
+    // The iframe element must NOT have an inline src
+    expect(html).toContain('<iframe id="app"></iframe>');
+    // src is set at the end of the script block, after addEventListener
+    const listenerIdx = html.indexOf("addEventListener");
+    const srcIdx = html.indexOf('iframe.src = "/"');
+    expect(listenerIdx).toBeGreaterThan(-1);
+    expect(srcIdx).toBeGreaterThan(listenerIdx);
+    // No hardcoded ports
     expect(html).not.toContain("localhost:5173");
     expect(html).not.toContain("localhost:5174");
   });
@@ -110,6 +117,13 @@ describe("preview host HTML", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("ui/stateChanged");
     expect(html).toContain("ui/stateAcknowledged");
+  });
+
+  it("sends ui/datachanged after successful tool call proxy", () => {
+    const html = getPreviewHtml("hello");
+    expect(html).toContain("ui/datachanged");
+    // Only on success — guarded by !response.error
+    expect(html).toContain("!response.error");
   });
 });
 

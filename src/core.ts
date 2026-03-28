@@ -107,6 +107,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
       return isNB();
     },
 
+    get destroyed() {
+      return destroyed;
+    },
+
     async callTool<TInput = Record<string, unknown>, TOutput = unknown>(
       toolName: string,
       args?: TInput,

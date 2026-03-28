@@ -1,4 +1,4 @@
-import { createContext, type ReactNode, useContext, useEffect, useRef } from "react";
+import { createContext, type ReactNode, useContext, useRef } from "react";
 import { createSynapse } from "../core.js";
 import type { Synapse, SynapseOptions } from "../types.js";
 
@@ -9,20 +9,15 @@ export interface SynapseProviderProps extends SynapseOptions {
 }
 
 export function SynapseProvider({ children, ...options }: SynapseProviderProps) {
+  // Use a ref so the same Synapse instance survives StrictMode's
+  // unmount/remount cycle. We intentionally do NOT destroy on unmount
+  // because StrictMode re-mounts immediately and the transport must
+  // stay alive. The instance is GC'd when the provider is truly removed.
   const ref = useRef<Synapse | null>(null);
 
-  if (ref.current === null) {
+  if (ref.current === null || ref.current.destroyed) {
     ref.current = createSynapse(options);
   }
-
-  useEffect(() => {
-    // StrictMode: on double-mount, the ref may already have an instance.
-    // The ref was created synchronously above, so it's always valid here.
-    return () => {
-      ref.current?.destroy();
-      ref.current = null;
-    };
-  }, []);
 
   return <SynapseContext.Provider value={ref.current}>{children}</SynapseContext.Provider>;
 }

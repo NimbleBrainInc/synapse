@@ -320,6 +320,16 @@ describe("createSynapse", () => {
     );
   });
 
+  it("destroyed is false before destroy and true after", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    expect(synapse.destroyed).toBe(false);
+    synapse.destroy();
+    expect(synapse.destroyed).toBe(true);
+  });
+
   it("destroy() cleans up everything", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");

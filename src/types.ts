@@ -62,6 +62,9 @@ export interface Synapse {
   /** @internal — used by createStore for ui/persistState */
   _request(method: string, params?: Record<string, unknown>): Promise<unknown>;
 
+  /** True after destroy() has been called. */
+  readonly destroyed: boolean;
+
   destroy(): void;
 }
 

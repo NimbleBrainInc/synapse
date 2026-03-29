@@ -22,6 +22,12 @@ Synapse is an optional enhancement layer over `@modelcontextprotocol/ext-apps`. 
 
 In non-NimbleBrain hosts (Claude Desktop, VS Code, ChatGPT), NB-specific features degrade gracefully to no-ops while ext-apps baseline behavior is preserved.
 
+## Why Synapse?
+
+Raw ext-apps gives you an iframe and postMessage. That works — until the agent changes data and your UI goes stale, or the user filters a view and the agent can't see what they're looking at, or you spend an afternoon wiring up JSON-RPC request tracking for the third time.
+
+Synapse handles the plumbing so you can focus on the UI. See **[Why Synapse?](docs/WHY.md)** for before/after comparisons of each problem it solves.
+
 ## Install
 
 ```bash

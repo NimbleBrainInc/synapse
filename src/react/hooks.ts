@@ -130,12 +130,49 @@ export function useChat(): (
   );
 }
 
-export function useVisibleState(): (state: Record<string, unknown>, summary?: string) => void {
+/**
+ * Push the app's visible state to the agent via ext-apps `ui/update-model-context`.
+ *
+ * **Imperative** (no args) — returns a push function you call manually:
+ * ```tsx
+ * const push = useVisibleState();
+ * push({ board: selectedBoard }, "Viewing board X");
+ * ```
+ *
+ * **Declarative** (factory + deps) — auto-pushes when deps change:
+ * ```tsx
+ * useVisibleState(() => ({
+ *   state: { board: selectedBoard },
+ *   summary: `Viewing "${selectedBoard?.name}"`,
+ * }), [selectedBoard]);
+ * ```
+ */
+export function useVisibleState(): (state: Record<string, unknown>, summary?: string) => void;
+export function useVisibleState(
+  factory: () => { state: Record<string, unknown>; summary?: string },
+  deps: unknown[],
+): void;
+export function useVisibleState(
+  factory?: () => { state: Record<string, unknown>; summary?: string },
+  deps?: unknown[],
+): ((state: Record<string, unknown>, summary?: string) => void) | undefined {
   const synapse = useSynapseContext();
-  return useCallback(
+  const push = useCallback(
     (state: Record<string, unknown>, summary?: string) => synapse.setVisibleState(state, summary),
     [synapse],
   );
+
+  // Declarative mode: auto-push when deps change.
+  // The deps array is caller-provided (mirrors useMemo/useEffect pattern).
+  const factoryRef = useRef(factory);
+  factoryRef.current = factory;
+  useEffect(() => {
+    if (!factoryRef.current) return;
+    const { state, summary } = factoryRef.current();
+    push(state, summary);
+  }, [...(deps ?? []), push]);
+
+  if (!factory) return push;
 }
 
 export function useStore<TState, TActions extends Record<string, ActionReducer<TState, any>>>(

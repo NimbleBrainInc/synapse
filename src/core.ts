@@ -172,19 +172,25 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     chat(message: string, context?: { action?: string; entity?: string }): void {
-      if (!isNB()) return;
-      transport.send("ui/chat", { message, context });
+      const textBlock: Record<string, unknown> = { type: "text", text: message };
+      if (isNB() && context) {
+        textBlock._meta = { context };
+      }
+      transport.send("ui/message", {
+        role: "user",
+        content: [textBlock],
+      });
     },
 
     setVisibleState(state: Record<string, unknown>, summary?: string): void {
-      if (!isNB()) return;
-
       // Debounce: 250ms
       if (stateTimer) clearTimeout(stateTimer);
       stateTimer = setTimeout(() => {
-        transport.send("ui/stateChanged", {
-          state,
-          ...(summary !== undefined && { summary }),
+        transport.send("ui/update-model-context", {
+          structuredContent: state,
+          ...(summary !== undefined && {
+            content: [{ type: "text", text: summary }],
+          }),
         });
         stateTimer = null;
       }, 250);
@@ -193,7 +199,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
       if (!isNB()) return;
       const data = typeof content === "string" ? content : "[Blob content not serializable]";
-      transport.send("ui/downloadFile", {
+      transport.send("ui/download-file", {
         data,
         filename,
         mimeType: mimeType ?? "application/octet-stream",
@@ -201,9 +207,8 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     openLink(url: string): void {
-      if (isNB()) {
-        transport.send("ui/openLink", { url });
-      } else {
+      transport.send("ui/open-link", { url });
+      if (!isNB()) {
         window.open(url, "_blank", "noopener");
       }
     },

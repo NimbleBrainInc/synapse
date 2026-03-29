@@ -105,9 +105,24 @@ export interface Synapse {
   getTheme(): SynapseTheme;
   onThemeChanged(callback: (theme: SynapseTheme) => void): () => void;
 
+  /** NimbleBrain-only: trigger a host-side action. No-op in other hosts. */
   action(action: string, params?: Record<string, unknown>): void;
+
+  /**
+   * Send a user message into the agent conversation (ext-apps `ui/message`).
+   *
+   * @param context NimbleBrain-specific metadata, included as `_meta.context`
+   *   on the content block. Ignored by non-NimbleBrain hosts.
+   */
   chat(message: string, context?: { action?: string; entity?: string }): void;
 
+  /**
+   * Push the app's current visible state to the agent (ext-apps `ui/update-model-context`).
+   *
+   * The `summary` string is what the LLM reads as a text content block.
+   * The `state` object is included as `structuredContent` for tools that need IDs/values.
+   * Debounced at 250ms. Each call overwrites the previous context.
+   */
   setVisibleState(state: Record<string, unknown>, summary?: string): void;
 
   downloadFile(filename: string, content: string | Blob, mimeType?: string): void;

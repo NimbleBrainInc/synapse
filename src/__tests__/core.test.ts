@@ -250,7 +250,7 @@ describe("createSynapse", () => {
     expect(postMessageSpy).not.toHaveBeenCalled();
   });
 
-  it("chat() sends ui/chat when NB host", async () => {
+  it("chat() sends ui/message with _meta.context when NB host", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");
     await synapse.ready;
@@ -262,10 +262,56 @@ describe("createSynapse", () => {
     expect(postMessageSpy).toHaveBeenCalledWith(
       {
         jsonrpc: "2.0",
-        method: "ui/chat",
+        method: "ui/message",
         params: {
-          message: "Hello agent",
-          context: { action: "summarize" },
+          role: "user",
+          content: [
+            { type: "text", text: "Hello agent", _meta: { context: { action: "summarize" } } },
+          ],
+        },
+      },
+      "*",
+    );
+  });
+
+  it("chat() sends ui/message without _meta for non-NB host", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("other-host");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.chat("Hello agent", { action: "summarize" });
+
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        jsonrpc: "2.0",
+        method: "ui/message",
+        params: {
+          role: "user",
+          content: [{ type: "text", text: "Hello agent" }],
+        },
+      },
+      "*",
+    );
+  });
+
+  it("chat() sends ui/message without _meta when no context", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.chat("Just a message");
+
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        jsonrpc: "2.0",
+        method: "ui/message",
+        params: {
+          role: "user",
+          content: [{ type: "text", text: "Just a message" }],
         },
       },
       "*",
@@ -294,14 +340,61 @@ describe("createSynapse", () => {
     expect(postMessageSpy).toHaveBeenCalledWith(
       {
         jsonrpc: "2.0",
-        method: "ui/stateChanged",
-        params: { state: { count: 3 }, summary: "third" },
+        method: "ui/update-model-context",
+        params: {
+          structuredContent: { count: 3 },
+          content: [{ type: "text", text: "third" }],
+        },
       },
       "*",
     );
   });
 
-  it("openLink() sends ui/openLink when NB host", async () => {
+  it("setVisibleState() works for non-NB host", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("other-host");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.setVisibleState({ items: [1, 2] }, "two items");
+    vi.advanceTimersByTime(250);
+
+    expect(postMessageSpy).toHaveBeenCalledTimes(1);
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        jsonrpc: "2.0",
+        method: "ui/update-model-context",
+        params: {
+          structuredContent: { items: [1, 2] },
+          content: [{ type: "text", text: "two items" }],
+        },
+      },
+      "*",
+    );
+  });
+
+  it("setVisibleState() omits content when no summary", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.setVisibleState({ x: 1 });
+    vi.advanceTimersByTime(250);
+
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        jsonrpc: "2.0",
+        method: "ui/update-model-context",
+        params: { structuredContent: { x: 1 } },
+      },
+      "*",
+    );
+  });
+
+  it("openLink() sends ui/open-link when NB host", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");
     await synapse.ready;
@@ -313,11 +406,33 @@ describe("createSynapse", () => {
     expect(postMessageSpy).toHaveBeenCalledWith(
       {
         jsonrpc: "2.0",
-        method: "ui/openLink",
+        method: "ui/open-link",
         params: { url: "https://example.com" },
       },
       "*",
     );
+  });
+
+  it("openLink() sends ext-apps method and falls back to window.open for non-NB host", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("other-host");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+    const openSpy = vi.spyOn(window, "open").mockImplementation(() => null);
+
+    synapse.openLink("https://example.com");
+
+    expect(postMessageSpy).toHaveBeenCalledWith(
+      {
+        jsonrpc: "2.0",
+        method: "ui/open-link",
+        params: { url: "https://example.com" },
+      },
+      "*",
+    );
+    expect(openSpy).toHaveBeenCalledWith("https://example.com", "_blank", "noopener");
+    openSpy.mockRestore();
   });
 
   it("onAction() fires callback when ui/action message arrives", async () => {

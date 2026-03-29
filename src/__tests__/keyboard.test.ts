@@ -73,6 +73,21 @@ describe("KeyboardForwarder", () => {
     expect(transport.send).not.toHaveBeenCalled();
   });
 
+  it("does NOT forward clipboard shortcuts (Cmd+C, Cmd+V, Cmd+X, Cmd+A)", () => {
+    forwarder = new KeyboardForwarder(transport);
+
+    fireKeydown("c", { metaKey: true });
+    fireKeydown("v", { metaKey: true });
+    fireKeydown("x", { metaKey: true });
+    fireKeydown("a", { metaKey: true });
+    fireKeydown("c", { ctrlKey: true });
+    fireKeydown("v", { ctrlKey: true });
+    fireKeydown("x", { ctrlKey: true });
+    fireKeydown("a", { ctrlKey: true });
+
+    expect(transport.send).not.toHaveBeenCalled();
+  });
+
   it("forwards Escape by default", () => {
     forwarder = new KeyboardForwarder(transport);
     fireKeydown("Escape");

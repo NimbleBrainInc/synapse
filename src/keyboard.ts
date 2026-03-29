@@ -53,9 +53,14 @@ export class KeyboardForwarder {
       );
     }
 
-    // Default: forward all Ctrl/Cmd combos + Escape
+    // Default: forward all Ctrl/Cmd combos + Escape,
+    // EXCEPT clipboard shortcuts (c, v, x, a) which the browser must handle natively.
     if (event.key === "Escape") return true;
-    if (event.ctrlKey || event.metaKey) return true;
+    if (event.ctrlKey || event.metaKey) {
+      const key = event.key.toLowerCase();
+      if (key === "c" || key === "v" || key === "x" || key === "a") return false;
+      return true;
+    }
     return false;
   }
 }

@@ -1,4 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+/** Generic callable — used to cast Vite plugin hooks in tests. */
+type AnyFn = (...args: never[]) => unknown;
 
 /**
  * Tests for the Vite plugin's pure logic.
@@ -23,14 +26,14 @@ describe("synapseVite plugin", () => {
 
   it("config() sets HMR to ws/localhost for iframe compat", () => {
     const plugin = synapseVite({ appName: "test-app" });
-    const config = (plugin.config as Function)({}, { command: "serve" });
+    const config = (plugin.config as AnyFn)({}, { command: "serve" });
     expect(config.server.hmr.protocol).toBe("ws");
     expect(config.server.hmr.host).toBe("localhost");
   });
 
   it("config() defines SYNAPSE_APP_NAME", () => {
     const plugin = synapseVite({ appName: "my-app" });
-    const config = (plugin.config as Function)({}, { command: "serve" });
+    const config = (plugin.config as AnyFn)({}, { command: "serve" });
     expect(config.define["import.meta.env.SYNAPSE_APP_NAME"]).toBe('"my-app"');
   });
 });
@@ -46,13 +49,15 @@ describe("preview host HTML", () => {
     const mockServer = {
       config: { root: "/tmp/test", server: { port: 5173 } },
       middlewares: {
-        use: (handler: Function) => {
+        use: (handler: AnyFn) => {
           // Simulate a request to /__preview
           const req = { url: "/__preview", method: "GET" } as any;
           const res = {
             setHeader: vi.fn(),
             writeHead: vi.fn(),
-            end: (html: string) => { capturedHtml = html; },
+            end: (html: string) => {
+              capturedHtml = html;
+            },
           } as any;
           const next = vi.fn();
           handler(req, res, next);
@@ -60,7 +65,7 @@ describe("preview host HTML", () => {
       },
     };
 
-    (plugin.configureServer as Function)(mockServer);
+    (plugin.configureServer as AnyFn)(mockServer);
     return capturedHtml;
   }
 
@@ -134,18 +139,18 @@ describe("manifest reading", () => {
     // Since we can't easily create temp files in vitest, we test
     // that the default appName is "app" when no manifest exists.
     const plugin = synapseVite();
-    const configResolved = plugin.configResolved as Function;
+    const configResolved = plugin.configResolved as AnyFn;
     configResolved({ root: "/nonexistent/path" });
     // appName stays "app" since no manifest found
-    const config = (plugin.config as Function)({}, { command: "serve" });
+    const config = (plugin.config as AnyFn)({}, { command: "serve" });
     expect(config.define["import.meta.env.SYNAPSE_APP_NAME"]).toBe('"app"');
   });
 
   it("uses explicit appName over manifest", () => {
     const plugin = synapseVite({ appName: "override" });
-    const configResolved = plugin.configResolved as Function;
+    const configResolved = plugin.configResolved as AnyFn;
     configResolved({ root: "/nonexistent/path" });
-    const config = (plugin.config as Function)({}, { command: "serve" });
+    const config = (plugin.config as AnyFn)({}, { command: "serve" });
     expect(config.define["import.meta.env.SYNAPSE_APP_NAME"]).toBe('"override"');
   });
 });
@@ -158,12 +163,17 @@ describe("__mcp middleware", () => {
     const mockServer = {
       config: { root: "/tmp/test", server: { port: 5173 } },
       middlewares: {
-        use: (handler: Function) => {
+        use: (handler: AnyFn) => {
           const req = {
             url: "/__mcp",
             method: "POST",
-            on: (event: string, cb: Function) => {
-              if (event === "data") cb(Buffer.from('{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"test","arguments":{}}}'));
+            on: (event: string, cb: AnyFn) => {
+              if (event === "data")
+                cb(
+                  Buffer.from(
+                    '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"test","arguments":{}}}',
+                  ),
+                );
               if (event === "end") {
                 mcpHandled = true;
                 cb();
@@ -181,7 +191,7 @@ describe("__mcp middleware", () => {
       },
     };
 
-    (plugin.configureServer as Function)(mockServer);
+    (plugin.configureServer as AnyFn)(mockServer);
     expect(mcpHandled).toBe(true);
   });
 
@@ -192,16 +202,18 @@ describe("__mcp middleware", () => {
     const mockServer = {
       config: { root: "/tmp/test", server: { port: 5173 } },
       middlewares: {
-        use: (handler: Function) => {
+        use: (handler: AnyFn) => {
           const req = { url: "/some-other-path", method: "GET" } as any;
           const res = { setHeader: vi.fn() } as any;
-          const next = () => { nextCalled = true; };
+          const next = () => {
+            nextCalled = true;
+          };
           handler(req, res, next);
         },
       },
     };
 
-    (plugin.configureServer as Function)(mockServer);
+    (plugin.configureServer as AnyFn)(mockServer);
     expect(nextCalled).toBe(true);
   });
 });

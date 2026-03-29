@@ -58,19 +58,19 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
 
     // Minimal NimbleBrain bridge host — just enough to make Synapse work
     var tokens = darkMode ? {
-      "--nb-background": "#0f172a", "--nb-foreground": "#e2e8f0",
-      "--nb-card": "#1e293b", "--nb-card-foreground": "#e2e8f0",
-      "--nb-primary": "#6366f1", "--nb-primary-foreground": "#ffffff",
-      "--nb-muted-foreground": "#94a3b8", "--nb-border": "#334155",
-      "--nb-ring": "#6366f1", "--nb-destructive": "#ef4444",
-      "--nb-radius": "0.5rem",
+      "--color-background-primary": "#0f172a", "--color-text-primary": "#e2e8f0",
+      "--color-background-secondary": "#1e293b", "--color-text-primary": "#e2e8f0",
+      "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
+      "--color-text-secondary": "#94a3b8", "--color-border-primary": "#334155",
+      "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+      "--border-radius-sm": "0.5rem",
     } : {
-      "--nb-background": "#ffffff", "--nb-foreground": "#1a1a1a",
-      "--nb-card": "#f9fafb", "--nb-card-foreground": "#1a1a1a",
-      "--nb-primary": "#6366f1", "--nb-primary-foreground": "#ffffff",
-      "--nb-muted-foreground": "#6b7280", "--nb-border": "#e5e7eb",
-      "--nb-ring": "#6366f1", "--nb-destructive": "#ef4444",
-      "--nb-radius": "0.5rem",
+      "--color-background-primary": "#ffffff", "--color-text-primary": "#1a1a1a",
+      "--color-background-secondary": "#f9fafb", "--color-text-primary": "#1a1a1a",
+      "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
+      "--color-text-secondary": "#6b7280", "--color-border-primary": "#e5e7eb",
+      "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+      "--border-radius-sm": "0.5rem",
     };
 
     function post(msg) { iframe.contentWindow.postMessage(msg, "*"); }
@@ -147,19 +147,19 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
       darkMode = !darkMode;
       document.body.style.background = darkMode ? "#0f172a" : "#f1f5f9";
       tokens = darkMode ? {
-        "--nb-background": "#0f172a", "--nb-foreground": "#e2e8f0",
-        "--nb-card": "#1e293b", "--nb-card-foreground": "#e2e8f0",
-        "--nb-primary": "#6366f1", "--nb-primary-foreground": "#ffffff",
-        "--nb-muted-foreground": "#94a3b8", "--nb-border": "#334155",
-        "--nb-ring": "#6366f1", "--nb-destructive": "#ef4444",
-        "--nb-radius": "0.5rem",
+        "--color-background-primary": "#0f172a", "--color-text-primary": "#e2e8f0",
+        "--color-background-secondary": "#1e293b", "--color-text-primary": "#e2e8f0",
+        "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
+        "--color-text-secondary": "#94a3b8", "--color-border-primary": "#334155",
+        "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+        "--border-radius-sm": "0.5rem",
       } : {
-        "--nb-background": "#ffffff", "--nb-foreground": "#1a1a1a",
-        "--nb-card": "#f9fafb", "--nb-card-foreground": "#1a1a1a",
-        "--nb-primary": "#6366f1", "--nb-primary-foreground": "#ffffff",
-        "--nb-muted-foreground": "#6b7280", "--nb-border": "#e5e7eb",
-        "--nb-ring": "#6366f1", "--nb-destructive": "#ef4444",
-        "--nb-radius": "0.5rem",
+        "--color-background-primary": "#ffffff", "--color-text-primary": "#1a1a1a",
+        "--color-background-secondary": "#f9fafb", "--color-text-primary": "#1a1a1a",
+        "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
+        "--color-text-secondary": "#6b7280", "--color-border-primary": "#e5e7eb",
+        "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+        "--border-radius-sm": "0.5rem",
       };
       post({ jsonrpc: "2.0", method: "ui/themeChanged", params: { mode: darkMode ? "dark" : "light", tokens: tokens } });
     });

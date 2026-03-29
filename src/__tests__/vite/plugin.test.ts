@@ -108,9 +108,9 @@ describe("preview host HTML", () => {
 
   it("includes NB theme tokens", () => {
     const html = getPreviewHtml("hello");
-    expect(html).toContain("--nb-primary");
-    expect(html).toContain("--nb-background");
-    expect(html).toContain("--nb-foreground");
+    expect(html).toContain("--color-text-accent");
+    expect(html).toContain("--color-background-primary");
+    expect(html).toContain("--color-text-primary");
   });
 
   it("handles ui/stateChanged with acknowledgement", () => {

@@ -26,6 +26,55 @@ export interface DataChangedEvent {
   tool: string;
 }
 
+// ---------- Agent Actions ----------
+
+/**
+ * Built-in action types that Synapse handles natively.
+ *
+ * - `navigate` — select/focus a resource in the UI (e.g., a board, document, record)
+ * - `notify`   — display a transient message (toast/banner)
+ * - `refresh`  — force a full data refresh (heavier than datachanged)
+ * - `confirm`  — request user confirmation before the agent proceeds
+ *
+ * Apps may also receive custom string types for domain-specific actions.
+ */
+export type BuiltinActionType = "navigate" | "notify" | "refresh" | "confirm";
+
+/**
+ * A typed, declarative action sent from the agent/server to the UI.
+ *
+ * Actions are deterministic side effects of tool execution — the tool decides
+ * what action to emit, not the LLM. The UI decides how to handle it.
+ *
+ * This mirrors Studio's ClientAction pattern, adapted for iframe postMessage.
+ */
+export interface AgentAction<TPayload = Record<string, unknown>> {
+  /** Discriminator — a BuiltinActionType or custom string. */
+  type: BuiltinActionType | (string & {});
+  /** Typed payload — shape depends on `type`. */
+  payload: TPayload;
+  /** If true, the UI should confirm with the user before executing. */
+  requiresConfirmation?: boolean;
+  /** Human-readable label for confirmation dialogs or logs. */
+  label?: string;
+}
+
+/** Payload for the built-in "navigate" action. */
+export interface NavigatePayload {
+  /** Entity type (e.g., "board", "document", "task"). */
+  entity: string;
+  /** Entity ID to select/focus. */
+  id: string;
+  /** Optional sub-view or section within the entity. */
+  view?: string;
+}
+
+/** Payload for the built-in "notify" action. */
+export interface NotifyPayload {
+  message: string;
+  level?: "info" | "success" | "warning" | "error";
+}
+
 export interface ToolCallResult<T = unknown> {
   data: T;
   isError: boolean;
@@ -41,6 +90,17 @@ export interface Synapse {
   ): Promise<ToolCallResult<TOutput>>;
 
   onDataChanged(callback: (event: DataChangedEvent) => void): () => void;
+
+  /**
+   * Subscribe to agent actions — typed, declarative commands from the server.
+   *
+   * Actions are deterministic side effects of tool execution. The server/tool
+   * decides what action to emit; the UI decides how to handle it.
+   *
+   * The callback receives an AgentAction with a `type` discriminator and typed
+   * `payload`. Apps should handle known types and ignore unknown ones.
+   */
+  onAction(callback: (action: AgentAction) => void): () => void;
 
   getTheme(): SynapseTheme;
   onThemeChanged(callback: (theme: SynapseTheme) => void): () => void;

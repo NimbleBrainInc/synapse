@@ -3,6 +3,7 @@ import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { SynapseTransport } from "./transport.js";
 import type {
+  AgentAction,
   DataChangedEvent,
   HostInfo,
   Synapse,
@@ -84,6 +85,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
 
   const themeCallbacks = new Set<(theme: SynapseTheme) => void>();
   const dataCallbacks = new Set<(event: DataChangedEvent) => void>();
+  const actionCallbacks = new Set<(action: AgentAction) => void>();
 
   // Listen for data change events
   const unsubData = transport.onMessage("ui/datachanged", (params) => {
@@ -94,6 +96,18 @@ export function createSynapse(options: SynapseOptions): Synapse {
       tool: (params.tool as string) ?? "",
     };
     for (const cb of dataCallbacks) cb(event);
+  });
+
+  // Listen for agent actions (typed, declarative commands from the server)
+  const unsubAction = transport.onMessage("ui/action", (params) => {
+    if (!params || typeof params.type !== "string") return;
+    const action: AgentAction = {
+      type: params.type as string,
+      payload: (params.payload as Record<string, unknown>) ?? {},
+      requiresConfirmation: params.requiresConfirmation === true,
+      label: typeof params.label === "string" ? params.label : undefined,
+    };
+    for (const cb of actionCallbacks) cb(action);
   });
 
   const isNB = () => hostInfo?.isNimbleBrain === true;
@@ -131,6 +145,13 @@ export function createSynapse(options: SynapseOptions): Synapse {
       dataCallbacks.add(callback);
       return () => {
         dataCallbacks.delete(callback);
+      };
+    },
+
+    onAction(callback: (action: AgentAction) => void): () => void {
+      actionCallbacks.add(callback);
+      return () => {
+        actionCallbacks.delete(callback);
       };
     },
 
@@ -207,8 +228,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
       unsubTheme();
       unsubNbTheme();
       unsubData();
+      unsubAction();
       themeCallbacks.clear();
       dataCallbacks.clear();
+      actionCallbacks.clear();
       transport.destroy();
     },
   };

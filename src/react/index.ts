@@ -1,6 +1,7 @@
 export {
   SynapseProvider,
   useAction,
+  useAgentAction,
   useCallTool,
   useChat,
   useDataSync,

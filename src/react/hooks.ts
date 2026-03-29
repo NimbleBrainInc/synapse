@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
   ActionReducer,
+  AgentAction,
   DataChangedEvent,
   Store,
   StoreDispatch,
@@ -67,6 +68,32 @@ export function useDataSync(callback: (event: DataChangedEvent) => void): void {
 
   useEffect(() => {
     return synapse.onDataChanged((event) => callbackRef.current(event));
+  }, [synapse]);
+}
+
+/**
+ * Subscribe to agent actions — typed, declarative commands from the server.
+ *
+ * Actions are emitted by tools as deterministic side effects (e.g., "navigate
+ * to the board I just created"). The UI decides how to handle each action type.
+ *
+ * @example
+ * ```tsx
+ * useAgentAction((action) => {
+ *   if (action.type === "navigate") {
+ *     const { entity, id } = action.payload as NavigatePayload;
+ *     if (entity === "board") setSelectedBoardId(id);
+ *   }
+ * });
+ * ```
+ */
+export function useAgentAction(callback: (action: AgentAction) => void): void {
+  const synapse = useSynapseContext();
+  const callbackRef = useRef(callback);
+  callbackRef.current = callback;
+
+  useEffect(() => {
+    return synapse.onAction((action) => callbackRef.current(action));
   }, [synapse]);
 }
 

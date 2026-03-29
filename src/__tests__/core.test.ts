@@ -320,6 +320,59 @@ describe("createSynapse", () => {
     );
   });
 
+  it("onAction() fires callback when ui/action message arrives", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    const callback = vi.fn();
+    synapse.onAction(callback);
+
+    dispatchNotification("ui/action", {
+      type: "navigate",
+      payload: { entity: "board", id: "bd_123" },
+      label: "Go to board",
+    });
+
+    expect(callback).toHaveBeenCalledTimes(1);
+    expect(callback).toHaveBeenCalledWith({
+      type: "navigate",
+      payload: { entity: "board", id: "bd_123" },
+      requiresConfirmation: false,
+      label: "Go to board",
+    });
+  });
+
+  it("onAction() ignores messages without a type field", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    const callback = vi.fn();
+    synapse.onAction(callback);
+
+    dispatchNotification("ui/action", { payload: { foo: "bar" } });
+
+    expect(callback).not.toHaveBeenCalled();
+  });
+
+  it("onAction() unsubscribe stops callback", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    const callback = vi.fn();
+    const unsub = synapse.onAction(callback);
+
+    dispatchNotification("ui/action", { type: "refresh", payload: {} });
+    expect(callback).toHaveBeenCalledTimes(1);
+
+    unsub();
+
+    dispatchNotification("ui/action", { type: "refresh", payload: {} });
+    expect(callback).toHaveBeenCalledTimes(1);
+  });
+
   it("destroyed is false before destroy and true after", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake();
@@ -336,7 +389,9 @@ describe("createSynapse", () => {
     await synapse.ready;
 
     const dataCallback = vi.fn();
+    const actionCallback = vi.fn();
     synapse.onDataChanged(dataCallback);
+    synapse.onAction(actionCallback);
 
     synapse.destroy();
 
@@ -352,6 +407,13 @@ describe("createSynapse", () => {
       tool: "t",
     });
     expect(dataCallback).not.toHaveBeenCalled();
+
+    // Action callbacks should no longer fire
+    dispatchNotification("ui/action", {
+      type: "navigate",
+      payload: { entity: "board", id: "bd_1" },
+    });
+    expect(actionCallback).not.toHaveBeenCalled();
 
     // setVisibleState debounce timer should be cleared (no message after advance)
     synapse.setVisibleState({ x: 1 });

@@ -5,6 +5,7 @@ export {
   useCallTool,
   useChat,
   useDataSync,
+  useFileUpload,
   useStore,
   useSynapse,
   useTheme,

@@ -334,7 +334,7 @@ function previewHostHtml(appName: string): string {
           // Only for mutating operations (not list/search/get which are read-only)
           var tn = msg.params.name || "";
           if (!response.error && !tn.startsWith("list_") && !tn.startsWith("search_") && !tn.startsWith("get_") && !tn.startsWith("query_")) {
-            post({jsonrpc:"2.0",method:"ui/datachanged",params:{tool:tn,server:"preview"}});
+            post({jsonrpc:"2.0",method:"synapse/data-changed",params:{tool:tn,server:"preview"}});
           }
         } catch(err) {
           post({jsonrpc:"2.0",id:originalId,error:{code:-32000,message:err.message}});
@@ -343,17 +343,17 @@ function previewHostHtml(appName: string): string {
       }
 
       // Log other messages
-      if (msg.method === "ui/chat") console.log("[chat]", msg.params?.message);
-      else if (msg.method === "ui/action") console.log("[action]", msg.params?.action, msg.params);
-      else if (msg.method === "ui/stateChanged") { console.log("[state]", msg.params?.state); post({jsonrpc:"2.0",method:"ui/stateAcknowledged",params:{truncated:false}}); }
-      else if (msg.method === "ui/keydown") { /* ignore */ }
+      if (msg.method === "synapse/chat") console.log("[chat]", msg.params?.message);
+      else if (msg.method === "synapse/action") console.log("[action]", msg.params?.action, msg.params);
+      else if (msg.method === "ui/update-model-context") { console.log("[model-context]", msg.params?.structuredContent); if (msg.id) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
+      else if (msg.method === "synapse/keydown") { /* ignore */ }
       else if (msg.method) console.log("[bridge]", msg.method, msg);
     });
 
     document.getElementById("toggle").onclick = function() {
       dark = !dark;
       document.body.style.background = dark ? "#0f172a" : "#f1f5f9";
-      post({jsonrpc:"2.0",method:"ui/themeChanged",params:{mode:dark?"dark":"light",tokens:getTokens(dark)}});
+      post({jsonrpc:"2.0",method:"synapse/theme-changed",params:{mode:dark?"dark":"light",tokens:getTokens(dark)}});
     };
 
     // Load the iframe AFTER the message listener is attached to avoid

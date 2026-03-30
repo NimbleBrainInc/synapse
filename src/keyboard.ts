@@ -18,7 +18,7 @@ export class KeyboardForwarder {
       if (this.destroyed) return;
       if (this.shouldForward(event, config)) {
         event.preventDefault();
-        transport.send("ui/keydown", {
+        transport.send("synapse/keydown", {
           key: event.key,
           ctrlKey: event.ctrlKey,
           metaKey: event.metaKey,

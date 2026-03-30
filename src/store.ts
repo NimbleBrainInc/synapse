@@ -44,7 +44,7 @@ export function createStore<
     if (persistTimer) clearTimeout(persistTimer);
     persistTimer = setTimeout(() => {
       synapse
-        ._request("ui/persistState", {
+        ._request("synapse/persist-state", {
           state: state as unknown as Record<string, unknown>,
           version: config.version,
         })
@@ -58,7 +58,7 @@ export function createStore<
   // Listen for state loaded from host (on init)
   let unsubStateLoaded: (() => void) | undefined;
   if (config.persist) {
-    unsubStateLoaded = synapse._onMessage("ui/stateLoaded", (params) => {
+    unsubStateLoaded = synapse._onMessage("synapse/state-loaded", (params) => {
       if (!params?.state) return;
       let loaded = params.state as TState;
       const loadedVersion = (params.version as number) ?? 1;

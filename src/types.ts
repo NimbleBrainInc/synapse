@@ -80,6 +80,24 @@ export interface ToolCallResult<T = unknown> {
   isError: boolean;
 }
 
+/** Result from a file picker request */
+export interface FileResult {
+  filename: string;
+  mimeType: string;
+  size: number;
+  base64Data: string;
+}
+
+/** Options for requesting a file from the user */
+export interface RequestFileOptions {
+  /** File type filter (e.g., ".csv,.json", "image/*") */
+  accept?: string;
+  /** Max file size in bytes. Default: 25 MB */
+  maxSize?: number;
+  /** Allow multiple file selection. Default: false */
+  multiple?: boolean;
+}
+
 export interface Synapse {
   readonly ready: Promise<void>;
   readonly isNimbleBrainHost: boolean;
@@ -128,13 +146,27 @@ export interface Synapse {
   downloadFile(filename: string, content: string | Blob, mimeType?: string): void;
   openLink(url: string): void;
 
-  /** @internal — used by createStore for ui/stateLoaded */
+  /**
+   * Request a file from the user via the host's native file picker.
+   * NimbleBrain-only: throws in non-NimbleBrain hosts.
+   * Returns null if the user cancels.
+   */
+  requestFile(options?: RequestFileOptions): Promise<FileResult | null>;
+
+  /**
+   * Request multiple files from the user.
+   * NimbleBrain-only: throws in non-NimbleBrain hosts.
+   * Returns empty array if the user cancels.
+   */
+  requestFiles(options?: RequestFileOptions): Promise<FileResult[]>;
+
+  /** @internal — used by createStore for synapse/state-loaded */
   _onMessage(
     method: string,
     callback: (params: Record<string, unknown> | undefined) => void,
   ): () => void;
 
-  /** @internal — used by createStore for ui/persistState */
+  /** @internal — used by createStore for synapse/persist-state */
   _request(method: string, params?: Record<string, unknown>): Promise<unknown>;
 
   /** True after destroy() has been called. */

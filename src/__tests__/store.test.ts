@@ -114,7 +114,7 @@ describe("createStore", () => {
 
     // After 500ms debounce
     vi.advanceTimersByTime(500);
-    expect(synapse._request).toHaveBeenCalledWith("ui/persistState", {
+    expect(synapse._request).toHaveBeenCalledWith("synapse/persist-state", {
       state: { count: 1, label: "default" },
       version: 2,
     });
@@ -136,7 +136,7 @@ describe("createStore", () => {
 
     // Only one persist call with final state
     expect(synapse._request).toHaveBeenCalledTimes(1);
-    expect(synapse._request).toHaveBeenCalledWith("ui/persistState", {
+    expect(synapse._request).toHaveBeenCalledWith("synapse/persist-state", {
       state: { count: 3, label: "default" },
       version: undefined,
     });
@@ -193,7 +193,7 @@ describe("createStore", () => {
       persist: true,
     });
 
-    expect(synapse._onMessage).toHaveBeenCalledWith("ui/stateLoaded", expect.any(Function));
+    expect(synapse._onMessage).toHaveBeenCalledWith("synapse/state-loaded", expect.any(Function));
     store.destroy();
   });
 

@@ -3,6 +3,8 @@ import type {
   ActionReducer,
   AgentAction,
   DataChangedEvent,
+  FileResult,
+  RequestFileOptions,
   Store,
   StoreDispatch,
   Synapse,
@@ -173,6 +175,41 @@ export function useVisibleState(
   }, [...(deps ?? []), push]);
 
   if (!factory) return push;
+}
+
+export function useFileUpload(): {
+  requestFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
+  requestFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
+  isPending: boolean;
+} {
+  const synapse = useSynapseContext();
+  const [isPending, setIsPending] = useState(false);
+
+  const requestFile = useCallback(
+    async (options?: RequestFileOptions) => {
+      setIsPending(true);
+      try {
+        return await synapse.requestFile(options);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [synapse],
+  );
+
+  const requestFiles = useCallback(
+    async (options?: RequestFileOptions) => {
+      setIsPending(true);
+      try {
+        return await synapse.requestFiles(options);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [synapse],
+  );
+
+  return { requestFile, requestFiles, isPending };
 }
 
 export function useStore<TState, TActions extends Record<string, ActionReducer<TState, any>>>(

@@ -44,7 +44,7 @@ describe("KeyboardForwarder", () => {
     forwarder = new KeyboardForwarder(transport);
     fireKeydown("k", { ctrlKey: true });
 
-    expect(transport.send).toHaveBeenCalledWith("ui/keydown", {
+    expect(transport.send).toHaveBeenCalledWith("synapse/keydown", {
       key: "k",
       ctrlKey: true,
       metaKey: false,
@@ -57,7 +57,7 @@ describe("KeyboardForwarder", () => {
     forwarder = new KeyboardForwarder(transport);
     fireKeydown("k", { metaKey: true });
 
-    expect(transport.send).toHaveBeenCalledWith("ui/keydown", {
+    expect(transport.send).toHaveBeenCalledWith("synapse/keydown", {
       key: "k",
       ctrlKey: false,
       metaKey: true,
@@ -93,7 +93,7 @@ describe("KeyboardForwarder", () => {
     fireKeydown("Escape");
 
     expect(transport.send).toHaveBeenCalledWith(
-      "ui/keydown",
+      "synapse/keydown",
       expect.objectContaining({
         key: "Escape",
       }),

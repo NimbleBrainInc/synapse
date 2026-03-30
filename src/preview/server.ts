@@ -117,25 +117,25 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
         return;
       }
 
-      // ui/chat — log to console
-      if (msg.method === "ui/chat") {
+      // synapse/chat — log to console
+      if (msg.method === "synapse/chat") {
         console.log("[chat]", msg.params?.message);
         return;
       }
 
-      // ui/action — log to console
-      if (msg.method === "ui/action") {
+      // synapse/action — log to console
+      if (msg.method === "synapse/action") {
         console.log("[action]", msg.params?.action, msg.params);
         return;
       }
 
-      // ui/keydown — ignore in preview
-      if (msg.method === "ui/keydown") return;
+      // synapse/keydown — ignore in preview
+      if (msg.method === "synapse/keydown") return;
 
-      // ui/stateChanged — log
-      if (msg.method === "ui/stateChanged") {
-        console.log("[state]", msg.params?.state);
-        post({ jsonrpc: "2.0", method: "ui/stateAcknowledged", params: { truncated: false } });
+      // ui/update-model-context — log (ext-apps spec)
+      if (msg.method === "ui/update-model-context") {
+        console.log("[model-context]", msg.params?.structuredContent);
+        if (msg.id) post({ jsonrpc: "2.0", id: msg.id, result: {} });
         return;
       }
 
@@ -161,7 +161,7 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
         "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
         "--border-radius-sm": "0.5rem",
       };
-      post({ jsonrpc: "2.0", method: "ui/themeChanged", params: { mode: darkMode ? "dark" : "light", tokens: tokens } });
+      post({ jsonrpc: "2.0", method: "synapse/theme-changed", params: { mode: darkMode ? "dark" : "light", tokens: tokens } });
     });
   </script>
 </body>

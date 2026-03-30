@@ -101,7 +101,7 @@ await call({ limit: 10 });
 
 ## 4. Theming requires manual plumbing
 
-**The problem:** Your UI needs to match the host's light/dark mode and brand colors. With raw ext-apps, you parse theme tokens from the `ui/initialize` message, then listen for `ui/themeChanged`, then manually apply CSS variables.
+**The problem:** Your UI needs to match the host's light/dark mode and brand colors. With raw ext-apps, you parse theme tokens from the `ui/initialize` message, then listen for `synapse/theme-changed`, then manually apply CSS variables.
 
 **Without Synapse:**
 
@@ -113,7 +113,7 @@ window.addEventListener("message", (e) => {
       document.documentElement.style.setProperty(k, v);
     }
   }
-  if (m.method === "ui/themeChanged" && m.params?.tokens) {
+  if (m.method === "synapse/theme-changed" && m.params?.tokens) {
     for (const [k, v] of Object.entries(m.params.tokens)) {
       document.documentElement.style.setProperty(k, v);
     }

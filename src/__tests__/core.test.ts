@@ -183,7 +183,7 @@ describe("createSynapse", () => {
     const callback = vi.fn();
     synapse.onDataChanged(callback);
 
-    dispatchNotification("ui/datachanged", {
+    dispatchNotification("synapse/data-changed", {
       server: "my-server",
       tool: "my-tool",
     });
@@ -204,7 +204,7 @@ describe("createSynapse", () => {
     const callback = vi.fn();
     const unsub = synapse.onDataChanged(callback);
 
-    dispatchNotification("ui/datachanged", {
+    dispatchNotification("synapse/data-changed", {
       server: "s",
       tool: "t",
     });
@@ -212,7 +212,7 @@ describe("createSynapse", () => {
 
     unsub();
 
-    dispatchNotification("ui/datachanged", {
+    dispatchNotification("synapse/data-changed", {
       server: "s2",
       tool: "t2",
     });
@@ -231,7 +231,7 @@ describe("createSynapse", () => {
     expect(postMessageSpy).toHaveBeenCalledWith(
       {
         jsonrpc: "2.0",
-        method: "ui/action",
+        method: "synapse/action",
         params: { action: "refresh", scope: "all" },
       },
       "*",
@@ -443,7 +443,7 @@ describe("createSynapse", () => {
     const callback = vi.fn();
     synapse.onAction(callback);
 
-    dispatchNotification("ui/action", {
+    dispatchNotification("synapse/action", {
       type: "navigate",
       payload: { entity: "board", id: "bd_123" },
       label: "Go to board",
@@ -466,7 +466,7 @@ describe("createSynapse", () => {
     const callback = vi.fn();
     synapse.onAction(callback);
 
-    dispatchNotification("ui/action", { payload: { foo: "bar" } });
+    dispatchNotification("synapse/action", { payload: { foo: "bar" } });
 
     expect(callback).not.toHaveBeenCalled();
   });
@@ -479,12 +479,12 @@ describe("createSynapse", () => {
     const callback = vi.fn();
     const unsub = synapse.onAction(callback);
 
-    dispatchNotification("ui/action", { type: "refresh", payload: {} });
+    dispatchNotification("synapse/action", { type: "refresh", payload: {} });
     expect(callback).toHaveBeenCalledTimes(1);
 
     unsub();
 
-    dispatchNotification("ui/action", { type: "refresh", payload: {} });
+    dispatchNotification("synapse/action", { type: "refresh", payload: {} });
     expect(callback).toHaveBeenCalledTimes(1);
   });
 
@@ -517,14 +517,14 @@ describe("createSynapse", () => {
     expect(postMessageSpy).not.toHaveBeenCalled();
 
     // Data callbacks should no longer fire
-    dispatchNotification("ui/datachanged", {
+    dispatchNotification("synapse/data-changed", {
       server: "s",
       tool: "t",
     });
     expect(dataCallback).not.toHaveBeenCalled();
 
     // Action callbacks should no longer fire
-    dispatchNotification("ui/action", {
+    dispatchNotification("synapse/action", {
       type: "navigate",
       payload: { entity: "board", id: "bd_1" },
     });

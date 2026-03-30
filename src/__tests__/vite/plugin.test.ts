@@ -108,7 +108,7 @@ describe("preview host HTML", () => {
   it("includes theme toggle", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("Toggle Theme");
-    expect(html).toContain("ui/themeChanged");
+    expect(html).toContain("synapse/theme-changed");
   });
 
   it("includes NB theme tokens", () => {
@@ -118,15 +118,14 @@ describe("preview host HTML", () => {
     expect(html).toContain("--color-text-primary");
   });
 
-  it("handles ui/stateChanged with acknowledgement", () => {
+  it("handles ui/update-model-context per ext-apps spec", () => {
     const html = getPreviewHtml("hello");
-    expect(html).toContain("ui/stateChanged");
-    expect(html).toContain("ui/stateAcknowledged");
+    expect(html).toContain("ui/update-model-context");
   });
 
   it("sends ui/datachanged after successful tool call proxy", () => {
     const html = getPreviewHtml("hello");
-    expect(html).toContain("ui/datachanged");
+    expect(html).toContain("synapse/data-changed");
     // Only on success — guarded by !response.error
     expect(html).toContain("!response.error");
   });

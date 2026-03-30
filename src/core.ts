@@ -5,7 +5,9 @@ import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
   DataChangedEvent,
+  FileResult,
   HostInfo,
+  RequestFileOptions,
   Synapse,
   SynapseOptions,
   SynapseTheme,
@@ -70,8 +72,8 @@ export function createSynapse(options: SynapseOptions): Synapse {
     for (const cb of themeCallbacks) cb(currentTheme);
   });
 
-  // Also listen for NB-specific theme change message
-  const unsubNbTheme = transport.onMessage("ui/themeChanged", (params) => {
+  // Also listen for NB-specific synapse/theme-changed message
+  const unsubNbTheme = transport.onMessage("synapse/theme-changed", (params) => {
     if (!params) return;
     const mode =
       params.mode === "dark" || params.mode === "light" ? params.mode : currentTheme.mode;
@@ -88,7 +90,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
   const actionCallbacks = new Set<(action: AgentAction) => void>();
 
   // Listen for data change events
-  const unsubData = transport.onMessage("ui/datachanged", (params) => {
+  const unsubData = transport.onMessage("synapse/data-changed", (params) => {
     if (!params) return;
     const event: DataChangedEvent = {
       source: "agent",
@@ -99,7 +101,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
   });
 
   // Listen for agent actions (typed, declarative commands from the server)
-  const unsubAction = transport.onMessage("ui/action", (params) => {
+  const unsubAction = transport.onMessage("synapse/action", (params) => {
     if (!params || typeof params.type !== "string") return;
     const action: AgentAction = {
       type: params.type as string,
@@ -168,7 +170,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
 
     action(action: string, params?: Record<string, unknown>): void {
       if (!isNB()) return;
-      transport.send("ui/action", { action, ...params });
+      transport.send("synapse/action", { action, ...params });
     },
 
     chat(message: string, context?: { action?: string; entity?: string }): void {
@@ -199,7 +201,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
       if (!isNB()) return;
       const data = typeof content === "string" ? content : "[Blob content not serializable]";
-      transport.send("ui/download-file", {
+      transport.send("synapse/download-file", {
         data,
         filename,
         mimeType: mimeType ?? "application/octet-stream",
@@ -211,6 +213,31 @@ export function createSynapse(options: SynapseOptions): Synapse {
       if (!isNB()) {
         window.open(url, "_blank", "noopener");
       }
+    },
+
+    async requestFile(options?: RequestFileOptions): Promise<FileResult | null> {
+      if (!isNB()) {
+        throw new Error("requestFile is not supported in this host");
+      }
+      const result = await transport.request("synapse/request-file", {
+        accept: options?.accept,
+        maxSize: options?.maxSize ?? 26_214_400,
+        multiple: false,
+      });
+      return (result as FileResult) ?? null;
+    },
+
+    async requestFiles(options?: RequestFileOptions): Promise<FileResult[]> {
+      if (!isNB()) {
+        throw new Error("requestFiles is not supported in this host");
+      }
+      const result = await transport.request("synapse/request-file", {
+        accept: options?.accept,
+        maxSize: options?.maxSize ?? 26_214_400,
+        multiple: true,
+      });
+      if (!result) return [];
+      return Array.isArray(result) ? (result as FileResult[]) : [result as FileResult];
     },
 
     _onMessage(

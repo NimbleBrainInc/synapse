@@ -369,21 +369,17 @@ npm run ci         # Run full CI pipeline locally (lint → typecheck → build 
 
 ## Publishing
 
-Requires npm login with access to the `@nimblebrain` org.
+Publishing uses npm trusted publishing via GitHub Actions. No `npm login` needed.
 
 ```bash
-# First time: log in to npm
-npm login
-
-# Bump version (updates package.json and creates a git tag)
+# 1. Bump version in package.json
 npm version patch   # or minor / major
 
-# Publish (build runs automatically via prepublishOnly)
-npm publish --access public
-
-# Push the version tag
+# 2. Push commit + tag — CI verifies (lint, typecheck, build, test) then publishes
 git push origin main --tags
 ```
+
+The `publish.yml` workflow triggers on `v*` tags. It runs the full CI suite, verifies the tag matches `package.json`, then publishes with `--provenance`.
 
 ## License
 

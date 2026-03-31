@@ -20,9 +20,12 @@ export default defineConfig([
   },
   // IIFE build for iframe injection (no external deps — fully self-contained)
   {
-    entry: { "synapse-runtime.iife": "src/iife.ts" },
+    entry: {
+      "connect.iife": "src/iife.ts",
+      "synapse-runtime.iife": "src/iife.ts",
+    },
     format: ["iife"],
-    globalName: "NbSynapse",
+    globalName: "Synapse",
     sourcemap: false,
     dts: false,
     clean: false,

@@ -1,6 +1,6 @@
-import { createContext, type ReactNode, useContext, useRef } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { createSynapse } from "../core.js";
-import type { Synapse, SynapseOptions } from "../types.js";
+import type { Synapse, SynapseOptions, SynapseTheme } from "../types.js";
 
 const SynapseContext = createContext<Synapse | null>(null);
 
@@ -19,7 +19,33 @@ export function SynapseProvider({ children, ...options }: SynapseProviderProps) 
     ref.current = createSynapse(options);
   }
 
-  return <SynapseContext.Provider value={ref.current}>{children}</SynapseContext.Provider>;
+  return (
+    <SynapseContext.Provider value={ref.current}>
+      <ThemeInjector synapse={ref.current} />
+      {children}
+    </SynapseContext.Provider>
+  );
+}
+
+/** Injects theme CSS variables onto document.documentElement whenever the theme changes. */
+function ThemeInjector({ synapse }: { synapse: Synapse }) {
+  const [theme, setTheme] = useState<SynapseTheme>(() => synapse.getTheme());
+
+  useEffect(() => {
+    setTheme(synapse.getTheme());
+    return synapse.onThemeChanged(setTheme);
+  }, [synapse]);
+
+  useEffect(() => {
+    if (theme.tokens) {
+      const style = document.documentElement.style;
+      for (const [k, v] of Object.entries(theme.tokens)) {
+        style.setProperty(k, v);
+      }
+    }
+  }, [theme]);
+
+  return null;
 }
 
 export function useSynapseContext(): Synapse {

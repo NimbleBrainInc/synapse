@@ -4,7 +4,45 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - Unreleased
+## [0.3.0] - 2026-03-31
+
+### Added
+
+- `connect()` — async entry point that owns the handshake and resolves with a ready-to-use `App` object. Replaces the `createSynapse()` + `await ready` pattern.
+- `App.on()` — generic event subscription with short-name mapping (`"tool-result"`, `"tool-input"`, `"theme-changed"`, `"teardown"`)
+- `App.resize()` — manual and auto resize with `ResizeObserver` (16ms debounce)
+- `App.updateModelContext()` — push LLM-visible state (replaces `setVisibleState` name in the new API)
+- `App.sendMessage()` — send chat messages (replaces `chat` name in the new API)
+- `ToolResultData` type — parsed tool result with `content`, `structuredContent`, and `raw` fields
+- `Theme` type — simplified theme interface (mode + tokens, no primaryColor)
+- `Dimensions` type — container dimensions from the host
+- `ConnectOptions` interface
+- React: `AppProvider` component wrapping `connect()`
+- React: `useApp()`, `useToolResult()`, `useToolInput()`, `useResize()`, `useConnectTheme()` hooks
+- IIFE build: `window.Synapse` global with `connect`, `createSynapse`, `createStore`
+- Package export: `./iife` entry point (`dist/connect.iife.global.js`)
+- Content parser implementing the 5-step RFC algorithm for `tool-result` notifications
+- Event-name mapping module (`tool-result` → `ui/notifications/tool-result`, etc.)
+- Resize module with manual and auto modes
+
+### Changed
+
+- IIFE global renamed from `window.NbSynapse` to `window.Synapse`
+
+### Deprecated
+
+- `createSynapse()` — use `connect()` instead. `createSynapse()` continues to work for backwards compatibility.
+- `SynapseProvider` — use `AppProvider` instead for new apps.
+
+## [0.2.2]
+
+### Changed
+
+- `downloadFile()` renamed to `saveFile()` (message: `synapse/save-file`)
+- `requestFile()` renamed to `pickFile()` (message: `synapse/pick-file`)
+- `requestFiles()` renamed to `pickFiles()`
+
+## [0.1.0]
 
 ### Added
 

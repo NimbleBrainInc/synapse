@@ -1,10 +1,15 @@
+export { connect } from "./connect.js";
 export { createSynapse } from "./core.js";
 export { createStore } from "./store.js";
 export type {
   ActionReducer,
   AgentAction,
+  App,
+  AppEventName,
   BuiltinActionType,
+  ConnectOptions,
   DataChangedEvent,
+  Dimensions,
   FileResult,
   HostInfo,
   KeyForwardConfig,
@@ -18,7 +23,9 @@ export type {
   Synapse,
   SynapseOptions,
   SynapseTheme,
+  Theme,
   ToolCallResult,
   ToolDefinition,
+  ToolResultData,
   VisibleState,
 } from "./types.js";

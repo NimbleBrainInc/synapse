@@ -198,10 +198,12 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }, 250);
     },
 
-    downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
-      if (!isNB()) return;
+    saveFile(filename: string, content: string | Blob, mimeType?: string): void {
+      // Always send — the bridge handles this for any host that supports it.
+      // Removing the isNB() guard fixes silent failures when host detection
+      // hasn't completed yet or when the handshake response is delayed.
       const data = typeof content === "string" ? content : "[Blob content not serializable]";
-      transport.send("synapse/download-file", {
+      transport.send("synapse/save-file", {
         data,
         filename,
         mimeType: mimeType ?? "application/octet-stream",
@@ -215,11 +217,11 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }
     },
 
-    async requestFile(options?: RequestFileOptions): Promise<FileResult | null> {
+    async pickFile(options?: RequestFileOptions): Promise<FileResult | null> {
       if (!isNB()) {
-        throw new Error("requestFile is not supported in this host");
+        throw new Error("pickFile is not supported in this host");
       }
-      const result = await transport.request("synapse/request-file", {
+      const result = await transport.request("synapse/pick-file", {
         accept: options?.accept,
         maxSize: options?.maxSize ?? 26_214_400,
         multiple: false,
@@ -227,11 +229,11 @@ export function createSynapse(options: SynapseOptions): Synapse {
       return (result as FileResult) ?? null;
     },
 
-    async requestFiles(options?: RequestFileOptions): Promise<FileResult[]> {
+    async pickFiles(options?: RequestFileOptions): Promise<FileResult[]> {
       if (!isNB()) {
-        throw new Error("requestFiles is not supported in this host");
+        throw new Error("pickFiles is not supported in this host");
       }
-      const result = await transport.request("synapse/request-file", {
+      const result = await transport.request("synapse/pick-file", {
         accept: options?.accept,
         maxSize: options?.maxSize ?? 26_214_400,
         multiple: true,

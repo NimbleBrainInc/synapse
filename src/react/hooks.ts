@@ -178,18 +178,18 @@ export function useVisibleState(
 }
 
 export function useFileUpload(): {
-  requestFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
-  requestFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
+  pickFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
+  pickFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
   isPending: boolean;
 } {
   const synapse = useSynapseContext();
   const [isPending, setIsPending] = useState(false);
 
-  const requestFile = useCallback(
+  const pickFile = useCallback(
     async (options?: RequestFileOptions) => {
       setIsPending(true);
       try {
-        return await synapse.requestFile(options);
+        return await synapse.pickFile(options);
       } finally {
         setIsPending(false);
       }
@@ -197,11 +197,11 @@ export function useFileUpload(): {
     [synapse],
   );
 
-  const requestFiles = useCallback(
+  const pickFiles = useCallback(
     async (options?: RequestFileOptions) => {
       setIsPending(true);
       try {
-        return await synapse.requestFiles(options);
+        return await synapse.pickFiles(options);
       } finally {
         setIsPending(false);
       }
@@ -209,7 +209,7 @@ export function useFileUpload(): {
     [synapse],
   );
 
-  return { requestFile, requestFiles, isPending };
+  return { pickFile, pickFiles, isPending };
 }
 
 export function useStore<TState, TActions extends Record<string, ActionReducer<TState, any>>>(

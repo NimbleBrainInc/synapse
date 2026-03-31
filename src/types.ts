@@ -143,7 +143,7 @@ export interface Synapse {
    */
   setVisibleState(state: Record<string, unknown>, summary?: string): void;
 
-  downloadFile(filename: string, content: string | Blob, mimeType?: string): void;
+  saveFile(filename: string, content: string | Blob, mimeType?: string): void;
   openLink(url: string): void;
 
   /**
@@ -151,14 +151,14 @@ export interface Synapse {
    * NimbleBrain-only: throws in non-NimbleBrain hosts.
    * Returns null if the user cancels.
    */
-  requestFile(options?: RequestFileOptions): Promise<FileResult | null>;
+  pickFile(options?: RequestFileOptions): Promise<FileResult | null>;
 
   /**
-   * Request multiple files from the user.
+   * Pick multiple files from the user.
    * NimbleBrain-only: throws in non-NimbleBrain hosts.
    * Returns empty array if the user cancels.
    */
-  requestFiles(options?: RequestFileOptions): Promise<FileResult[]>;
+  pickFiles(options?: RequestFileOptions): Promise<FileResult[]>;
 
   /** @internal — used by createStore for synapse/state-loaded */
   _onMessage(
@@ -273,4 +273,59 @@ export interface HostInfo {
   serverName: string;
   protocolVersion: string;
   theme: SynapseTheme;
+}
+
+// ---------- Connect API ----------
+
+export interface ConnectOptions {
+  name: string;
+  version: string;
+  autoResize?: boolean;
+}
+
+export interface Theme {
+  mode: "light" | "dark";
+  tokens: Record<string, string>;
+}
+
+export interface Dimensions {
+  width?: number;
+  height?: number;
+  maxWidth?: number;
+  maxHeight?: number;
+}
+
+export interface ToolResultData {
+  content: unknown;
+  structuredContent: unknown;
+  raw: Record<string, unknown>;
+}
+
+/** Known short event names for App.on() */
+export type AppEventName =
+  | "tool-result"
+  | "tool-input"
+  | "tool-input-partial"
+  | "tool-cancelled"
+  | "theme-changed"
+  | "teardown";
+
+export interface App {
+  readonly theme: Theme;
+  readonly hostInfo: { name: string; version: string };
+  readonly toolInfo: { tool: Record<string, unknown> } | null;
+  readonly containerDimensions: Dimensions | null;
+
+  on(event: "tool-input", handler: (args: Record<string, unknown>) => void): () => void;
+  on(event: "tool-result", handler: (data: ToolResultData) => void): () => void;
+  on(event: "theme-changed", handler: (theme: Theme) => void): () => void;
+  on(event: "teardown", handler: () => void): () => void;
+  on(event: string, handler: (params: unknown) => void): () => void;
+
+  resize(width?: number, height?: number): void;
+  openLink(url: string): void;
+  updateModelContext(state: Record<string, unknown>, summary?: string): void;
+  callTool(name: string, args?: Record<string, unknown>): Promise<ToolCallResult>;
+  sendMessage(text: string, context?: { action?: string; entity?: string }): void;
+  destroy(): void;
 }

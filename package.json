@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Agent-aware app SDK for the MCP ext-apps protocol",
   "type": "module",
   "exports": {
@@ -23,6 +23,9 @@
       "types": "./dist/codegen/index.d.ts",
       "import": "./dist/codegen/index.js",
       "require": "./dist/codegen/index.cjs"
+    },
+    "./iife": {
+      "default": "./dist/connect.iife.global.js"
     }
   },
   "bin": {

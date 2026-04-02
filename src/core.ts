@@ -1,3 +1,20 @@
+import type {
+  McpUiHostContextChangedNotification,
+  McpUiInitializeRequest,
+  McpUiMessageRequest,
+  McpUiOpenLinkRequest,
+  McpUiUpdateModelContextRequest,
+} from "@modelcontextprotocol/ext-apps";
+import {
+  HOST_CONTEXT_CHANGED_METHOD,
+  INITIALIZE_METHOD,
+  INITIALIZED_METHOD,
+  LATEST_PROTOCOL_VERSION,
+  MESSAGE_METHOD,
+  OPEN_LINK_METHOD,
+} from "@modelcontextprotocol/ext-apps";
+import type { TextContent } from "@modelcontextprotocol/sdk/types.js";
+
 import { detectHost } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
@@ -42,45 +59,31 @@ export function createSynapse(options: SynapseOptions): Synapse {
   let keyboard: KeyboardForwarder | null = null;
 
   // --- ext-apps handshake ---
-  // We send ui/initialize as a JSON-RPC request and wait for the response.
+  const initParams: McpUiInitializeRequest["params"] = {
+    protocolVersion: LATEST_PROTOCOL_VERSION,
+    appInfo: { name, version },
+    appCapabilities: {},
+  };
+
   const ready = transport
-    .request("ui/initialize", {
-      protocolVersion: "2026-01-26",
-      clientInfo: { name, version },
-      capabilities: {},
-    })
+    .request(INITIALIZE_METHOD, initParams as unknown as Record<string, unknown>)
     .then((result) => {
       hostInfo = detectHost(result);
       currentTheme = hostInfo.theme;
 
-      // Send initialized notification per ext-apps spec
-      transport.send("ui/notifications/initialized", {});
+      transport.send(INITIALIZED_METHOD, {});
 
-      // Set up keyboard forwarding after we know the host
       keyboard = new KeyboardForwarder(transport, forwardKeys);
     });
 
-  // Listen for theme changes from the host
-  const unsubTheme = transport.onMessage("ui/notifications/host-context-changed", (params) => {
+  // Listen for theme changes from the host (ext-apps spec)
+  const unsubTheme = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     if (!params) return;
     const mode = params.theme === "dark" ? "dark" : "light";
-    const tokens =
-      params.tokens && typeof params.tokens === "object"
-        ? (params.tokens as Record<string, string>)
-        : currentTheme.tokens;
-    currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
-    for (const cb of themeCallbacks) cb(currentTheme);
-  });
-
-  // Also listen for NB-specific synapse/theme-changed message
-  const unsubNbTheme = transport.onMessage("synapse/theme-changed", (params) => {
-    if (!params) return;
-    const mode =
-      params.mode === "dark" || params.mode === "light" ? params.mode : currentTheme.mode;
-    const tokens =
-      params.tokens && typeof params.tokens === "object"
-        ? (params.tokens as Record<string, string>)
-        : currentTheme.tokens;
+    // Spec: tokens are nested under styles.variables
+    const styles = params.styles as Record<string, unknown> | undefined;
+    const variables = styles?.variables as Record<string, string> | undefined;
+    const tokens = variables && typeof variables === "object" ? variables : currentTheme.tokens;
     currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
     for (const cb of themeCallbacks) cb(currentTheme);
   });
@@ -174,26 +177,29 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     chat(message: string, context?: { action?: string; entity?: string }): void {
-      const textBlock: Record<string, unknown> = { type: "text", text: message };
-      if (isNB() && context) {
-        textBlock._meta = { context };
-      }
-      transport.send("ui/message", {
+      const textBlock: TextContent = {
+        type: "text",
+        text: message,
+        ...(isNB() && context && { _meta: { context } }),
+      };
+      const params: McpUiMessageRequest["params"] = {
         role: "user",
         content: [textBlock],
-      });
+      };
+      transport.send(MESSAGE_METHOD, params as unknown as Record<string, unknown>);
     },
 
     setVisibleState(state: Record<string, unknown>, summary?: string): void {
       // Debounce: 250ms
       if (stateTimer) clearTimeout(stateTimer);
       stateTimer = setTimeout(() => {
-        transport.send("ui/update-model-context", {
+        const params: McpUiUpdateModelContextRequest["params"] = {
           structuredContent: state,
           ...(summary !== undefined && {
-            content: [{ type: "text", text: summary }],
+            content: [{ type: "text", text: summary } satisfies TextContent],
           }),
-        });
+        };
+        transport.send("ui/update-model-context", params as unknown as Record<string, unknown>);
         stateTimer = null;
       }, 250);
     },
@@ -211,10 +217,14 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     openLink(url: string): void {
-      transport.send("ui/open-link", { url });
-      if (!isNB()) {
-        window.open(url, "_blank", "noopener");
-      }
+      const params: McpUiOpenLinkRequest["params"] = { url };
+      // Spec: ui/open-link is a request (expects a response), not a notification
+      transport
+        .request(OPEN_LINK_METHOD, params as unknown as Record<string, unknown>)
+        .catch(() => {
+          // Fallback: if host doesn't respond, open directly
+          window.open(url, "_blank", "noopener");
+        });
     },
 
     async pickFile(options?: RequestFileOptions): Promise<FileResult | null> {
@@ -260,7 +270,6 @@ export function createSynapse(options: SynapseOptions): Synapse {
       if (stateTimer) clearTimeout(stateTimer);
       keyboard?.destroy();
       unsubTheme();
-      unsubNbTheme();
       unsubData();
       unsubAction();
       themeCallbacks.clear();

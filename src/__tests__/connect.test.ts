@@ -9,10 +9,11 @@ let postMessageSpy: ReturnType<typeof vi.fn>;
 function makeInitResult(overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
-    serverInfo: { name: "test-host", version: "2.0.0" },
-    capabilities: {},
+    hostInfo: { name: "test-host", version: "2.0.0" },
+    hostCapabilities: {},
     hostContext: {
-      theme: { mode: "dark", tokens: { "--bg": "#111" } },
+      theme: "dark",
+      styles: { variables: { "--bg": "#111" } },
       toolInfo: { tool: { name: "search", description: "Search tool" } },
       containerDimensions: { width: 400, height: 600 },
     },
@@ -167,8 +168,8 @@ describe("connect()", () => {
     it("defaults theme to light with empty tokens when not provided", async () => {
       app = await connectAndHandshake(undefined, {
         protocolVersion: "2026-01-26",
-        serverInfo: { name: "bare", version: "1.0.0" },
-        capabilities: {},
+        hostInfo: { name: "bare", version: "1.0.0" },
+        hostCapabilities: {},
       });
       expect(app.theme).toEqual({ mode: "light", tokens: {} });
     });
@@ -184,8 +185,8 @@ describe("connect()", () => {
     it("toolInfo is null when not provided", async () => {
       app = await connectAndHandshake(undefined, {
         protocolVersion: "2026-01-26",
-        serverInfo: { name: "bare", version: "1.0.0" },
-        capabilities: {},
+        hostInfo: { name: "bare", version: "1.0.0" },
+        hostCapabilities: {},
       });
       expect(app.toolInfo).toBeNull();
     });
@@ -193,8 +194,8 @@ describe("connect()", () => {
     it("containerDimensions is null when not provided", async () => {
       app = await connectAndHandshake(undefined, {
         protocolVersion: "2026-01-26",
-        serverInfo: { name: "bare", version: "1.0.0" },
-        capabilities: {},
+        hostInfo: { name: "bare", version: "1.0.0" },
+        hostCapabilities: {},
       });
       expect(app.containerDimensions).toBeNull();
     });
@@ -253,7 +254,7 @@ describe("connect()", () => {
 
       dispatchNotification("ui/notifications/host-context-changed", {
         theme: "light",
-        tokens: { "--bg": "#fff" },
+        styles: { variables: { "--bg": "#fff" } },
       });
 
       expect(handler).toHaveBeenCalledTimes(1);

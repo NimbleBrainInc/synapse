@@ -17,10 +17,11 @@ let postMessageSpy: ReturnType<typeof vi.fn>;
 function makeInitResult(overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
-    serverInfo: { name: "test-host", version: "2.0.0" },
-    capabilities: {},
+    hostInfo: { name: "test-host", version: "2.0.0" },
+    hostCapabilities: {},
     hostContext: {
-      theme: { mode: "dark", tokens: { "--bg": "#111" } },
+      theme: "dark",
+      styles: { variables: { "--bg": "#111" } },
       toolInfo: { tool: { name: "search", description: "Search tool" } },
       containerDimensions: { width: 400, height: 600 },
     },
@@ -192,7 +193,7 @@ describe("connect-hooks", () => {
       await act(async () => {
         dispatchNotification("ui/notifications/host-context-changed", {
           theme: "light",
-          tokens: { "--bg": "#fff" },
+          styles: { variables: { "--bg": "#fff" } },
         });
       });
 

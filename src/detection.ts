@@ -1,3 +1,4 @@
+import type { McpUiHostContext, McpUiInitializeResult } from "@modelcontextprotocol/ext-apps";
 import type { HostInfo, SynapseTheme } from "./types";
 
 const DEFAULT_THEME: SynapseTheme = {
@@ -9,48 +10,37 @@ const DEFAULT_THEME: SynapseTheme = {
 /**
  * Detect the host environment from the ext-apps `ui/initialize` response.
  *
+ * Uses spec field names (hostInfo, hostContext.theme as string, styles.variables).
  * Handles missing or malformed fields gracefully — never throws.
  */
 export function detectHost(initResponse: unknown): HostInfo {
-  const resp = initResponse as Record<string, unknown> | null | undefined;
+  const resp = initResponse as Partial<McpUiInitializeResult> | null | undefined;
 
-  const serverInfo = safeObj(resp?.serverInfo);
-  const serverName = typeof serverInfo?.name === "string" ? serverInfo.name : "unknown";
-
-  const protocolVersion =
-    typeof resp?.protocolVersion === "string" ? resp.protocolVersion : "unknown";
-
-  const hostContext = safeObj(resp?.hostContext);
-  const theme = extractTheme(hostContext?.theme);
+  const hostName = resp?.hostInfo?.name ?? "unknown";
+  const protocolVersion = resp?.protocolVersion ?? "unknown";
+  const ctx = resp?.hostContext as Partial<McpUiHostContext> | undefined;
+  const theme = extractTheme(ctx);
 
   return {
-    isNimbleBrain: serverName === "nimblebrain",
-    serverName,
+    isNimbleBrain: hostName === "nimblebrain",
+    serverName: hostName,
     protocolVersion,
     theme,
   };
 }
 
-function extractTheme(raw: unknown): SynapseTheme {
-  const obj = safeObj(raw);
-  if (!obj) return { ...DEFAULT_THEME };
+function extractTheme(ctx: Partial<McpUiHostContext> | undefined): SynapseTheme {
+  if (!ctx) return { ...DEFAULT_THEME };
 
-  const mode = obj.mode === "light" || obj.mode === "dark" ? obj.mode : DEFAULT_THEME.mode;
+  // Spec: theme is a string ("light" | "dark")
+  const mode = ctx.theme === "light" || ctx.theme === "dark" ? ctx.theme : DEFAULT_THEME.mode;
 
-  const primaryColor =
-    typeof obj.primaryColor === "string" ? obj.primaryColor : DEFAULT_THEME.primaryColor;
-
+  // Spec: tokens live under styles.variables
+  const variables = ctx.styles?.variables;
   const tokens =
-    obj.tokens !== null && typeof obj.tokens === "object" && !Array.isArray(obj.tokens)
-      ? (obj.tokens as Record<string, string>)
+    variables && typeof variables === "object" && !Array.isArray(variables)
+      ? (variables as Record<string, string>)
       : {};
 
-  return { mode, primaryColor, tokens };
-}
-
-function safeObj(value: unknown): Record<string, unknown> | undefined {
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
-  }
-  return undefined;
+  return { mode, primaryColor: DEFAULT_THEME.primaryColor, tokens };
 }

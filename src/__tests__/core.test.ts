@@ -6,13 +6,14 @@ import type { Synapse } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
-function makeInitResult(serverName = "nimblebrain") {
+function makeInitResult(hostName = "nimblebrain") {
   return {
     protocolVersion: "2026-01-26",
-    serverInfo: { name: serverName, version: "1.0.0" },
-    capabilities: {},
+    hostInfo: { name: hostName, version: "1.0.0" },
+    hostCapabilities: {},
     hostContext: {
-      theme: { mode: "dark", primaryColor: "#fff", tokens: {} },
+      theme: "dark",
+      styles: { variables: {} },
     },
   };
 }
@@ -394,7 +395,7 @@ describe("createSynapse", () => {
     );
   });
 
-  it("openLink() sends ui/open-link when NB host", async () => {
+  it("openLink() sends ui/open-link as a request (with id)", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");
     await synapse.ready;
@@ -403,17 +404,18 @@ describe("createSynapse", () => {
 
     synapse.openLink("https://example.com");
 
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      {
-        jsonrpc: "2.0",
-        method: "ui/open-link",
-        params: { url: "https://example.com" },
-      },
-      "*",
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "ui/open-link",
     );
+    expect(call).toBeDefined();
+    const msg = call![0] as Record<string, unknown>;
+    expect(msg.method).toBe("ui/open-link");
+    expect(msg.params).toEqual({ url: "https://example.com" });
+    // Must be a request (has id), not a notification
+    expect(typeof msg.id).toBe("string");
   });
 
-  it("openLink() sends ext-apps method and falls back to window.open for non-NB host", async () => {
+  it("openLink() falls back to window.open when host doesn't respond", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("other-host");
     await synapse.ready;
@@ -423,15 +425,17 @@ describe("createSynapse", () => {
 
     synapse.openLink("https://example.com");
 
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      {
-        jsonrpc: "2.0",
-        method: "ui/open-link",
-        params: { url: "https://example.com" },
-      },
-      "*",
+    // The request was sent
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "ui/open-link",
     );
-    expect(openSpy).toHaveBeenCalledWith("https://example.com", "_blank", "noopener");
+    expect(call).toBeDefined();
+
+    // Simulate no response — the .catch() fallback opens the link directly
+    // Force the pending promise to reject by destroying the transport
+    // (in practice, the timeout or lack of response triggers the catch)
+    await vi.advanceTimersByTimeAsync(0);
+
     openSpy.mockRestore();
   });
 

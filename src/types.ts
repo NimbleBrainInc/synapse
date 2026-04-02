@@ -281,6 +281,9 @@ export interface ConnectOptions {
   name: string;
   version: string;
   autoResize?: boolean;
+  /** Pre-register event handlers before the handshake completes.
+   *  These are wired before `initialized` is sent, so no messages are lost. */
+  on?: Record<string, (data: any) => void>;
 }
 
 export interface Theme {

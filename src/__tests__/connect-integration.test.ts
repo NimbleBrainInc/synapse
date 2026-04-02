@@ -81,10 +81,11 @@ class MockHost {
   private defaultInitResult() {
     return {
       protocolVersion: "2026-01-26",
-      serverInfo: { name: "test-host", version: "2.0.0" },
-      capabilities: {},
+      hostInfo: { name: "test-host", version: "2.0.0" },
+      hostCapabilities: {},
       hostContext: {
-        theme: { mode: "dark", tokens: { "--bg": "#111" } },
+        theme: "dark",
+        styles: { variables: { "--bg": "#111" } },
         toolInfo: { tool: { name: "search", description: "Search tool" } },
         containerDimensions: { width: 400, height: 600 },
       },
@@ -137,7 +138,7 @@ describe("connect() integration", () => {
       // Host sends theme-changed
       host.sendNotification("ui/notifications/host-context-changed", {
         theme: "light",
-        tokens: { "--bg": "#fff" },
+        styles: { variables: { "--bg": "#fff" } },
       });
       expect(themeHandler).toHaveBeenCalledTimes(1);
       expect(app.theme).toEqual({ mode: "light", tokens: { "--bg": "#fff" } });
@@ -460,9 +461,9 @@ describe("connect() integration", () => {
             id,
             result: {
               protocolVersion: "2026-01-26",
-              serverInfo: { name: "nimblebrain", version: "1.0.0" },
-              capabilities: {},
-              hostContext: { theme: { mode: "dark", primaryColor: "#fff", tokens: {} } },
+              hostInfo: { name: "nimblebrain", version: "1.0.0" },
+              hostCapabilities: {},
+              hostContext: { theme: "dark", styles: { variables: {} } },
             },
           },
         }),

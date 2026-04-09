@@ -395,6 +395,84 @@ describe("createSynapse", () => {
     );
   });
 
+  it("saveFile() sends synapse/save-file notification", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.saveFile("report.csv", "a,b,c", "text/csv");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/save-file",
+    );
+    expect(call).toBeDefined();
+    const msg = call![0] as Record<string, unknown>;
+    expect(msg.params).toEqual({
+      data: "a,b,c",
+      filename: "report.csv",
+      mimeType: "text/csv",
+    });
+  });
+
+  it("saveFile() defaults mimeType to application/octet-stream", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.saveFile("data.bin", "raw");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/save-file",
+    );
+    expect(call).toBeDefined();
+    expect((call![0] as Record<string, unknown>).params).toMatchObject({
+      mimeType: "application/octet-stream",
+    });
+  });
+
+  it("downloadFile() sends synapse/download-file notification", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.downloadFile("document.pdf", "pdf-content", "application/pdf");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    const msg = call![0] as Record<string, unknown>;
+    expect(msg.params).toEqual({
+      data: "pdf-content",
+      filename: "document.pdf",
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("downloadFile() defaults mimeType to application/octet-stream", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    synapse.downloadFile("file.dat", "binary-data");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    expect((call![0] as Record<string, unknown>).params).toMatchObject({
+      mimeType: "application/octet-stream",
+    });
+  });
+
   it("openLink() sends ui/open-link as a request (with id)", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");

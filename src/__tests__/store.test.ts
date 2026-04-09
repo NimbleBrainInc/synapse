@@ -26,6 +26,7 @@ function createMockSynapse(): Synapse {
     chat: vi.fn(),
     setVisibleState: vi.fn(),
     saveFile: vi.fn(),
+    downloadFile: vi.fn(),
     openLink: vi.fn(),
     _onMessage: vi.fn(() => () => {}),
     _request: vi.fn(() => Promise.resolve()),

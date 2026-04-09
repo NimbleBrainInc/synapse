@@ -144,6 +144,7 @@ export interface Synapse {
   setVisibleState(state: Record<string, unknown>, summary?: string): void;
 
   saveFile(filename: string, content: string | Blob, mimeType?: string): void;
+  downloadFile(filename: string, content: string | Blob, mimeType?: string): void;
   openLink(url: string): void;
 
   /**

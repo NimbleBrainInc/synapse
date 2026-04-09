@@ -216,6 +216,15 @@ export function createSynapse(options: SynapseOptions): Synapse {
       });
     },
 
+    downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
+      const data = typeof content === "string" ? content : "[Blob content not serializable]";
+      transport.send("synapse/download-file", {
+        data,
+        filename,
+        mimeType: mimeType ?? "application/octet-stream",
+      });
+    },
+
     openLink(url: string): void {
       const params: McpUiOpenLinkRequest["params"] = { url };
       // Spec: ui/open-link is a request (expects a response), not a notification

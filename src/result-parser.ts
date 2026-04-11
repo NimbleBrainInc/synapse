@@ -55,21 +55,21 @@ function parseCallToolResult(result: McpCallToolResult): ToolCallResult {
   const content = result.content;
 
   if (content.length === 0) {
-    return { data: null, isError };
+    return { data: null, isError, content };
   }
 
   const firstText = content.find(isTextBlock);
 
   if (!firstText) {
     // No text blocks — return the full content array so callers can inspect it.
-    return { data: content, isError };
+    return { data: content, isError, content };
   }
 
   // Try to parse JSON from the text block.
   try {
-    return { data: JSON.parse(firstText.text), isError };
+    return { data: JSON.parse(firstText.text), isError, content };
   } catch {
     // Invalid JSON — return the raw string.
-    return { data: firstText.text, isError };
+    return { data: firstText.text, isError, content };
   }
 }

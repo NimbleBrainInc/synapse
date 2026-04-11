@@ -18,10 +18,9 @@ describe("parseToolResult", () => {
     };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: { id: "tsk_01abc", title: "foo" },
-      isError: false,
-    });
+    expect(result.data).toEqual({ id: "tsk_01abc", title: "foo" });
+    expect(result.isError).toBe(false);
+    expect(result.content).toEqual(raw.content);
   });
 
   it("parses only the first text block when multiple exist", () => {
@@ -33,10 +32,9 @@ describe("parseToolResult", () => {
     };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: { first: true },
-      isError: false,
-    });
+    expect(result.data).toEqual({ first: true });
+    expect(result.isError).toBe(false);
+    expect(result.content).toEqual(raw.content);
   });
 
   it("preserves the content array when no text blocks exist", () => {
@@ -44,10 +42,9 @@ describe("parseToolResult", () => {
     const raw = { content: [imageBlock] };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: [imageBlock],
-      isError: false,
-    });
+    expect(result.data).toEqual([imageBlock]);
+    expect(result.isError).toBe(false);
+    expect(result.content).toEqual(raw.content);
   });
 
   it("propagates the isError flag", () => {
@@ -57,10 +54,9 @@ describe("parseToolResult", () => {
     };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: "Not found",
-      isError: true,
-    });
+    expect(result.data).toBe("Not found");
+    expect(result.isError).toBe(true);
+    expect(result.content).toEqual(raw.content);
   });
 
   it("returns null data for null input", () => {
@@ -77,19 +73,44 @@ describe("parseToolResult", () => {
     };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: "this is not json",
-      isError: false,
-    });
+    expect(result.data).toBe("this is not json");
+    expect(result.isError).toBe(false);
+    expect(result.content).toEqual(raw.content);
   });
 
   it("returns null data for an empty content array", () => {
-    const raw = { content: [] };
+    const raw = { content: [] as unknown[] };
     const result = parseToolResult(raw);
 
-    expect(result).toEqual({
-      data: null,
-      isError: false,
-    });
+    expect(result.data).toBeNull();
+    expect(result.isError).toBe(false);
+    expect(result.content).toEqual([]);
+  });
+
+  it("preserves image content blocks alongside text for UI access", () => {
+    const raw = {
+      content: [
+        { type: "text", text: "Preview rendered (2 pages)" },
+        {
+          type: "image",
+          data: "iVBOR...",
+          mimeType: "image/png",
+          annotations: { audience: ["user"] },
+        },
+        {
+          type: "image",
+          data: "iVBOR2..",
+          mimeType: "image/png",
+          annotations: { audience: ["user"] },
+        },
+      ],
+    };
+    const result = parseToolResult(raw);
+
+    expect(result.data).toBe("Preview rendered (2 pages)");
+    expect(result.isError).toBe(false);
+    expect(result.content).toHaveLength(3);
+    expect(result.content![1]).toEqual(raw.content[1]);
+    expect(result.content![2]).toEqual(raw.content[2]);
   });
 });

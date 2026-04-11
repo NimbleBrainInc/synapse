@@ -78,6 +78,8 @@ export interface NotifyPayload {
 export interface ToolCallResult<T = unknown> {
   data: T;
   isError: boolean;
+  /** Raw MCP content blocks from the tool response. */
+  content?: unknown[];
 }
 
 /** Result from a file picker request */

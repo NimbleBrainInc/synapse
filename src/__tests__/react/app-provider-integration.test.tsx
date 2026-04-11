@@ -230,10 +230,9 @@ describe("React integration", () => {
         toolResult = await promise;
       });
 
-      expect(toolResult).toEqual({
-        data: { results: ["a", "b"] },
-        isError: false,
-      });
+      expect(toolResult.data).toEqual({ results: ["a", "b"] });
+      expect(toolResult.isError).toBe(false);
+      expect(toolResult.content).toBeDefined();
     });
   });
 

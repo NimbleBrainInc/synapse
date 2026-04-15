@@ -330,12 +330,13 @@ function previewHostHtml(appName: string): string {
           var response = await r.json();
           response.id = originalId;
           post(response);
-          // Notify the app that data changed so hooks auto-refresh
-          // Only for mutating operations (not list/search/get which are read-only)
-          var tn = msg.params.name || "";
-          if (!response.error && !tn.startsWith("list_") && !tn.startsWith("search_") && !tn.startsWith("get_") && !tn.startsWith("query_")) {
-            post({jsonrpc:"2.0",method:"synapse/data-changed",params:{tool:tn,server:"preview"}});
-          }
+          // Note: we intentionally do NOT emit synapse/data-changed here.
+          // data-changed signals that an *external actor* (the agent) mutated
+          // server state, prompting the UI to re-fetch. Tool calls originating
+          // from the UI itself should not trigger this — doing so creates an
+          // infinite loop (UI calls tool → data-changed → useDataSync re-fetches
+          // → calls tool → data-changed → ...). In production, the host only
+          // emits data-changed for agent-initiated tool calls.
         } catch(err) {
           post({jsonrpc:"2.0",id:originalId,error:{code:-32000,message:err.message}});
         }

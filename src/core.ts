@@ -13,7 +13,11 @@ import {
   MESSAGE_METHOD,
   OPEN_LINK_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { TextContent } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  ReadResourceRequest,
+  ReadResourceResult,
+  TextContent,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import { detectHost } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
@@ -144,6 +148,15 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }
       const raw = await transport.request("tools/call", params);
       return parseToolResult(raw) as ToolCallResult<TOutput>;
+    },
+
+    async readResource(uri: string): Promise<ReadResourceResult> {
+      const params: ReadResourceRequest["params"] = { uri };
+      const raw = await transport.request(
+        "resources/read",
+        params as unknown as Record<string, unknown>,
+      );
+      return raw as ReadResourceResult;
     },
 
     onDataChanged(callback: (event: DataChangedEvent) => void): () => void {

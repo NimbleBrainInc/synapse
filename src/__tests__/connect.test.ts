@@ -407,6 +407,32 @@ describe("connect()", () => {
       expect(result.isError).toBe(false);
     });
 
+    it("readServerResource() sends resources/read and returns the result unchanged", async () => {
+      app = await connectAndHandshake();
+      postMessageSpy.mockClear();
+
+      const resultPromise = app.readServerResource({ uri: "foo://bar" });
+
+      const readCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) => (c[0] as Record<string, unknown>).method === "resources/read",
+      );
+      expect(readCall).toBeDefined();
+      expect(readCall?.[0]).toMatchObject({
+        jsonrpc: "2.0",
+        method: "resources/read",
+        params: { uri: "foo://bar" },
+      });
+
+      respondToLastRequest({
+        contents: [{ uri: "foo://bar", mimeType: "text/plain", text: "hello" }],
+      });
+
+      const result = await resultPromise;
+      expect(result.contents).toEqual([
+        { uri: "foo://bar", mimeType: "text/plain", text: "hello" },
+      ]);
+    });
+
     it("sendMessage() sends ui/message with context", async () => {
       app = await connectAndHandshake();
       postMessageSpy.mockClear();

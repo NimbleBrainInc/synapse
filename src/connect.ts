@@ -23,7 +23,12 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { CallToolRequest, TextContent } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  ReadResourceRequest,
+  ReadResourceResult,
+  TextContent,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
 import { resolveEventMethod } from "./event-map.js";
@@ -223,6 +228,14 @@ export async function connect(options: ConnectOptions): Promise<App> {
         params as unknown as Record<string, unknown>,
       );
       return parseToolResult(raw);
+    },
+
+    async readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult> {
+      const raw = await transport.request(
+        "resources/read",
+        params as unknown as Record<string, unknown>,
+      );
+      return raw as ReadResourceResult;
     },
 
     sendMessage(text: string, context?: { action?: string; entity?: string }): void {

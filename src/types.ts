@@ -1,3 +1,5 @@
+import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+
 // ---------- Core ----------
 
 export interface SynapseOptions {
@@ -108,6 +110,21 @@ export interface Synapse {
     name: string,
     args?: TInput,
   ): Promise<ToolCallResult<TOutput>>;
+
+  /**
+   * Read an MCP resource from the originating server via the host bridge
+   * (ext-apps `resources/read`).
+   *
+   * Use this to resolve `resource_link` content blocks returned by tools, or
+   * to fetch any known resource URI exposed by the MCP server. The host
+   * proxies the request to the server and forwards the result unchanged.
+   *
+   * @param uri The resource URI (e.g. `"videos://bunny-1mb"`).
+   * @returns The server's `ReadResourceResult` — `contents` is an array of
+   *   blocks, each with a `uri`, optional `mimeType`, and either `text` or
+   *   `blob` (base64).
+   */
+  readResource(uri: string): Promise<ReadResourceResult>;
 
   onDataChanged(callback: (event: DataChangedEvent) => void): () => void;
 
@@ -332,6 +349,12 @@ export interface App {
   openLink(url: string): void;
   updateModelContext(state: Record<string, unknown>, summary?: string): void;
   callTool(name: string, args?: Record<string, unknown>): Promise<ToolCallResult>;
+  /**
+   * Read an MCP resource from the originating server via the host bridge
+   * (ext-apps `resources/read`). Named to mirror the ext-apps spec's
+   * `App.readServerResource`.
+   */
+  readServerResource(params: { uri: string }): Promise<ReadResourceResult>;
   sendMessage(text: string, context?: { action?: string; entity?: string }): void;
   destroy(): void;
 }

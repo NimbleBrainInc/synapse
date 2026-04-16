@@ -176,6 +176,68 @@ describe("createSynapse", () => {
     await expect(resultPromise).rejects.toThrow("Tool not found");
   });
 
+  it("readResource() sends resources/read with { uri } and returns contents unchanged", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.readResource("foo://bar");
+
+    const readCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "resources/read",
+    );
+    expect(readCall).toBeDefined();
+    expect(readCall?.[0]).toMatchObject({
+      jsonrpc: "2.0",
+      method: "resources/read",
+      params: { uri: "foo://bar" },
+    });
+
+    // Host responds with a spec-shaped ReadResourceResult
+    respondToLastRequest({
+      contents: [
+        {
+          uri: "foo://bar",
+          mimeType: "text/plain",
+          text: "hello",
+        },
+        {
+          uri: "foo://bar/thumbnail.png",
+          mimeType: "image/png",
+          blob: "aGVsbG8=",
+        },
+      ],
+    });
+
+    const result = await resultPromise;
+    expect(result.contents).toHaveLength(2);
+    expect(result.contents[0]).toEqual({
+      uri: "foo://bar",
+      mimeType: "text/plain",
+      text: "hello",
+    });
+    expect(result.contents[1]).toEqual({
+      uri: "foo://bar/thumbnail.png",
+      mimeType: "image/png",
+      blob: "aGVsbG8=",
+    });
+  });
+
+  it("readResource() rejects on error response", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.readResource("missing://resource");
+    rejectLastRequest(-32002, "Resource not found");
+
+    await expect(resultPromise).rejects.toThrow("Resource not found");
+  });
+
   it("onDataChanged() fires callback when ui/datachanged message arrives", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake();

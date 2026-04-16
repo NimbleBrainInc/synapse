@@ -1,3 +1,4 @@
+export type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { createSynapse } from "./core.js";
 export { createStore } from "./store.js";

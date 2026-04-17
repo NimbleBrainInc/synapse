@@ -35,6 +35,12 @@ import type {
   ToolCallResult,
 } from "./types.js";
 
+// `@modelcontextprotocol/ext-apps` only exports METHOD constants for ext-apps
+// specific ui/* methods, not standard MCP methods. Deriving the constant
+// locally with the spec request's `method` type still fails compilation if
+// upstream renames it.
+const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/read";
+
 /**
  * Create a Synapse instance.
  *
@@ -153,7 +159,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     async readResource(uri: string): Promise<ReadResourceResult> {
       const params: ReadResourceRequest["params"] = { uri };
       const raw = await transport.request(
-        "resources/read",
+        READ_RESOURCE_METHOD,
         params as unknown as Record<string, unknown>,
       );
       return raw as ReadResourceResult;

@@ -1,4 +1,4 @@
-import type { ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type { ReadResourceRequest, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
 
 // ---------- Core ----------
 
@@ -354,7 +354,7 @@ export interface App {
    * (ext-apps `resources/read`). Named to mirror the ext-apps spec's
    * `App.readServerResource`.
    */
-  readServerResource(params: { uri: string }): Promise<ReadResourceResult>;
+  readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult>;
   sendMessage(text: string, context?: { action?: string; entity?: string }): void;
   destroy(): void;
 }

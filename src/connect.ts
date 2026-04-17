@@ -37,6 +37,12 @@ import { parseToolResult } from "./result-parser.js";
 import { SynapseTransport } from "./transport.js";
 import type { App, ConnectOptions, Dimensions, Theme, ToolCallResult } from "./types.js";
 
+// Derived locally because `@modelcontextprotocol/ext-apps` only exports
+// METHOD constants for ext-apps specific ui/* methods. Typing the literal
+// with the spec's request `method` field still produces a compile error if
+// upstream renames it.
+const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/read";
+
 /**
  * Connect to a MCP Apps host.
  *
@@ -232,7 +238,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
     async readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult> {
       const raw = await transport.request(
-        "resources/read",
+        READ_RESOURCE_METHOD,
         params as unknown as Record<string, unknown>,
       );
       return raw as ReadResourceResult;

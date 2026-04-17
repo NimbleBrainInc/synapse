@@ -23,7 +23,12 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { CallToolRequest, TextContent } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  ReadResourceRequest,
+  ReadResourceResult,
+  TextContent,
+} from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
 import { resolveEventMethod } from "./event-map.js";
@@ -31,6 +36,12 @@ import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
 import { SynapseTransport } from "./transport.js";
 import type { App, ConnectOptions, Dimensions, Theme, ToolCallResult } from "./types.js";
+
+// Derived locally because `@modelcontextprotocol/ext-apps` only exports
+// METHOD constants for ext-apps specific ui/* methods. Typing the literal
+// with the spec's request `method` field still produces a compile error if
+// upstream renames it.
+const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/read";
 
 /**
  * Connect to a MCP Apps host.
@@ -223,6 +234,14 @@ export async function connect(options: ConnectOptions): Promise<App> {
         params as unknown as Record<string, unknown>,
       );
       return parseToolResult(raw);
+    },
+
+    async readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult> {
+      const raw = await transport.request(
+        READ_RESOURCE_METHOD,
+        params as unknown as Record<string, unknown>,
+      );
+      return raw as ReadResourceResult;
     },
 
     sendMessage(text: string, context?: { action?: string; entity?: string }): void {

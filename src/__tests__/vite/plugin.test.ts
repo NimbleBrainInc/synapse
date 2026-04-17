@@ -123,11 +123,19 @@ describe("preview host HTML", () => {
     expect(html).toContain("ui/update-model-context");
   });
 
-  it("sends ui/datachanged after successful tool call proxy", () => {
+  it("does NOT emit synapse/data-changed from UI-initiated tool calls", () => {
+    // The preview harness proxies tools/call through /__mcp. It must not
+    // fire synapse/data-changed on the response path: data-changed signals
+    // agent-initiated mutation and is what useDataSync refetches on.
+    // Emitting it here creates a classic feedback loop (UI calls tool →
+    // data-changed → useDataSync refetches → calls tool → ...).
     const html = getPreviewHtml("hello");
-    expect(html).toContain("synapse/data-changed");
-    // Only on success — guarded by !response.error
-    expect(html).toContain("!response.error");
+    expect(html).toContain('fetch("/__mcp"');
+    // Any actual emission would use the string as a JSON-RPC method value,
+    // e.g. `method:"synapse/data-changed"`. Explanatory comments that
+    // mention the name unquoted don't count.
+    expect(html).not.toContain('"synapse/data-changed"');
+    expect(html).not.toContain("'synapse/data-changed'");
   });
 });
 

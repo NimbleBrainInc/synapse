@@ -42,7 +42,12 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { CallToolRequest, TextContent } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  ReadResourceRequest,
+  ReadResourceResult,
+  TextContent,
+} from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connect } from "../connect.js";
@@ -440,6 +445,46 @@ describe("outbound message shapes", () => {
     const result = await toolPromise;
     expect(result.isError).toBe(false);
   });
+
+  it("readServerResource sends resources/read with { uri }", async () => {
+    app = await connectAndHandshake();
+
+    // Start the read (don't await — we need to respond to the request)
+    const readPromise = app.readServerResource({ uri: "videos://bunny-1mb" });
+
+    // Find and respond to the resources/read request
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "resources/read",
+    );
+    expect(call).toBeDefined();
+
+    const params = (call![0] as Record<string, unknown>).params as ReadResourceRequest["params"];
+    expect(params.uri).toBe("videos://bunny-1mb");
+
+    // Respond with a spec-shaped ReadResourceResult so the promise resolves
+    const id = (call![0] as Record<string, unknown>).id;
+    const specResult: ReadResourceResult = {
+      contents: [
+        {
+          uri: "videos://bunny-1mb",
+          mimeType: "video/mp4",
+          blob: "AAAA",
+        },
+      ],
+    };
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", id, result: specResult },
+      }),
+    );
+
+    const result = await readPromise;
+    expect(result.contents).toHaveLength(1);
+    const first = result.contents[0];
+    expect(first.uri).toBe("videos://bunny-1mb");
+    expect(first.mimeType).toBe("video/mp4");
+    expect("blob" in first && first.blob).toBe("AAAA");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -503,5 +548,23 @@ describe("compile-time type assertions", () => {
       content: [{ type: "text", text: '{"data":true}' }],
     };
     expect(Array.isArray(params.content)).toBe(true);
+  });
+
+  it("ReadResourceRequest.params has uri", () => {
+    const params: ReadResourceRequest["params"] = { uri: "foo://bar" };
+    expect(params.uri).toBe("foo://bar");
+  });
+
+  it("ReadResourceResult has contents array with text or blob variants", () => {
+    const result: ReadResourceResult = {
+      contents: [
+        { uri: "foo://text", mimeType: "text/plain", text: "hi" },
+        { uri: "foo://blob", mimeType: "application/octet-stream", blob: "AAAA" },
+      ],
+    };
+    expect(result.contents).toHaveLength(2);
+    const [textItem, blobItem] = result.contents;
+    if ("text" in textItem) expect(textItem.text).toBe("hi");
+    if ("blob" in blobItem) expect(blobItem.blob).toBe("AAAA");
   });
 });

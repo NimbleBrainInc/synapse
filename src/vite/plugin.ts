@@ -313,7 +313,7 @@ function previewHostHtml(appName: string): string {
           protocolVersion:"2026-01-26",
           serverInfo:{name:"nimblebrain",version:"preview"},
           capabilities:{openLinks:{},serverTools:{}},
-          hostContext:{theme:dark?"dark":"light",primaryColor:"#6366f1",tokens:getTokens(dark)}
+          hostContext:{theme:dark?"dark":"light",primaryColor:"#6366f1",styles:{variables:getTokens(dark)}}
         }});
         return;
       }
@@ -354,7 +354,7 @@ function previewHostHtml(appName: string): string {
     document.getElementById("toggle").onclick = function() {
       dark = !dark;
       document.body.style.background = dark ? "#0f172a" : "#f1f5f9";
-      post({jsonrpc:"2.0",method:"synapse/theme-changed",params:{mode:dark?"dark":"light",tokens:getTokens(dark)}});
+      post({jsonrpc:"2.0",method:"ui/notifications/host-context-changed",params:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}});
     };
 
     // Load the iframe AFTER the message listener is attached to avoid

@@ -105,17 +105,24 @@ describe("preview host HTML", () => {
     expect(html).toContain('fetch("/__mcp"');
   });
 
-  it("includes theme toggle", () => {
+  it("includes theme toggle that emits spec-compliant host-context-changed", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("Toggle Theme");
-    expect(html).toContain("synapse/theme-changed");
+    // Per ext-apps spec (and hard rule #5 in CLAUDE.md): theme changes are
+    // broadcast via ui/notifications/host-context-changed, tokens under
+    // styles.variables — NOT the legacy synapse/theme-changed with params.tokens.
+    expect(html).toContain("ui/notifications/host-context-changed");
+    expect(html).not.toContain("synapse/theme-changed");
   });
 
-  it("includes NB theme tokens", () => {
+  it("includes NB theme tokens under spec-compliant styles.variables", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("--color-text-accent");
     expect(html).toContain("--color-background-primary");
     expect(html).toContain("--color-text-primary");
+    // Tokens must be nested under styles.variables in hostContext, not at
+    // hostContext.tokens (spec requirement; SDK reads from styles.variables).
+    expect(html).toContain("styles:{variables:getTokens");
   });
 
   it("handles ui/update-model-context per ext-apps spec", () => {

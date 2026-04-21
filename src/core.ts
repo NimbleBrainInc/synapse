@@ -81,6 +81,15 @@ export function createSynapse(options: SynapseOptions): Synapse {
       hostInfo = detectHost(result);
       currentTheme = hostInfo.theme;
 
+      // Inject host CSS variables into :root so plain-CSS styles can consume
+      // them via `var(--…)` without needing to read theme.tokens imperatively.
+      injectCssVariables(currentTheme.tokens);
+
+      // Notify subscribers so React <ThemeInjector> and custom onThemeChanged
+      // listeners reflect the handshake-provided theme (not just subsequent
+      // host-context-changed notifications).
+      for (const cb of themeCallbacks) cb(currentTheme);
+
       transport.send(INITIALIZED_METHOD, {});
 
       keyboard = new KeyboardForwarder(transport, forwardKeys);
@@ -95,6 +104,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     const variables = styles?.variables as Record<string, string> | undefined;
     const tokens = variables && typeof variables === "object" ? variables : currentTheme.tokens;
     currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
+    injectCssVariables(tokens);
     for (const cb of themeCallbacks) cb(currentTheme);
   });
 
@@ -308,4 +318,15 @@ export function createSynapse(options: SynapseOptions): Synapse {
   };
 
   return synapse;
+}
+
+/** Inject CSS custom properties onto :root so widgets inherit host theming. */
+function injectCssVariables(vars: Record<string, string> | undefined | null): void {
+  if (!vars || typeof vars !== "object") return;
+  if (typeof document === "undefined") return;
+  for (const [k, v] of Object.entries(vars)) {
+    if (typeof k === "string" && typeof v === "string") {
+      document.documentElement.style.setProperty(k, v);
+    }
+  }
 }

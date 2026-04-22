@@ -500,7 +500,7 @@ describe("createSynapse", () => {
     expect(params.mimeType).toBe("application/pdf");
   });
 
-  it("downloadFile() defaults mimeType to application/octet-stream", async () => {
+  it("downloadFile() defaults mimeType to application/octet-stream for string content", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");
     await synapse.ready;
@@ -515,6 +515,65 @@ describe("createSynapse", () => {
     expect(call).toBeDefined();
     expect((call![0] as Record<string, unknown>).params).toMatchObject({
       mimeType: "application/octet-stream",
+    });
+  });
+
+  it("downloadFile() uses the Blob's intrinsic type when mimeType is omitted", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const pdf = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], {
+      type: "application/pdf",
+    });
+    synapse.downloadFile("document.pdf", pdf);
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    expect((call![0] as Record<string, unknown>).params).toMatchObject({
+      mimeType: "application/pdf",
+    });
+  });
+
+  it("downloadFile() falls back to octet-stream when both mimeType and Blob type are absent", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const untyped = new Blob([new Uint8Array([1, 2, 3])]);
+    synapse.downloadFile("file.bin", untyped);
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    expect((call![0] as Record<string, unknown>).params).toMatchObject({
+      mimeType: "application/octet-stream",
+    });
+  });
+
+  it("downloadFile() explicit mimeType arg overrides the Blob's intrinsic type", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const blob = new Blob(["hello"], { type: "text/plain" });
+    synapse.downloadFile("document.md", blob, "text/markdown");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    expect((call![0] as Record<string, unknown>).params).toMatchObject({
+      mimeType: "text/markdown",
     });
   });
 

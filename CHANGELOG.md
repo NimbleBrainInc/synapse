@@ -4,15 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.4.5] - 2026-04-21
+## [0.5.0] - 2026-04-21
+
+Minor bump: removes a public method from the `Synapse` interface. Also changes the wire format of `synapse/download-file` (now sends a `Blob`, not a string) — must ship paired with a host bridge that accepts a `Blob` payload.
 
 ### Fixed
 
-- `downloadFile()` with a Blob now delivers the actual bytes. Previously the Blob path replaced the content with the literal string `"[Blob content not serializable]"` before sending, producing a 31-byte file on disk. `downloadFile()` now sends the Blob directly over the `postMessage` structured-clone channel; the host bridge downloads it as-is.
+- `downloadFile()` with a Blob now delivers the actual bytes. Previously the Blob path replaced the content with the literal string `"[Blob content not serializable]"` before sending, producing a 31-byte text file on disk. `downloadFile()` now sends the Blob directly over the `postMessage` structured-clone channel; the host bridge downloads it as-is. String content is wrapped in a `Blob` before sending so exactly one shape travels the wire.
+- When a Blob is passed with an intrinsic `type` and no explicit `mimeType` arg, the Blob's type is used on the wire (previously the SDK would emit `application/octet-stream` and the host would rewrap the Blob, losing the correct MIME). Precedence is: explicit `mimeType` arg > Blob's intrinsic type > `application/octet-stream` fallback.
 
 ### Removed
 
-- `saveFile()` / `synapse/save-file`. The method had no host handler (silently no-op) and its signature was indistinguishable from `downloadFile()`. Use `downloadFile()`. If you need to persist a generated file to the workspace so the agent can reference it, that will be a distinct, spec'd API when the need arises.
+- **BREAKING:** `saveFile()` / `synapse/save-file`. The method had no host handler (silently no-op) and its signature was indistinguishable from `downloadFile()`. Use `downloadFile()`. If you need to persist a generated file to the workspace so the agent can reference it, that will be a distinct, spec'd API when the need arises.
 
 ## [0.4.4] - 2026-04-20
 

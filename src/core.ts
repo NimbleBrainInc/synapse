@@ -234,7 +234,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
-      const resolvedMime = mimeType ?? "application/octet-stream";
+      // Precedence: explicit mimeType arg > Blob's intrinsic type > octet-stream fallback.
+      const resolvedMime =
+        mimeType ??
+        (content instanceof Blob && content.type ? content.type : "application/octet-stream");
       const blob = content instanceof Blob ? content : new Blob([content], { type: resolvedMime });
       transport.send("synapse/download-file", {
         data: blob,

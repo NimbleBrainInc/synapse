@@ -237,9 +237,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       // Precedence: explicit mimeType arg > Blob's intrinsic type > octet-stream fallback.
       // Empty-string mimeType falls through (a "" MIME is effectively "no type").
       const resolvedMime =
-        mimeType ||
-        (content instanceof Blob ? content.type : "") ||
-        "application/octet-stream";
+        mimeType || (content instanceof Blob ? content.type : "") || "application/octet-stream";
       const blob = content instanceof Blob ? content : new Blob([content], { type: resolvedMime });
       transport.send("synapse/download-file", {
         data: blob,

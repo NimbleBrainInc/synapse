@@ -513,8 +513,29 @@ describe("createSynapse", () => {
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
     );
     expect(call).toBeDefined();
+    const params = (call![0] as { params: Record<string, unknown> }).params;
+    expect(params.mimeType).toBe("application/octet-stream");
+    expect(params.data).toBeInstanceOf(Blob);
+    expect((params.data as Blob).type).toBe("application/octet-stream");
+    expect(await (params.data as Blob).text()).toBe("binary-data");
+  });
+
+  it("downloadFile() treats an empty-string mimeType arg as absent", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const blob = new Blob(["hi"], { type: "text/plain" });
+    synapse.downloadFile("doc.txt", blob, "");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
     expect((call![0] as Record<string, unknown>).params).toMatchObject({
-      mimeType: "application/octet-stream",
+      mimeType: "text/plain",
     });
   });
 

@@ -457,64 +457,47 @@ describe("createSynapse", () => {
     );
   });
 
-  it("saveFile() sends synapse/save-file notification", async () => {
+  it("downloadFile() sends synapse/download-file notification with a Blob payload", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake("nimblebrain");
     await synapse.ready;
 
     postMessageSpy.mockClear();
 
-    synapse.saveFile("report.csv", "a,b,c", "text/csv");
-
-    const call = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/save-file",
-    );
-    expect(call).toBeDefined();
-    const msg = call![0] as Record<string, unknown>;
-    expect(msg.params).toEqual({
-      data: "a,b,c",
-      filename: "report.csv",
-      mimeType: "text/csv",
-    });
-  });
-
-  it("saveFile() defaults mimeType to application/octet-stream", async () => {
-    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
-    completeHandshake("nimblebrain");
-    await synapse.ready;
-
-    postMessageSpy.mockClear();
-
-    synapse.saveFile("data.bin", "raw");
-
-    const call = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/save-file",
-    );
-    expect(call).toBeDefined();
-    expect((call![0] as Record<string, unknown>).params).toMatchObject({
-      mimeType: "application/octet-stream",
-    });
-  });
-
-  it("downloadFile() sends synapse/download-file notification", async () => {
-    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
-    completeHandshake("nimblebrain");
-    await synapse.ready;
-
-    postMessageSpy.mockClear();
-
-    synapse.downloadFile("document.pdf", "pdf-content", "application/pdf");
+    synapse.downloadFile("document.txt", "hello", "text/plain");
 
     const call = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
     );
     expect(call).toBeDefined();
-    const msg = call![0] as Record<string, unknown>;
-    expect(msg.params).toEqual({
-      data: "pdf-content",
-      filename: "document.pdf",
-      mimeType: "application/pdf",
+    const params = (call![0] as { params: Record<string, unknown> }).params;
+    expect(params.filename).toBe("document.txt");
+    expect(params.mimeType).toBe("text/plain");
+    expect(params.data).toBeInstanceOf(Blob);
+    expect((params.data as Blob).type).toBe("text/plain");
+    expect(await (params.data as Blob).text()).toBe("hello");
+  });
+
+  it("downloadFile() passes Blob content through unchanged", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("nimblebrain");
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const pdf = new Blob([new Uint8Array([0x25, 0x50, 0x44, 0x46])], {
+      type: "application/pdf",
     });
+    synapse.downloadFile("document.pdf", pdf, "application/pdf");
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/download-file",
+    );
+    expect(call).toBeDefined();
+    const params = (call![0] as { params: Record<string, unknown> }).params;
+    expect(params.data).toBe(pdf);
+    expect(params.filename).toBe("document.pdf");
+    expect(params.mimeType).toBe("application/pdf");
   });
 
   it("downloadFile() defaults mimeType to application/octet-stream", async () => {

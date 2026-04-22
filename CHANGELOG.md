@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.5] - 2026-04-21
+
+### Fixed
+
+- `downloadFile()` with a Blob now delivers the actual bytes. Previously the Blob path replaced the content with the literal string `"[Blob content not serializable]"` before sending, producing a 31-byte file on disk. `downloadFile()` now sends the Blob directly over the `postMessage` structured-clone channel; the host bridge downloads it as-is.
+
+### Removed
+
+- `saveFile()` / `synapse/save-file`. The method had no host handler (silently no-op) and its signature was indistinguishable from `downloadFile()`. Use `downloadFile()`. If you need to persist a generated file to the workspace so the agent can reference it, that will be a distinct, spec'd API when the need arises.
+
 ## [0.4.4] - 2026-04-20
 
 ### Fixed

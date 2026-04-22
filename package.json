@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Agent-aware app SDK for the MCP ext-apps protocol",
   "type": "module",
   "exports": {

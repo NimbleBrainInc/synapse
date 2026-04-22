@@ -233,24 +233,13 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }, 250);
     },
 
-    saveFile(filename: string, content: string | Blob, mimeType?: string): void {
-      // Always send — the bridge handles this for any host that supports it.
-      // Removing the isNB() guard fixes silent failures when host detection
-      // hasn't completed yet or when the handshake response is delayed.
-      const data = typeof content === "string" ? content : "[Blob content not serializable]";
-      transport.send("synapse/save-file", {
-        data,
-        filename,
-        mimeType: mimeType ?? "application/octet-stream",
-      });
-    },
-
     downloadFile(filename: string, content: string | Blob, mimeType?: string): void {
-      const data = typeof content === "string" ? content : "[Blob content not serializable]";
+      const resolvedMime = mimeType ?? "application/octet-stream";
+      const blob = content instanceof Blob ? content : new Blob([content], { type: resolvedMime });
       transport.send("synapse/download-file", {
-        data,
+        data: blob,
         filename,
-        mimeType: mimeType ?? "application/octet-stream",
+        mimeType: resolvedMime,
       });
     },
 

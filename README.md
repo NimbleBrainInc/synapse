@@ -309,7 +309,7 @@ await synapse.ready;
 | `action(name, params?)` | Dispatch a NB platform action |
 | `chat(message, context?)` | Send a chat message to the agent |
 | `setVisibleState(state, summary?)` | Push LLM-visible state (debounced 250ms) |
-| `saveFile(name, content, mime?)` | Trigger a file save (NB-only) |
+| `downloadFile(name, content, mime?)` | Trigger a file download (NB-only) |
 | `pickFile(options?)` | Open native file picker, single file (NB-only) |
 | `pickFiles(options?)` | Open native file picker, multiple files (NB-only) |
 | `openLink(url)` | Open a URL (host-aware) |

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSynapse } from "../core.js";
-import type { Synapse } from "../types.js";
+import type { Synapse, TasksCapability } from "../types.js";
 
 // --- Helpers ---
 
@@ -954,6 +954,88 @@ describe("createSynapse", () => {
       });
       expect(cb).toHaveBeenCalledTimes(1);
       expect(cb.mock.calls[0][0].tokens).toEqual({ "--color-bg": "#000" });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // MCP 2025-11-25 tasks utility — capability advertisement
+  // -------------------------------------------------------------------------
+  //
+  // Pinned here (rather than in spec-compliance.test.ts) because
+  // `createSynapse` is the path that exposes `callToolAsTask`, so the
+  // capability advertisement MUST match the public surface. The `connect`
+  // path does NOT advertise (App has no task-augmented call surface) — that
+  // negative contract is asserted in spec-compliance.test.ts.
+  describe("tasks capability advertisement", () => {
+    it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      synapse.ready.catch(() => {});
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) => (c[0] as Record<string, unknown>).method === "ui/initialize",
+      );
+      expect(initCall).toBeDefined();
+
+      const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
+      const caps = params.appCapabilities as Record<string, unknown>;
+
+      expect(caps).toHaveProperty("tasks");
+      const tasks = caps.tasks as TasksCapability;
+
+      // Presence flags as empty objects (`{}`), not booleans, per spec.
+      // Booleans would be rejected by spec-compliant receivers.
+      expect(tasks.cancel).toEqual({});
+      expect(typeof tasks.cancel).toBe("object");
+      expect(tasks.cancel).not.toBe(true);
+
+      expect(tasks.requests?.tools?.call).toEqual({});
+      expect(typeof tasks.requests?.tools?.call).toBe("object");
+      expect(tasks.requests?.tools?.call).not.toBe(true);
+    });
+
+    it("captures hostCapabilities.tasks when advertised by host", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+
+      const hostTasks: TasksCapability = {
+        cancel: {},
+        requests: { tools: { call: {} } },
+      };
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) => (c[0] as Record<string, unknown>).method === "ui/initialize",
+      );
+      const id = (initCall![0] as Record<string, unknown>).id as string;
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              ...makeInitResult(),
+              hostCapabilities: { tasks: hostTasks },
+            },
+          },
+        }),
+      );
+
+      await synapse.ready;
+      expect(synapse._hostTasksCapability).toEqual(hostTasks);
+    });
+
+    it("_hostTasksCapability is undefined when host does not advertise tasks", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+      expect(synapse._hostTasksCapability).toBeUndefined();
+    });
+
+    it("_hostTasksCapability is null before handshake resolves (tri-state)", () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      synapse.ready.catch(() => {});
+      // Pre-handshake state distinguishes "host hasn't responded yet" from
+      // "host responded without advertising tasks". Consumers feature-
+      // detecting can wait on `synapse.ready` if the distinction matters.
+      expect(synapse._hostTasksCapability).toBeNull();
     });
   });
 });

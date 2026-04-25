@@ -582,8 +582,13 @@ describe("compile-time type assertions", () => {
 // 8. MCP 2025-11-25 tasks utility — capability advertisement
 // ---------------------------------------------------------------------------
 
-describe("tasks capability advertisement", () => {
-  it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
+describe("tasks capability advertisement (connect path)", () => {
+  // `connect()` returns an `App` with no task-augmented call surface.
+  // Per MCP 2025-11-25, requestors MUST NOT advertise capabilities they
+  // can't use — doing so creates a false contract with hosts that may
+  // allocate state on the strength of the advertisement. Positive
+  // capability tests for the `createSynapse` path live in `core.test.ts`.
+  it("connect() does NOT advertise appCapabilities.tasks", async () => {
     app = await connectAndHandshake();
 
     const initCall = postMessageSpy.mock.calls.find(
@@ -594,92 +599,7 @@ describe("tasks capability advertisement", () => {
     const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
     const caps = params.appCapabilities as Record<string, unknown>;
 
-    // `tasks` is advertised (spec: requestor declares support before
-    // it may task-augment requests).
-    expect(caps).toHaveProperty("tasks");
-
-    const tasks = caps.tasks as TasksCapability;
-
-    // Nested presence-flag objects: `cancel` and `requests.tools.call`
-    // must exist and be objects (`{}`), NOT booleans. Spec uses empty
-    // objects so sub-fields can be added without wire breaks.
-    expect(tasks.cancel).toBeDefined();
-    expect(tasks.cancel).toEqual({});
-    expect(typeof tasks.cancel).toBe("object");
-    expect(typeof tasks.cancel).not.toBe("boolean");
-
-    expect(tasks.requests?.tools?.call).toBeDefined();
-    expect(tasks.requests?.tools?.call).toEqual({});
-    expect(typeof tasks.requests?.tools?.call).toBe("object");
-    expect(typeof tasks.requests?.tools?.call).not.toBe("boolean");
-  });
-
-  it("tasks.cancel is {} (not true) per spec presence-flag convention", async () => {
-    app = await connectAndHandshake();
-
-    const initCall = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
-    );
-    const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
-    const caps = params.appCapabilities as { tasks: TasksCapability };
-
-    // If this ever becomes `true`, a spec-compliant receiver would reject
-    // the capability advertisement. Fail loudly.
-    expect(caps.tasks.cancel).not.toBe(true);
-    expect(caps.tasks.cancel).not.toBe(false);
-  });
-
-  it("tasks.requests.tools.call is {} (not true) per spec presence-flag convention", async () => {
-    app = await connectAndHandshake();
-
-    const initCall = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
-    );
-    const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
-    const caps = params.appCapabilities as { tasks: TasksCapability };
-
-    const call = caps.tasks.requests?.tools?.call;
-    expect(call).not.toBe(true);
-    expect(call).not.toBe(false);
-    expect(call).toEqual({});
-  });
-
-  it("captures hostCapabilities.tasks when advertised by host", async () => {
-    const hostTasks: TasksCapability = {
-      cancel: {},
-      requests: { tools: { call: {} } },
-    };
-    app = await connectAndHandshake(
-      undefined,
-      makeSpecInitResult({
-        hostCapabilities: {
-          openLinks: {},
-          // Widened cast: ext-apps McpUiHostCapabilities does not model
-          // `tasks` yet; the SDK extension adds it via an index-signature
-          // passthrough. The runtime wire accepts it either way.
-          tasks: hostTasks,
-          // biome-ignore lint/suspicious/noExplicitAny: see comment
-        } as any,
-      }),
-    );
-
-    // `_hostTasksCapability` is the internal accessor future
-    // `callToolAsTask` reads to decide whether augmentation is negotiated.
-    expect(app._hostTasksCapability).toEqual(hostTasks);
-  });
-
-  it("_hostTasksCapability is undefined when host does not advertise tasks", async () => {
-    app = await connectAndHandshake(
-      undefined,
-      makeSpecInitResult({
-        hostCapabilities: {
-          openLinks: {},
-          serverTools: {},
-        },
-      }),
-    );
-
-    expect(app._hostTasksCapability).toBeUndefined();
+    expect(caps).not.toHaveProperty("tasks");
   });
 });
 

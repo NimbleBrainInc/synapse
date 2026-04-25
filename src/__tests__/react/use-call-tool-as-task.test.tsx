@@ -818,3 +818,287 @@ describe("useCallToolAsTask — stable callback identities", () => {
     expect(result.current.cancel).toBe(cancel1);
   });
 });
+
+// -----------------------------------------------------------------------------
+// result() settles the polling loop and synthesizes terminal task state.
+// Per spec, `tasks/result` is blocking — when it returns, the task IS
+// terminal, even if no notification or poll has settled yet. The hook
+// must reflect that immediately so consumers don't see incoherent
+// `result populated && isWorking=true` renders.
+// -----------------------------------------------------------------------------
+
+describe("useCallToolAsTask — result() settles terminal state", () => {
+  it("result() success synthesizes status='completed' and stops polling", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_done"));
+    await flushMicrotasks();
+
+    // Resolve `tasks/result` BEFORE any notification or refresh has
+    // moved task.status off `working`.
+    expect(result.current.task?.status).toBe(WORKING_STATUS);
+    expect(result.current.isTerminal).toBe(false);
+
+    respondToRequest(TASKS_RESULT_METHOD, {
+      content: [{ type: "text", text: '{"ok":true}' }],
+    });
+    await flushMicrotasks();
+
+    // The hook must reach terminal state on the strength of result()
+    // alone, without waiting for a status notification or poll.
+    expect(result.current.result).not.toBeNull();
+    expect(result.current.task?.status).toBe(COMPLETED_STATUS);
+    expect(result.current.isTerminal).toBe(true);
+    expect(result.current.isWorking).toBe(false);
+
+    // Polling must have stopped — advancing past the poll cadence
+    // does NOT produce a new tasks/get on the wire.
+    const beforeAdvance = findAllCalls(TASKS_GET_METHOD).length;
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(findAllCalls(TASKS_GET_METHOD).length).toBe(beforeAdvance);
+  });
+
+  it("result() with isError synthesizes status='failed' and stops polling", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_isError"));
+    await flushMicrotasks();
+
+    respondToRequest(TASKS_RESULT_METHOD, {
+      content: [{ type: "text", text: "boom" }],
+      isError: true,
+    });
+    await flushMicrotasks();
+
+    expect(result.current.task?.status).toBe(FAILED_STATUS);
+    expect(result.current.isTerminal).toBe(true);
+    expect(result.current.error).not.toBeNull();
+
+    const beforeAdvance = findAllCalls(TASKS_GET_METHOD).length;
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(findAllCalls(TASKS_GET_METHOD).length).toBe(beforeAdvance);
+  });
+
+  it("result() rejection synthesizes status='failed' and stops polling", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_reject"));
+    await flushMicrotasks();
+
+    rejectRequest(TASKS_RESULT_METHOD, { code: -32602, message: "task gone" });
+    await flushMicrotasks();
+
+    expect(result.current.error?.message).toContain("task gone");
+    expect(result.current.task?.status).toBe(FAILED_STATUS);
+    expect(result.current.isTerminal).toBe(true);
+
+    const beforeAdvance = findAllCalls(TASKS_GET_METHOD).length;
+    await act(async () => {
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(findAllCalls(TASKS_GET_METHOD).length).toBe(beforeAdvance);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// Bounded backoff: max consecutive refresh failures stops the poll loop.
+// Without the guard, a host-side TTL eviction or bridge teardown would
+// cause every refresh to reject and the timer would re-arm forever.
+// -----------------------------------------------------------------------------
+
+describe("useCallToolAsTask — refresh failure backoff", () => {
+  it("stops polling silently after MAX_REFRESH_FAILURES consecutive rejects", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    // pollInterval=1000 → fallback fires every 1500ms. Note: result()
+    // is intentionally LEFT UNANSWERED so the polling loop is the only
+    // path that could keep firing.
+    respondToRequest(
+      TOOLS_CALL_METHOD,
+      makeCreateTaskResult("tsk_failover", { pollInterval: 1000 }),
+    );
+    await flushMicrotasks();
+
+    // Reject 5 consecutive refreshes (the MAX_REFRESH_FAILURES limit).
+    // After the 5th, the timer must NOT re-arm.
+    for (let i = 0; i < 5; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+      await flushMicrotasks();
+      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "gone" });
+      await flushMicrotasks();
+    }
+
+    const callsAfterLimit = findAllCalls(TASKS_GET_METHOD).length;
+    expect(callsAfterLimit).toBe(5);
+
+    // Advance way past the cadence — no further tasks/get should
+    // appear on the wire.
+    await act(async () => {
+      vi.advanceTimersByTime(30_000);
+    });
+    expect(findAllCalls(TASKS_GET_METHOD).length).toBe(5);
+  });
+
+  it("resets the failure counter on a successful refresh", async () => {
+    vi.useFakeTimers();
+
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    respondToRequest(
+      TOOLS_CALL_METHOD,
+      makeCreateTaskResult("tsk_recovered", { pollInterval: 1000 }),
+    );
+    await flushMicrotasks();
+
+    // 4 rejects, then 1 success, then 4 more rejects — should NOT trip
+    // the limit because the counter resets in the middle.
+    for (let i = 0; i < 4; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+      await flushMicrotasks();
+      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
+      await flushMicrotasks();
+    }
+
+    await act(async () => {
+      vi.advanceTimersByTime(1500);
+    });
+    await flushMicrotasks();
+    respondToRequest(TASKS_GET_METHOD, {
+      taskId: "tsk_recovered",
+      status: WORKING_STATUS,
+      ttl: 60_000,
+      createdAt: "2026-04-22T00:00:00.000Z",
+      lastUpdatedAt: "2026-04-22T00:00:05.000Z",
+    } satisfies GetTaskResult);
+    await flushMicrotasks();
+
+    for (let i = 0; i < 4; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+      });
+      await flushMicrotasks();
+      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
+      await flushMicrotasks();
+    }
+
+    // 9 polls fired (4 reject + 1 success + 4 reject). If the counter
+    // hadn't reset, the loop would have stopped at strike 5 (just 5
+    // polls total).
+    expect(findAllCalls(TASKS_GET_METHOD).length).toBe(9);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// onStatus delivers a fully-populated Task (no placeholder timestamps).
+// Spec's TaskStatusNotificationParams omits createdAt/lastUpdatedAt/ttl;
+// the handle merges these from the initial CreateTaskResult.task.
+// -----------------------------------------------------------------------------
+
+describe("useCallToolAsTask — onStatus merges initial Task fields", () => {
+  it("notification-driven task updates carry real timestamps, not empty strings", async () => {
+    const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
+      wrapper: createWrapper(),
+    });
+
+    completeHandshake();
+    await flushMicrotasks();
+
+    await act(async () => {
+      result.current.fire();
+      await Promise.resolve();
+    });
+    respondToRequest(
+      TOOLS_CALL_METHOD,
+      makeCreateTaskResult("tsk_merge", {
+        createdAt: "2026-04-22T00:00:00.000Z",
+        ttl: 120_000,
+        pollInterval: 2_000,
+      }),
+    );
+    await flushMicrotasks();
+
+    await act(async () => {
+      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+        taskId: "tsk_merge",
+        status: WORKING_STATUS,
+        statusMessage: "halfway",
+      });
+    });
+    await flushMicrotasks();
+
+    const task = result.current.task;
+    expect(task).not.toBeNull();
+    // Notification fields win.
+    expect(task?.taskId).toBe("tsk_merge");
+    expect(task?.status).toBe(WORKING_STATUS);
+    expect(task?.statusMessage).toBe("halfway");
+    // Initial-task fields fill in.
+    expect(task?.createdAt).toBe("2026-04-22T00:00:00.000Z");
+    expect(task?.ttl).toBe(120_000);
+    expect(task?.pollInterval).toBe(2_000);
+    // Received-time stamp — not empty, parses as a real ISO date.
+    expect(task?.lastUpdatedAt).not.toBe("");
+    expect(Number.isFinite(Date.parse(task?.lastUpdatedAt ?? ""))).toBe(true);
+  });
+});

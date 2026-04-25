@@ -303,6 +303,16 @@ const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set<TaskStatus>([
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const POLL_FALLBACK_MULTIPLIER = 1.5;
 
+/**
+ * Stop the poll fallback after this many consecutive `refresh()` failures.
+ * Bridge teardown / TTL eviction / network outage all manifest as repeated
+ * `tasks/get` rejections. Without a guard the timer re-arms forever; with
+ * it we stop polling silently after `MAX_REFRESH_FAILURES` strikes — the
+ * blocking `result()` path remains the authoritative source of truth, so
+ * giving up on polling never loses the terminal value.
+ */
+const MAX_REFRESH_FAILURES = 5;
+
 export interface UseCallToolAsTaskResult<TInput, TOutput> {
   /**
    * Start (or re-start) a task-augmented tool call. Returns the
@@ -387,6 +397,10 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
   // `task` React state (which lags a render behind setState).
   const terminalRef = useRef<boolean>(false);
 
+  // Consecutive `refresh()` failure count for the active fire. Reset
+  // on every successful refresh, status notification, or new fire.
+  const refreshFailureCountRef = useRef<number>(0);
+
   const clearPollTimer = useCallback(() => {
     if (pollTimerRef.current !== null) {
       clearTimeout(pollTimerRef.current);
@@ -419,6 +433,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
         h.refresh().then(
           (fresh) => {
             if (gen !== genRef.current) return;
+            refreshFailureCountRef.current = 0;
             setTask(fresh);
             const isTerminal = TERMINAL_STATUSES.has(fresh.status);
             terminalRef.current = isTerminal;
@@ -426,10 +441,14 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
           },
           () => {
             // Swallow refresh errors — the blocking `tasks/result` is
-            // the authoritative path; polling is best-effort. If the
-            // task's gone, result() will reject and surface via
-            // `error`. Keep trying until terminal / unmount.
+            // the authoritative path; polling is best-effort. But guard
+            // against runaway re-arming: if the bridge is gone or the
+            // task TTL has elapsed, every refresh rejects. Stop after
+            // MAX_REFRESH_FAILURES consecutive strikes; result() will
+            // still surface a terminal value or error when it settles.
             if (gen !== genRef.current) return;
+            refreshFailureCountRef.current += 1;
+            if (refreshFailureCountRef.current >= MAX_REFRESH_FAILURES) return;
             if (!terminalRef.current) scheduleNextPoll(gen);
           },
         );
@@ -453,6 +472,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
       setResult(null);
       setError(null);
       terminalRef.current = false;
+      refreshFailureCountRef.current = 0;
 
       let handle: TaskHandle<TOutput>;
       try {
@@ -489,6 +509,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
       // we don't poll; if they don't, the timer fires).
       unsubscribeRef.current = handle.onStatus((updated) => {
         if (gen !== genRef.current) return;
+        refreshFailureCountRef.current = 0;
         setTask(updated);
         const isTerminal = TERMINAL_STATUSES.has(updated.status);
         terminalRef.current = isTerminal;
@@ -501,10 +522,34 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
 
       // Kick off the blocking result fetch — this is the authoritative
       // terminal value regardless of whether notifications or polls
-      // landed in between.
+      // landed in between. By spec, `tasks/result` blocks until the task
+      // reaches a terminal status, so when this settles we KNOW the task
+      // is terminal — stop polling and synthesize a terminal `task`
+      // status so derived flags (`isTerminal`, `isWorking`) match the
+      // populated `result` / `error` immediately.
       handle.result().then(
         (res) => {
           if (gen !== genRef.current) return;
+          terminalRef.current = true;
+          clearPollTimer();
+          // Synthesize the terminal Task: failed if `isError`, otherwise
+          // completed. The next status notification or refresh would
+          // confirm this, but we want internal state consistent the
+          // instant `result` is populated — a "result populated while
+          // isWorking=true" render is incoherent for consumers.
+          setTask((prev) => {
+            const status: TaskStatus = res.isError ? "failed" : "completed";
+            const now = new Date().toISOString();
+            return prev
+              ? { ...prev, status, lastUpdatedAt: now }
+              : {
+                  taskId: handle.task.taskId,
+                  status,
+                  ttl: handle.task.ttl,
+                  createdAt: handle.task.createdAt,
+                  lastUpdatedAt: now,
+                };
+          });
           if (res.isError) {
             // Spec: `CallToolResult.isError === true` is a tool-level
             // error, not a protocol error. Surface via `error` for
@@ -523,6 +568,27 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
         },
         (err) => {
           if (gen !== genRef.current) return;
+          // result() rejection means the `tasks/result` RPC failed
+          // (transport error, taskId not found, bridge teardown). We
+          // can't know the server-side task's actual final state, but
+          // we know polling won't recover here either — same transport.
+          // Mark terminal and synthesize `failed` status for UX
+          // coherence; the populated `error` tells the consumer what
+          // specifically went wrong.
+          terminalRef.current = true;
+          clearPollTimer();
+          setTask((prev) => {
+            const now = new Date().toISOString();
+            return prev
+              ? { ...prev, status: "failed", lastUpdatedAt: now }
+              : {
+                  taskId: handle.task.taskId,
+                  status: "failed",
+                  ttl: handle.task.ttl,
+                  createdAt: handle.task.createdAt,
+                  lastUpdatedAt: now,
+                };
+          });
           const e = err instanceof Error ? err : new Error(String(err));
           setError(e);
         },

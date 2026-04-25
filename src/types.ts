@@ -541,15 +541,5 @@ export interface App {
    */
   readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult>;
   sendMessage(text: string, context?: { action?: string; entity?: string }): void;
-
-  /**
-   * @internal — host's declared `tasks` capability from the `ui/initialize`
-   * response, or `undefined` if absent. Read by the task-augmented tool call
-   * path (future `callToolAsTask`) to decide whether task augmentation is
-   * negotiated. Per MCP 2025-11-25, requestors MUST NOT task-augment without
-   * matching receiver capability.
-   */
-  readonly _hostTasksCapability: TasksCapability | undefined;
-
   destroy(): void;
 }

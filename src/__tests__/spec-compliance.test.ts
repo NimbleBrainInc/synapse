@@ -44,15 +44,24 @@ import {
 } from "@modelcontextprotocol/ext-apps";
 import type {
   CallToolRequest,
+  CancelTaskRequest,
+  CreateTaskResult,
+  GetTaskPayloadRequest,
+  GetTaskPayloadResult,
+  GetTaskRequest,
+  GetTaskResult,
   ReadResourceRequest,
   ReadResourceResult,
+  TaskStatus,
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
+import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connect } from "../connect.js";
 import { resolveEventMethod } from "../event-map.js";
-import type { App } from "../types.js";
+import { parseToolResult } from "../result-parser.js";
+import type { App, TasksCapability } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -566,5 +575,484 @@ describe("compile-time type assertions", () => {
     const [textItem, blobItem] = result.contents;
     if ("text" in textItem) expect(textItem.text).toBe("hi");
     if ("blob" in blobItem) expect(blobItem.blob).toBe("AAAA");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 8. MCP 2025-11-25 tasks utility — capability advertisement
+// ---------------------------------------------------------------------------
+
+describe("tasks capability advertisement", () => {
+  it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
+    app = await connectAndHandshake();
+
+    const initCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
+    );
+    expect(initCall).toBeDefined();
+
+    const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
+    const caps = params.appCapabilities as Record<string, unknown>;
+
+    // `tasks` is advertised (spec: requestor declares support before
+    // it may task-augment requests).
+    expect(caps).toHaveProperty("tasks");
+
+    const tasks = caps.tasks as TasksCapability;
+
+    // Nested presence-flag objects: `cancel` and `requests.tools.call`
+    // must exist and be objects (`{}`), NOT booleans. Spec uses empty
+    // objects so sub-fields can be added without wire breaks.
+    expect(tasks.cancel).toBeDefined();
+    expect(tasks.cancel).toEqual({});
+    expect(typeof tasks.cancel).toBe("object");
+    expect(typeof tasks.cancel).not.toBe("boolean");
+
+    expect(tasks.requests?.tools?.call).toBeDefined();
+    expect(tasks.requests?.tools?.call).toEqual({});
+    expect(typeof tasks.requests?.tools?.call).toBe("object");
+    expect(typeof tasks.requests?.tools?.call).not.toBe("boolean");
+  });
+
+  it("tasks.cancel is {} (not true) per spec presence-flag convention", async () => {
+    app = await connectAndHandshake();
+
+    const initCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
+    );
+    const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
+    const caps = params.appCapabilities as { tasks: TasksCapability };
+
+    // If this ever becomes `true`, a spec-compliant receiver would reject
+    // the capability advertisement. Fail loudly.
+    expect(caps.tasks.cancel).not.toBe(true);
+    expect(caps.tasks.cancel).not.toBe(false);
+  });
+
+  it("tasks.requests.tools.call is {} (not true) per spec presence-flag convention", async () => {
+    app = await connectAndHandshake();
+
+    const initCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
+    );
+    const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
+    const caps = params.appCapabilities as { tasks: TasksCapability };
+
+    const call = caps.tasks.requests?.tools?.call;
+    expect(call).not.toBe(true);
+    expect(call).not.toBe(false);
+    expect(call).toEqual({});
+  });
+
+  it("captures hostCapabilities.tasks when advertised by host", async () => {
+    const hostTasks: TasksCapability = {
+      cancel: {},
+      requests: { tools: { call: {} } },
+    };
+    app = await connectAndHandshake(
+      undefined,
+      makeSpecInitResult({
+        hostCapabilities: {
+          openLinks: {},
+          // Widened cast: ext-apps McpUiHostCapabilities does not model
+          // `tasks` yet; the SDK extension adds it via an index-signature
+          // passthrough. The runtime wire accepts it either way.
+          tasks: hostTasks,
+          // biome-ignore lint/suspicious/noExplicitAny: see comment
+        } as any,
+      }),
+    );
+
+    // `_hostTasksCapability` is the internal accessor future
+    // `callToolAsTask` reads to decide whether augmentation is negotiated.
+    expect(app._hostTasksCapability).toEqual(hostTasks);
+  });
+
+  it("_hostTasksCapability is undefined when host does not advertise tasks", async () => {
+    app = await connectAndHandshake(
+      undefined,
+      makeSpecInitResult({
+        hostCapabilities: {
+          openLinks: {},
+          serverTools: {},
+        },
+      }),
+    );
+
+    expect(app._hostTasksCapability).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 9. _meta passthrough for io.modelcontextprotocol/related-task
+// ---------------------------------------------------------------------------
+
+describe("parseToolResult preserves _meta", () => {
+  it("preserves _meta['io.modelcontextprotocol/related-task'] on parsed result", () => {
+    const taskId = "tsk_01abc123";
+    const raw = {
+      content: [{ type: "text", text: '{"ok":true}' }],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId },
+      },
+    };
+
+    const result = parseToolResult(raw);
+
+    // Meta must be present — this key is how the requestor correlates
+    // the response with its originating task per MCP 2025-11-25 §7.
+    expect(result._meta).toBeDefined();
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId });
+  });
+
+  it("preserves arbitrary _meta keys (key-preserving passthrough, not selective copy)", () => {
+    const raw = {
+      content: [{ type: "text", text: '"hello"' }],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId: "tsk_xyz" },
+        "vendor.namespace/custom-key": { foo: "bar" },
+        progressToken: "prog-42",
+      },
+    };
+
+    const result = parseToolResult(raw);
+
+    // All three keys must flow through — spec adds fields post-hoc and
+    // selective copying strips future additions silently.
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_xyz" });
+    expect(result._meta?.["vendor.namespace/custom-key"]).toEqual({ foo: "bar" });
+    expect(result._meta?.progressToken).toBe("prog-42");
+  });
+
+  it("does not add a _meta field when the source has no _meta (backward compat)", () => {
+    const raw = {
+      content: [{ type: "text", text: '{"id":"tsk_legacy"}' }],
+    };
+
+    const result = parseToolResult(raw);
+
+    // Existing consumers iterate over result keys; an injected `_meta:
+    // undefined` would be an observable change. Confirm the key is absent.
+    expect(result._meta).toBeUndefined();
+    expect(Object.hasOwn(result, "_meta")).toBe(false);
+  });
+
+  it("preserves _meta on error results (isError: true)", () => {
+    const raw = {
+      isError: true,
+      content: [{ type: "text", text: "boom" }],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId: "tsk_failed" },
+      },
+    };
+
+    const result = parseToolResult(raw);
+
+    expect(result.isError).toBe(true);
+    expect(result.data).toBe("boom");
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_failed" });
+  });
+
+  it("preserves _meta when content array is empty", () => {
+    const raw = {
+      content: [] as unknown[],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId: "tsk_empty" },
+      },
+    };
+
+    const result = parseToolResult(raw);
+
+    expect(result.data).toBeNull();
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_empty" });
+  });
+
+  it("preserves _meta when no text blocks are present", () => {
+    const raw = {
+      content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId: "tsk_image" },
+      },
+    };
+
+    const result = parseToolResult(raw);
+
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_image" });
+  });
+
+  it("ignores malformed _meta (non-object) without throwing", () => {
+    // Defensive: a bridge that forwards a stringly-typed meta should not
+    // crash the parser. Spec-compliant meta is always an object.
+    const raw = {
+      content: [{ type: "text", text: "{}" }],
+      _meta: "not-an-object",
+    };
+
+    const result = parseToolResult(raw);
+    expect(result._meta).toBeUndefined();
+  });
+});
+
+describe("RELATED_TASK_META_KEY constant matches spec", () => {
+  it("is io.modelcontextprotocol/related-task", () => {
+    expect(RELATED_TASK_META_KEY).toBe("io.modelcontextprotocol/related-task");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 10. Task-augmented tools/call wire shape (MCP 2025-11-25 §)
+// ---------------------------------------------------------------------------
+//
+// These tests drive through the `createSynapse` API (where
+// `callToolAsTask` lives) rather than `connect()`. They assert the
+// ENCODED wire bytes match the spec — this is the layer where silent
+// drift is most costly.
+
+describe("task-augmented tools/call wire shape", () => {
+  const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
+  const TASKS_GET_METHOD: GetTaskRequest["method"] = "tasks/get";
+  const TASKS_RESULT_METHOD: GetTaskPayloadRequest["method"] = "tasks/result";
+  const TASKS_CANCEL_METHOD: CancelTaskRequest["method"] = "tasks/cancel";
+
+  function makeSynapseInitResult(
+    hostTasks: TasksCapability = {
+      cancel: {},
+      requests: { tools: { call: {} } },
+    },
+  ) {
+    return {
+      protocolVersion: LATEST_PROTOCOL_VERSION,
+      hostInfo: { name: "test-host", version: "1.0.0" },
+      hostCapabilities: {
+        openLinks: {},
+        tasks: hostTasks,
+        // biome-ignore lint/suspicious/noExplicitAny: host caps
+        // widening — `McpUiHostCapabilities` doesn't yet model tasks.
+      } as any,
+      hostContext: {
+        theme: "dark",
+        styles: { variables: {} },
+      } as McpUiHostContext,
+    };
+  }
+
+  async function makeReadySynapse(): Promise<{
+    synapse: import("../types.js").Synapse;
+    cleanup: () => void;
+  }> {
+    // Dynamic import keeps this describe block self-contained and
+    // avoids top-level coupling with the App-based setup above.
+    const { createSynapse } = await import("../core.js");
+    const s = createSynapse({ name: "test-app", version: "1.0.0" });
+    s.ready.catch(() => {});
+
+    // Answer ui/initialize
+    const initCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
+    );
+    if (!initCall) throw new Error("ui/initialize not sent");
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          id: (initCall[0] as Record<string, unknown>).id,
+          result: makeSynapseInitResult(),
+        },
+      }),
+    );
+    await s.ready;
+    return { synapse: s, cleanup: () => s.destroy() };
+  }
+
+  function respondTo(method: string, result: unknown): void {
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === method,
+    );
+    if (!call) throw new Error(`No pending ${method} request`);
+    const id = (call[0] as Record<string, unknown>).id;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", id, result },
+      }),
+    );
+  }
+
+  it("tools/call with task param has the spec wire shape", async () => {
+    const { synapse, cleanup } = await makeReadySynapse();
+
+    const pending = synapse.callToolAsTask("do_research", { query: "mcp" }, { ttl: 60_000 });
+
+    // Find the tools/call message on the wire.
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === TOOLS_CALL_METHOD,
+    );
+    expect(call).toBeDefined();
+
+    const msg = call![0] as Record<string, unknown>;
+    // Request shape: has id, jsonrpc, method, params — no forbidden fields.
+    expect(msg.jsonrpc).toBe("2.0");
+    expect(msg.method).toBe(TOOLS_CALL_METHOD);
+    expect(typeof msg.id).toBe("string");
+
+    const params = msg.params as CallToolRequest["params"];
+    // Spec-required fields
+    expect(params.name).toBe("do_research");
+    expect(params.arguments).toEqual({ query: "mcp" });
+    // `task` is the augmentation signal
+    expect(params.task).toEqual({ ttl: 60_000 });
+
+    // Respond and clean up
+    const createResult: CreateTaskResult = {
+      task: {
+        taskId: "tsk_spec",
+        status: "working" satisfies TaskStatus,
+        ttl: 60_000,
+        createdAt: "2026-04-22T00:00:00.000Z",
+        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
+      },
+    };
+    respondTo(TOOLS_CALL_METHOD, createResult);
+    await pending;
+    cleanup();
+  });
+
+  it("tasks/result response preserves _meta through parseToolResult", async () => {
+    const { synapse, cleanup } = await makeReadySynapse();
+
+    const pending = synapse.callToolAsTask("do_thing", {});
+    respondTo(TOOLS_CALL_METHOD, {
+      task: {
+        taskId: "tsk_meta_spec",
+        status: "working" satisfies TaskStatus,
+        ttl: 60_000,
+        createdAt: "2026-04-22T00:00:00.000Z",
+        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
+      },
+    } satisfies CreateTaskResult);
+    const handle = await pending;
+
+    const resultPromise = handle.result();
+
+    // Spec §: `tasks/result` response MUST include
+    // `_meta["io.modelcontextprotocol/related-task"] = { taskId }`.
+    const terminal = {
+      content: [{ type: "text", text: '{"ok":true}' }],
+      _meta: {
+        [RELATED_TASK_META_KEY]: { taskId: "tsk_meta_spec" },
+      },
+    } satisfies GetTaskPayloadResult;
+    respondTo(TASKS_RESULT_METHOD, terminal);
+
+    const result = await resultPromise;
+    expect(result._meta).toBeDefined();
+    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_meta_spec" });
+
+    cleanup();
+  });
+
+  it("lifecycle: start → refresh (working) → result (completed) records spec wire traffic", async () => {
+    const { synapse, cleanup } = await makeReadySynapse();
+
+    // 1. Start task
+    const pending = synapse.callToolAsTask("do_thing", { q: 1 }, { ttl: 90_000 });
+    const startMsg = postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((m) => m.method === TOOLS_CALL_METHOD);
+    expect(startMsg).toBeDefined();
+    expect((startMsg!.params as CallToolRequest["params"]).task).toEqual({ ttl: 90_000 });
+
+    respondTo(TOOLS_CALL_METHOD, {
+      task: {
+        taskId: "tsk_lc",
+        status: "working" satisfies TaskStatus,
+        ttl: 90_000,
+        createdAt: "2026-04-22T00:00:00.000Z",
+        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
+      },
+    } satisfies CreateTaskResult);
+    const handle = await pending;
+    expect(handle.task.status).toBe("working" satisfies TaskStatus);
+
+    // 2. Refresh (still working) — tasks/get with just { taskId }
+    const refreshPromise = handle.refresh();
+    const getMsg = postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((m) => m.method === TASKS_GET_METHOD);
+    expect(getMsg).toBeDefined();
+    expect((getMsg!.params as GetTaskRequest["params"]).taskId).toBe("tsk_lc");
+    // `taskId` is passed in `params` (NOT via _meta.related-task), per
+    // spec § — tasks/{get,list,cancel} and status notifications use
+    // `params.taskId` directly.
+    expect(getMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
+
+    respondTo(TASKS_GET_METHOD, {
+      taskId: "tsk_lc",
+      status: "working" satisfies TaskStatus,
+      ttl: 90_000,
+      createdAt: "2026-04-22T00:00:00.000Z",
+      lastUpdatedAt: "2026-04-22T00:00:10.000Z",
+    } satisfies GetTaskResult);
+    const refreshed = await refreshPromise;
+    expect(refreshed.status).toBe("working" satisfies TaskStatus);
+    expect(refreshed.lastUpdatedAt).toBe("2026-04-22T00:00:10.000Z");
+
+    // 3. Terminal result — tasks/result with { taskId }
+    const resultPromise = handle.result();
+    const resultMsg = postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((m) => m.method === TASKS_RESULT_METHOD);
+    expect(resultMsg).toBeDefined();
+    expect((resultMsg!.params as GetTaskPayloadRequest["params"]).taskId).toBe("tsk_lc");
+
+    respondTo(TASKS_RESULT_METHOD, {
+      content: [{ type: "text", text: '{"done":true}' }],
+      _meta: { [RELATED_TASK_META_KEY]: { taskId: "tsk_lc" } },
+    } satisfies GetTaskPayloadResult);
+
+    const finalResult = await resultPromise;
+    expect(finalResult.data).toEqual({ done: true });
+    expect(finalResult._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_lc" });
+
+    cleanup();
+  });
+
+  it("tasks/cancel wire shape: params.taskId only, no _meta related-task", async () => {
+    const { synapse, cleanup } = await makeReadySynapse();
+
+    const pending = synapse.callToolAsTask("do_thing", {});
+    respondTo(TOOLS_CALL_METHOD, {
+      task: {
+        taskId: "tsk_cancel",
+        status: "working" satisfies TaskStatus,
+        ttl: 60_000,
+        createdAt: "2026-04-22T00:00:00.000Z",
+        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
+      },
+    } satisfies CreateTaskResult);
+    const handle = await pending;
+
+    const cancelPromise = handle.cancel();
+
+    const cancelMsg = postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .find((m) => m.method === TASKS_CANCEL_METHOD);
+    expect(cancelMsg).toBeDefined();
+    const cancelParams = cancelMsg!.params as CancelTaskRequest["params"];
+    expect(cancelParams.taskId).toBe("tsk_cancel");
+    // Spec § exempts tasks/{get,list,cancel} from the related-task
+    // _meta requirement; enforce by absence.
+    expect(cancelMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
+
+    respondTo(TASKS_CANCEL_METHOD, {
+      taskId: "tsk_cancel",
+      status: "cancelled" satisfies TaskStatus,
+      ttl: 60_000,
+      createdAt: "2026-04-22T00:00:00.000Z",
+      lastUpdatedAt: "2026-04-22T00:00:05.000Z",
+    });
+    const finalTask = await cancelPromise;
+    expect(finalTask.status).toBe("cancelled" satisfies TaskStatus);
+
+    cleanup();
   });
 });

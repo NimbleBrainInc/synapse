@@ -23,9 +23,11 @@ import type {
 import { detectHost, extractTheme } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
+import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
 import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
+  CallToolAsTaskOptions,
   DataChangedEvent,
   FileResult,
   HostInfo,
@@ -33,6 +35,8 @@ import type {
   Synapse,
   SynapseOptions,
   SynapseTheme,
+  TaskHandle,
+  TasksCapability,
   ToolCallResult,
 } from "./types.js";
 
@@ -62,7 +66,18 @@ export function createSynapse(options: SynapseOptions): Synapse {
   // populates a `workspace` field). `getTheme()` and any other typed view
   // is derived from this object — no parallel state.
   let currentHostContext: McpUiHostContext = {};
+  // Module-private store for the host's declared `tasks` capability. Kept
+  // in the closure (not on Synapse) so `callToolAsTask` reads it without
+  // expanding the public surface. `null` before the handshake completes;
+  // `undefined` after a handshake where the host did not advertise `tasks`.
+  let hostTasksCapability: TasksCapability | undefined | null = null;
   let destroyed = false;
+
+  // Shared router for `notifications/tasks/status`. Created eagerly so
+  // the transport-level listener registers exactly once — every
+  // `TaskHandle.onStatus` subscriber filters off this single wire
+  // subscription by taskId. Disposed in `destroy()`.
+  const taskStatusRouter = createTaskStatusRouter(transport);
 
   // --- Debounce for setVisibleState ---
   let stateTimer: ReturnType<typeof setTimeout> | null = null;
@@ -71,10 +86,24 @@ export function createSynapse(options: SynapseOptions): Synapse {
   let keyboard: KeyboardForwarder | null = null;
 
   // --- ext-apps handshake ---
+  //
+  // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps
+  // spec package, which does not yet model the MCP 2025-11-25 tasks
+  // utility. We extend structurally via `TasksCapability` (re-exported
+  // from the SDK's `ClientCapabilities.tasks` / `ServerTasksCapability`
+  // shape) and `satisfies` the extension so the nested objects match the
+  // spec literally — empty objects `{}` as presence flags, NOT booleans.
+  const appCapabilities = {
+    tasks: {
+      cancel: {},
+      requests: { tools: { call: {} } },
+    } satisfies TasksCapability,
+  };
   const initParams: McpUiInitializeRequest["params"] = {
     protocolVersion: LATEST_PROTOCOL_VERSION,
     appInfo: { name, version },
-    appCapabilities: {},
+    appCapabilities:
+      appCapabilities as unknown as McpUiInitializeRequest["params"]["appCapabilities"],
   };
 
   const ready = transport
@@ -83,6 +112,17 @@ export function createSynapse(options: SynapseOptions): Synapse {
       hostInfo = detectHost(result);
       currentHostContext = ((result as McpUiInitializeResult | null)?.hostContext ??
         {}) as McpUiHostContext;
+
+      // Capture the host's declared `tasks` capability from the init
+      // response. The ext-apps `McpUiHostCapabilities` type lacks a
+      // `tasks` field (the SDK extension post-dates it), so we read via
+      // the result's index signature. `undefined` when absent.
+      const initResult = result as McpUiInitializeResult | null;
+      const rawTasks = (initResult?.hostCapabilities as Record<string, unknown> | undefined)?.tasks;
+      hostTasksCapability =
+        rawTasks && typeof rawTasks === "object" && !Array.isArray(rawTasks)
+          ? (rawTasks as TasksCapability)
+          : undefined;
 
       // Inject host CSS variables into :root so plain-CSS styles can consume
       // them via `var(--…)` without needing to read theme.tokens imperatively.
@@ -162,6 +202,25 @@ export function createSynapse(options: SynapseOptions): Synapse {
       }
       const raw = await transport.request("tools/call", params);
       return parseToolResult(raw) as ToolCallResult<TOutput>;
+    },
+
+    async callToolAsTask<TInput = Record<string, unknown>, TOutput = unknown>(
+      toolName: string,
+      args?: TInput,
+      options?: CallToolAsTaskOptions,
+    ): Promise<TaskHandle<TOutput>> {
+      return callToolAsTaskImpl<TOutput>(
+        {
+          transport,
+          router: taskStatusRouter,
+          getHostTasksCapability: () => hostTasksCapability,
+          appName: name,
+          internalApp: internal,
+        },
+        toolName,
+        args,
+        options,
+      );
     },
 
     async readResource(uri: string): Promise<ReadResourceResult> {
@@ -322,6 +381,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
       return transport.request(method, params);
     },
 
+    get _hostTasksCapability(): TasksCapability | undefined | null {
+      return hostTasksCapability;
+    },
+
     destroy(): void {
       if (destroyed) return;
       destroyed = true;
@@ -331,6 +394,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       unsubHostContext();
       unsubData();
       unsubAction();
+      taskStatusRouter.dispose();
       hostContextCallbacks.clear();
       dataCallbacks.clear();
       actionCallbacks.clear();

@@ -8,11 +8,13 @@ export {
   useToolInput,
   useToolResult,
 } from "./connect-hooks.js";
+export type { UseCallToolAsTaskResult } from "./hooks.js";
 export {
   SynapseProvider,
   useAction,
   useAgentAction,
   useCallTool,
+  useCallToolAsTask,
   useChat,
   useDataSync,
   useFileUpload,

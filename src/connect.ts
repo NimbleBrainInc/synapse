@@ -1,13 +1,10 @@
 import type {
   McpUiHostContext,
   McpUiHostContextChangedNotification,
-  McpUiInitializedNotification,
   McpUiInitializeRequest,
   McpUiInitializeResult,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
-  McpUiSizeChangedNotification,
-  McpUiToolResultNotification,
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps";
 import {
@@ -17,10 +14,6 @@ import {
   LATEST_PROTOCOL_VERSION,
   MESSAGE_METHOD,
   OPEN_LINK_METHOD,
-  SIZE_CHANGED_METHOD,
-  TOOL_CANCELLED_METHOD,
-  TOOL_INPUT_METHOD,
-  TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
 import type {
@@ -35,7 +28,14 @@ import { resolveEventMethod } from "./event-map.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
 import { SynapseTransport } from "./transport.js";
-import type { App, ConnectOptions, Dimensions, Theme, ToolCallResult } from "./types.js";
+import type {
+  App,
+  ConnectOptions,
+  Dimensions,
+  TasksCapability,
+  Theme,
+  ToolCallResult,
+} from "./types.js";
 
 // Derived locally because `@modelcontextprotocol/ext-apps` only exports
 // METHOD constants for ext-apps specific ui/* methods. Typing the literal
@@ -60,6 +60,11 @@ export async function connect(options: ConnectOptions): Promise<App> {
   let hostInfo: { name: string; version: string } = { name: "unknown", version: "unknown" };
   let toolInfo: { tool: Record<string, unknown> } | null = null;
   let containerDimensions: Dimensions | null = null;
+  // Module-private store for the host's declared `tasks` capability,
+  // captured from the init response. Read by task-augmented tool call
+  // paths (future `callToolAsTask`) to decide whether augmentation is
+  // negotiated per MCP 2025-11-25.
+  let hostTasksCapability: TasksCapability | undefined;
 
   // --- Event handlers ---
   const handlers = new Map<string, Set<(params: unknown) => void>>();
@@ -71,10 +76,24 @@ export async function connect(options: ConnectOptions): Promise<App> {
   resizer.measureAndSend();
 
   // --- Steps 3-4: Send ui/initialize and wait for response ---
+  //
+  // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps
+  // spec package, which does not yet model the MCP 2025-11-25 tasks
+  // utility. We extend structurally via `TasksCapability` (re-exported
+  // from the SDK's client/server tasks capability shape) and `satisfies`
+  // the extension so nested objects match the spec literally — empty
+  // objects `{}` as presence flags, NOT booleans.
+  const appCapabilities = {
+    tasks: {
+      cancel: {},
+      requests: { tools: { call: {} } },
+    } satisfies TasksCapability,
+  };
   const initParams: McpUiInitializeRequest["params"] = {
     protocolVersion: LATEST_PROTOCOL_VERSION,
     appInfo: { name, version },
-    appCapabilities: {},
+    appCapabilities:
+      appCapabilities as unknown as McpUiInitializeRequest["params"]["appCapabilities"],
   };
 
   const result = (await transport.request(
@@ -88,6 +107,16 @@ export async function connect(options: ConnectOptions): Promise<App> {
       name: result.hostInfo?.name ?? "unknown",
       version: result.hostInfo?.version ?? "unknown",
     };
+
+    // Capture the host's declared `tasks` capability. The ext-apps
+    // `McpUiHostCapabilities` type lacks a `tasks` field (the SDK
+    // extension post-dates it), so we read via index access. `undefined`
+    // when absent.
+    const rawTasks = (result.hostCapabilities as Record<string, unknown> | undefined)?.tasks;
+    hostTasksCapability =
+      rawTasks && typeof rawTasks === "object" && !Array.isArray(rawTasks)
+        ? (rawTasks as TasksCapability)
+        : undefined;
 
     const ctx: McpUiHostContext | undefined = result.hostContext;
     if (ctx) {
@@ -256,6 +285,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
         content: [textBlock],
       };
       transport.send(MESSAGE_METHOD, params as unknown as Record<string, unknown>);
+    },
+
+    get _hostTasksCapability(): TasksCapability | undefined {
+      return hostTasksCapability;
     },
 
     destroy(): void {

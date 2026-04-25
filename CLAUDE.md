@@ -92,6 +92,20 @@ export const TOOL_CANCELLED_METHOD = "ui/notifications/tool-cancelled";
 export const HOST_CONTEXT_CHANGED_METHOD = "ui/notifications/host-context-changed";
 export const REQUEST_TEARDOWN_METHOD = "ui/notifications/request-teardown";
 export const RESOURCE_TEARDOWN_METHOD = "ui/resource-teardown";
+
+// MCP 2025-11-25 tasks utility — mirrors `@modelcontextprotocol/sdk/types.js`
+// constants. Method strings are frozen by the spec; keep these in lockstep
+// with `src/task-handle.ts` (and any future `src/task-methods.ts`). The SDK
+// publishes these only as Zod `z.literal(...)`s — our source files derive
+// the constants via `const X: SomeRequest["method"] = "..."` so a spec
+// rename trips tsc immediately.
+export const RELATED_TASK_META_KEY = "io.modelcontextprotocol/related-task";
+export const TOOLS_CALL_METHOD = "tools/call";
+export const TASKS_GET_METHOD = "tasks/get";
+export const TASKS_RESULT_METHOD = "tasks/result";
+export const TASKS_CANCEL_METHOD = "tasks/cancel";
+export const TASKS_LIST_METHOD = "tasks/list";
+export const TASKS_STATUS_NOTIFICATION_METHOD = "notifications/tasks/status";
 SHIM
 
 # Build

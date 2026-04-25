@@ -1,4 +1,9 @@
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type { ReadResourceRequest, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+
+// Re-export so SDK consumers can type host-context reads without a separate
+// dependency on `@modelcontextprotocol/ext-apps`.
+export type { McpUiHostContext };
 
 // ---------- Core ----------
 
@@ -138,6 +143,29 @@ export interface Synapse {
    * `payload`. Apps should handle known types and ignore unknown ones.
    */
   onAction(callback: (action: AgentAction) => void): () => void;
+
+  /**
+   * Read the current ext-apps host context as last received from the host.
+   *
+   * Spec-standardized fields (`theme`, `styles`, `displayMode`, `toolInfo`)
+   * are typed; the open `[key: string]: unknown` allows hosts to publish
+   * extensions (e.g. NimbleBrain populates `workspace`). Apps reading
+   * host-specific fields should treat them as optional and tolerate
+   * missing values when running on other hosts.
+   *
+   * Returns the empty object before the `ui/initialize` handshake completes.
+   */
+  getHostContext(): McpUiHostContext;
+
+  /**
+   * Subscribe to host-context updates. Fires once per
+   * `ui/notifications/host-context-changed` notification (which carries a
+   * full snapshot, not a delta) and once on handshake completion.
+   *
+   * `getTheme`/`onThemeChanged` are typed selectors over this same state —
+   * prefer them when only theming matters, since they filter no-op fires.
+   */
+  onHostContextChanged(callback: (ctx: McpUiHostContext) => void): () => void;
 
   getTheme(): SynapseTheme;
   onThemeChanged(callback: (theme: SynapseTheme) => void): () => void;

@@ -29,7 +29,7 @@ export function detectHost(initResponse: unknown): HostInfo {
   };
 }
 
-function extractTheme(ctx: Partial<McpUiHostContext> | undefined): SynapseTheme {
+export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): SynapseTheme {
   if (!ctx) return { ...DEFAULT_THEME };
 
   // Spec: theme is a string ("light" | "dark")

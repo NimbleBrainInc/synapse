@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { extractTheme } from "../detection.js";
 import type {
   ActionReducer,
   AgentAction,
@@ -99,16 +101,46 @@ export function useAgentAction(callback: (action: AgentAction) => void): void {
   }, [synapse]);
 }
 
-export function useTheme(): SynapseTheme {
+/**
+ * Subscribe to the full ext-apps host context.
+ *
+ * Returns the host context bag — spec-standardized fields (`theme`, `styles`,
+ * `displayMode`, `toolInfo`) plus any host extensions. Re-renders on every
+ * `ui/notifications/host-context-changed` notification.
+ *
+ * Prefer `useTheme()` when only theming matters (it filters no-op fires and
+ * returns a typed `SynapseTheme`). Reach for `useHostContext()` for non-theme
+ * fields like host-specific extensions, e.g. on NimbleBrain:
+ *
+ * ```tsx
+ * const { workspace } = useHostContext<{ workspace?: { id: string } }>();
+ * ```
+ */
+export function useHostContext<T extends McpUiHostContext = McpUiHostContext>(): T {
   const synapse = useSynapseContext();
-  const [theme, setTheme] = useState<SynapseTheme>(() => synapse.getTheme());
+  const [ctx, setCtx] = useState<T>(() => synapse.getHostContext() as T);
 
   useEffect(() => {
-    // Sync in case theme changed between render and effect
-    setTheme(synapse.getTheme());
-    return synapse.onThemeChanged(setTheme);
+    // Sync in case context changed between render and effect
+    setCtx(synapse.getHostContext() as T);
+    return synapse.onHostContextChanged((c) => setCtx(c as T));
   }, [synapse]);
 
+  return ctx;
+}
+
+/**
+ * Typed selector over `useHostContext` for theming. Re-renders only when the
+ * derived `SynapseTheme` actually changes (mode, primaryColor, or any token
+ * value), so theme consumers don't see spurious updates when other host
+ * context fields move.
+ */
+export function useTheme(): SynapseTheme {
+  const ctx = useHostContext();
+  const theme = useMemo(() => extractTheme(ctx), [ctx]);
+  // useMemo retains identity within the same `ctx`; an upstream re-render
+  // with the same `ctx` reference is impossible (state replace, not mutation),
+  // so structural identity tracks logical identity.
   return theme;
 }
 

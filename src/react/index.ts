@@ -16,6 +16,7 @@ export {
   useChat,
   useDataSync,
   useFileUpload,
+  useHostContext,
   useStore,
   useSynapse,
   useTheme,

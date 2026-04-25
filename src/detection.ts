@@ -10,7 +10,10 @@ const DEFAULT_THEME: SynapseTheme = {
 /**
  * Detect the host environment from the ext-apps `ui/initialize` response.
  *
- * Uses spec field names (hostInfo, hostContext.theme as string, styles.variables).
+ * Reports identity only (host name, protocol version). Theme lives in the
+ * unified host-context state and is read via `extractTheme(hostContext)`
+ * — no parallel `theme` field on `HostInfo`.
+ *
  * Handles missing or malformed fields gracefully — never throws.
  */
 export function detectHost(initResponse: unknown): HostInfo {
@@ -18,14 +21,11 @@ export function detectHost(initResponse: unknown): HostInfo {
 
   const hostName = resp?.hostInfo?.name ?? "unknown";
   const protocolVersion = resp?.protocolVersion ?? "unknown";
-  const ctx = resp?.hostContext as Partial<McpUiHostContext> | undefined;
-  const theme = extractTheme(ctx);
 
   return {
     isNimbleBrain: hostName === "nimblebrain",
     serverName: hostName,
     protocolVersion,
-    theme,
   };
 }
 

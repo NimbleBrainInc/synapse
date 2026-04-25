@@ -319,7 +319,6 @@ export interface HostInfo {
   isNimbleBrain: boolean;
   serverName: string;
   protocolVersion: string;
-  theme: SynapseTheme;
 }
 
 // ---------- Connect API ----------

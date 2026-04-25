@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-04-24
+
+Adds the iframe-side surface of the MCP 2025-11-25 tasks utility so widgets can fire long-running tools without blocking on the request. Existing `callTool` consumers are unaffected.
+
+### Added
+
+- `synapse.callToolAsTask(name, args?, options?)` — issues a task-augmented `tools/call`, returns a `TaskHandle` populated from `CreateTaskResult` immediately. The handle exposes `result()` (blocks via `tasks/result` until terminal), `refresh()` (non-blocking `tasks/get`), `cancel()` (`tasks/cancel`), and `onStatus(cb)` (subscribes to `notifications/tasks/status` for the handle's `taskId`). Throws when the host did not advertise `tasks.requests.tools.call`.
+- `useCallToolAsTask(toolName)` React hook — wraps `callToolAsTask` with lifecycle: notification subscription, polling fallback via `handle.refresh()` when notifications don't arrive (spec marks them OPTIONAL), terminal-state synthesis on `result()`, bounded backoff on consecutive refresh failures, and re-fire safety. Returns `{ fire, task, result, error, isWorking, isTerminal, cancel }`.
+- New exported types: `Task`, `TaskStatus`, `CreateTaskResult` (re-exports from `@modelcontextprotocol/sdk/types.js`), `TasksCapability`, `TaskHandle<TOutput>`, `CallToolAsTaskOptions`, `UseCallToolAsTaskResult`.
+- `Synapse._hostTasksCapability` — internal accessor for the host's declared `tasks` capability captured during `ui/initialize`. Tri-state (`null` pre-handshake, `undefined` if host didn't advertise, `TasksCapability` if present) so consumers can feature-detect.
+
+### Changed
+
+- `createSynapse()` now advertises `appCapabilities.tasks = { cancel: {}, requests: { tools: { call: {} } } }` in the `ui/initialize` request. Spec-compliant hosts ignore unknown capability fields, so this is a graceful addition for existing hosts; strict hosts that reject unknown capabilities (non-conformant per MCP) would need to be updated.
+- `parseToolResult` now preserves `_meta` (including `io.modelcontextprotocol/related-task`) on the returned `ToolCallResult` via key-preserving spread. Additive — consumers iterating result keys will see one new optional field.
+- `connect()` does **not** advertise the `tasks` capability. The returned `App` exposes no task-augmented call surface, so advertising would be a false contract with the host. Use `createSynapse()` for task-aware apps.
+
+### Migration
+
+- **TypeScript mocks of `Synapse`** will fail to compile because `callToolAsTask` and `_hostTasksCapability` are now required members. Add stubs (e.g. `callToolAsTask: vi.fn()`, `_hostTasksCapability: undefined`) or cast a `Partial<Synapse>` at the test boundary.
+- No runtime migration needed for end-users of the SDK. Existing `callTool`, `readResource`, theme, and React hook code paths are untouched.
+
 ## [0.6.0] - 2026-04-24
 
 ### Breaking

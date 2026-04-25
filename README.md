@@ -302,6 +302,7 @@ await synapse.ready;
 | `ready` | Promise that resolves after the ext-apps handshake |
 | `isNimbleBrainHost` | Whether the host is a NimbleBrain platform |
 | `callTool(name, args?)` | Call an MCP tool and get typed result |
+| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented; returns a `TaskHandle` immediately. See [Long-running tools](#long-running-tools-tasks) below. |
 | `onDataChanged(cb)` | Subscribe to data change events |
 | `onAction(cb)` | Subscribe to agent actions (typed, declarative) |
 | `getTheme()` | Get current theme |
@@ -314,6 +315,8 @@ await synapse.ready;
 | `pickFiles(options?)` | Open native file picker, multiple files (NB-only) |
 | `openLink(url)` | Open a URL (host-aware) |
 | `destroy()` | Clean up all listeners and timers |
+
+`Synapse` also exposes `_hostTasksCapability: TasksCapability | undefined | null` — the host's declared `tasks` capability from `ui/initialize`. `null` pre-handshake, `undefined` if the host did not advertise tasks, or the `TasksCapability` shape if it did. Read it to feature-detect before calling `callToolAsTask`.
 
 ## React Hooks
 
@@ -354,6 +357,59 @@ import { SynapseProvider, useSynapse, useCallTool, useTheme } from "@nimblebrain
 | `useVisibleState()` | `(state, summary?) => void` | Push LLM-visible state |
 | `useFileUpload()` | File picker helpers | File upload (NB-only) |
 | `useStore(store)` | `{ state, dispatch }` | Bind a store to React |
+| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | Lifecycle wrapper around `callToolAsTask` for long-running tools. See below. |
+
+## Long-running tools (tasks)
+
+For tools whose work exceeds the stock MCP request timeout (~60s) — research runs, batch imports, multi-stage analyses — use `callToolAsTask` (or `useCallToolAsTask` in React) instead of `callTool`. The host returns a `CreateTaskResult` immediately; the actual `CallToolResult` is fetched via `tasks/result` when the task reaches a terminal state.
+
+```tsx
+import { useCallToolAsTask } from "@nimblebrain/synapse/react";
+
+function ResearchPanel() {
+  const { fire, task, result, error, isWorking, isTerminal, cancel } =
+    useCallToolAsTask<{ query: string }, { report: string }>("start_research");
+
+  if (!task) return <button onClick={() => fire({ query: "Q2 metrics" })}>Run</button>;
+  if (isWorking) return <Spinner onCancel={cancel} status={task.status} />;
+  if (error) return <ErrorBox error={error} />;
+  return <Report data={result} />;
+}
+```
+
+**Authoring task-aware tools.** The server side declares `execution.taskSupport: "optional"` (or `"required"`) on the tool's `tools/list` entry. With FastMCP (Python):
+
+```python
+from fastmcp.server.tasks import TaskConfig
+
+@mcp.tool(task=TaskConfig(mode="optional"))
+async def start_research(query: str, ctx: Context) -> dict:
+    ...
+```
+
+`mode="optional"` lets the same tool run inline (`callTool`) or as a task (`callToolAsTask`) — the client decides. `mode="required"` rejects non-task calls with JSON-RPC `-32601`.
+
+**Dual-channel pattern.** When a task creates a domain entity (a research run, an import job), the entity ID is delivered via `synapse/data-changed` / `useDataSync`, **not** the task result. The task channel signals "started / running / done / cancelled"; the entity channel carries the durable record. UIs that need to navigate to the new entity should listen on `useDataSync` rather than awaiting `result()`.
+
+**Capability detection.** Hosts that don't support tasks won't advertise the `tasks.requests.tools.call` capability. `callToolAsTask` throws on hosts without the capability — wrap in a try/catch and fall back to `callTool` if you want graceful degradation:
+
+```typescript
+try {
+  const handle = await synapse.callToolAsTask("start_research", { query });
+  // ...task-aware UI
+} catch (err) {
+  if (String(err).includes("tasks.requests.tools.call")) {
+    // Legacy host — fall back to a blocking call.
+    const result = await synapse.callTool("start_research", { query });
+  } else {
+    throw err;
+  }
+}
+```
+
+**Status notifications are optional.** Per spec, hosts MAY emit `notifications/tasks/status` but consumers MUST NOT rely on them. `useCallToolAsTask` polls `tasks/get` as a fallback (using `pollInterval × 1.5` from the initial `Task`, defaulting to ~7.5s). Polling stops automatically on terminal status, on `result()` settling, or after 5 consecutive refresh failures.
+
+**Cancellation.** `handle.cancel()` issues `tasks/cancel`. Cancelling an already-terminal task surfaces a `-32602` error from the host. Unmounting a React component does **not** cancel the server-side task — the task continues, and the user can re-fire to recover state.
 
 ## Development
 

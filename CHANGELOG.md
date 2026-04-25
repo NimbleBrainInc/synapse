@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-04-24
+
+### Breaking
+
+- `HostInfo` no longer carries a `theme` field. It was redundant after the host-context unification; read theme via `synapse.getTheme()` / `useTheme()` instead. `HostInfo` reports identity only (host name, protocol version, `isNimbleBrain`).
+
+### Added
+
+- `useHostContext()` React hook and `synapse.getHostContext()` / `synapse.onHostContextChanged()` for reading and observing the full ext-apps host context — including host-specific extensions like NimbleBrain's `workspace` field. Returns the spec-typed `McpUiHostContext`.
+
+### Changed
+
+- `getTheme()` / `useTheme()` / `onThemeChanged()` are now selectors over the unified host-context state. Same API and behavior, but `onThemeChanged` no longer fires when only non-theme fields (e.g. workspace) change.
+
 ## [0.5.0] - 2026-04-21
 
 Minor bump: removes a public method from the `Synapse` interface. Also changes the wire format of `synapse/download-file` (now sends a `Blob`, not a string) — must ship paired with a host bridge that accepts a `Blob` payload.

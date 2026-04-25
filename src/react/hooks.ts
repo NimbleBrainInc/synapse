@@ -1,3 +1,4 @@
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
   ActionReducer,
@@ -99,6 +100,46 @@ export function useAgentAction(callback: (action: AgentAction) => void): void {
   }, [synapse]);
 }
 
+/**
+ * Subscribe to the full ext-apps host context.
+ *
+ * Returns the host context bag — spec-standardized fields (`theme`, `styles`,
+ * `displayMode`, `toolInfo`) plus any host extensions. Re-renders on every
+ * `ui/notifications/host-context-changed` notification.
+ *
+ * Prefer `useTheme()` when only theming matters (it filters no-op fires and
+ * returns a typed `SynapseTheme`). Reach for `useHostContext()` for non-theme
+ * fields like host-specific extensions, e.g. on NimbleBrain:
+ *
+ * ```tsx
+ * const { workspace } = useHostContext<{ workspace?: { id: string } }>();
+ * ```
+ */
+export function useHostContext<T extends McpUiHostContext = McpUiHostContext>(): T {
+  const synapse = useSynapseContext();
+  const [ctx, setCtx] = useState<T>(() => synapse.getHostContext() as T);
+
+  useEffect(() => {
+    // Sync in case context changed between render and effect
+    setCtx(synapse.getHostContext() as T);
+    return synapse.onHostContextChanged((c) => setCtx(c as T));
+  }, [synapse]);
+
+  return ctx;
+}
+
+/**
+ * Re-renders only when the derived `SynapseTheme` actually changes (mode,
+ * primaryColor, or any token value). Routes through `synapse.onThemeChanged`
+ * — which is itself a `themesEqual`-filtered selector over the unified host
+ * context — so a host-context update that doesn't move the theme (e.g. a
+ * workspace switch) does NOT cause this hook's consumers to re-render.
+ *
+ * Building this on `useHostContext` instead would skip the filter: every
+ * host-context-changed notification produces a new context reference, which
+ * would propagate through `useState` and force a re-render even when the
+ * derived theme is unchanged.
+ */
 export function useTheme(): SynapseTheme {
   const synapse = useSynapseContext();
   const [theme, setTheme] = useState<SynapseTheme>(() => synapse.getTheme());

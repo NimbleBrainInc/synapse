@@ -1,6 +1,7 @@
 import type {
-  McpUiHostContextChangedNotification,
+  McpUiHostContext,
   McpUiInitializeRequest,
+  McpUiInitializeResult,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
   McpUiUpdateModelContextRequest,
@@ -19,7 +20,7 @@ import type {
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { detectHost } from "./detection.js";
+import { detectHost, extractTheme } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { SynapseTransport } from "./transport.js";
@@ -55,11 +56,12 @@ export function createSynapse(options: SynapseOptions): Synapse {
 
   const transport = new SynapseTransport();
   let hostInfo: HostInfo | null = null;
-  let currentTheme: SynapseTheme = {
-    mode: "light",
-    primaryColor: "#6366f1",
-    tokens: {},
-  };
+  // Single source of truth for ext-apps host context. `theme`, `styles`,
+  // `displayMode`, `toolInfo` are spec-standardized fields; the open
+  // `[key: string]: unknown` lets hosts publish extensions (e.g. NimbleBrain
+  // populates a `workspace` field). `getTheme()` and any other typed view
+  // is derived from this object — no parallel state.
+  let currentHostContext: McpUiHostContext = {};
   let destroyed = false;
 
   // --- Debounce for setVisibleState ---
@@ -79,36 +81,32 @@ export function createSynapse(options: SynapseOptions): Synapse {
     .request(INITIALIZE_METHOD, initParams as unknown as Record<string, unknown>)
     .then((result) => {
       hostInfo = detectHost(result);
-      currentTheme = hostInfo.theme;
+      currentHostContext = ((result as McpUiInitializeResult | null)?.hostContext ??
+        {}) as McpUiHostContext;
 
       // Inject host CSS variables into :root so plain-CSS styles can consume
       // them via `var(--…)` without needing to read theme.tokens imperatively.
-      injectCssVariables(currentTheme.tokens);
+      injectCssVariables(extractTheme(currentHostContext).tokens);
 
-      // Notify subscribers so React <ThemeInjector> and custom onThemeChanged
-      // listeners reflect the handshake-provided theme (not just subsequent
-      // host-context-changed notifications).
-      for (const cb of themeCallbacks) cb(currentTheme);
+      // Notify subscribers so React hooks (useTheme, useHostContext) and
+      // custom listeners reflect the handshake-provided context (not just
+      // subsequent host-context-changed notifications).
+      for (const cb of hostContextCallbacks) cb(currentHostContext);
 
       transport.send(INITIALIZED_METHOD, {});
 
       keyboard = new KeyboardForwarder(transport, forwardKeys);
     });
 
-  // Listen for theme changes from the host (ext-apps spec)
-  const unsubTheme = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
-    if (!params) return;
-    const mode = params.theme === "dark" ? "dark" : "light";
-    // Spec: tokens are nested under styles.variables
-    const styles = params.styles as Record<string, unknown> | undefined;
-    const variables = styles?.variables as Record<string, string> | undefined;
-    const tokens = variables && typeof variables === "object" ? variables : currentTheme.tokens;
-    currentTheme = { mode, primaryColor: currentTheme.primaryColor, tokens };
-    injectCssVariables(tokens);
-    for (const cb of themeCallbacks) cb(currentTheme);
+  // Listen for host context changes (ext-apps spec). Notifications carry a
+  // full snapshot of the host context, so we replace — never merge.
+  const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
+    currentHostContext = (params ?? {}) as McpUiHostContext;
+    injectCssVariables(extractTheme(currentHostContext).tokens);
+    for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 
-  const themeCallbacks = new Set<(theme: SynapseTheme) => void>();
+  const hostContextCallbacks = new Set<(ctx: McpUiHostContext) => void>();
   const dataCallbacks = new Set<(event: DataChangedEvent) => void>();
   const actionCallbacks = new Set<(action: AgentAction) => void>();
 
@@ -189,14 +187,45 @@ export function createSynapse(options: SynapseOptions): Synapse {
       };
     },
 
-    getTheme(): SynapseTheme {
-      return { ...currentTheme };
+    getHostContext(): McpUiHostContext {
+      return currentHostContext;
     },
 
-    onThemeChanged(callback: (theme: SynapseTheme) => void): () => void {
-      themeCallbacks.add(callback);
+    onHostContextChanged(callback: (ctx: McpUiHostContext) => void): () => void {
+      hostContextCallbacks.add(callback);
       return () => {
-        themeCallbacks.delete(callback);
+        hostContextCallbacks.delete(callback);
+      };
+    },
+
+    getTheme(): SynapseTheme {
+      return extractTheme(currentHostContext);
+    },
+
+    // Selector over `onHostContextChanged`: only fires when the *derived*
+    // theme actually changes, so theme subscribers don't see spurious
+    // updates when other host-context fields (e.g. workspace) change.
+    //
+    // Subscriber timing matters:
+    //  - Subscribed BEFORE handshake: `prev = null` sentinel. The first
+    //    fire (the handshake dispatch) always invokes the callback,
+    //    even if the host's theme happens to derive to the default.
+    //    Otherwise consumers using `onThemeChanged` as their init
+    //    signal would silently miss it.
+    //  - Subscribed AFTER handshake: `prev` is pre-seeded with the
+    //    current derived theme, so a workspace-only `host-context-changed`
+    //    notification correctly filters as a no-op.
+    onThemeChanged(callback: (theme: SynapseTheme) => void): () => void {
+      let prev: SynapseTheme | null = hostInfo !== null ? extractTheme(currentHostContext) : null;
+      const wrapped = (ctx: McpUiHostContext) => {
+        const next = extractTheme(ctx);
+        if (prev !== null && themesEqual(prev, next)) return;
+        prev = next;
+        callback(next);
+      };
+      hostContextCallbacks.add(wrapped);
+      return () => {
+        hostContextCallbacks.delete(wrapped);
       };
     },
 
@@ -299,10 +328,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
 
       if (stateTimer) clearTimeout(stateTimer);
       keyboard?.destroy();
-      unsubTheme();
+      unsubHostContext();
       unsubData();
       unsubAction();
-      themeCallbacks.clear();
+      hostContextCallbacks.clear();
       dataCallbacks.clear();
       actionCallbacks.clear();
       transport.destroy();
@@ -310,6 +339,23 @@ export function createSynapse(options: SynapseOptions): Synapse {
   };
 
   return synapse;
+}
+
+/** Shallow equality for `SynapseTheme` — used by `onThemeChanged` to filter
+ *  host-context changes that don't actually move the theme (e.g. a workspace
+ *  switch that leaves theme/styles untouched). Cheap; tokens are ~40 entries. */
+function themesEqual(a: SynapseTheme, b: SynapseTheme): boolean {
+  if (a.mode !== b.mode || a.primaryColor !== b.primaryColor) return false;
+  const aKeys = Object.keys(a.tokens);
+  const bKeys = Object.keys(b.tokens);
+  if (aKeys.length !== bKeys.length) return false;
+  // Iterating only over `a`'s keys is sufficient: under equal length, any
+  // key in `a` missing from `b` reads `b[k] === undefined`, which fails the
+  // strict-inequality check. Symmetric difference is covered.
+  for (const k of aKeys) {
+    if (a.tokens[k] !== b.tokens[k]) return false;
+  }
+  return true;
 }
 
 /** Inject CSS custom properties onto :root so widgets inherit host theming. */

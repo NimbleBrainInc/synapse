@@ -745,4 +745,215 @@ describe("createSynapse", () => {
     // Double destroy should not throw
     expect(() => synapse.destroy()).not.toThrow();
   });
+
+  // ------------------------------------------------------------------------
+  // Host context — single source of truth, theme is a derived selector
+  // ------------------------------------------------------------------------
+
+  describe("host context", () => {
+    it("getHostContext() returns the handshake-provided context after ready", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const ctx = synapse.getHostContext();
+      expect(ctx.theme).toBe("dark");
+      expect(ctx.styles).toEqual({ variables: {} });
+    });
+
+    it("getHostContext() returns {} before handshake completes", () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      synapse.ready.catch(() => {});
+      expect(synapse.getHostContext()).toEqual({});
+    });
+
+    it("onHostContextChanged fires on host-context-changed notifications with full snapshot", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const cb = vi.fn();
+      synapse.onHostContextChanged(cb);
+
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "light",
+        styles: { variables: { "--x": "1" } },
+        workspace: { id: "ws_a", name: "Alpha" },
+      });
+
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith({
+        theme: "light",
+        styles: { variables: { "--x": "1" } },
+        workspace: { id: "ws_a", name: "Alpha" },
+      });
+      expect(synapse.getHostContext()).toMatchObject({
+        workspace: { id: "ws_a", name: "Alpha" },
+      });
+    });
+
+    it("host-context-changed has replace semantics — fields not in the new params are dropped", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      // First push: workspace present
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: {} },
+        workspace: { id: "ws_a", name: "Alpha" },
+      });
+      expect(synapse.getHostContext()).toMatchObject({ workspace: { id: "ws_a" } });
+
+      // Second push: workspace omitted — must NOT linger
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: {} },
+      });
+      expect(synapse.getHostContext().workspace).toBeUndefined();
+    });
+
+    it("onHostContextChanged unsubscribe stops further fires", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const cb = vi.fn();
+      const unsub = synapse.onHostContextChanged(cb);
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: {} },
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      unsub();
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "light",
+        styles: { variables: {} },
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("destroy() clears host-context subscribers", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const cb = vi.fn();
+      synapse.onHostContextChanged(cb);
+      synapse.destroy();
+
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "light",
+      });
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    it("getTheme() is derived from host context — handshake reflects in theme.mode", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+      expect(synapse.getTheme().mode).toBe("dark");
+    });
+
+    it("onThemeChanged fires when host-context-changed actually moves the theme", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const cb = vi.fn();
+      synapse.onThemeChanged(cb);
+
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "light",
+        styles: { variables: {} },
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb.mock.calls[0][0].mode).toBe("light");
+    });
+
+    it("onThemeChanged does NOT fire when only non-theme fields change (e.g. workspace)", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const themeCb = vi.fn();
+      const ctxCb = vi.fn();
+      synapse.onThemeChanged(themeCb);
+      synapse.onHostContextChanged(ctxCb);
+
+      // Same theme/styles as the handshake, only workspace differs
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: {} },
+        workspace: { id: "ws_a", name: "Alpha" },
+      });
+
+      expect(ctxCb).toHaveBeenCalledTimes(1);
+      expect(themeCb).not.toHaveBeenCalled();
+
+      // Switching workspace again must still not fire theme
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: {} },
+        workspace: { id: "ws_b", name: "Beta" },
+      });
+      expect(ctxCb).toHaveBeenCalledTimes(2);
+      expect(themeCb).not.toHaveBeenCalled();
+    });
+
+    it("onThemeChanged fires on handshake even when host theme matches the SDK default", async () => {
+      // Regression guard: a subscriber added before `synapse.ready` resolves
+      // must receive the handshake fire, even when the handshake-provided
+      // theme would derive to the same SynapseTheme as the empty/default
+      // context the wrapped callback was seeded against.
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      const cb = vi.fn();
+      synapse.onThemeChanged(cb);
+
+      // Hand the host a context whose extracted theme is light/no-tokens —
+      // structurally identical to extractTheme({}). Pre-fix this would have
+      // been silently filtered out as a no-op fire.
+      const initCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) =>
+          c[0] &&
+          typeof c[0] === "object" &&
+          (c[0] as Record<string, unknown>).method === "ui/initialize",
+      );
+      const id = (initCall?.[0] as Record<string, unknown>).id as string;
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2026-01-26",
+              hostInfo: { name: "nimblebrain", version: "1.0.0" },
+              hostCapabilities: {},
+              hostContext: { theme: "light", styles: { variables: {} } },
+            },
+          },
+        }),
+      );
+      await synapse.ready;
+
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
+    it("onThemeChanged fires when token values change even if mode is identical", async () => {
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      completeHandshake();
+      await synapse.ready;
+
+      const cb = vi.fn();
+      synapse.onThemeChanged(cb);
+
+      dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: { "--color-bg": "#000" } },
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb.mock.calls[0][0].tokens).toEqual({ "--color-bg": "#000" });
+    });
+  });
 });

@@ -1,13 +1,10 @@
 import type {
   McpUiHostContext,
   McpUiHostContextChangedNotification,
-  McpUiInitializedNotification,
   McpUiInitializeRequest,
   McpUiInitializeResult,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
-  McpUiSizeChangedNotification,
-  McpUiToolResultNotification,
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps";
 import {
@@ -17,10 +14,6 @@ import {
   LATEST_PROTOCOL_VERSION,
   MESSAGE_METHOD,
   OPEN_LINK_METHOD,
-  SIZE_CHANGED_METHOD,
-  TOOL_CANCELLED_METHOD,
-  TOOL_INPUT_METHOD,
-  TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
 import type {
@@ -71,6 +64,13 @@ export async function connect(options: ConnectOptions): Promise<App> {
   resizer.measureAndSend();
 
   // --- Steps 3-4: Send ui/initialize and wait for response ---
+  //
+  // `connect()` returns an `App` with no task-augmented call surface, so
+  // we don't advertise the `tasks` capability here. Per MCP 2025-11-25,
+  // requestors MUST NOT advertise capabilities they can't use — and
+  // doing so confuses hosts that allocate state on the strength of the
+  // advertisement. If `App` ever grows `callToolAsTask`, re-add the
+  // capability here at the same time.
   const initParams: McpUiInitializeRequest["params"] = {
     protocolVersion: LATEST_PROTOCOL_VERSION,
     appInfo: { name, version },

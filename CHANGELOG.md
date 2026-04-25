@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-04-24
+
+Adds iframe-side support for the [MCP 2025-11-25 tasks utility](https://docs.nimblebrain.ai/apps/synapse/#long-running-tools) so widgets can fire long-running tools without blocking. See [PR #8](https://github.com/NimbleBrainInc/synapse/pull/8).
+
+### Added
+
+- `synapse.callToolAsTask(name, args?, opts?)` returns a `TaskHandle` (`result()` / `refresh()` / `cancel()` / `onStatus()`) for long-running tools.
+- `useCallToolAsTask(name)` React hook with notification subscription and polling fallback.
+- `Task`, `TaskStatus`, `CreateTaskResult`, `TasksCapability`, `TaskHandle`, `CallToolAsTaskOptions`, `UseCallToolAsTaskResult` exports.
+
+### Changed
+
+- `createSynapse()` advertises `appCapabilities.tasks` on init; `parseToolResult` preserves `_meta` (including `io.modelcontextprotocol/related-task`).
+
+### Breaking
+
+- TypeScript mocks of `Synapse` must add stubs for `callToolAsTask` and `_hostTasksCapability` (now required interface members). Runtime API unchanged.
+
 ## [0.6.0] - 2026-04-24
 
 ### Breaking

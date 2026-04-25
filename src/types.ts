@@ -1,5 +1,125 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
-import type { ReadResourceRequest, ReadResourceResult } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CreateTaskResult,
+  ReadResourceRequest,
+  ReadResourceResult,
+  Task,
+  TaskStatus,
+} from "@modelcontextprotocol/sdk/types.js";
+
+// ---------- MCP Task Utility (spec 2025-11-25) ----------
+//
+// Re-exported from `@modelcontextprotocol/sdk/types.js` so consumers can
+// reference spec-compliant task types without a second dependency. Never
+// hand-roll these — the SDK is the source of truth; a rename upstream
+// should surface here as a compile error.
+
+export type { CreateTaskResult, Task, TaskStatus };
+
+/**
+ * Shape of the `tasks` capability advertised in `appCapabilities` on the
+ * iframe side (and mirrored back by the host in `hostCapabilities.tasks`).
+ *
+ * Matches the MCP 2025-11-25 tasks utility: empty objects (`{}`) are used
+ * as presence flags — NOT booleans — so future sub-fields can be added
+ * without wire-format breaks.
+ *
+ * Shape sourced from the MCP SDK's `ServerTasksCapabilitySchema` /
+ * `ClientCapabilities.tasks` contract. Defined locally as a plain
+ * interface because the SDK publishes the shape only as a Zod schema,
+ * not an exported TypeScript type — but the field names below are
+ * identical to the spec and will fail compilation against any SDK-typed
+ * consumer (e.g. `McpUiInitializeResult["hostCapabilities"]`) if they
+ * drift.
+ */
+export interface TasksCapability {
+  /** Present (as `{}`) if listing tasks is supported. Deferred for MVP. */
+  list?: Record<string, never>;
+  /** Present (as `{}`) if cancelling tasks is supported. */
+  cancel?: Record<string, never>;
+  /** Which request types may be task-augmented. */
+  requests?: {
+    tools?: {
+      /** Present (as `{}`) if `tools/call` can be task-augmented. */
+      call?: Record<string, never>;
+    };
+  };
+}
+
+/**
+ * Options for task-augmenting a `tools/call` request per MCP 2025-11-25.
+ *
+ * The `task` object on `tools/call` params carries caller hints for task
+ * creation. The receiver MAY override (e.g. a server may enforce a lower
+ * TTL); clients read back the authoritative values from `CreateTaskResult.task`.
+ */
+export interface CallToolAsTaskOptions {
+  /**
+   * Hint for how long (in milliseconds) the receiver should retain task
+   * results after a terminal status. Omit to let the receiver decide.
+   * Per spec, `null` means unlimited lifetime — represented here as the
+   * absence of the field (omit) since requestors rarely need to pin
+   * "unlimited" explicitly.
+   */
+  ttl?: number;
+  /**
+   * Route the call through the internal-apps cross-server authz path
+   * (adds `params.server` set to this app's name). External apps MUST
+   * NOT pass this; spec doesn't touch it — it's a NimbleBrain-specific
+   * bridge convention mirroring `callTool`'s behavior.
+   */
+  internal?: boolean;
+}
+
+/**
+ * Handle returned by `synapse.callToolAsTask`. Lifecycle mirrors the MCP
+ * 2025-11-25 tasks utility: the `tools/call` response is a
+ * `CreateTaskResult` (accessible via `task`), and the caller separately
+ * blocks for the terminal `CallToolResult` via `result()`.
+ *
+ * All operations route via the transport's message plumbing; no polling
+ * is performed here — `result()` is a blocking `tasks/result` RPC. If
+ * consumers want interstitial updates they can call `refresh()` or
+ * subscribe to `onStatus` (which is OPTIONAL per spec — hosts MAY or
+ * MAY NOT emit `notifications/tasks/status`).
+ */
+export interface TaskHandle<TOutput = unknown> {
+  /**
+   * Initial task state from the `CreateTaskResult` returned by
+   * `tools/call`. Always populated before the handle is returned.
+   */
+  readonly task: Task;
+
+  /**
+   * Send `tasks/result { taskId }` and resolve once the receiver returns
+   * the terminal payload. Per spec, the result shape is exactly what a
+   * non-task `tools/call` would return — parsed here via the shared
+   * `parseToolResult` so `_meta` (including
+   * `io.modelcontextprotocol/related-task`) propagates through.
+   */
+  result(): Promise<ToolCallResult<TOutput>>;
+
+  /**
+   * Send `tasks/get { taskId }` and resolve with the current `Task`.
+   * Non-blocking — returns whatever status the receiver holds right now.
+   */
+  refresh(): Promise<Task>;
+
+  /**
+   * Send `tasks/cancel { taskId }` and resolve with the final `Task`
+   * (expected `status: "cancelled"`). Cancelling an already-terminal
+   * task surfaces the receiver's `-32602` error.
+   */
+  cancel(): Promise<Task>;
+
+  /**
+   * Subscribe to `notifications/tasks/status` events scoped to this
+   * handle's `taskId`. Returns an unsubscribe. Spec: status
+   * notifications are OPTIONAL; consumers MUST NOT depend on them for
+   * correctness.
+   */
+  onStatus(cb: (task: Task) => void): () => void;
+}
 
 // Re-export so SDK consumers can type host-context reads without a separate
 // dependency on `@modelcontextprotocol/ext-apps`.
@@ -87,6 +207,17 @@ export interface ToolCallResult<T = unknown> {
   isError: boolean;
   /** Raw MCP content blocks from the tool response. */
   content?: unknown[];
+  /**
+   * `_meta` field from the underlying `CallToolResult`, passed through
+   * unchanged. Notably carries `io.modelcontextprotocol/related-task`
+   * (`{ taskId }`) on task-augmented results per MCP 2025-11-25.
+   *
+   * Key-preserving: any `_meta` entry the host/server attaches propagates
+   * without explicit support here. Consumers reading known keys should
+   * reference the canonical key names (e.g. `RELATED_TASK_META_KEY` from
+   * `@modelcontextprotocol/sdk/types.js`).
+   */
+  _meta?: { [key: string]: unknown };
 }
 
 /** Result from a file picker request */
@@ -115,6 +246,23 @@ export interface Synapse {
     name: string,
     args?: TInput,
   ): Promise<ToolCallResult<TOutput>>;
+
+  /**
+   * Task-augmented variant of `callTool` per MCP 2025-11-25. Sends
+   * `tools/call` with a `task` param; the receiver returns a
+   * `CreateTaskResult` promptly and the actual `CallToolResult` lands
+   * via `tasks/result`. Returns a `TaskHandle` that exposes
+   * `result()`/`refresh()`/`cancel()`/`onStatus()`.
+   *
+   * Throws if the host did not advertise `tasks.requests.tools.call` in
+   * its init-response capabilities — requestors MUST NOT task-augment
+   * without matching receiver capability.
+   */
+  callToolAsTask<TInput = Record<string, unknown>, TOutput = unknown>(
+    name: string,
+    args?: TInput,
+    options?: CallToolAsTaskOptions,
+  ): Promise<TaskHandle<TOutput>>;
 
   /**
    * Read an MCP resource from the originating server via the host bridge
@@ -215,6 +363,17 @@ export interface Synapse {
 
   /** @internal — used by createStore for synapse/persist-state */
   _request(method: string, params?: Record<string, unknown>): Promise<unknown>;
+
+  /**
+   * @internal — host's declared `tasks` capability from the `ui/initialize`
+   * response, or `undefined` if absent. Read by the task-augmented tool call
+   * path (future `callToolAsTask`) to decide whether task augmentation is
+   * negotiated. `null` before the handshake completes.
+   *
+   * Requestors MUST NOT task-augment a tool call unless this is defined and
+   * carries `requests.tools.call` per MCP 2025-11-25.
+   */
+  readonly _hostTasksCapability: TasksCapability | undefined | null;
 
   /** True after destroy() has been called. */
   readonly destroyed: boolean;

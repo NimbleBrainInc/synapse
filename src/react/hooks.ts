@@ -1,6 +1,5 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { extractTheme } from "../detection.js";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import type {
   ActionReducer,
   AgentAction,
@@ -130,17 +129,27 @@ export function useHostContext<T extends McpUiHostContext = McpUiHostContext>():
 }
 
 /**
- * Typed selector over `useHostContext` for theming. Re-renders only when the
- * derived `SynapseTheme` actually changes (mode, primaryColor, or any token
- * value), so theme consumers don't see spurious updates when other host
- * context fields move.
+ * Re-renders only when the derived `SynapseTheme` actually changes (mode,
+ * primaryColor, or any token value). Routes through `synapse.onThemeChanged`
+ * — which is itself a `themesEqual`-filtered selector over the unified host
+ * context — so a host-context update that doesn't move the theme (e.g. a
+ * workspace switch) does NOT cause this hook's consumers to re-render.
+ *
+ * Building this on `useHostContext` instead would skip the filter: every
+ * host-context-changed notification produces a new context reference, which
+ * would propagate through `useState` and force a re-render even when the
+ * derived theme is unchanged.
  */
 export function useTheme(): SynapseTheme {
-  const ctx = useHostContext();
-  const theme = useMemo(() => extractTheme(ctx), [ctx]);
-  // useMemo retains identity within the same `ctx`; an upstream re-render
-  // with the same `ctx` reference is impossible (state replace, not mutation),
-  // so structural identity tracks logical identity.
+  const synapse = useSynapseContext();
+  const [theme, setTheme] = useState<SynapseTheme>(() => synapse.getTheme());
+
+  useEffect(() => {
+    // Sync in case theme changed between render and effect
+    setTheme(synapse.getTheme());
+    return synapse.onThemeChanged(setTheme);
+  }, [synapse]);
+
   return theme;
 }
 

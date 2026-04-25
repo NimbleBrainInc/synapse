@@ -902,6 +902,44 @@ describe("createSynapse", () => {
       expect(themeCb).not.toHaveBeenCalled();
     });
 
+    it("onThemeChanged fires on handshake even when host theme matches the SDK default", async () => {
+      // Regression guard: a subscriber added before `synapse.ready` resolves
+      // must receive the handshake fire, even when the handshake-provided
+      // theme would derive to the same SynapseTheme as the empty/default
+      // context the wrapped callback was seeded against.
+      synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+      const cb = vi.fn();
+      synapse.onThemeChanged(cb);
+
+      // Hand the host a context whose extracted theme is light/no-tokens —
+      // structurally identical to extractTheme({}). Pre-fix this would have
+      // been silently filtered out as a no-op fire.
+      const initCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) =>
+          c[0] &&
+          typeof c[0] === "object" &&
+          (c[0] as Record<string, unknown>).method === "ui/initialize",
+      );
+      const id = (initCall?.[0] as Record<string, unknown>).id as string;
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          data: {
+            jsonrpc: "2.0",
+            id,
+            result: {
+              protocolVersion: "2026-01-26",
+              hostInfo: { name: "nimblebrain", version: "1.0.0" },
+              hostCapabilities: {},
+              hostContext: { theme: "light", styles: { variables: {} } },
+            },
+          },
+        }),
+      );
+      await synapse.ready;
+
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+
     it("onThemeChanged fires when token values change even if mode is identical", async () => {
       synapse = createSynapse({ name: "test-app", version: "1.0.0" });
       completeHandshake();

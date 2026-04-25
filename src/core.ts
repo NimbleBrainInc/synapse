@@ -205,11 +205,21 @@ export function createSynapse(options: SynapseOptions): Synapse {
     // Selector over `onHostContextChanged`: only fires when the *derived*
     // theme actually changes, so theme subscribers don't see spurious
     // updates when other host-context fields (e.g. workspace) change.
+    //
+    // Subscriber timing matters:
+    //  - Subscribed BEFORE handshake: `prev = null` sentinel. The first
+    //    fire (the handshake dispatch) always invokes the callback,
+    //    even if the host's theme happens to derive to the default.
+    //    Otherwise consumers using `onThemeChanged` as their init
+    //    signal would silently miss it.
+    //  - Subscribed AFTER handshake: `prev` is pre-seeded with the
+    //    current derived theme, so a workspace-only `host-context-changed`
+    //    notification correctly filters as a no-op.
     onThemeChanged(callback: (theme: SynapseTheme) => void): () => void {
-      let prev = extractTheme(currentHostContext);
+      let prev: SynapseTheme | null = hostInfo !== null ? extractTheme(currentHostContext) : null;
       const wrapped = (ctx: McpUiHostContext) => {
         const next = extractTheme(ctx);
-        if (themesEqual(prev, next)) return;
+        if (prev !== null && themesEqual(prev, next)) return;
         prev = next;
         callback(next);
       };
@@ -339,6 +349,9 @@ function themesEqual(a: SynapseTheme, b: SynapseTheme): boolean {
   const aKeys = Object.keys(a.tokens);
   const bKeys = Object.keys(b.tokens);
   if (aKeys.length !== bKeys.length) return false;
+  // Iterating only over `a`'s keys is sufficient: under equal length, any
+  // key in `a` missing from `b` reads `b[k] === undefined`, which fails the
+  // strict-inequality check. Symmetric difference is covered.
   for (const k of aKeys) {
     if (a.tokens[k] !== b.tokens[k]) return false;
   }

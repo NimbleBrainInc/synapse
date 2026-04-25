@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SynapseProvider } from "../../react/provider.js";
 import { useHostContext, useTheme } from "../../react/hooks.js";
+import { SynapseProvider } from "../../react/provider.js";
 
 // --- Helpers ---
 

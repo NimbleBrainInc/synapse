@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.6.0] - 2026-04-24
 
+### Breaking
+
+- `HostInfo` no longer carries a `theme` field. It was redundant after the host-context unification; read theme via `synapse.getTheme()` / `useTheme()` instead. `HostInfo` reports identity only (host name, protocol version, `isNimbleBrain`).
+
 ### Added
 
 - `useHostContext()` React hook and `synapse.getHostContext()` / `synapse.onHostContextChanged()` for reading and observing the full ext-apps host context — including host-specific extensions like NimbleBrain's `workspace` field. Returns the spec-typed `McpUiHostContext`.

@@ -349,28 +349,20 @@ export function createSynapse(options: SynapseOptions): Synapse {
       if (!isNB()) {
         throw new Error("pickFile is not supported in this host");
       }
-      // Method name `synapse/request-file` matches what the NimbleBrain
-      // host bridge implements. Prior versions sent `synapse/pick-file`,
-      // which the host never handled — the call would time out.
-      const result = await transport.request("synapse/request-file", {
-        accept: options?.accept,
-        maxSize: options?.maxSize ?? 26_214_400,
-        multiple: false,
-      });
-      return (result as FileResult) ?? null;
+      const result = await requestFile(transport, options, false);
+      if (result === null) return null;
+      // Server may have returned an array even for single-pick — take the
+      // first entry to preserve the documented `FileResult | null` shape.
+      return Array.isArray(result) ? (result[0] ?? null) : result;
     },
 
     async pickFiles(options?: RequestFileOptions): Promise<FileResult[]> {
       if (!isNB()) {
         throw new Error("pickFiles is not supported in this host");
       }
-      const result = await transport.request("synapse/request-file", {
-        accept: options?.accept,
-        maxSize: options?.maxSize ?? 26_214_400,
-        multiple: true,
-      });
-      if (!result) return [];
-      return Array.isArray(result) ? (result as FileResult[]) : [result as FileResult];
+      const result = await requestFile(transport, options, true);
+      if (result === null) return [];
+      return Array.isArray(result) ? result : [result];
     },
 
     _onMessage(
@@ -406,6 +398,52 @@ export function createSynapse(options: SynapseOptions): Synapse {
   };
 
   return synapse;
+}
+
+/**
+ * Shared request path for `pickFile` / `pickFiles`. Centralizes:
+ *
+ * - The wire method name `synapse/request-file` (which is what the
+ *   NimbleBrain bridge actually handles — earlier SDK versions sent
+ *   `synapse/pick-file` and the call would silently time out).
+ * - Runtime shape validation. Older hosts (pre-`POST /v1/resources`)
+ *   still respond to `synapse/request-file` but return the legacy
+ *   `{ base64Data, … }` shape. The TS type promises a string `id`;
+ *   without this guard, consumers would silently get `undefined.id`
+ *   and fail downstream in confusing ways. Failing loud at the
+ *   boundary tells the developer exactly which side is mismatched.
+ */
+async function requestFile(
+  transport: SynapseTransport,
+  options: RequestFileOptions | undefined,
+  multiple: boolean,
+): Promise<FileResult | FileResult[] | null> {
+  const result = await transport.request("synapse/request-file", {
+    accept: options?.accept,
+    maxSize: options?.maxSize ?? 26_214_400,
+    multiple,
+  });
+  if (result == null) return null;
+  if (Array.isArray(result)) {
+    return result.map(validateFileResult);
+  }
+  return validateFileResult(result);
+}
+
+function validateFileResult(value: unknown): FileResult {
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    typeof (value as { id?: unknown }).id !== "string"
+  ) {
+    throw new Error(
+      "synapse/request-file returned a result without a string `id`. " +
+        "The host appears to be on a version older than this SDK targets — " +
+        "@nimblebrain/synapse 0.8.0+ requires a host with POST /v1/resources " +
+        "(NimbleBrain ≥ the version that ships PR #93).",
+    );
+  }
+  return value as FileResult;
 }
 
 /** Shallow equality for `SynapseTheme` — used by `onThemeChanged` to filter

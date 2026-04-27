@@ -5,7 +5,7 @@ Agent-aware app SDK for the MCP ext-apps protocol (2026-01-26).
 ## Verification
 
 ```bash
-npm run ci    # lint → typecheck → build → test (234 tests)
+npm run ci    # lint → typecheck → build → test
 ```
 
 **Run `npm run ci` before declaring any change complete. No exceptions.**

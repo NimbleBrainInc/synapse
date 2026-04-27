@@ -349,7 +349,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
       if (!isNB()) {
         throw new Error("pickFile is not supported in this host");
       }
-      const result = await transport.request("synapse/pick-file", {
+      // Method name `synapse/request-file` matches what the NimbleBrain
+      // host bridge implements. Prior versions sent `synapse/pick-file`,
+      // which the host never handled — the call would time out.
+      const result = await transport.request("synapse/request-file", {
         accept: options?.accept,
         maxSize: options?.maxSize ?? 26_214_400,
         multiple: false,
@@ -361,7 +364,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       if (!isNB()) {
         throw new Error("pickFiles is not supported in this host");
       }
-      const result = await transport.request("synapse/pick-file", {
+      const result = await transport.request("synapse/request-file", {
         accept: options?.accept,
         maxSize: options?.maxSize ?? 26_214_400,
         multiple: true,

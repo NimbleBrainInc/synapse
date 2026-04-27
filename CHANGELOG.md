@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-04-27
+
+Fixes the file picker, which was effectively dead in NimbleBrain hosts and inflated bytes through tool-call JSON. `pickFile` / `pickFiles` now resolve to a stable workspace file ID; the host persists the bytes server-side over multipart.
+
+### Breaking
+
+- `FileResult.base64Data` removed; `FileResult.id` (workspace file ID, `fl_` + 24 hex) added. Tools that need the bytes look the file up by ID server-side instead of receiving them inline. The prior shape capped uploads at the JSON body limit; this removes that ceiling.
+
+### Fixed
+
+- `pickFile` / `pickFiles` sent `synapse/pick-file`, but the NimbleBrain bridge handles `synapse/request-file` — calls would hang until the iframe's request timeout. Both methods now send `synapse/request-file`.
+
 ## [0.7.0] - 2026-04-24
 
 Adds iframe-side support for the [MCP 2025-11-25 tasks utility](https://docs.nimblebrain.ai/apps/synapse/#long-running-tools) so widgets can fire long-running tools without blocking. See [PR #8](https://github.com/NimbleBrainInc/synapse/pull/8).

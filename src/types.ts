@@ -220,12 +220,23 @@ export interface ToolCallResult<T = unknown> {
   _meta?: { [key: string]: unknown };
 }
 
-/** Result from a file picker request */
+/**
+ * Result from a file picker request. Returned after the host has
+ * persisted the picked file to its workspace store; the bytes never
+ * cross the iframe boundary.
+ *
+ * Tools that need the bytes look the file up by `id` (e.g. by passing
+ * it to a tool that calls the host's file APIs server-side). Bytes
+ * inline in tool-call arguments was the prior shape and capped uploads
+ * at the JSON body limit; this `id`-shaped result removes that ceiling.
+ */
 export interface FileResult {
+  /** Workspace file ID (`fl_` + 24 hex). Stable identifier for this
+   *  file in the originating workspace. */
+  id: string;
   filename: string;
   mimeType: string;
   size: number;
-  base64Data: string;
 }
 
 /** Options for requesting a file from the user */

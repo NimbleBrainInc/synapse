@@ -238,6 +238,148 @@ describe("createSynapse", () => {
     await expect(resultPromise).rejects.toThrow("Resource not found");
   });
 
+  // ---------- File picker (pickFile / pickFiles) ----------
+  //
+  // These tests pin the wire contract:
+  //   1. Outgoing method is `synapse/request-file` — earlier SDKs sent
+  //      `synapse/pick-file` and the host never handled it (silent
+  //      timeout). Asserting the method string here is the cheap
+  //      regression-stop for that class of bug.
+  //   2. The `multiple` flag is forwarded so single vs. multi pick is
+  //      distinguishable on the wire.
+  //   3. A response without a string `id` is rejected loudly — this is
+  //      the version-skew guard against an older host that still
+  //      returns the legacy `{ base64Data, … }` shape.
+
+  it("pickFile() sends synapse/request-file with multiple: false and validates id", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFile({ accept: ".csv,.json" });
+
+    const pickCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/request-file",
+    );
+    expect(pickCall).toBeDefined();
+    expect(pickCall?.[0]).toMatchObject({
+      jsonrpc: "2.0",
+      method: "synapse/request-file",
+      params: { accept: ".csv,.json", multiple: false },
+    });
+
+    respondToLastRequest({
+      id: "fl_abc123def456789012345678",
+      filename: "data.csv",
+      mimeType: "text/csv",
+      size: 42,
+    });
+
+    const result = await resultPromise;
+    expect(result).toEqual({
+      id: "fl_abc123def456789012345678",
+      filename: "data.csv",
+      mimeType: "text/csv",
+      size: 42,
+    });
+  });
+
+  it("pickFiles() sends synapse/request-file with multiple: true and accepts an array result", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFiles({ accept: "image/*" });
+
+    const pickCall = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === "synapse/request-file",
+    );
+    expect(pickCall?.[0]).toMatchObject({
+      params: { accept: "image/*", multiple: true },
+    });
+
+    respondToLastRequest([
+      { id: "fl_111111111111111111111111", filename: "a.png", mimeType: "image/png", size: 10 },
+      { id: "fl_222222222222222222222222", filename: "b.png", mimeType: "image/png", size: 20 },
+    ]);
+
+    const result = await resultPromise;
+    expect(result).toHaveLength(2);
+    expect(result[0]?.id).toBe("fl_111111111111111111111111");
+    expect(result[1]?.id).toBe("fl_222222222222222222222222");
+  });
+
+  it("pickFile() returns null when host responds with null (user cancelled)", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFile();
+    respondToLastRequest(null);
+    expect(await resultPromise).toBeNull();
+  });
+
+  it("pickFiles() returns [] when host responds with null", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFiles();
+    respondToLastRequest(null);
+    expect(await resultPromise).toEqual([]);
+  });
+
+  it("pickFile() throws a clear error if the host returns the legacy base64 shape (no id)", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFile();
+    // Old host: the SDK's prior shape — no `id`, has `base64Data`.
+    respondToLastRequest({
+      filename: "x.csv",
+      mimeType: "text/csv",
+      size: 5,
+      base64Data: "aGVsbG8=",
+    });
+
+    await expect(resultPromise).rejects.toThrow(/string `id`/);
+  });
+
+  it("pickFiles() throws if any entry in the array is missing `id`", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    postMessageSpy.mockClear();
+
+    const resultPromise = synapse.pickFiles();
+    respondToLastRequest([
+      { id: "fl_111111111111111111111111", filename: "ok.png", mimeType: "image/png", size: 1 },
+      { filename: "legacy.png", mimeType: "image/png", size: 1 }, // no id
+    ]);
+
+    await expect(resultPromise).rejects.toThrow(/string `id`/);
+  });
+
+  it("pickFile() throws in non-NimbleBrain hosts", async () => {
+    synapse = createSynapse({ name: "test-app", version: "1.0.0" });
+    completeHandshake("other-host");
+    await synapse.ready;
+
+    await expect(synapse.pickFile()).rejects.toThrow(/not supported/);
+  });
+
   it("onDataChanged() fires callback when ui/datachanged message arrives", async () => {
     synapse = createSynapse({ name: "test-app", version: "1.0.0" });
     completeHandshake();

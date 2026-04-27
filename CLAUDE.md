@@ -10,6 +10,26 @@ npm run ci    # lint → typecheck → build → test (234 tests)
 
 **Run `npm run ci` before declaring any change complete. No exceptions.**
 
+## Releasing
+
+`@nimblebrain/synapse` publishes to npm via **GitHub Actions trusted publishing** on `v*` tag push. There is no static npm token; auth is OIDC (`id-token: write`) under the `npm` environment. The workflow is `.github/workflows/publish.yml`.
+
+To cut a release:
+
+1. Bump `version` in `package.json` and add a CHANGELOG entry on the release branch.
+2. Merge the PR.
+3. Tag the merge commit on `main` and push the tag:
+   ```bash
+   git checkout main && git pull
+   git tag v<version> -m "v<version>"
+   git push origin v<version>
+   ```
+4. Watch the **Publish to npm** workflow run. It re-runs lint/typecheck/build/test, then verifies the tag string matches `package.json` (catches a stale bump), then runs `npm publish --provenance --access public`.
+
+The version-match check at workflow time is the load-bearing safety: a tag of `v0.8.0` against `package.json` at `0.7.0` aborts before publishing instead of publishing the wrong contents under a misleading tag.
+
+Releases are public and provenance-attested — published artifacts carry a signed link back to the workflow run that produced them. Don't run `npm publish` from a local machine; do it through tags so provenance is preserved.
+
 ## Hard Rules
 
 1. **Never hand-type a method string.** Import constants from `@modelcontextprotocol/ext-apps`:

@@ -5,7 +5,7 @@ Agent-aware app SDK for the MCP ext-apps protocol (2026-01-26).
 ## Verification
 
 ```bash
-npm run ci    # lint → typecheck → build → test (234 tests)
+npm run ci    # lint → typecheck → build → test
 ```
 
 **Run `npm run ci` before declaring any change complete. No exceptions.**
@@ -24,11 +24,11 @@ To cut a release:
    git tag v<version> -m "v<version>"
    git push origin v<version>
    ```
-4. Watch the **Publish to npm** workflow run. It re-runs lint/typecheck/build/test, then verifies the tag string matches `package.json` (catches a stale bump), then runs `npm publish --provenance --access public`.
+4. Watch the **Publish to npm** workflow run. It re-runs lint/typecheck/build/test, then verifies the tag string matches `package.json` (catches a stale bump), then runs `npm publish --provenance --access public`, then creates a matching GitHub Release with the body extracted from the `## [<version>]` section of `CHANGELOG.md`.
 
-The version-match check at workflow time is the load-bearing safety: a tag of `v0.8.0` against `package.json` at `0.7.0` aborts before publishing instead of publishing the wrong contents under a misleading tag.
+The version-match check at workflow time is the load-bearing safety: a tag of `v0.8.0` against `package.json` at `0.7.0` aborts before publishing instead of publishing the wrong contents under a misleading tag. The CHANGELOG-extraction step is the second tripwire — it fails the workflow if the version has no `## [<version>]` heading, so a release can't ship without notes.
 
-Releases are public and provenance-attested — published artifacts carry a signed link back to the workflow run that produced them. Don't run `npm publish` from a local machine; do it through tags so provenance is preserved.
+Releases are public and provenance-attested — published artifacts carry a signed link back to the workflow run that produced them. Don't run `npm publish` from a local machine; do it through tags so provenance is preserved. Don't create the GitHub Release by hand either; the workflow handles it (and skips cleanly if the Release already exists, so manual reruns are safe).
 
 ## Hard Rules
 

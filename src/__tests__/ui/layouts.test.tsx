@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppFrame } from "../../ui/layouts/AppFrame.js";
+import { ListDetailLayout, useListDetail } from "../../ui/layouts/ListDetailLayout.js";
 import { SidebarLayout, useSidebar } from "../../ui/layouts/SidebarLayout.js";
 
 // happy-dom has no ResizeObserver; mock one that reports a controllable width
@@ -93,6 +94,64 @@ describe("SidebarLayout", () => {
     };
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => render(<Probe />)).toThrow(/useSidebar/);
+    spy.mockRestore();
+  });
+});
+
+describe("ListDetailLayout", () => {
+  it("shows list and detail together when wide", () => {
+    mockWidth = 1000;
+    render(
+      <ListDetailLayout selected={false}>
+        <ListDetailLayout.List>List</ListDetailLayout.List>
+        <ListDetailLayout.Detail>Detail</ListDetailLayout.Detail>
+      </ListDetailLayout>,
+    );
+    expect(screen.getByText("List")).toBeDefined();
+    expect(screen.getByText("Detail")).toBeDefined();
+  });
+
+  it("shows only the list when narrow and nothing is selected", () => {
+    mockWidth = 400;
+    render(
+      <ListDetailLayout selected={false}>
+        <ListDetailLayout.List>List</ListDetailLayout.List>
+        <ListDetailLayout.Detail>
+          <ListDetailLayout.Back />
+          Detail
+        </ListDetailLayout.Detail>
+      </ListDetailLayout>,
+    );
+    expect(screen.getByText("List")).toBeDefined();
+    expect(screen.queryByText("Detail")).toBeNull();
+    expect(screen.queryByText("← Back")).toBeNull();
+  });
+
+  it("swaps to the detail with a Back affordance when narrow and selected", () => {
+    mockWidth = 400;
+    const onBack = vi.fn();
+    render(
+      <ListDetailLayout selected onBack={onBack}>
+        <ListDetailLayout.List>List</ListDetailLayout.List>
+        <ListDetailLayout.Detail>
+          <ListDetailLayout.Back />
+          Detail
+        </ListDetailLayout.Detail>
+      </ListDetailLayout>,
+    );
+    expect(screen.queryByText("List")).toBeNull();
+    expect(screen.getByText("Detail")).toBeDefined();
+    fireEvent.click(screen.getByText("← Back"));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws if useListDetail is used outside the layout", () => {
+    const Probe = () => {
+      useListDetail();
+      return null;
+    };
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => render(<Probe />)).toThrow(/useListDetail/);
     spy.mockRestore();
   });
 });

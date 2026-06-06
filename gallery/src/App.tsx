@@ -1,4 +1,5 @@
 import {
+  AppFrame,
   Avatar,
   Badge,
   type BadgeTone,
@@ -13,6 +14,7 @@ import {
   Prose,
   SearchField,
   SegmentedControl,
+  SidebarLayout,
   Spacer,
   Spinner,
   Stack,
@@ -23,7 +25,7 @@ import {
   tokens,
 } from "@nimblebrain/synapse/ui";
 import { type ReactNode, useEffect, useState } from "react";
-import { applyTheme, type Mode } from "./demo-theme.js";
+import { applyTheme, type Mode, type ThemeKey, THEMES } from "./demo-theme.js";
 
 function Section({
   title,
@@ -94,28 +96,54 @@ const STATUSES: Status[] = ["working", "completed", "failed", "idle"];
 
 const PROSE_HTML = `
 <h2>Reading typography</h2>
-<p>The <code>Prose</code> container styles rendered HTML with the NimbleBrain
-reading scale — headings in <strong>Erode</strong>, body in Satoshi, code in
-JetBrains Mono. Bring your own parser; <code>Prose</code> owns the styling.</p>
+<p>The <code>Prose</code> container styles rendered HTML with the active theme's
+reading scale — headings in the heading font, body in the sans, code in mono.
+Bring your own parser; <code>Prose</code> owns the styling.</p>
 <ul><li>Token-driven, theme-aware</li><li>Dependency-free</li></ul>
 <blockquote>One system, per-app personality.</blockquote>
 `;
 
+function NavItem({ label, active = false }: { label: string; active?: boolean }) {
+  return (
+    <button
+      type="button"
+      style={{
+        textAlign: "left",
+        border: "none",
+        cursor: "pointer",
+        background: active ? tokens.bgSubtle : "transparent",
+        color: active ? tokens.fg : tokens.fgMuted,
+        fontFamily: tokens.fontSans,
+        fontSize: tokens.textSmSize,
+        fontWeight: active ? tokens.weightMedium : tokens.weightNormal,
+        padding: "0.4rem 0.6rem",
+        borderRadius: tokens.radiusSm,
+        whiteSpace: "nowrap",
+      }}
+    >
+      {label}
+    </button>
+  );
+}
+
 export function App() {
+  const [theme, setTheme] = useState<ThemeKey>("default");
   const [mode, setMode] = useState<Mode>("light");
   const [view, setView] = useState("board");
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(2);
+  const [layoutMode, setLayoutMode] = useState("reflow");
+  const [paneWidth, setPaneWidth] = useState(760);
 
   useEffect(() => {
-    applyTheme(mode);
-  }, [mode]);
+    applyTheme(theme, mode);
+  }, [theme, mode]);
 
   return (
     <div style={{ minHeight: "100vh", background: tokens.bg, color: tokens.fg }}>
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "3rem 1.5rem 6rem" }}>
         {/* Header */}
-        <Inline style={{ marginBottom: "0.5rem" }}>
+        <Inline align="start" style={{ marginBottom: "0.5rem" }}>
           <Stack gap="0.35rem">
             <Heading size="lg">Synapse UI</Heading>
             <Text size="sm" tone="muted">
@@ -123,17 +151,29 @@ export function App() {
             </Text>
           </Stack>
           <Spacer />
-          <SegmentedControl
-            aria-label="Theme"
-            value={mode}
-            onChange={(m) => setMode(m as Mode)}
-            options={[
-              { label: "Light", value: "light" },
-              { label: "Dark", value: "dark" },
-            ]}
-          />
+          <Stack gap="0.5rem" align="end">
+            <SegmentedControl
+              aria-label="Theme"
+              value={theme}
+              onChange={(t) => setTheme(t as ThemeKey)}
+              options={THEMES.map((t) => ({ label: t.label, value: t.key }))}
+            />
+            <SegmentedControl
+              aria-label="Mode"
+              value={mode}
+              onChange={(m) => setMode(m as Mode)}
+              options={[
+                { label: "Light", value: "light" },
+                { label: "Dark", value: "dark" },
+              ]}
+            />
+          </Stack>
         </Inline>
-        <Divider style={{ margin: "2rem 0 2.5rem" }} />
+        <Text size="xs" tone="faint" style={{ display: "block", marginTop: "0.75rem" }}>
+          The components bake in no brand — the host injects the theme as CSS variables. Switch the
+          theme above to re-skin everything below; the library code is identical across all of them.
+        </Text>
+        <Divider style={{ margin: "1.5rem 0 2.5rem" }} />
 
         <Section title="Color" subtitle="Surfaces, text, borders, and brand semantics.">
           <Grid>
@@ -154,7 +194,10 @@ export function App() {
           </Grid>
         </Section>
 
-        <Section title="Typography" subtitle="Heading font (Erode), body (Satoshi), mono (JetBrains).">
+        <Section
+          title="Typography"
+          subtitle="Heading, body, and mono font slots — set by the active theme."
+        >
           <Stack gap="0.75rem">
             <Heading size="lg">Heading large</Heading>
             <Heading size="md">Heading medium</Heading>
@@ -330,9 +373,9 @@ export function App() {
             <Card interactive>
               <Stack gap="0.5rem">
                 <Inline gap="0.5rem">
-                  <Avatar name="Mat Goldsborough" />
+                  <Avatar name="John Smith" />
                   <Stack gap="0.1rem">
-                    <Text weight="medium">Mat Goldsborough</Text>
+                    <Text weight="medium">John Smith</Text>
                     <Text size="xs" tone="muted">
                       Interactive card
                     </Text>
@@ -371,6 +414,94 @@ export function App() {
               action={<Button size="sm">New conversation</Button>}
             />
           </Card>
+        </Section>
+
+        <Section
+          title="Layouts — SidebarLayout"
+          subtitle="The responsive two-column layout. Drag the pane width past the 560px breakpoint and watch the rail collapse — to a top strip (reflow) or an off-canvas drawer."
+        >
+          <Stack gap="1rem">
+            <Inline gap="1.5rem" wrap>
+              <SegmentedControl
+                aria-label="Collapse mode"
+                value={layoutMode}
+                onChange={setLayoutMode}
+                options={[
+                  { label: "reflow", value: "reflow" },
+                  { label: "drawer", value: "drawer" },
+                ]}
+              />
+              <Inline gap="0.6rem">
+                <Text size="sm" tone="muted">
+                  Pane width
+                </Text>
+                <input
+                  type="range"
+                  min={320}
+                  max={920}
+                  value={paneWidth}
+                  onChange={(e) => setPaneWidth(Number(e.target.value))}
+                  style={{ accentColor: tokens.accent }}
+                />
+                <Text size="sm" mono tone="muted">
+                  {paneWidth}px
+                </Text>
+              </Inline>
+            </Inline>
+
+            <div
+              style={{
+                width: paneWidth,
+                maxWidth: "100%",
+                height: 380,
+                border: `1px solid ${tokens.border}`,
+                borderRadius: tokens.radiusMd,
+                overflow: "hidden",
+                boxShadow: tokens.shadowSm,
+              }}
+            >
+              <AppFrame>
+                <AppFrame.Header>
+                  <Heading size="sm">Settings</Heading>
+                </AppFrame.Header>
+                <AppFrame.Body bleed>
+                  <SidebarLayout
+                    collapseMode={layoutMode as "reflow" | "drawer"}
+                    breakpoint={560}
+                    width={180}
+                  >
+                    <SidebarLayout.Sidebar>
+                      {["General", "Skills", "Members", "Billing"].map((item, i) => (
+                        <NavItem key={item} label={item} active={i === 0} />
+                      ))}
+                    </SidebarLayout.Sidebar>
+                    <SidebarLayout.Main>
+                      <div style={{ padding: "1.25rem 1.5rem" }}>
+                        <Stack gap="0.75rem">
+                          <Inline gap="0.5rem">
+                            <SidebarLayout.Trigger />
+                            <Heading size="sm">General</Heading>
+                          </Inline>
+                          <Text size="sm" tone="muted">
+                            {layoutMode === "reflow"
+                              ? "Below 560px the rail reflows to a strip on top."
+                              : "Below 560px the rail collapses to a drawer — open it with the ☰ button."}
+                          </Text>
+                          <SearchField variant="boxed" placeholder="Display name" />
+                          <Inline gap="0.5rem">
+                            <Button size="sm">Save</Button>
+                            <Button size="sm" variant="ghost">
+                              Cancel
+                            </Button>
+                          </Inline>
+                        </Stack>
+                      </div>
+                    </SidebarLayout.Main>
+                  </SidebarLayout>
+                </AppFrame.Body>
+              </AppFrame>
+            </div>
+          </Stack>
         </Section>
       </div>
     </div>

@@ -9,6 +9,7 @@ import {
   EmptyState,
   Heading,
   Inline,
+  ListDetailLayout,
   ListRow,
   Pagination,
   Prose,
@@ -103,6 +104,52 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 <blockquote>One system, per-app personality.</blockquote>
 `;
 
+const RUNS = [
+  { id: 0, title: "Red Night Consulting context", meta: "21h ago", status: "completed" as const },
+  { id: 1, title: "Jordan Ratner re-engagement hook", meta: "22h ago", status: "working" as const },
+  { id: 2, title: "LinkDoctor.io DL research", meta: "6d ago", status: "failed" as const },
+  { id: 3, title: "Monaco / Petros prospect research", meta: "11d ago", status: "completed" as const },
+];
+
+function WidthSlider({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  return (
+    <Inline gap="0.6rem">
+      <Text size="sm" tone="muted">
+        Pane width
+      </Text>
+      <input
+        type="range"
+        min={320}
+        max={920}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        style={{ accentColor: tokens.accent }}
+      />
+      <Text size="sm" mono tone="muted">
+        {value}px
+      </Text>
+    </Inline>
+  );
+}
+
+function Frame({ width, children }: { width: number; children: ReactNode }) {
+  return (
+    <div
+      style={{
+        width,
+        maxWidth: "100%",
+        height: 380,
+        border: `1px solid ${tokens.border}`,
+        borderRadius: tokens.radiusMd,
+        overflow: "hidden",
+        boxShadow: tokens.shadowSm,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function NavItem({ label, active = false }: { label: string; active?: boolean }) {
   return (
     <button
@@ -134,6 +181,8 @@ export function App() {
   const [page, setPage] = useState(2);
   const [layoutMode, setLayoutMode] = useState("reflow");
   const [paneWidth, setPaneWidth] = useState(760);
+  const [selectedRun, setSelectedRun] = useState<number | null>(null);
+  const [ldWidth, setLdWidth] = useState(760);
 
   useEffect(() => {
     applyTheme(theme, mode);
@@ -431,35 +480,10 @@ export function App() {
                   { label: "drawer", value: "drawer" },
                 ]}
               />
-              <Inline gap="0.6rem">
-                <Text size="sm" tone="muted">
-                  Pane width
-                </Text>
-                <input
-                  type="range"
-                  min={320}
-                  max={920}
-                  value={paneWidth}
-                  onChange={(e) => setPaneWidth(Number(e.target.value))}
-                  style={{ accentColor: tokens.accent }}
-                />
-                <Text size="sm" mono tone="muted">
-                  {paneWidth}px
-                </Text>
-              </Inline>
+              <WidthSlider value={paneWidth} onChange={setPaneWidth} />
             </Inline>
 
-            <div
-              style={{
-                width: paneWidth,
-                maxWidth: "100%",
-                height: 380,
-                border: `1px solid ${tokens.border}`,
-                borderRadius: tokens.radiusMd,
-                overflow: "hidden",
-                boxShadow: tokens.shadowSm,
-              }}
-            >
+            <Frame width={paneWidth}>
               <AppFrame>
                 <AppFrame.Header>
                   <Heading size="sm">Settings</Heading>
@@ -500,8 +524,144 @@ export function App() {
                   </SidebarLayout>
                 </AppFrame.Body>
               </AppFrame>
-            </div>
+            </Frame>
           </Stack>
+        </Section>
+
+        <Section
+          title="Layouts — ListDetailLayout"
+          subtitle="Master list ↔ detail. Wide: side-by-side. Narrow: the list, then the detail (with Back). Pick a run, then drag the width down."
+        >
+          <Stack gap="1rem">
+            <WidthSlider value={ldWidth} onChange={setLdWidth} />
+            <Frame width={ldWidth}>
+              <AppFrame contentWidth="full">
+                <AppFrame.Header>
+                  <Heading size="sm">Research</Heading>
+                </AppFrame.Header>
+                <AppFrame.Body bleed>
+                  <ListDetailLayout
+                    selected={selectedRun !== null}
+                    onBack={() => setSelectedRun(null)}
+                    breakpoint={560}
+                    listWidth={260}
+                  >
+                    <ListDetailLayout.List>
+                      {RUNS.map((run) => (
+                        <ListRow
+                          key={run.id}
+                          interactive
+                          onClick={() => setSelectedRun(run.id)}
+                          leading={<StatusDot status={run.status} />}
+                          title={run.title}
+                          meta={run.meta}
+                          style={
+                            selectedRun === run.id ? { background: tokens.bgSubtle } : undefined
+                          }
+                        />
+                      ))}
+                    </ListDetailLayout.List>
+                    <ListDetailLayout.Detail>
+                      <div style={{ padding: "1.25rem 1.5rem" }}>
+                        <ListDetailLayout.Back />
+                        {selectedRun !== null ? (
+                          <Stack gap="0.75rem">
+                            <Heading size="md">{RUNS[selectedRun]?.title}</Heading>
+                            <Inline gap="0.5rem">
+                              <StatusDot status={RUNS[selectedRun]?.status ?? "idle"} />
+                              <Text size="sm" tone="muted">
+                                {RUNS[selectedRun]?.meta}
+                              </Text>
+                            </Inline>
+                            <Prose html="<p>The detail pane renders the selected run. On a narrow pane this replaces the list, and <strong>Back</strong> returns to it.</p>" />
+                          </Stack>
+                        ) : (
+                          <EmptyState
+                            title="No run selected"
+                            description="Pick a run from the list to see its report."
+                          />
+                        )}
+                      </div>
+                    </ListDetailLayout.Detail>
+                  </ListDetailLayout>
+                </AppFrame.Body>
+              </AppFrame>
+            </Frame>
+          </Stack>
+        </Section>
+
+        <Section
+          title="Layouts — recipes (not components)"
+          subtitle="Board and List aren't scaffolds — they're thin compositions of primitives + components, so they stay recipes. Only genuinely complex layouts (SidebarLayout, ListDetailLayout) are components."
+        >
+          <Grid min={300}>
+            <Stack gap="0.5rem">
+              <Text size="sm" weight="medium">
+                Board — Inline of Card columns
+              </Text>
+              <div
+                style={{
+                  border: `1px solid ${tokens.border}`,
+                  borderRadius: tokens.radiusMd,
+                  padding: "0.75rem",
+                  overflowX: "auto",
+                }}
+              >
+                <Inline gap="0.75rem" align="start">
+                  {[
+                    { col: "Open", items: ["Triage report", "Review PR"] },
+                    { col: "In progress", items: ["Draft proposal"] },
+                    { col: "Done", items: ["Ship v1"] },
+                  ].map((c) => (
+                    <Stack key={c.col} gap="0.5rem" style={{ width: 150, flexShrink: 0 }}>
+                      <Text size="xs" tone="muted" style={{ textTransform: "uppercase" }}>
+                        {c.col}
+                      </Text>
+                      {c.items.map((t) => (
+                        <Card key={t} padding="0.6rem">
+                          <Text size="sm">{t}</Text>
+                        </Card>
+                      ))}
+                    </Stack>
+                  ))}
+                </Inline>
+              </div>
+            </Stack>
+
+            <Stack gap="0.5rem">
+              <Text size="sm" weight="medium">
+                ListView — AppFrame + grouped ListRows
+              </Text>
+              <div
+                style={{
+                  border: `1px solid ${tokens.border}`,
+                  borderRadius: tokens.radiusMd,
+                  padding: "0.5rem 0.25rem",
+                }}
+              >
+                <Text
+                  size="xs"
+                  tone="faint"
+                  style={{ textTransform: "uppercase", padding: "0.25rem 0.75rem" }}
+                >
+                  Today
+                </Text>
+                {RUNS.slice(0, 2).map((r) => (
+                  <ListRow
+                    key={r.id}
+                    interactive
+                    leading={<StatusDot status={r.status} />}
+                    title={r.title}
+                    trailing={
+                      <Text size="xs" tone="faint">
+                        {r.meta}
+                      </Text>
+                    }
+                  />
+                ))}
+              </div>
+            </Stack>
+          </Grid>
         </Section>
       </div>
     </div>

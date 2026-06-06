@@ -1,0 +1,22 @@
+{
+  "name": "synapse-ui-gallery",
+  "private": true,
+  "type": "module",
+  "description": "Brand book + component gallery for @nimblebrain/synapse/ui. Build the library first (npm run build at repo root), then run dev/build here.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.0.0"
+  }
+}

@@ -14,6 +14,16 @@
       "import": "./dist/react/index.js",
       "require": "./dist/react/index.cjs"
     },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js",
+      "require": "./dist/ui/index.cjs"
+    },
+    "./ui/fonts": {
+      "types": "./dist/ui/fonts.d.ts",
+      "import": "./dist/ui/fonts.js",
+      "require": "./dist/ui/fonts.cjs"
+    },
     "./vite": {
       "types": "./dist/vite/index.d.ts",
       "import": "./dist/vite/index.js",

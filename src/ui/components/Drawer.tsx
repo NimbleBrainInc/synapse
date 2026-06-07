@@ -1,39 +1,35 @@
 /**
  * Drawer — an off-canvas overlay panel that slides in from an edge, over a
  * scrim. The general overlay the apps need (e.g. CRM's detail panel). Controlled
- * via `open` / `onClose`. Slides in on open and out on close; closes on scrim
- * click and Escape; traps focus and locks body scroll while open; respects
- * `prefers-reduced-motion`.
+ * via `open` / `onClose`. The slide-in is a plain CSS keyframe (it plays when
+ * the panel mounts). Closes on scrim click and Escape; traps focus and locks
+ * body scroll while open.
  *
  * Compose with the `Header` / `Body` / `Footer` slots, or pass plain children.
  * A multi-level "panel stack" (push/pop) is an app concern built on top of this.
  */
 
-import { type HTMLAttributes, type ReactNode, useEffect, useRef, useState } from "react";
+import { type HTMLAttributes, type ReactNode, useEffect, useRef } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
 type Side = "left" | "right";
-
-/** Slide/fade duration (ms). The unmount-after-close timer matches this. */
-const TRANSITION_MS = 240;
 
 const STYLE_ID = "nb-synapse-drawer";
 const RULES = `
 .nb-drawerlay { position: fixed; inset: 0; z-index: 1000; }
 .nb-drawerlay__scrim {
   position: absolute; inset: 0; border: none; padding: 0; cursor: pointer;
-  background: rgba(0,0,0,0.32); transition: opacity ${TRANSITION_MS}ms ease;
+  background: rgba(0,0,0,0.32); animation: nb-drawer-fade 200ms ease both;
 }
 .nb-drawerlay__panel {
-  position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column;
-  max-width: 92%; transition: transform ${TRANSITION_MS}ms cubic-bezier(0.2, 0, 0, 1);
+  position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; max-width: 92%;
 }
-.nb-drawerlay__panel--right { right: 0; }
-.nb-drawerlay__panel--left { left: 0; }
-@media (prefers-reduced-motion: reduce) {
-  .nb-drawerlay__scrim, .nb-drawerlay__panel { transition: none; }
-}
+.nb-drawerlay__panel--right { right: 0; animation: nb-drawer-right 240ms cubic-bezier(0.2, 0, 0, 1) both; }
+.nb-drawerlay__panel--left { left: 0; animation: nb-drawer-left 240ms cubic-bezier(0.2, 0, 0, 1) both; }
+@keyframes nb-drawer-fade { from { opacity: 0 } to { opacity: 1 } }
+@keyframes nb-drawer-right { from { transform: translateX(100%) } to { transform: translateX(0) } }
+@keyframes nb-drawer-left { from { transform: translateX(-100%) } to { transform: translateX(0) } }
 `;
 
 const FOCUSABLE_SELECTOR =
@@ -71,27 +67,9 @@ function DrawerRoot({
   ensureStyle(STYLE_ID, RULES);
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<Element | null>(null);
-  // `mounted` keeps the panel in the DOM through the exit transition;
-  // `shown` drives the slide (off-canvas → in, and back out on close).
-  const [mounted, setMounted] = useState(open);
-  const [shown, setShown] = useState(false);
 
-  // Enter/exit: on open, mount then flip `shown` next frame (slide in); on
-  // close, clear `shown` (slide out) then unmount after the transition.
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-      const raf = requestAnimationFrame(() => setShown(true));
-      return () => cancelAnimationFrame(raf);
-    }
-    setShown(false);
-    const timer = setTimeout(() => setMounted(false), TRANSITION_MS);
-    return () => clearTimeout(timer);
-  }, [open]);
-
-  // Modal behavior while mounted: focus trap, focus move-in/restore, scroll-lock, Esc.
-  useEffect(() => {
-    if (!mounted) return;
+    if (!open) return;
     const panel = panelRef.current;
     restoreFocusRef.current = document.activeElement;
 
@@ -122,21 +100,18 @@ function DrawerRoot({
     document.addEventListener("keydown", onKey);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    const firstFocusable = panel ? getFocusable(panel)[0] : undefined;
-    (firstFocusable ?? panel)?.focus();
+    (getFocusable(panel ?? document.body)[0] ?? panel)?.focus();
     return () => {
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
       (restoreFocusRef.current as HTMLElement | null)?.focus?.();
     };
-  }, [mounted, onClose, onEscape]);
+  }, [open, onClose, onEscape]);
 
-  if (!mounted) return null;
+  if (!open) return null;
 
-  const offscreen = side === "right" ? "translateX(100%)" : "translateX(-100%)";
   const panelStyle: StyleWithVars = {
     width,
-    transform: shown ? "translateX(0)" : offscreen,
     background: tokens.bg,
     boxShadow: tokens.shadowLg,
     ...(side === "right"
@@ -147,13 +122,7 @@ function DrawerRoot({
 
   return (
     <div className="nb-drawerlay">
-      <button
-        type="button"
-        aria-label="Close"
-        className="nb-drawerlay__scrim"
-        style={{ opacity: shown ? 1 : 0 }}
-        onClick={onClose}
-      />
+      <button type="button" aria-label="Close" className="nb-drawerlay__scrim" onClick={onClose} />
       {/* biome-ignore lint/a11y/useSemanticElements: a dialog role on a div is the standard pattern; <dialog> would impose top-layer/backdrop behavior this controlled overlay manages itself. */}
       <div
         ref={panelRef}

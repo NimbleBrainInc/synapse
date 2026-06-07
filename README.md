@@ -43,9 +43,42 @@ npm install @nimblebrain/synapse
 |-------------|-------------|
 | `@nimblebrain/synapse` | Vanilla JS core — `connect()`, `createSynapse()`, `createStore()` |
 | `@nimblebrain/synapse/react` | React hooks and providers (`AppProvider`, `SynapseProvider`) |
+| `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
+| `@nimblebrain/synapse/ui/fonts` | Side-effect import that loads the brand fonts into the iframe |
 | `@nimblebrain/synapse/vite` | Vite plugin for dev mode |
 | `@nimblebrain/synapse/codegen` | CLI + programmatic code generation |
 | `@nimblebrain/synapse/iife` | Pre-built IIFE bundle for `<script>` tags (`window.Synapse`) |
+
+## UI Components (`@nimblebrain/synapse/ui`)
+
+A React component library for embedded Synapse apps: a token contract, layout
+primitives (`Stack`, `Inline`, …), components (`Card`, `Badge`, `Drawer`,
+`Table`, `ListRow`, …), and responsive layout scaffolds (`AppFrame`,
+`SidebarLayout`, `ListDetailLayout`). The `gallery/` app is a living reference —
+every token and component in light/dark across several themes.
+
+### Design principles
+
+These are the durable decisions behind the library; they rarely change.
+
+- **The library holds no brand.** Tokens are `var(--token, neutral-fallback)`
+  references, not hex values. The host injects the real palette/fonts at runtime
+  (the MCP ext-apps `hostContext.styles.variables`), so the same app adopts
+  whatever host it runs in. Standalone, it renders in neutral fallbacks.
+- **Theme via CSS, not React.** Components style with token-driven inline-style
+  objects whose values are those `var()` refs, so theming — including light/dark —
+  resolves in CSS with no re-render. `ensureStyle` injects keyframes and
+  pseudo-state rules once; brand values never get baked in.
+- **Scaffold only genuinely-complex layouts.** `AppFrame`, `SidebarLayout`, and
+  `ListDetailLayout` exist because they encapsulate real responsive/stateful
+  complexity. Boards, grids, and simple lists are primitives + recipes, not
+  components — the library codifies the shapes apps actually take, not a general
+  layout engine.
+- **Responsive to the pane, not the device.** Layouts observe their own width
+  (`ResizeObserver` via `useBreakpoint`), because an app's iframe may be
+  fullscreen, split, or a narrow rail regardless of screen size.
+- **Lean on the platform.** `Drawer` is built on the native `<dialog>` element
+  (focus-trap, Escape, scroll behavior for free) rather than re-implementing them.
 
 ## Quick Start
 

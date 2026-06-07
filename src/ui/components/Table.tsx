@@ -6,9 +6,9 @@
  * compose `Pagination` for paging.
  */
 
-import { type ReactNode, useId } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
-import { tokens } from "../tokens.js";
+import { type StyleWithVars, tokens } from "../tokens.js";
 
 type Align = "left" | "right" | "center";
 
@@ -22,7 +22,7 @@ export interface Column<T> {
   width?: number | string;
 }
 
-interface TableProps<T> {
+interface TableProps<T> extends Omit<HTMLAttributes<HTMLTableElement>, "children"> {
   data: T[];
   columns: Column<T>[];
   /** Stable key per row. */
@@ -53,9 +53,17 @@ const RULES = `
 .nb-table tbody tr.nb-table__row--clickable:hover { background: var(--nb-table-hover); }
 `;
 
-export function Table<T>({ data, columns, rowKey, onRowClick, empty }: TableProps<T>) {
+export function Table<T>({
+  data,
+  columns,
+  rowKey,
+  onRowClick,
+  empty,
+  style,
+  className,
+  ...rest
+}: TableProps<T>) {
   ensureStyle(STYLE_ID, RULES);
-  const headId = useId();
 
   const vars: Record<`--${string}`, string> = {
     "--nb-table-font": tokens.fontSans,
@@ -74,14 +82,16 @@ export function Table<T>({ data, columns, rowKey, onRowClick, empty }: TableProp
     return <>{empty}</>;
   }
 
+  const tableStyle: StyleWithVars = { ...vars, ...style };
+
   return (
-    <table className="nb-table" style={vars}>
+    <table className={`nb-table ${className ?? ""}`.trim()} style={tableStyle} {...rest}>
       <thead>
         <tr>
           {columns.map((col) => (
             <th
               key={col.key}
-              id={`${headId}-${col.key}`}
+              scope="col"
               style={{ width: col.width, textAlign: col.align ?? "left" }}
             >
               {col.header}
@@ -110,11 +120,7 @@ export function Table<T>({ data, columns, rowKey, onRowClick, empty }: TableProp
               }
             >
               {columns.map((col) => (
-                <td
-                  key={col.key}
-                  headers={`${headId}-${col.key}`}
-                  style={{ textAlign: col.align ?? "left" }}
-                >
+                <td key={col.key} style={{ textAlign: col.align ?? "left" }}>
                   {col.render(row, i)}
                 </td>
               ))}

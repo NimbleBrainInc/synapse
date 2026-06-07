@@ -3,6 +3,7 @@
  * A small set of mutually-exclusive options; the active one gets a raised pill.
  */
 
+import type { HTMLAttributes } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
@@ -40,18 +41,20 @@ interface Option<T extends string> {
   value: T;
 }
 
-interface SegmentedControlProps<T extends string> {
+interface SegmentedControlProps<T extends string>
+  extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   options: Option<T>[];
   value: T;
   onChange: (value: T) => void;
-  "aria-label"?: string;
 }
 
 export function SegmentedControl<T extends string>({
   options,
   value,
   onChange,
-  "aria-label": ariaLabel,
+  style,
+  className,
+  ...rest
 }: SegmentedControlProps<T>) {
   ensureStyle(STYLE_ID, RULES);
   const trackStyle: StyleWithVars = {
@@ -65,10 +68,11 @@ export function SegmentedControl<T extends string>({
     "--nb-seg-active-shadow": tokens.shadowSm,
     fontSize: tokens.textSmSize,
     lineHeight: tokens.textSmLine,
+    ...style,
   };
   return (
     // biome-ignore lint/a11y/useSemanticElements: role="group" with aria-label is the correct grouping for a set of toggle buttons; <fieldset> would impose form semantics this control doesn't have.
-    <div className="nb-seg" role="group" aria-label={ariaLabel} style={trackStyle}>
+    <div className={`nb-seg ${className ?? ""}`.trim()} role="group" style={trackStyle} {...rest}>
       {options.map((opt) => (
         <button
           key={opt.value}

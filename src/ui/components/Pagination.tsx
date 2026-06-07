@@ -3,11 +3,12 @@
  * 1-based `page`. Buttons disable at the ends.
  */
 
+import type { HTMLAttributes } from "react";
 import { Inline } from "../primitives.js";
 import { tokens } from "../tokens.js";
 import { TextLink } from "./Button.js";
 
-interface PaginationProps {
+interface PaginationProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   /** Current page, 1-based. */
   page: number;
   /** Total number of pages. */
@@ -15,7 +16,7 @@ interface PaginationProps {
   onChange: (page: number) => void;
 }
 
-export function Pagination({ page, pageCount, onChange }: PaginationProps) {
+export function Pagination({ page, pageCount, onChange, style, ...rest }: PaginationProps) {
   const atStart = page <= 1;
   const atEnd = page >= pageCount;
   return (
@@ -26,7 +27,9 @@ export function Pagination({ page, pageCount, onChange }: PaginationProps) {
         fontSize: tokens.textXsSize,
         color: tokens.fgMuted,
         letterSpacing: "0.02em",
+        ...style,
       }}
+      {...rest}
     >
       <span style={{ fontVariantNumeric: "tabular-nums" }}>
         Page {page} of {pageCount}

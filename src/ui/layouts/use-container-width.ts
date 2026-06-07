@@ -1,26 +1,30 @@
 /**
- * Responsive hooks keyed to an element's OWN width, not the device viewport.
+ * `useBreakpoint` — responsive hook keyed to an element's OWN width, not the
+ * device viewport. Synapse apps render in an iframe pane whose width the host
+ * controls (fullscreen, split, or a narrow sidebar), so layouts must react to
+ * the space they're actually given.
  *
- * Synapse apps render in an iframe pane whose width the host controls — it may
- * be fullscreen, split, or a narrow sidebar. Layouts must react to the space
- * they're actually given, so these observe the element via `ResizeObserver`
- * rather than reading `window`. SSR/test-safe: when `ResizeObserver` is absent,
- * width stays `null` and consumers treat the layout as "not yet narrow".
+ * Attach the returned `ref` to the element whose width drives the decision.
+ * Width is measured synchronously on mount (no first-frame flash) and kept live
+ * via `ResizeObserver`. SSR/test-safe: without a DOM/`ResizeObserver` it simply
+ * reports `isNarrow: false`.
  */
 
 import { type RefObject, useLayoutEffect, useRef, useState } from "react";
 
-/** Observe an element's content width. Attach the returned `ref` to it. */
-export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): {
-  ref: RefObject<T | null>;
-  width: number | null;
-} {
+export function useBreakpoint<T extends HTMLElement = HTMLDivElement>(
+  breakpoint: number,
+): { ref: RefObject<T | null>; isNarrow: boolean } {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver === "undefined") return;
+    if (!el) return;
+    // Synchronous initial measure — runs before paint, so the first painted
+    // frame already reflects the real width.
+    setWidth(el.getBoundingClientRect().width);
+    if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
       const w = entries[0]?.contentRect.width;
       if (typeof w === "number") setWidth(w);
@@ -29,16 +33,5 @@ export function useContainerWidth<T extends HTMLElement = HTMLDivElement>(): {
     return () => ro.disconnect();
   }, []);
 
-  return { ref, width };
-}
-
-/**
- * `true` once the observed element is narrower than `breakpoint` (px). Attach
- * the returned `ref` to the element whose width should drive the decision.
- */
-export function useBreakpoint<T extends HTMLElement = HTMLDivElement>(
-  breakpoint: number,
-): { ref: RefObject<T | null>; width: number | null; isNarrow: boolean } {
-  const { ref, width } = useContainerWidth<T>();
-  return { ref, width, isNarrow: width !== null && width < breakpoint };
+  return { ref, isNarrow: width !== null && width < breakpoint };
 }

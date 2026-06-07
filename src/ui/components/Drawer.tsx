@@ -1,15 +1,24 @@
 /**
  * Drawer — an off-canvas overlay panel that slides in from an edge, over a
- * scrim. The general overlay the apps need (e.g. CRM's detail panel). Controlled
- * via `open` / `onClose`. The slide-in is a plain CSS keyframe (it plays when
- * the panel mounts). Closes on scrim click and Escape; traps focus and locks
- * body scroll while open.
+ * scrim. The general overlay the apps need (e.g. CRM's detail panel).
+ *
+ * Built on the native `<dialog>` element: `showModal()` gives the focus trap,
+ * Escape handling, top-layer stacking, inert background, and scroll behavior
+ * for free — no hand-rolled focus management. Controlled via `open`/`onClose`.
+ * Escape routes through `onEscape` (defaults to `onClose`); clicking the
+ * backdrop calls `onClose`. The slide-in is a CSS keyframe on `[open]`.
  *
  * Compose with the `Header` / `Body` / `Footer` slots, or pass plain children.
  * A multi-level "panel stack" (push/pop) is an app concern built on top of this.
  */
 
-import { type HTMLAttributes, type ReactNode, useEffect, useRef } from "react";
+import {
+  type DialogHTMLAttributes,
+  type HTMLAttributes,
+  type ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
@@ -17,33 +26,25 @@ type Side = "left" | "right";
 
 const STYLE_ID = "nb-synapse-drawer";
 const RULES = `
-.nb-drawerlay { position: fixed; inset: 0; z-index: 1000; }
-.nb-drawerlay__scrim {
-  position: absolute; inset: 0; border: none; padding: 0; cursor: pointer;
-  background: rgba(0,0,0,0.32); animation: nb-drawer-fade 200ms ease both;
+.nb-drawer {
+  margin: 0; padding: 0; border: none; max-width: 92%;
+  height: 100%; max-height: 100%; display: flex; flex-direction: column;
 }
-.nb-drawerlay__panel {
-  position: absolute; top: 0; bottom: 0; display: flex; flex-direction: column; max-width: 92%;
-}
-.nb-drawerlay__panel--right { right: 0; animation: nb-drawer-right 240ms cubic-bezier(0.2, 0, 0, 1) both; }
-.nb-drawerlay__panel--left { left: 0; animation: nb-drawer-left 240ms cubic-bezier(0.2, 0, 0, 1) both; }
-@keyframes nb-drawer-fade { from { opacity: 0 } to { opacity: 1 } }
-@keyframes nb-drawer-right { from { transform: translateX(100%) } to { transform: translateX(0) } }
-@keyframes nb-drawer-left { from { transform: translateX(-100%) } to { transform: translateX(0) } }
+.nb-drawer--right { margin-left: auto; }
+.nb-drawer--left { margin-right: auto; }
+.nb-drawer--right[open] { animation: nb-drawer-in-right 240ms cubic-bezier(0.2, 0, 0, 1); }
+.nb-drawer--left[open] { animation: nb-drawer-in-left 240ms cubic-bezier(0.2, 0, 0, 1); }
+.nb-drawer::backdrop { background: rgba(0, 0, 0, 0.32); }
+.nb-drawer[open]::backdrop { animation: nb-drawer-fade 200ms ease; }
+@keyframes nb-drawer-in-right { from { transform: translateX(100%); } }
+@keyframes nb-drawer-in-left { from { transform: translateX(-100%); } }
+@keyframes nb-drawer-fade { from { opacity: 0; } }
 `;
 
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-
-function getFocusable(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
-    (el) => el.offsetParent !== null || el === document.activeElement,
-  );
-}
-
-interface DrawerProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+interface DrawerProps
+  extends Omit<DialogHTMLAttributes<HTMLDialogElement>, "title" | "onCancel" | "onClick"> {
   open: boolean;
-  /** Called by the scrim and the Header close button. */
+  /** Called by the backdrop and the Header close button. */
   onClose: () => void;
   /** Called on Escape. Defaults to `onClose` — override to do something else
    * (e.g. pop one level of a panel stack before closing). */
@@ -65,54 +66,19 @@ function DrawerRoot({
   ...rest
 }: DrawerProps) {
   ensureStyle(STYLE_ID, RULES);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const restoreFocusRef = useRef<Element | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
-    restoreFocusRef.current = document.activeElement;
-
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        (onEscape ?? onClose)();
-        return;
-      }
-      if (e.key === "Tab" && panel) {
-        const focusable = getFocusable(panel);
-        if (focusable.length === 0) {
-          e.preventDefault();
-          panel.focus();
-          return;
-        }
-        const first = focusable[0]!;
-        const last = focusable[focusable.length - 1]!;
-        const active = document.activeElement;
-        if (e.shiftKey && (active === first || active === panel)) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && active === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    (getFocusable(panel ?? document.body)[0] ?? panel)?.focus();
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.body.style.overflow = prevOverflow;
-      (restoreFocusRef.current as HTMLElement | null)?.focus?.();
-    };
-  }, [open, onClose, onEscape]);
-
-  if (!open) return null;
+    const dialog = dialogRef.current;
+    if (!dialog || typeof dialog.showModal !== "function") return;
+    if (open && !dialog.open) dialog.showModal();
+    else if (!open && dialog.open) dialog.close();
+  }, [open]);
 
   const panelStyle: StyleWithVars = {
     width,
     background: tokens.bg,
+    color: tokens.fg,
     boxShadow: tokens.shadowLg,
     ...(side === "right"
       ? { borderLeft: `${tokens.borderWidth} solid ${tokens.border}` }
@@ -121,21 +87,23 @@ function DrawerRoot({
   };
 
   return (
-    <div className="nb-drawerlay">
-      <button type="button" aria-label="Close" className="nb-drawerlay__scrim" onClick={onClose} />
-      {/* biome-ignore lint/a11y/useSemanticElements: a dialog role on a div is the standard pattern; <dialog> would impose top-layer/backdrop behavior this controlled overlay manages itself. */}
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        tabIndex={-1}
-        className={`nb-drawerlay__panel nb-drawerlay__panel--${side}`}
-        style={panelStyle}
-        {...rest}
-      >
-        {children}
-      </div>
-    </div>
+    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is a mouse convenience; the dialog's Escape (onCancel) is the keyboard dismissal path.
+    <dialog
+      ref={dialogRef}
+      className={`nb-drawer nb-drawer--${side}`}
+      style={panelStyle}
+      onCancel={(e) => {
+        e.preventDefault(); // we own dismissal so onEscape can pop a stack
+        (onEscape ?? onClose)();
+      }}
+      onClick={(e) => {
+        // A click whose target is the dialog itself is a backdrop click.
+        if (e.target === dialogRef.current) onClose();
+      }}
+      {...rest}
+    >
+      {children}
+    </dialog>
   );
 }
 

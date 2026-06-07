@@ -24,16 +24,16 @@ export { SegmentedControl } from "./components/SegmentedControl.js";
 export { Spinner } from "./components/Spinner.js";
 export { type Status, StatusDot } from "./components/StatusDot.js";
 export { type Column, Table } from "./components/Table.js";
-// Font loader (also available as a side-effect import: "@nimblebrain/synapse/ui/fonts")
-export { injectFonts } from "./fonts.js";
+// Brand fonts are loaded via a side-effect import: `import "@nimblebrain/synapse/ui/fonts"`.
+// (Not re-exported here — that would make importing the barrel inject fonts.)
 // Tier B — layout scaffolds + responsive hooks
 export { AppFrame } from "./layouts/AppFrame.js";
 export { ListDetailLayout, useListDetail } from "./layouts/ListDetailLayout.js";
 export { SidebarLayout, useSidebar } from "./layouts/SidebarLayout.js";
-export { useBreakpoint, useContainerWidth } from "./layouts/use-container-width.js";
+export { useBreakpoint } from "./layouts/use-container-width.js";
 // Tier A — layout primitives
 export { Divider, Inline, Spacer, Stack } from "./primitives.js";
-// Foundation — token contract + resolver
+// Foundation — token contract
 export {
   type HeadingSize,
   headingStyle,
@@ -41,7 +41,6 @@ export {
   type Tokens,
   textStyle,
   tokens,
-  useTokens,
 } from "./tokens.js";
 // Typography
 export { Heading, Text } from "./typography.js";

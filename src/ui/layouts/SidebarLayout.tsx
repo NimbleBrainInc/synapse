@@ -50,13 +50,14 @@ export function useSidebar(): SidebarState {
 }
 
 const STYLE_ID = "nb-synapse-sidebarlayout";
+// Distinct class names from the Drawer component (which owns `.nb-drawer`).
 const RULES = `
-.nb-drawer { transition: transform 220ms cubic-bezier(0.2, 0, 0, 1); }
-.nb-drawer-scrim { animation: nb-drawer-fade 180ms ease; }
-@keyframes nb-drawer-fade { from { opacity: 0; } to { opacity: 1; } }
+.nb-sidebar-drawer { transition: transform 220ms cubic-bezier(0.2, 0, 0, 1); }
+.nb-sidebar-scrim { animation: nb-sidebar-fade 180ms ease; }
+@keyframes nb-sidebar-fade { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .nb-drawer { transition: none; }
-  .nb-drawer-scrim { animation: none; }
+  .nb-sidebar-drawer { transition: none; }
+  .nb-sidebar-scrim { animation: none; }
 }
 `;
 
@@ -192,7 +193,7 @@ function Sidebar({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
         <button
           type="button"
           aria-label="Close sidebar"
-          className="nb-drawer-scrim"
+          className="nb-sidebar-scrim"
           onClick={() => setOpen(false)}
           style={{
             position: "absolute",
@@ -205,7 +206,9 @@ function Sidebar({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
           }}
         />
       ) : null}
-      <aside className="nb-drawer" aria-hidden={!open} style={drawerStyle} {...rest}>
+      {/* `inert` when closed removes the off-canvas rail from the tab order and
+          the a11y tree (vs `aria-hidden`, which leaves focusables reachable). */}
+      <aside className="nb-sidebar-drawer" inert={!open} style={drawerStyle} {...rest}>
         {children}
       </aside>
     </>

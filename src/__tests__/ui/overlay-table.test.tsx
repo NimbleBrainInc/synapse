@@ -6,16 +6,18 @@ import { type Column, Table } from "../../ui/components/Table.js";
 afterEach(cleanup);
 
 describe("Drawer", () => {
-  it("renders nothing when closed", () => {
+  it("renders the dialog closed (not open) when open is false", () => {
     const { container } = render(
       <Drawer open={false} onClose={() => {}}>
         body
       </Drawer>,
     );
-    expect(container.querySelector(".nb-drawerlay")).toBeNull();
+    const dialog = container.querySelector("dialog");
+    expect(dialog).not.toBeNull();
+    expect(dialog?.hasAttribute("open")).toBe(false);
   });
 
-  it("renders a modal dialog when open and closes on scrim + Escape", () => {
+  it("shows content when open and closes on backdrop + close button", () => {
     const onClose = vi.fn();
     render(
       <Drawer open onClose={onClose}>
@@ -23,18 +25,19 @@ describe("Drawer", () => {
         <Drawer.Body>Details</Drawer.Body>
       </Drawer>,
     );
-    expect(screen.getByRole("dialog").getAttribute("aria-modal")).toBe("true");
+    const dialog = screen.getByRole("dialog");
     expect(screen.getByText("Details")).toBeDefined();
 
-    // scrim (first "Close" label) dismisses
-    fireEvent.click(screen.getAllByLabelText("Close")[0] as HTMLElement);
+    // backdrop click — a click whose target is the dialog itself
+    fireEvent.click(dialog);
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(document, { key: "Escape" });
+    // header close button
+    fireEvent.click(screen.getByLabelText("Close"));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("routes Escape to onEscape when provided, leaving onClose for scrim/X", () => {
+  it("routes the dialog's cancel (Escape) to onEscape, leaving onClose for backdrop/button", () => {
     const onClose = vi.fn();
     const onEscape = vi.fn();
     render(
@@ -42,7 +45,7 @@ describe("Drawer", () => {
         <Drawer.Body>Details</Drawer.Body>
       </Drawer>,
     );
-    fireEvent.keyDown(document, { key: "Escape" });
+    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
     expect(onEscape).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });

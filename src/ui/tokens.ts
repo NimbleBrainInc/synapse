@@ -13,12 +13,11 @@
  * app runs inside the NimbleBrain host; standalone/static renders get a sane
  * unbranded default. This keeps the library host-agnostic.
  *
- * Components import the static `tokens` object. Use {@link useTokens} only when
- * a component needs the resolved light/dark `mode` (rare).
+ * Components import the static `tokens` object and style with CSS `var()`, so
+ * theming (incl. light/dark) resolves in CSS with no re-render.
  */
 
 import type { CSSProperties } from "react";
-import { useTheme } from "../react/index.js";
 
 /** Resolved design tokens as CSS `var()` references with neutral fallbacks. */
 export const tokens = {
@@ -125,16 +124,4 @@ export function textStyle(size: TextSize): CSSProperties {
 /** `{ fontSize, lineHeight }` for a heading level. */
 export function headingStyle(size: HeadingSize): CSSProperties {
   return HEADING_SCALE[size];
-}
-
-/**
- * The resolved tokens plus the host's current light/dark `mode`. Most
- * components should import the static `tokens` object instead — they style
- * with CSS `var()` and so theme automatically without this hook. Reach for
- * `useTokens()` only when a component must branch on `mode` (e.g. choosing a
- * mode-specific overlay tint that has no token).
- */
-export function useTokens(): { tokens: Tokens; mode: "light" | "dark"; isDark: boolean } {
-  const theme = useTheme();
-  return { tokens, mode: theme.mode, isDark: theme.mode === "dark" };
 }

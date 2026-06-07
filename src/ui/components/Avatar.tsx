@@ -3,7 +3,7 @@
  * otherwise initials derived from `name` on a subtle tinted background.
  */
 
-import type { HTMLAttributes } from "react";
+import { type HTMLAttributes, useEffect, useState } from "react";
 import { tokens } from "../tokens.js";
 
 /** Up to two initials from a name ("Jordan Ratner" → "JR", "mat" → "M"). */
@@ -26,6 +26,11 @@ interface AvatarProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children"> 
 }
 
 export function Avatar({ name, src, size = 28, style, ...rest }: AvatarProps) {
+  // Fall back to initials if the image fails to load. Reset on `src` change.
+  const [failed, setFailed] = useState(false);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset only when src changes
+  useEffect(() => setFailed(false), [src]);
+  const showImage = Boolean(src) && !failed;
   return (
     <span
       style={{
@@ -47,12 +52,13 @@ export function Avatar({ name, src, size = 28, style, ...rest }: AvatarProps) {
       }}
       {...rest}
     >
-      {src ? (
+      {showImage ? (
         <img
           src={src}
           alt={name}
           width={size}
           height={size}
+          onError={() => setFailed(true)}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
       ) : (

@@ -27,11 +27,6 @@ const JUSTIFY: Record<Justify, CSSProperties["justifyContent"]> = {
   around: "space-around",
 };
 
-/** A `gap` may be a CSS length string or a number (interpreted as px). */
-function gapValue(gap: number | string | undefined): string | number | undefined {
-  return typeof gap === "number" ? gap : gap;
-}
-
 interface FlexProps extends HTMLAttributes<HTMLDivElement> {
   gap?: number | string;
   align?: Align;
@@ -47,7 +42,7 @@ function flexStyle(
   return {
     display: "flex",
     flexDirection: direction,
-    gap: gapValue(gap),
+    gap,
     alignItems: align ? ALIGN[align] : undefined,
     justifyContent: justify ? JUSTIFY[justify] : undefined,
     flexWrap: wrap ? "wrap" : undefined,

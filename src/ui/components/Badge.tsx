@@ -15,15 +15,16 @@ export type BadgeTone =
   | "processing"
   | "warm";
 
-/** `[background, foreground]` per tone. Soft backgrounds, readable labels. */
-const TONE: Record<BadgeTone, [bg: string, fg: string]> = {
-  neutral: [tokens.bgSubtle, tokens.fgMuted],
-  accent: [tokens.infoLight, tokens.accent],
-  success: ["color-mix(in oklab, currentColor 0%, transparent)", tokens.success],
-  warning: ["color-mix(in oklab, currentColor 0%, transparent)", tokens.warning],
-  danger: ["color-mix(in oklab, currentColor 0%, transparent)", tokens.danger],
-  processing: [tokens.processingLight, tokens.processing],
-  warm: [tokens.warmLight, tokens.warm],
+/** `{ bg, fg }` per tone. Soft tinted background, same-hue label. The status
+ * tones have no `*Light` token so their tint is derived from the fg color. */
+const TONE: Record<BadgeTone, { bg: string; fg: string }> = {
+  neutral: { bg: tokens.bgSubtle, fg: tokens.fgMuted },
+  accent: { bg: tokens.infoLight, fg: tokens.accent },
+  success: { bg: `color-mix(in oklab, ${tokens.success} 14%, transparent)`, fg: tokens.success },
+  warning: { bg: `color-mix(in oklab, ${tokens.warning} 14%, transparent)`, fg: tokens.warning },
+  danger: { bg: `color-mix(in oklab, ${tokens.danger} 14%, transparent)`, fg: tokens.danger },
+  processing: { bg: tokens.processingLight, fg: tokens.processing },
+  warm: { bg: tokens.warmLight, fg: tokens.warm },
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
@@ -32,12 +33,7 @@ interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 export function Badge({ tone = "neutral", style, children, ...rest }: BadgeProps) {
-  const [bg, fg] = TONE[tone];
-  // success/warning/danger have no soft-background token; tint from the fg.
-  const background =
-    tone === "success" || tone === "warning" || tone === "danger"
-      ? `color-mix(in oklab, ${fg} 14%, transparent)`
-      : bg;
+  const { bg, fg } = TONE[tone];
   return (
     <span
       style={{
@@ -46,7 +42,7 @@ export function Badge({ tone = "neutral", style, children, ...rest }: BadgeProps
         gap: "0.25rem",
         padding: "0.1rem 0.45rem",
         borderRadius: tokens.radiusXs,
-        background,
+        background: bg,
         color: fg,
         fontFamily: tokens.fontSans,
         fontSize: tokens.textXsSize,

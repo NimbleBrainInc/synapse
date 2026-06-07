@@ -35,9 +35,22 @@ const RULES = `
 }
 `;
 
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+function getFocusable(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(
+    (el) => el.offsetParent !== null || el === document.activeElement,
+  );
+}
+
 interface DrawerProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   open: boolean;
+  /** Called by the scrim and the Header close button. */
   onClose: () => void;
+  /** Called on Escape. Defaults to `onClose` — override to do something else
+   * (e.g. pop one level of a panel stack before closing). */
+  onEscape?: () => void;
   side?: Side;
   /** Panel width. Default 480. */
   width?: number | string;
@@ -47,6 +60,7 @@ interface DrawerProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
 function DrawerRoot({
   open,
   onClose,
+  onEscape,
   side = "right",
   width = 480,
   style,
@@ -60,21 +74,46 @@ function DrawerRoot({
   useEffect(() => {
     if (!open) return;
     restoreFocusRef.current = document.activeElement;
+    const panel = panelRef.current;
+
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        (onEscape ?? onClose)();
+        return;
+      }
+      // Focus trap: keep Tab cycling inside the panel.
+      if (e.key === "Tab" && panel) {
+        const focusable = getFocusable(panel);
+        if (focusable.length === 0) {
+          e.preventDefault();
+          panel.focus();
+          return;
+        }
+        const first = focusable[0]!;
+        const last = focusable[focusable.length - 1]!;
+        const active = document.activeElement;
+        if (e.shiftKey && (active === first || active === panel)) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
-    window.addEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey);
     // Lock scroll on the iframe document while the drawer is open.
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    // Move focus into the panel.
-    panelRef.current?.focus();
+    // Move focus into the panel (first focusable child, else the panel).
+    const firstFocusable = panel ? getFocusable(panel)[0] : undefined;
+    (firstFocusable ?? panel)?.focus();
     return () => {
-      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey);
       document.body.style.overflow = prevOverflow;
       (restoreFocusRef.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, onClose, onEscape]);
 
   if (!open) return null;
 

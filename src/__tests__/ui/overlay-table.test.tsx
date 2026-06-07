@@ -30,8 +30,21 @@ describe("Drawer", () => {
     fireEvent.click(screen.getAllByLabelText("Close")[0] as HTMLElement);
     expect(onClose).toHaveBeenCalledTimes(1);
 
-    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("routes Escape to onEscape when provided, leaving onClose for scrim/X", () => {
+    const onClose = vi.fn();
+    const onEscape = vi.fn();
+    render(
+      <Drawer open onClose={onClose} onEscape={onEscape}>
+        <Drawer.Body>Details</Drawer.Body>
+      </Drawer>,
+    );
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
   });
 });
 

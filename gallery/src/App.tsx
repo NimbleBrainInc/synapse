@@ -5,7 +5,9 @@ import {
   type BadgeTone,
   Button,
   Card,
+  type Column,
   Divider,
+  Drawer,
   EmptyState,
   Heading,
   Inline,
@@ -21,6 +23,7 @@ import {
   Stack,
   type Status,
   StatusDot,
+  Table,
   Text,
   TextLink,
   tokens,
@@ -181,6 +184,7 @@ export function App() {
   const [page, setPage] = useState(2);
   const [layoutMode, setLayoutMode] = useState("reflow");
   const [paneWidth, setPaneWidth] = useState(760);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
   const [ldWidth, setLdWidth] = useState(760);
 
@@ -662,6 +666,82 @@ export function App() {
               </div>
             </Stack>
           </Grid>
+        </Section>
+
+        <Section
+          title="Overlays & data — Drawer + Table"
+          subtitle="The two components the CRM retrofit proved we needed. Open the drawer; click a table row."
+        >
+          <Stack gap="1.25rem">
+            <div>
+              <Button onClick={() => setDrawerOpen(true)}>Open drawer</Button>
+              <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} width={380}>
+                <Drawer.Header onClose={() => setDrawerOpen(false)}>
+                  Blue Ridge — Patient Portal
+                </Drawer.Header>
+                <Drawer.Body>
+                  <Stack gap="0.75rem">
+                    <Inline gap="0.5rem">
+                      <StatusDot status="working" />
+                      <Text size="sm" tone="muted">
+                        Qualified · 57d in stage
+                      </Text>
+                    </Inline>
+                    <Text size="sm">
+                      A slide-in overlay with scrim, Escape-to-close, scroll lock, and a focus
+                      return. Header / Body / Footer slots; the app composes the rest.
+                    </Text>
+                    <Badge tone="accent">$110,000</Badge>
+                  </Stack>
+                </Drawer.Body>
+                <Drawer.Footer>
+                  <Inline gap="0.5rem">
+                    <Button size="sm" onClick={() => setDrawerOpen(false)}>
+                      Save
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setDrawerOpen(false)}>
+                      Cancel
+                    </Button>
+                  </Inline>
+                </Drawer.Footer>
+              </Drawer>
+            </div>
+
+            <div
+              style={{
+                border: `1px solid ${tokens.border}`,
+                borderRadius: tokens.radiusMd,
+                overflow: "hidden",
+              }}
+            >
+              <Table
+                data={RUNS}
+                rowKey={(r) => r.id}
+                onRowClick={() => setDrawerOpen(true)}
+                columns={
+                  [
+                    {
+                      key: "status",
+                      header: "",
+                      width: 28,
+                      render: (r) => <StatusDot status={r.status} />,
+                    },
+                    { key: "title", header: "Deal", render: (r) => r.title },
+                    {
+                      key: "meta",
+                      header: "Updated",
+                      align: "right",
+                      render: (r) => (
+                        <Text size="xs" tone="muted">
+                          {r.meta}
+                        </Text>
+                      ),
+                    },
+                  ] satisfies Column<(typeof RUNS)[number]>[]
+                }
+              />
+            </div>
+          </Stack>
         </Section>
       </div>
     </div>

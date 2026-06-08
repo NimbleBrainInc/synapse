@@ -5,7 +5,7 @@
  * Conversations, and the Collateral sidebar each re-rolled.
  */
 
-import type { HTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, KeyboardEvent, ReactNode } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
@@ -49,10 +49,27 @@ export function ListRow({
     borderRadius: tokens.radiusSm,
     ...style,
   };
+  // When interactive, make the row keyboard-operable (matches Table's rows):
+  // role="button" + tabIndex, and Enter/Space synthesize the click that drives
+  // the consumer's onClick (passed via ...rest). Placed before ...rest so a
+  // consumer can still override any of these explicitly.
+  const interactiveProps = interactive
+    ? {
+        role: "button",
+        tabIndex: 0,
+        onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            e.currentTarget.click();
+          }
+        },
+      }
+    : {};
   return (
     <div
       className={`nb-listrow ${interactive ? "nb-listrow--interactive" : ""} ${className ?? ""}`.trim()}
       style={rowStyle}
+      {...interactiveProps}
       {...rest}
     >
       {leading ? <div style={{ alignSelf: "center", display: "flex" }}>{leading}</div> : null}

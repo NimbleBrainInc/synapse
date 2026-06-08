@@ -17,8 +17,9 @@ interface PaginationProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange
 }
 
 export function Pagination({ page, pageCount, onChange, style, ...rest }: PaginationProps) {
+  const total = Math.max(1, pageCount);
   const atStart = page <= 1;
-  const atEnd = page >= pageCount;
+  const atEnd = page >= total;
   return (
     <Inline
       justify="between"
@@ -32,7 +33,7 @@ export function Pagination({ page, pageCount, onChange, style, ...rest }: Pagina
       {...rest}
     >
       <span style={{ fontVariantNumeric: "tabular-nums" }}>
-        Page {page} of {pageCount}
+        Page {page} of {total}
       </span>
       <Inline gap="1rem">
         <TextLink disabled={atStart} onClick={() => onChange(page - 1)}>

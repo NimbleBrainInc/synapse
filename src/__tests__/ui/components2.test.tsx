@@ -73,4 +73,13 @@ describe("ListRow", () => {
       "nb-listrow--interactive",
     );
   });
+
+  it("is keyboard-operable when interactive (Enter fires the click)", () => {
+    const onClick = vi.fn();
+    render(<ListRow title="Open me" interactive onClick={onClick} />);
+    const row = screen.getByRole("button");
+    expect(row.getAttribute("tabindex")).toBe("0");
+    fireEvent.keyDown(row, { key: "Enter" });
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });

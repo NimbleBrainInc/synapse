@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.9.0] - 2026-06-07
+## [0.10.0] - 2026-06-07
+
+Makes the `Drawer` header affordances first-class so consumers stop re-rolling them, and adds a bottom-sheet variant. Surfaced by dogfooding the CRM and todo-board retrofits, where each app had hand-rolled a back button, lost heading semantics, and keyed touch sizing off viewport width. Purely additive — existing `Drawer` / `Drawer.Header` usage is unchanged.
+
+### Added
+
+- `Drawer.Header` `title` prop — renders a real `<h2>` and wires the dialog's accessible name via `aria-labelledby` (replacing consumer `aria-label` when present).
+- `Drawer.Header` `onBack` prop — a leading back button (e.g. to pop a panel stack).
+- `Drawer.Header` `actions` prop — a trailing slot placed before the close button.
+- `Drawer` `side="bottom"` — a bottom-sheet variant (full width, content height capped at 92%).
+- The header's close/back icon buttons grow to a 44px hit target under `@media (pointer: coarse)` — keyed to input modality, not viewport width, so touch laptops get large targets and narrow desktop windows don't.
+
+
 
 Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so embedded Synapse apps share one system with per-host personality. Components hold no brand; the host injects the theme via CSS variables (`hostContext.styles.variables`), so the same app adopts any host's look with no re-render. Purely additive — no changes to existing exports. See [PR #12](https://github.com/NimbleBrainInc/synapse/pull/12).
 

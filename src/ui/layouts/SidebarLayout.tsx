@@ -9,9 +9,11 @@
  *    Best for long lists (a document browser) where reflowing would be absurd.
  *
  * Place nav items as flat children of `Sidebar`; it controls direction
- * (column when expanded, row when reflowed). For `drawer`, drop a
- * `<SidebarLayout.Trigger />` anywhere in the app (typically `AppFrame.Header`),
- * or read state via `useSidebar()`.
+ * (column when expanded, row when reflowed). For `drawer`, place a
+ * `<SidebarLayout.Trigger />` *inside* the layout (e.g. a toolbar in `Main`) —
+ * in v1 the open-state context lives on `SidebarLayout`, so the trigger must be
+ * within it, NOT in a sibling `AppFrame.Header`. Or read state via `useSidebar()`.
+ * (Header placement would need a hoisted provider — a deliberate later refinement.)
  */
 
 import {
@@ -237,7 +239,7 @@ interface TriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 function Trigger({ children, style, onClick, ...rest }: TriggerProps) {
   const ctx = useContext(SidebarCtx);
-  if (!ctx || !ctx.collapsed || ctx.mode !== "drawer") return null;
+  if (!ctx?.collapsed || ctx.mode !== "drawer") return null;
   const { open, setOpen } = ctx;
   return (
     <button

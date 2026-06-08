@@ -22,11 +22,13 @@ export function useBreakpoint<T extends HTMLElement = HTMLDivElement>(
     const el = ref.current;
     if (!el) return;
     // Synchronous initial measure — runs before paint, so the first painted
-    // frame already reflects the real width.
+    // frame already reflects the real width. Border-box, matching the observer
+    // below (so there's no jump on the first resize if the element has padding).
     setWidth(el.getBoundingClientRect().width);
     if (typeof ResizeObserver === "undefined") return;
     const ro = new ResizeObserver((entries) => {
-      const w = entries[0]?.contentRect.width;
+      const entry = entries[0];
+      const w = entry?.borderBoxSize?.[0]?.inlineSize ?? entry?.contentRect.width;
       if (typeof w === "number") setWidth(w);
     });
     ro.observe(el);

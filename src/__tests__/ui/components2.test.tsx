@@ -51,6 +51,13 @@ describe("Avatar", () => {
     const img = screen.getByAltText("Jordan Ratner") as HTMLImageElement;
     expect(img.tagName).toBe("IMG");
   });
+
+  it("falls back to initials when the image fails to load", () => {
+    render(<Avatar name="Jordan Ratner" src="https://example.com/broken.png" />);
+    fireEvent.error(screen.getByAltText("Jordan Ratner"));
+    expect(screen.getByText("JR")).toBeDefined();
+    expect(screen.queryByAltText("Jordan Ratner")).toBeNull();
+  });
 });
 
 describe("ListRow", () => {

@@ -4,7 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.8.0] - 2026-04-27
+## [0.9.0] - 2026-06-07
+
+Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so embedded Synapse apps share one system with per-host personality. Components hold no brand; the host injects the theme via CSS variables (`hostContext.styles.variables`), so the same app adopts any host's look with no re-render. Purely additive — no changes to existing exports. See [PR #12](https://github.com/NimbleBrainInc/synapse/pull/12).
+
+### Added
+
+- `@nimblebrain/synapse/ui` subpath export with a `var(--token, neutral-fallback)` token contract (no brand baked in).
+- Primitives: `Stack`, `Inline`, `Spacer`, `Divider`. Typography: `Text`, `Heading`, `Prose`.
+- Components: `Avatar`, `Badge`, `Button`, `TextLink`, `Card`, `Drawer` (native `<dialog>`), `EmptyState`, `ListRow`, `Pagination`, `SearchField`, `SegmentedControl`, `Spinner`, `StatusDot`, `Table`.
+- Layouts: `AppFrame`, `SidebarLayout` (reflow/drawer), `ListDetailLayout`, plus the `useBreakpoint` hook.
+- `@nimblebrain/synapse/ui/fonts` subpath for font wiring.
+
+
 
 Fixes the file picker, which was effectively dead in NimbleBrain hosts and inflated bytes through tool-call JSON. `pickFile` / `pickFiles` now resolve to a stable workspace file ID; the host persists the bytes server-side over multipart.
 

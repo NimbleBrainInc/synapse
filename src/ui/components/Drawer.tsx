@@ -150,7 +150,10 @@ function DrawerRoot({
 }
 
 interface HeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
-  /** Heading text — rendered as an `<h2>` and wired as the drawer's accessible name. */
+  /**
+   * Heading text — rendered as an `<h2>` and wired as the drawer's accessible
+   * name. Renders **instead of** `children` (pass one or the other, not both).
+   */
   title?: ReactNode;
   /** Show a leading back button (e.g. pop one level of a panel stack). */
   onBack?: () => void;
@@ -178,7 +181,7 @@ function Header({ title, onBack, actions, onClose, style, children, ...rest }: H
         flexShrink: 0,
         display: "flex",
         alignItems: "center",
-        gap: "0.5rem",
+        gap: "0.75rem",
         padding: "0.875rem 1rem",
         borderBottom: `${tokens.borderWidth} solid ${tokens.border}`,
         fontFamily: tokens.fontSans,

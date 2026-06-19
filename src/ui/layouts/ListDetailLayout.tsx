@@ -73,10 +73,15 @@ function List({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
   return (
     <section
       style={{
-        overflowY: "auto",
+        // Clip horizontally, scroll vertically. A too-wide child (e.g. an
+        // auto-layout <table> that won't shrink below its content) would
+        // otherwise spill out of this fixed-width rail and paint over the
+        // detail pane. `minWidth: 0` lets the rail participate in flex
+        // sizing without being forced wider by its content.
+        overflow: "hidden auto",
         ...(collapsed
           ? { flex: 1, minWidth: 0 }
-          : { width: listWidth, flexShrink: 0, borderRight: border }),
+          : { width: listWidth, minWidth: 0, flexShrink: 0, borderRight: border }),
         ...style,
       }}
       {...rest}

@@ -49,6 +49,63 @@ describe("Drawer", () => {
     expect(onEscape).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("Header title renders an h2 and names the dialog via aria-labelledby", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header title="Deal X" onClose={() => {}} />
+        <Drawer.Body>Details</Drawer.Body>
+      </Drawer>,
+    );
+    const heading = screen.getByRole("heading", { level: 2, name: "Deal X" });
+    expect(heading.id).toBeTruthy();
+    expect(screen.getByRole("dialog").getAttribute("aria-labelledby")).toBe(heading.id);
+  });
+
+  it("Header onBack renders a Back button that fires the callback", () => {
+    const onBack = vi.fn();
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header title="Contact" onBack={onBack} onClose={() => {}} />
+      </Drawer>,
+    );
+    fireEvent.click(screen.getByLabelText("Back"));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("Header renders the actions slot and applies coarse-pointer hit-target class to icon buttons", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header
+          title="Deal"
+          actions={<button type="button">Edit</button>}
+          onBack={() => {}}
+          onClose={() => {}}
+        />
+      </Drawer>,
+    );
+    expect(screen.getByText("Edit")).toBeDefined();
+    expect(screen.getByLabelText("Back").className).toContain("nb-drawer-iconbtn");
+    expect(screen.getByLabelText("Close").className).toContain("nb-drawer-iconbtn");
+  });
+
+  it("side=bottom applies the bottom-sheet modifier class", () => {
+    const { container } = render(
+      <Drawer open side="bottom" onClose={() => {}}>
+        <Drawer.Body>Sheet</Drawer.Body>
+      </Drawer>,
+    );
+    expect(container.querySelector("dialog")?.className).toContain("nb-drawer--bottom");
+  });
+
+  it("does not set aria-labelledby when the header uses plain children (no title)", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>Deal</Drawer.Header>
+      </Drawer>,
+    );
+    expect(screen.getByRole("dialog").getAttribute("aria-labelledby")).toBeNull();
+  });
 });
 
 interface Row {

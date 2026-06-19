@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] - 2026-06-19
+
+Fixes a master/detail overlap. A too-wide child in `ListDetailLayout.List` — e.g. an auto-layout `<table>` that won't shrink below its content — spilled out of the fixed-width list rail and painted over the detail pane. Surfaced dogfooding the People CRM, whose list rendered a 3-column table inside the 320px rail.
+
+### Fixed
+
+- `ListDetailLayout.List` now clips horizontal overflow (`overflow: hidden auto`) and sets `minWidth: 0` on the side-by-side rail, so an oversized child scrolls/clips within the rail instead of overlapping the detail pane. Prefer `ListRow` for master lists; reserve `Table` for full-width surfaces.
+
 ## [0.10.0] - 2026-06-19
 
 Makes the `Drawer` header affordances first-class so consumers stop re-rolling them, and adds a bottom-sheet variant. Surfaced by dogfooding the CRM and todo-board retrofits, where each app had hand-rolled a back button, lost heading semantics, and keyed touch sizing off viewport width. Purely additive — existing `Drawer` / `Drawer.Header` usage is unchanged.

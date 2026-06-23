@@ -27,6 +27,7 @@ import { parseToolResultParams } from "./content-parser.js";
 import { resolveEventMethod } from "./event-map.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
+import { applyThemeVariables } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type { App, ConnectOptions, Dimensions, Theme, ToolCallResult } from "./types.js";
 
@@ -106,8 +107,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
         containerDimensions = ctx.containerDimensions as Dimensions;
       }
 
-      // Inject host CSS variables into the DOM
-      injectCssVariables(ctx.styles?.variables as Record<string, string> | undefined);
+      // Inject the theme into the DOM: neutral defaults for the mode back any
+      // var the host omits, then host values win.
+      applyThemeVariables(currentTheme.mode, currentTheme.tokens);
     }
   }
 
@@ -124,7 +126,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
         ? (variables as Record<string, string>)
         : currentTheme.tokens;
     currentTheme = { mode, tokens };
-    injectCssVariables(tokens);
+    applyThemeVariables(mode, tokens);
     const set = handlers.get(HOST_CONTEXT_CHANGED_METHOD);
     if (set) {
       for (const handler of set) handler(currentTheme);
@@ -268,16 +270,4 @@ export async function connect(options: ConnectOptions): Promise<App> {
   };
 
   return app;
-}
-
-// --- Helpers ---
-
-/** Inject CSS custom properties onto :root so widgets inherit host theming. */
-function injectCssVariables(vars: Record<string, string> | undefined | null): void {
-  if (!vars || typeof vars !== "object") return;
-  for (const [k, v] of Object.entries(vars)) {
-    if (typeof k === "string" && typeof v === "string") {
-      document.documentElement.style.setProperty(k, v);
-    }
-  }
 }

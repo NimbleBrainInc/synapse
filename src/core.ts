@@ -24,6 +24,7 @@ import { detectHost, extractTheme } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
+import { applyThemeVariables } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
@@ -124,9 +125,13 @@ export function createSynapse(options: SynapseOptions): Synapse {
           ? (rawTasks as TasksCapability)
           : undefined;
 
-      // Inject host CSS variables into :root so plain-CSS styles can consume
-      // them via `var(--…)` without needing to read theme.tokens imperatively.
-      injectCssVariables(extractTheme(currentHostContext).tokens);
+      // Inject the theme into :root so plain-CSS styles consume it via
+      // `var(--…)` without reading theme.tokens imperatively. Neutral defaults
+      // back any var the host omits (theme-correct), then host values win.
+      {
+        const theme = extractTheme(currentHostContext);
+        applyThemeVariables(theme.mode, theme.tokens);
+      }
 
       // Notify subscribers so React hooks (useTheme, useHostContext) and
       // custom listeners reflect the handshake-provided context (not just
@@ -142,7 +147,8 @@ export function createSynapse(options: SynapseOptions): Synapse {
   // full snapshot of the host context, so we replace — never merge.
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
-    injectCssVariables(extractTheme(currentHostContext).tokens);
+    const theme = extractTheme(currentHostContext);
+    applyThemeVariables(theme.mode, theme.tokens);
     for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 
@@ -461,15 +467,4 @@ function themesEqual(a: SynapseTheme, b: SynapseTheme): boolean {
     if (a.tokens[k] !== b.tokens[k]) return false;
   }
   return true;
-}
-
-/** Inject CSS custom properties onto :root so widgets inherit host theming. */
-function injectCssVariables(vars: Record<string, string> | undefined | null): void {
-  if (!vars || typeof vars !== "object") return;
-  if (typeof document === "undefined") return;
-  for (const [k, v] of Object.entries(vars)) {
-    if (typeof k === "string" && typeof v === "string") {
-      document.documentElement.style.setProperty(k, v);
-    }
-  }
 }

@@ -39,6 +39,13 @@ if (desc.length > CAP) {
   const cut = desc.lastIndexOf(" ", CAP);
   desc = desc.slice(0, cut > 0 ? cut : CAP).trimEnd() + "…";
 }
+if (!desc) {
+  // The parser found no prose lead under the version heading (e.g. a CHANGELOG
+  // that leads with `### Fixed`, or a manually-cut release using GitHub's
+  // auto-generated notes). Post a generic line but make the gap visible in the
+  // run log rather than silently shipping content-free copy.
+  console.log("::warning::No lead paragraph found in the release body — posting generic copy. Check the CHANGELOG format.");
+}
 const description = `${desc || "New release."}\n\n[Full release notes →](${url})`;
 
 const payload = {

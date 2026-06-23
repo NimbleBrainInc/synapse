@@ -1,0 +1,52 @@
+name: Announce release
+
+# Posts a Discord announcement when a GitHub Release is published. Decoupled
+# from publish.yml on purpose: it fires for any published release (including
+# manually-cut ones), and a failure here never affects the publish path.
+#
+# Setup (one-time): create a webhook on the Discord #announcements channel and
+# add its URL as the `DISCORD_ANNOUNCE_WEBHOOK` repo/org secret. Until that
+# secret exists the job runs and cleanly skips (no post, green run) — so this
+# can merge before the webhook is wired.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to announce (e.g. v0.10.2)"
+        required: true
+      dry_run:
+        description: "Print the payload without posting"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  announce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Resolve release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
+        run: |
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
+            --json tagName,name,body,url > release.json
+
+      - name: Announce to Discord
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_ANNOUNCE_WEBHOOK }}
+          REPO: ${{ github.repository }}
+          RELEASE_JSON: release.json
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: node .github/scripts/announce-discord.mjs

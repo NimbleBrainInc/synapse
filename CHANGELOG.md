@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] - 2026-06-23
+
+Fixes three `ui` tokens that were theme-blind in dark mode. `tokens.bgSubtle`, `tokens.fgFaint`, and `tokens.borderStrong` reference CSS vars (`--color-background-tertiary`, `--color-text-tertiary`, `--color-border-secondary`) that no host injected, so they always resolved to their hardcoded **light** fallbacks — rendering white-on-white surfaces, invisible borders, and illegible faint text whenever a host signaled dark. This hit the SDK's own components (Card, ListRow, Prose, Table, Badge, Button, Avatar, SearchField, SegmentedControl, EmptyState, StatusDot) and any app pairing one of these with a theme-aware token. A `var()` fallback is a static literal that can't branch on theme, so the fix is a theme-aware default layer, not a smarter fallback.
+
+### Fixed
+
+- The SDK now ships a **neutral default theme** (`theme-defaults.ts`) that backs every color var the token contract references, in both light and dark. It's applied to `:root` beneath the host's variables — so the host's brand values still win for the keys it provides, and any var the host omits resolves to a theme-correct neutral default. The three previously-unbacked tokens now render correctly in dark mode against any host, a standalone `connect()` widget, or a third-party host. Values stay neutral (brand arrives only by host injection), preserving the library's host-agnostic design.
+- The preview harnesses (`vite` plugin host + `preview` server) now inject the three vars in both themes, so `synapse dev`/`preview` matches a complete host, and a duplicate `--color-text-primary` key in those theme maps was removed.
+
+### Changed
+
+- Theme variables now reach the DOM through a single shared path, `applyThemeVariables(mode, hostVars)`, replacing three near-duplicate inline injectors in `core.ts`, `connect.ts`, and the React `<SynapseProvider>`. No public API change.
+
 ## [0.10.1] - 2026-06-19
 
 Fixes a master/detail overlap. A too-wide child in `ListDetailLayout.List` — e.g. an auto-layout `<table>` that won't shrink below its content — spilled out of the fixed-width list rail and painted over the detail pane. Surfaced dogfooding the People CRM, whose list rendered a 3-column table inside the 320px rail.

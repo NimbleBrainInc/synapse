@@ -1,5 +1,6 @@
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { createSynapse } from "../core.js";
+import { applyThemeVariables } from "../theme-defaults.js";
 import type { Synapse, SynapseOptions, SynapseTheme } from "../types.js";
 
 const SynapseContext = createContext<Synapse | null>(null);
@@ -37,12 +38,9 @@ function ThemeInjector({ synapse }: { synapse: Synapse }) {
   }, [synapse]);
 
   useEffect(() => {
-    if (theme.tokens) {
-      const style = document.documentElement.style;
-      for (const [k, v] of Object.entries(theme.tokens)) {
-        style.setProperty(k, v);
-      }
-    }
+    // Neutral defaults for the mode back any var the host omits, then host
+    // values win — the same single path used by the handshake in core.ts.
+    applyThemeVariables(theme.mode, theme.tokens);
   }, [theme]);
 
   return null;

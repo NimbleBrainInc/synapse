@@ -284,17 +284,19 @@ function previewHostHtml(appName: string): string {
 
     function getTokens(d) {
       return d ? {
-        "--color-background-primary":"#0f172a","--color-text-primary":"#e2e8f0",
-        "--color-background-secondary":"#1e293b","--color-text-primary":"#e2e8f0",
+        "--color-background-primary":"#0f172a","--color-background-secondary":"#1e293b",
+        "--color-background-tertiary":"#2a374a","--color-text-primary":"#e2e8f0",
+        "--color-text-secondary":"#94a3b8","--color-text-tertiary":"#64748b",
         "--color-text-accent":"#6366f1","--nb-color-accent-foreground":"#fff",
-        "--color-text-secondary":"#94a3b8","--color-border-primary":"#334155",
+        "--color-border-primary":"#334155","--color-border-secondary":"#475569",
         "--color-ring-primary":"#6366f1","--nb-color-danger":"#ef4444",
         "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
       } : {
-        "--color-background-primary":"#ffffff","--color-text-primary":"#0f172a",
-        "--color-background-secondary":"#f8fafc","--color-text-primary":"#0f172a",
+        "--color-background-primary":"#ffffff","--color-background-secondary":"#f8fafc",
+        "--color-background-tertiary":"#f1f5f9","--color-text-primary":"#0f172a",
+        "--color-text-secondary":"#64748b","--color-text-tertiary":"#94a3b8",
         "--color-text-accent":"#6366f1","--nb-color-accent-foreground":"#fff",
-        "--color-text-secondary":"#64748b","--color-border-primary":"#e2e8f0",
+        "--color-border-primary":"#e2e8f0","--color-border-secondary":"#cbd5e1",
         "--color-ring-primary":"#6366f1","--nb-color-danger":"#ef4444",
         "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
       };

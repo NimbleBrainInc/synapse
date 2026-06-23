@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Post a release announcement to a Discord webhook. Formats mechanically from
-// the GitHub Release: title + lead paragraph (word-boundary capped) + link.
+// the GitHub Release: title + the opening sentence(s) of the lead paragraph
+// (the code-dense detail comes later, so the opener reads cleanly) + link.
 // Transport-agnostic formatting lives here so it can move into a shared action
 // verbatim when we extend to nimblebrain / mpak.
 //
@@ -31,13 +32,44 @@ for (; i < lines.length; i++) {
   if (t === "" || t.startsWith("#") || t.startsWith("- ") || t.startsWith("* ")) break;
   lead.push(t);
 }
-let desc = lead.join(" ").trim();
+const para = lead.join(" ").trim();
 
-// Word-boundary cap; always link out to the full notes.
-const CAP = 280;
+// Teaser = the first sentence (plus the second only if the first is terse and
+// they still fit). CHANGELOG leads open with prose; the inline-code-heavy detail
+// comes later, so an opening sentence renders cleanly in Discord instead of a
+// wall of code pills. Sentence boundaries are detected backtick-aware, so a `.`
+// inside an identifier like `tokens.bgSubtle` is never a false split.
+function splitSentences(text) {
+  let inCode = false;
+  let start = 0;
+  const out = [];
+  for (let j = 0; j < text.length; j++) {
+    const c = text[j];
+    if (c === "`") inCode = !inCode;
+    else if (!inCode && (c === "." || c === "!" || c === "?")) {
+      const next = text[j + 1];
+      if (next === undefined || next === " ") {
+        out.push(text.slice(start, j + 1).trim());
+        start = j + 1;
+      }
+    }
+  }
+  const tail = text.slice(start).trim();
+  if (tail) out.push(tail);
+  return out;
+}
+
+const sentences = splitSentences(para);
+let desc = sentences[0] || para;
+if (desc.length < 70 && sentences[1] && desc.length + 1 + sentences[1].length <= 240) {
+  desc += ` ${sentences[1]}`;
+}
+
+// Safety net: a runaway single sentence still gets word-boundary capped.
+const CAP = 320;
 if (desc.length > CAP) {
   const cut = desc.lastIndexOf(" ", CAP);
-  desc = desc.slice(0, cut > 0 ? cut : CAP).trimEnd() + "…";
+  desc = `${desc.slice(0, cut > 0 ? cut : CAP).trimEnd()}…`;
 }
 if (!desc) {
   // The parser found no prose lead under the version heading (e.g. a CHANGELOG
@@ -49,6 +81,7 @@ if (!desc) {
 const description = `${desc || "New release."}\n\n[Full release notes →](${url})`;
 
 const payload = {
+  username: "NimbleBrain Releases",
   embeds: [{ title: `🚀 ${repoName} ${tag}`, url, description, color: 0x0055ff }],
 };
 

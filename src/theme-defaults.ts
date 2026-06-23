@@ -21,11 +21,13 @@
  * in both themes even against an incomplete host, a standalone `connect()`
  * widget, or a third-party host.
  *
- * Only COLOR vars are theme-sensitive and listed here. Theme-invariant vars
+ * Only theme-sensitive (color) vars are listed here. Theme-invariant vars
  * (radii, type scale, shadows, font stacks, weights, border widths) look the
  * same in both themes, so their static `var()` fallback is already correct —
- * they are intentionally absent. The `tokens` regression test enforces exactly
- * this: every color var a token references must be defined in both maps below.
+ * they are intentionally absent. The `tokens` regression test enforces this
+ * with a TOTAL partition: every referenced var must be either declared
+ * theme-invariant (an explicit allowlist) or defined in both maps below, so a
+ * newly added theme-sensitive token can't slip through unbacked.
  */
 
 /**

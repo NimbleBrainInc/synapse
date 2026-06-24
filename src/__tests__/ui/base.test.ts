@@ -18,11 +18,12 @@ describe("injectBaseReset", () => {
     const el = document.getElementById(STYLE_ID);
     expect(el).not.toBeNull();
     // The fix is a percentage chain, not a viewport unit — guard against a
-    // regression back to vh/dvh, which overflows panes shorter than the viewport.
+    // regression back to vh/dvh (matching "vh" also catches "dvh"), which
+    // overflows panes shorter than the viewport.
     expect(el?.textContent).toContain("html, body, #root");
     expect(el?.textContent).toContain("height: 100%");
     expect(el?.textContent).toContain("margin: 0");
-    expect(el?.textContent).not.toMatch(/dvh|vh/);
+    expect(el?.textContent).not.toMatch(/vh/);
   });
 
   it("is idempotent — injecting twice yields a single style element", () => {

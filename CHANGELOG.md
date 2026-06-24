@@ -16,6 +16,8 @@ Fixes a silent full-pane collapse. `AppFrame` fills its host pane with `height: 
 
 - `AppFrame` now establishes the root-height chain itself, calling the same base reset on render, so **every** app built on it fills the pane with no per-app `index.html` requirement — existing apps included. The fix uses a percentage chain rather than a viewport unit (`vh`/`dvh`): percentages resolve against the actual allocated pane, staying correct on hosts that give an app a pane shorter than the viewport (where a viewport unit would overflow with a second scrollbar). `AppFrame`'s `height: 100%` and internal scroll model are unchanged; the missing precondition is simply now supplied.
 
+## [0.10.2] - 2026-06-23
+
 Fixes three `ui` tokens that were theme-blind in dark mode. `tokens.bgSubtle`, `tokens.fgFaint`, and `tokens.borderStrong` reference CSS vars (`--color-background-tertiary`, `--color-text-tertiary`, `--color-border-secondary`) that no host injected, so they always resolved to their hardcoded **light** fallbacks — rendering white-on-white surfaces, invisible borders, and illegible faint text whenever a host signaled dark. This hit the SDK's own components (Card, ListRow, Prose, Table, Badge, Button, Avatar, SearchField, SegmentedControl, EmptyState, StatusDot) and any app pairing one of these with a theme-aware token. A `var()` fallback is a static literal that can't branch on theme, so the fix is a theme-aware default layer, not a smarter fallback.
 
 ### Fixed

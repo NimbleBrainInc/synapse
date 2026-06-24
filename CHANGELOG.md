@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-06-23
+
+Fixes a silent full-pane collapse. `AppFrame` fills its host pane with `height: 100%`, but that only resolves against a definite-height ancestor chain (`#root` → `body` → `html`) — and the SDK shipped no such chain. A Synapse app iframe is its own bare document, so unless the app added `html, body, #root { height: 100% }` to its own `index.html`, `AppFrame`'s `height: 100%` resolved against a content-height ancestor and the whole app collapsed to content height: full width, short height (e.g. an empty board rendering as a ~442px band inside an 868px pane). The precondition the shell depended on was neither supplied nor enforced, so multiple apps hit it.
+
+### Added
+
+- `@nimblebrain/synapse/ui/base` — a side-effect import that injects the root-height chain (`html, body, #root { height: 100% }`) plus `body { margin: 0 }`. Import it in an app entry to establish the chain before first paint (no layout jump), or for a full-pane app that renders without `AppFrame`.
+
+### Fixed
+
+- `AppFrame` now establishes the root-height chain itself, calling the same base reset on render, so **every** app built on it fills the pane with no per-app `index.html` requirement — existing apps included. The fix uses a percentage chain rather than a viewport unit (`vh`/`dvh`): percentages resolve against the actual allocated pane, staying correct on hosts that give an app a pane shorter than the viewport (where a viewport unit would overflow with a second scrollbar). `AppFrame`'s `height: 100%` and internal scroll model are unchanged; the missing precondition is simply now supplied.
+
 ## [0.10.2] - 2026-06-23
 
 Fixes three `ui` tokens that were theme-blind in dark mode. `tokens.bgSubtle`, `tokens.fgFaint`, and `tokens.borderStrong` reference CSS vars (`--color-background-tertiary`, `--color-text-tertiary`, `--color-border-secondary`) that no host injected, so they always resolved to their hardcoded **light** fallbacks — rendering white-on-white surfaces, invisible borders, and illegible faint text whenever a host signaled dark. This hit the SDK's own components (Card, ListRow, Prose, Table, Badge, Button, Avatar, SearchField, SegmentedControl, EmptyState, StatusDot) and any app pairing one of these with a theme-aware token. A `var()` fallback is a static literal that can't branch on theme, so the fix is a theme-aware default layer, not a smarter fallback.

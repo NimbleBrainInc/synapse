@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.10.2",
+  "version": "0.11.0",
   "description": "Agent-aware app SDK for the MCP ext-apps protocol",
   "type": "module",
   "exports": {
@@ -23,6 +23,11 @@
       "types": "./dist/ui/fonts.d.ts",
       "import": "./dist/ui/fonts.js",
       "require": "./dist/ui/fonts.cjs"
+    },
+    "./ui/base": {
+      "types": "./dist/ui/base.d.ts",
+      "import": "./dist/ui/base.js",
+      "require": "./dist/ui/base.cjs"
     },
     "./vite": {
       "types": "./dist/vite/index.d.ts",

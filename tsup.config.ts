@@ -8,6 +8,7 @@ export default defineConfig([
       "react/index": "src/react/index.ts",
       "ui/index": "src/ui/index.ts",
       "ui/fonts": "src/ui/fonts.ts",
+      "ui/base": "src/ui/base.ts",
       "vite/index": "src/vite/index.ts",
       "codegen/index": "src/codegen/index.ts",
       "codegen/cli": "src/codegen/cli.ts",

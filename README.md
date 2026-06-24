@@ -45,6 +45,7 @@ npm install @nimblebrain/synapse
 | `@nimblebrain/synapse/react` | React hooks and providers (`AppProvider`, `SynapseProvider`) |
 | `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
 | `@nimblebrain/synapse/ui/fonts` | Side-effect import that loads the brand fonts into the iframe |
+| `@nimblebrain/synapse/ui/base` | Side-effect import that establishes the root-height chain (`html, body, #root`) the app shell fills. `AppFrame` does this automatically on render; import it in your entry to apply it before first paint |
 | `@nimblebrain/synapse/vite` | Vite plugin for dev mode |
 | `@nimblebrain/synapse/codegen` | CLI + programmatic code generation |
 | `@nimblebrain/synapse/iife` | Pre-built IIFE bundle for `<script>` tags (`window.Synapse`) |

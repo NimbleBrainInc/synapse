@@ -3,6 +3,13 @@
  * an optional fixed footer, filling the iframe pane. Every Synapse app uses it;
  * a body layout (SidebarLayout, ListView, …) goes inside `AppFrame.Body`.
  *
+ * The shell fills the pane with `height: 100%`, which needs a definite-height
+ * ancestor chain (`#root` → `body` → `html`) — something a bare app document
+ * does not supply on its own. So AppFrame establishes that chain itself on
+ * render via `injectBaseReset()`; without it the shell would collapse to
+ * content height. Apps wanting the chain before first paint can also
+ * `import "@nimblebrain/synapse/ui/base"` in their entry.
+ *
  * The `contentWidth` knob is a personality lever: `reading` centers header,
  * body, and footer in a ~760px column (Conversations, Research), while `full`
  * uses the whole pane (CRM, dashboards). Header/body/footer share the same
@@ -16,6 +23,7 @@ import {
   type ReactNode,
   useContext,
 } from "react";
+import { injectBaseReset } from "../internal/base-reset.js";
 import { tokens } from "../tokens.js";
 
 type ContentWidth = "reading" | "full";
@@ -32,6 +40,9 @@ interface AppFrameProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 function AppFrameRoot({ contentWidth = "full", style, children, ...rest }: AppFrameProps) {
+  // The shell's `height: 100%` only resolves against a definite-height ancestor
+  // chain; supply it (same render-time pattern as the components' `ensureStyle`).
+  injectBaseReset();
   return (
     <ContentWidthCtx.Provider value={contentWidth}>
       <div

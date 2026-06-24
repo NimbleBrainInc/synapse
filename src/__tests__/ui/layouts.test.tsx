@@ -41,6 +41,20 @@ describe("AppFrame", () => {
     expect(screen.getByText("Body")).toBeDefined();
     expect(screen.getByText("Footer")).toBeDefined();
   });
+
+  it("establishes the root-height chain on render so the shell can't collapse", () => {
+    document.getElementById("nb-synapse-base")?.remove();
+    render(
+      <AppFrame>
+        <AppFrame.Body>Body</AppFrame.Body>
+      </AppFrame>,
+    );
+    // Without a definite-height ancestor chain, AppFrame's `height: 100%` would
+    // collapse to content height inside the host pane (issue #22). Rendering it
+    // must supply the chain, with no per-app `index.html` requirement.
+    const reset = document.getElementById("nb-synapse-base");
+    expect(reset?.textContent).toContain("height: 100%");
+  });
 });
 
 describe("SidebarLayout", () => {

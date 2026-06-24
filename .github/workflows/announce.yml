@@ -41,12 +41,22 @@ jobs:
           TAG: ${{ github.event.release.tag_name || github.event.inputs.tag }}
         run: |
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
-            --json tagName,name,body,url > release.json
+            --json tagName,name,body,url,publishedAt > release.json
+          # Previous release tag for the compare link: the newest non-current
+          # published release. Assumes single-track sequential releases (true for
+          # synapse — semver order matches publish order). A backport published
+          # after a higher version would yield a cosmetically backwards compare
+          # link; switch the pipe to `sort -V` if synapse ever ships out of order.
+          # Empty on the first release -> the script omits the compare link.
+          PREV=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts \
+            --json tagName --jq '.[].tagName' | grep -vxF "$TAG" | head -n1 || true)
+          echo "PREV_TAG=$PREV" >> "$GITHUB_ENV"
 
       - name: Announce to Discord
         env:
           WEBHOOK_URL: ${{ secrets.DISCORD_ANNOUNCE_WEBHOOK }}
           REPO: ${{ github.repository }}
           RELEASE_JSON: release.json
+          PREV_TAG: ${{ env.PREV_TAG }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: node .github/scripts/announce-discord.mjs

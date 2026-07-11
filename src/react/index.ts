@@ -25,3 +25,5 @@ export {
   useVisibleState,
 } from "./hooks.js";
 export type { SynapseProviderProps } from "./provider.js";
+// Cross-host UI client hooks (push-first). Pass a `connectUI()` client instance.
+export { useData, useUITheme } from "./ui-client-hooks.js";

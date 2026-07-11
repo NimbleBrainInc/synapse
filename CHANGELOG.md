@@ -4,7 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.11.0] - 2026-06-23
+## [0.12.0] - 2026-07-11
+
+Adds a **cross-host UI client** so one Synapse-authored component renders in ChatGPT (OpenAI Apps SDK) and Claude (mcp-ui), not only the NimbleBrain runtime. The host bridge each surface needs — feature-detect the environment, locate pushed data, route theme / resize / link / follow-up — is now a versioned framework surface (`connectUI`) instead of a per-app hand-rolled shim. Purely additive: the ext-apps `connect` / `createSynapse` paths and every existing app are untouched.
+
+### Added
+
+- **`connectUI()`** — a framework-agnostic, **push-first** client (`@nimblebrain/synapse` and `@nimblebrain/synapse/host`). `data()` / `onData()` deliver the tool output that spawned the widget; `theme()` / `onTheme()`, `resize()`, `openLink()`, `sendPrompt()`, and `capabilities()` are cross-host primitives; `callTool()` is the pull escape hatch that rejects with `HostUnsupportedError` where a host advertises no widget→server call. The client applies theme to the DOM for both conventions at once (`data-theme` attribute + CSS variables), so apps never wire theming by hand.
+- **Host adapters** behind the detection seam: `chatgpt` (`window.openai.toolOutput` + `openai:set_globals`; `sendFollowUpMessage`; `openExternal`; `callTool`), `mcpui` (`ui-lifecycle-iframe-ready` → `ui-lifecycle-iframe-render-data`; `ui-size-change`; `{type:link|prompt}`; also accepts a generic ext-apps `ui/notifications/tool-result` push), and an `inline` fallback (baked-in `<script type="application/json">` for SSR / standalone). `synapse/*` NimbleBrain-private fields never appear in the ChatGPT / mcp-ui payloads.
+- **`@nimblebrain/synapse/react`** gains `useData()` and `useUITheme()` — the push-first React surface over a `connectUI` client.
+- **`@nimblebrain/synapse/iife/ui`** (`window.SynapseUI`) — a lean IIFE (~7 KB; no ext-apps / Zod in its graph) a self-contained `ui://` component inlines to speak every host bridge. The full runtime IIFE (`window.Synapse`) also exposes `connectUI`.
+
+
 
 Fixes a silent full-pane collapse. `AppFrame` fills its host pane with `height: 100%`, but that only resolves against a definite-height ancestor chain (`#root` → `body` → `html`) — and the SDK shipped no such chain. A Synapse app iframe is its own bare document, so unless the app added `html, body, #root { height: 100% }` to its own `index.html`, `AppFrame`'s `height: 100%` resolved against a content-height ancestor and the whole app collapsed to content height: full width, short height (e.g. an empty board rendering as a ~442px band inside an 868px pane). The precondition the shell depended on was neither supplied nor enforced, so multiple apps hit it.
 

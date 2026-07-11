@@ -70,6 +70,29 @@ Releases are public and provenance-attested — published artifacts carry a sign
 | `event-map.ts` | All `*_METHOD` constants |
 | `detection.ts` | `McpUiInitializeResult`, `McpUiHostContext` |
 
+## Cross-host UI client (`connectUI` / `src/host/`)
+
+A third, **push-first** path that renders one Synapse component across hosts that
+each speak a different bridge — ChatGPT (OpenAI Apps SDK), Claude (mcp-ui), and
+standalone — behind `synapse.data()/onData()/theme()/resize()/openLink()/
+sendPrompt()/callTool()`. It is deliberately **decoupled from `@modelcontextprotocol/*`**
+(pure `window.openai` + `postMessage`), so the `window.SynapseUI` IIFE a
+self-contained `ui://` component inlines stays ~7 KB (no Zod). This is additive —
+the ext-apps `connect`/`createSynapse` paths below are unchanged.
+
+- Adapters live in `src/host/adapters/` (`chatgpt`, `mcpui`, `inline`); detection
+  in `src/host/detect.ts`; the façade in `src/host/connect.ts`. Add a host by
+  adding an adapter + a detection branch — apps never change.
+- **Keep `synapse/*` NimbleBrain-private fields out of the chatgpt/mcpui payloads.**
+  The `nimblebrain` adapter (ext-apps + `synapse/*`) is P3; for now `nimblebrain`
+  routes through the mcp-ui/postMessage path.
+- The server half is the Python `synapse-ui` package (`python/`). It emits the
+  dual-MIME `ui://` registration, `_meta`, the `<script>`-safe embed (XSS
+  defense), and the quarantined `CallToolResult` injection. Its vendored client
+  IIFE (`python/synapse_ui/_assets/synapse-ui.iife.js`) is regenerated from
+  `dist/synapse-ui.iife.global.js` — rebuild the IIFE and re-copy when the client
+  changes.
+
 ## Two connection paths
 
 - **`connect(options)`** — Async, returns `App`. Standalone widgets (mcp-dev-summit). Supports `options.on` for pre-registering handlers before `initialized`.

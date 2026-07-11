@@ -8,6 +8,7 @@
 
 import { connect } from "./connect.js";
 import { createSynapse } from "./core.js";
+import { connectUI } from "./host/connect.js";
 import { createStore } from "./store.js";
 
 // Expose on the global window object
@@ -15,4 +16,5 @@ import { createStore } from "./store.js";
   connect,
   createSynapse,
   createStore,
+  connectUI,
 };

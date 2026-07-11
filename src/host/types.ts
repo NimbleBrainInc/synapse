@@ -20,9 +20,10 @@
  */
 export type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
 
-/** Resolved theme. `tokens` are CSS custom properties the host publishes (mcp-ui
- *  / ext-apps supply them; the OpenAI Apps SDK does not, so it stays empty and
- *  the SDK's neutral defaults back it). `mode` always resolves to light or dark. */
+/** Resolved theme. `tokens` are CSS custom properties a host could publish, but
+ *  no P1 adapter extracts them yet — mcp-ui carries them in its render-data, but
+ *  wiring that through is deferred — so `tokens` stays empty and the SDK's neutral
+ *  defaults back it. `mode` always resolves to light or dark. */
 export interface SynapseUITheme {
   mode: "light" | "dark";
   tokens: Record<string, string>;

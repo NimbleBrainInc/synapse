@@ -41,6 +41,8 @@ MCPUI_MIME = "text/html"
 DEFAULT_DATA_ELEMENT_ID = "synapse-ui-data"
 
 # Markers the template carries; substituted at render time.
+# Server↔client template placeholders — the SDK's test fixtures embed the same
+# literals; keep in lockstep (like DEFAULT_DATA_ELEMENT_ID above).
 DATA_MARKER = "/*__SYNAPSE_DATA__*/"  # inside the JSON <script>; unreplaced → client reads null
 SDK_MARKER = "<!--__SYNAPSE_SDK__-->"  # replaced with the inlined client SDK <script>
 

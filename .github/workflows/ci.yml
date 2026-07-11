@@ -64,3 +64,6 @@ jobs:
           test -f dist/react/index.js
           test -f dist/codegen/cli.js
           test -f dist/synapse-runtime.iife.global.js
+          test -f dist/synapse-ui.iife.global.js
+      - name: Vendored Python IIFE is fresh (fail on drift from the build)
+        run: diff dist/synapse-ui.iife.global.js python/synapse_ui/_assets/synapse-ui.iife.js

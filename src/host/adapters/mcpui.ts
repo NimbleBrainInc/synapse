@@ -66,6 +66,9 @@ export function createMcpUiAdapter(
   }
 
   const onMessage = (event: MessageEvent) => {
+    // No event.origin allowlist: an mcp-ui host's origin is unknown/variable, and
+    // the payload is escaped display data (not a capability — the host mediates any
+    // real action). Trust assumption noted; revisit if a known-origin host lands.
     if (destroyed) return;
     const d = event.data as Record<string, unknown> | null | undefined;
     if (!d || typeof d !== "object") return;

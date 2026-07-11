@@ -45,7 +45,6 @@ export default defineConfig([
       "synapse-ui.iife": "src/host/iife.ts",
     },
     format: ["iife"],
-    globalName: "SynapseUIBundle",
     sourcemap: false,
     dts: false,
     clean: false,

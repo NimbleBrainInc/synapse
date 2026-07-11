@@ -70,11 +70,14 @@ export function createMcpUiAdapter(
     const d = event.data as Record<string, unknown> | null | undefined;
     if (!d || typeof d !== "object") return;
 
-    // mcp-ui render-data handshake response.
+    // mcp-ui render-data handshake response. Strip the host's `theme` before
+    // unwrapping so a theme-only push doesn't clobber a populated widget, and a
+    // flat theme+data push doesn't leak `theme` into app data. Only emit when
+    // data actually remains (unwrapRenderData({}) returns {}, which would clobber).
     if (d.type === MCPUI_RENDER_DATA || d.type === "renderData") {
-      const payload = (d.payload ?? {}) as Record<string, unknown>;
-      if (payload.theme != null) emitTheme(payload.theme);
-      emitData(unwrapRenderData(payload));
+      const { theme, ...rest } = (d.payload ?? {}) as Record<string, unknown>;
+      if (theme != null) emitTheme(theme);
+      if (Object.keys(rest).length > 0) emitData(unwrapRenderData(rest));
       return;
     }
 
@@ -82,8 +85,7 @@ export function createMcpUiAdapter(
     if (d.method === EXTAPPS_TOOL_RESULT) {
       const params = (d.params ?? {}) as Record<string, unknown>;
       const result = (params.result ?? params) as Record<string, unknown>;
-      const payload = result.structuredContent ?? result.toolOutput;
-      emitData(payload);
+      emitData(unwrapRenderData(result));
     }
   };
 

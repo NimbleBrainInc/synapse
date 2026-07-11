@@ -38,6 +38,6 @@ export function unwrapRenderData<T = unknown>(payload: unknown): T | null {
     nested != null && typeof nested === "object" ? (nested as Record<string, unknown>) : rec;
   if (source.toolOutput != null) return source.toolOutput as T;
   if (source.structuredContent != null) return source.structuredContent as T;
-  if (source.data != null) return source.data as T;
+  // No bare `data` envelope key — too ambiguous with an app's own `data` field.
   return source as T;
 }

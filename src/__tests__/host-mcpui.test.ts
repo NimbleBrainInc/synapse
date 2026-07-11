@@ -105,6 +105,27 @@ describe("connectUI — mcp-ui adapter", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
+  it("a theme-only render-data push applies theme without clobbering app data", () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse.onData(vi.fn());
+    pushRenderData({ renderData: { domain: "pushed.com" } });
+    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
+
+    // Theme toggle carries no data — it must not wipe the populated widget.
+    pushRenderData({ theme: "dark" });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
+  });
+
+  it("strips the host theme signal from flat render data (no leak into app data)", () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    const onData = vi.fn();
+    synapse.onData(onData);
+    pushRenderData({ theme: "dark", domain: "flat.com" });
+    expect(onData).toHaveBeenCalledWith({ domain: "flat.com" });
+    expect(synapse.data<Record<string, unknown>>()).toEqual({ domain: "flat.com" });
+  });
+
   it("resize(height) posts a ui-size-change with the given height", () => {
     synapse = connectUI({ host: "claude", autoResize: false });
     postMessageSpy.mockClear();

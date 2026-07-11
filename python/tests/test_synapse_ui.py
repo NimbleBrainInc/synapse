@@ -9,11 +9,20 @@ from __future__ import annotations
 
 from mcp import types
 from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel
 
 from synapse_ui import SynapseUI
 from synapse_ui.server import DATA_MARKER, SDK_MARKER
 
 UI_URI = "ui://test/report"
+
+
+class _IntegrationReport(BaseModel):
+    """Module-level model so FastMCP can resolve the tool's return annotation
+    and populate structuredContent in the real-FastMCP integration test."""
+
+    domain: str
+    company: dict
 
 TEMPLATE = f"""<!DOCTYPE html>
 <html><head><title>t</title></head><body>
@@ -183,3 +192,58 @@ async def test_bind_dispatches_by_tool_name():
     miss = (await handler(_call_tool_request("other"))).root
     assert miss.meta is None
     assert all(not isinstance(c, types.EmbeddedResource) for c in miss.content)
+
+
+async def test_bind_against_real_fastmcp_drives_installed_handler():
+    """Bind against a real FastMCP and drive a real CallToolRequest through the
+    installed handler. The _FakeMcp tests can't catch drift in mcp's internal
+    request-handler registry — exactly the risk the bind() monkey-patch carries."""
+    mcp = FastMCP("test")
+
+    @mcp.tool()
+    def analyze(domain: str) -> _IntegrationReport:
+        return _IntegrationReport(domain=domain, company={"name": "Example Co"})
+
+    ui = _ui()
+    ui.register(mcp)
+    ui.bind(mcp, tool="analyze")
+
+    handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
+    result = await handler(
+        types.CallToolRequest(
+            method="tools/call",
+            params=types.CallToolRequestParams(name="analyze", arguments={"domain": "example.com"}),
+        )
+    )
+    root = result.root
+    assert isinstance(root, types.CallToolResult)
+    assert not root.isError
+    # FastMCP built structuredContent the real way; the patch appended the UI + meta.
+    assert root.meta is not None
+    assert root.meta["openai/outputTemplate"] == UI_URI
+    embedded = [c for c in root.content if isinstance(c, types.EmbeddedResource)]
+    assert len(embedded) == 1
+    assert "example.com" in embedded[0].resource.text
+
+
+async def test_bind_is_idempotent_per_tool():
+    """Binding the same tool twice must not chain two wrappers (double-inject)."""
+    ui = _ui()
+
+    async def prev(req: types.CallToolRequest) -> types.ServerResult:
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[types.TextContent(type="text", text="{}")],
+                structuredContent=_dossier(),
+                isError=False,
+            )
+        )
+
+    mcp = _FakeMcp(prev)
+    ui.bind(mcp, tool="analyze")
+    ui.bind(mcp, tool="analyze")  # second bind is a no-op
+
+    handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
+    root = (await handler(_call_tool_request("analyze"))).root
+    embedded = [c for c in root.content if isinstance(c, types.EmbeddedResource)]
+    assert len(embedded) == 1  # injected exactly once, not twice

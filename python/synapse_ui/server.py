@@ -78,14 +78,11 @@ class SynapseUI:
         data_element_id: str = DEFAULT_DATA_ELEMENT_ID,
         inline_sdk: bool = True,
         sdk_source: str | None = None,
-        skybridge_mime: str = SKYBRIDGE_MIME,
-        mcpui_mime: str = MCPUI_MIME,
     ) -> None:
         self.uri = uri
         self.data_element_id = data_element_id
         self.preferred_size = preferred_size
-        self._skybridge_mime = skybridge_mime
-        self._mcpui_mime = mcpui_mime
+        self._bound: set[str] = set()
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
 
     # -- HTML -------------------------------------------------------------
@@ -136,7 +133,7 @@ class SynapseUI:
             type="resource",
             resource=types.TextResourceContents(
                 uri=self.uri,
-                mimeType=self._mcpui_mime,
+                mimeType=MCPUI_MIME,
                 text=self.render_html(data),
             ),
             annotations=types.Annotations(audience=["user"]),
@@ -170,7 +167,7 @@ class SynapseUI:
         html = self.template_html()
         resource_meta = {"openai/widgetPrefersBorder": True, **(meta or {})}
 
-        @mcp.resource(self.uri, mime_type=self._skybridge_mime, meta=resource_meta)
+        @mcp.resource(self.uri, mime_type=SKYBRIDGE_MIME, meta=resource_meta)
         def _synapse_ui_resource() -> str:
             return html
 
@@ -193,6 +190,9 @@ class SynapseUI:
 
         # TODO: upstream a real FastMCP result-transform hook and drop this patch.
         """
+        if tool in self._bound:  # idempotent: don't chain a second wrapper for the same tool
+            return
+        self._bound.add(tool)
         predicate = should_render if should_render is not None else (lambda data: bool(data))
         prev = mcp._mcp_server.request_handlers[types.CallToolRequest]
 

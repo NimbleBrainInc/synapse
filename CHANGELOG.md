@@ -15,7 +15,7 @@ Adds a **cross-host UI client** so one Synapse-authored component renders in Cha
 - **`@nimblebrain/synapse/react`** gains `useData()` and `useUITheme()` — the push-first React surface over a `connectUI` client.
 - **`@nimblebrain/synapse/iife/ui`** (`window.SynapseUI`) — a lean IIFE (~7 KB; no ext-apps / Zod in its graph) a self-contained `ui://` component inlines to speak every host bridge. The full runtime IIFE (`window.Synapse`) also exposes `connectUI`.
 
-
+## [0.11.0] - 2026-06-23
 
 Fixes a silent full-pane collapse. `AppFrame` fills its host pane with `height: 100%`, but that only resolves against a definite-height ancestor chain (`#root` → `body` → `html`) — and the SDK shipped no such chain. A Synapse app iframe is its own bare document, so unless the app added `html, body, #root { height: 100% }` to its own `index.html`, `AppFrame`'s `height: 100%` resolved against a content-height ancestor and the whole app collapsed to content height: full width, short height (e.g. an empty board rendering as a ~442px band inside an 868px pane). The precondition the shell depended on was neither supplied nor enforced, so multiple apps hit it.
 

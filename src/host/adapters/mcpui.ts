@@ -48,6 +48,7 @@ export function createMcpUiAdapter(
   let destroyed = false;
   let lastReportedHeight = -1;
   let resizeObserver: ResizeObserver | null = null;
+  let onWindowResize: (() => void) | null = null;
 
   const parent = () => win.parent ?? win;
 
@@ -128,7 +129,8 @@ export function createMcpUiAdapter(
       currentData = readInlineData(win.document, dataElementId);
 
       if (autoResize) {
-        win.addEventListener("resize", () => reportSize());
+        onWindowResize = () => reportSize();
+        win.addEventListener("resize", onWindowResize);
         if (typeof win.ResizeObserver !== "undefined") {
           resizeObserver = new win.ResizeObserver(() => reportSize());
           resizeObserver.observe(win.document.body);
@@ -143,6 +145,8 @@ export function createMcpUiAdapter(
       if (destroyed) return;
       destroyed = true;
       win.removeEventListener("message", onMessage as EventListener);
+      if (onWindowResize) win.removeEventListener("resize", onWindowResize);
+      onWindowResize = null;
       resizeObserver?.disconnect();
       resizeObserver = null;
       dataCbs.clear();

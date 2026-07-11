@@ -5,6 +5,7 @@ export default defineConfig([
   {
     entry: {
       index: "src/index.ts",
+      "host/index": "src/host/index.ts",
       "react/index": "src/react/index.ts",
       "ui/index": "src/ui/index.ts",
       "ui/fonts": "src/ui/fonts.ts",
@@ -29,6 +30,21 @@ export default defineConfig([
     },
     format: ["iife"],
     globalName: "Synapse",
+    sourcemap: false,
+    dts: false,
+    clean: false,
+    noExternal: [/.*/],
+    treeshake: true,
+    minify: true,
+  },
+  // Lean cross-host UI client IIFE — exposes `window.SynapseUI`. No ext-apps/Zod
+  // in its dependency graph, so this is a fraction of the runtime bundle; it's
+  // what self-contained `ui://` components (e.g. Bassethound) inline.
+  {
+    entry: {
+      "synapse-ui.iife": "src/host/iife.ts",
+    },
+    format: ["iife"],
     sourcemap: false,
     dts: false,
     clean: false,

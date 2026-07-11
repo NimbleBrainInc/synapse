@@ -4,6 +4,19 @@ export type {
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { createSynapse } from "./core.js";
+// Cross-host UI client (push-first; ChatGPT / Claude / standalone). Additive —
+// the ext-apps `connect`/`createSynapse` paths above are unchanged.
+export { connectUI } from "./host/connect.js";
+export { detectHostKind } from "./host/detect.js";
+export {
+  type ConnectUIOptions,
+  type HostCapabilities,
+  type HostKind,
+  HostUnsupportedError,
+  SYNAPSE_DATA_ELEMENT_ID,
+  type SynapseUIClient,
+  type SynapseUITheme,
+} from "./host/types.js";
 export { createStore } from "./store.js";
 export type {
   ActionReducer,

@@ -90,14 +90,18 @@ def test_tool_and_result_meta():
     assert tm["openai/widgetAccessible"] is True
     assert tm["openai/toolInvocation/invoking"] == "Working…"
     assert tm["openai/toolInvocation/invoked"] == "Done"
+    # MCP Apps standard: nested resourceUri points at the sibling mcp-app resource.
+    assert tm["ui"] == {"resourceUri": f"{UI_URI}-mcp-app"}
     assert ui.result_meta() == {"openai/outputTemplate": UI_URI}
 
 
-def test_register_installs_skybridge_resource():
+def test_register_installs_both_host_resources():
     mcp = FastMCP("test")
     _ui().register(mcp)
     resources = {str(r.uri): r.mime_type for r in mcp._resource_manager.list_resources()}
+    # ChatGPT skybridge (unchanged) + the MCP Apps standard resource for Claude.
     assert resources.get(UI_URI) == "text/html+skybridge"
+    assert resources.get(f"{UI_URI}-mcp-app") == "text/html;profile=mcp-app"
 
 
 def test_bind_injects_embedded_resource_and_result_meta():

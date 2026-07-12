@@ -3,9 +3,10 @@
 One declaration wires a self-contained HTML component into every host bridge a
 Synapse app can render in, replacing the hand-rolled per-app shim:
 
-- **register** the `ui://` resource with the ChatGPT-facing skybridge MIME
-  (`text/html+skybridge`), SDK inlined, data-free — so ChatGPT reads the template
-  and feeds the tool's ``structuredContent`` to it on ``window.openai.toolOutput``.
+- **register** the component as two data-free ``ui://`` resources (SDK inlined):
+  the ChatGPT skybridge MIME (``text/html+skybridge``) and the MCP Apps standard
+  MIME (``text/html;profile=mcp-app``, Claude Desktop et al.) — so each host reads
+  the template and feeds it the tool's ``structuredContent``.
 - **tool_meta / result_meta** emit the `_meta` a host binds an output template
   with (``openai/outputTemplate`` etc.).
 - **bind** installs the ``CallToolResult`` post-process that, for one tool, appends
@@ -35,6 +36,10 @@ __all__ = ["SynapseUI"]
 SKYBRIDGE_MIME = "text/html+skybridge"
 # mcp-ui renders a ui:// resource whose content is raw HTML as text/html.
 MCPUI_MIME = "text/html"
+# MCP Apps standard (SEP-1865): a host mounts the component in an iframe only when
+# the resource is served under this exact MIME (Claude Desktop and other MCP Apps
+# hosts). No space after the semicolon — the string is matched verbatim.
+MCPAPP_MIME = "text/html;profile=mcp-app"
 
 # The client reads pushed data from this element by id (mcp-ui / SSR path). Keep
 # in lockstep with the SDK's SYNAPSE_DATA_ELEMENT_ID.
@@ -82,6 +87,11 @@ class SynapseUI:
         sdk_source: str | None = None,
     ) -> None:
         self.uri = uri
+        # The MCP Apps standard resource is a sibling URI: a resource carries a
+        # single MIME, and Claude (text/html;profile=mcp-app) and ChatGPT
+        # (text/html+skybridge) require different ones — so self.uri stays the
+        # skybridge resource and the standard resource lives alongside it.
+        self.mcp_app_uri = f"{uri}-mcp-app"
         self.data_element_id = data_element_id
         self.preferred_size = preferred_size
         self._bound: set[str] = set()
@@ -149,10 +159,17 @@ class SynapseUI:
         invoked: str | None = None,
         widget_accessible: bool = True,
     ) -> dict[str, Any]:
-        """`_meta` for the tool descriptor — how ChatGPT binds the output template."""
+        """`_meta` for the tool descriptor — how a host binds the output template.
+
+        ChatGPT reads ``openai/outputTemplate``; Claude and other MCP Apps hosts
+        read the nested ``ui.resourceUri`` (SEP-1865). The flat
+        ``_meta["ui/resourceUri"]`` form is deprecated and slated for removal
+        before GA, so it is not emitted.
+        """
         meta: dict[str, Any] = {
             "openai/outputTemplate": self.uri,
             "openai/widgetAccessible": widget_accessible,
+            "ui": {"resourceUri": self.mcp_app_uri},
         }
         if invoking is not None:
             meta["openai/toolInvocation/invoking"] = invoking
@@ -165,12 +182,26 @@ class SynapseUI:
         return {"openai/outputTemplate": self.uri}
 
     def register(self, mcp: Any, *, meta: dict[str, Any] | None = None) -> None:
-        """Register the ChatGPT-facing skybridge ``ui://`` resource (data-free, SDK inlined)."""
+        """Register both host-facing ``ui://`` resources (data-free, SDK inlined).
+
+        The same component is served twice because a resource carries one MIME and
+        the hosts disagree: ``self.uri`` under ``text/html+skybridge`` for ChatGPT,
+        and ``self.mcp_app_uri`` under ``text/html;profile=mcp-app`` for Claude and
+        other MCP Apps hosts. Both point at the same inlined HTML.
+        """
         html = self.template_html()
         resource_meta = {"openai/widgetPrefersBorder": True, **(meta or {})}
 
         @mcp.resource(self.uri, mime_type=SKYBRIDGE_MIME, meta=resource_meta)
         def _synapse_ui_resource() -> str:
+            return html
+
+        @mcp.resource(
+            self.mcp_app_uri,
+            mime_type=MCPAPP_MIME,
+            meta={"ui": {"prefersBorder": True}},
+        )
+        def _synapse_ui_mcp_app_resource() -> str:
             return html
 
     def bind(

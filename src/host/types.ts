@@ -20,10 +20,10 @@
  */
 export type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
 
-/** Resolved theme. `tokens` are CSS custom properties a host could publish, but
- *  no P1 adapter extracts them yet — mcp-ui carries them in its render-data, but
- *  wiring that through is deferred — so `tokens` stays empty and the SDK's neutral
- *  defaults back it. `mode` always resolves to light or dark. */
+/** Resolved theme. `mode` always resolves to light or dark. `tokens` are CSS
+ *  custom properties the host publishes — the MCP Apps adapter reads them from
+ *  `hostContext.styles.variables`; where a host sends none they stay empty and the
+ *  SDK's neutral defaults back them. */
 export interface SynapseUITheme {
   mode: "light" | "dark";
   tokens: Record<string, string>;
@@ -56,8 +56,8 @@ export interface ConnectUIOptions {
   /**
    * Force a host adapter instead of auto-detecting. Used by preview harnesses,
    * SSR, and tests; production apps omit it and let the SDK feature-detect.
-   * `"claude"` → mcp-ui adapter, `"chatgpt"` → OpenAI Apps adapter, `"generic"`
-   * → inline adapter.
+   * `"claude"` → MCP Apps standard adapter, `"chatgpt"` → OpenAI Apps adapter,
+   * `"generic"` → inline adapter.
    */
   host?: HostKind;
   /**
@@ -155,8 +155,34 @@ export const MCPUI_PROMPT = "prompt";
 /** OpenAI Apps SDK globals-broadcast event (host → child). */
 export const OPENAI_SET_GLOBALS = "openai:set_globals";
 
-/** ext-apps tool-result notification method — the generic push a NimbleBrain /
- *  MCP-Apps host emits. Accepted as a data-in source by the mcp-ui adapter so a
- *  generic host delivers data without a bespoke adapter (full nimblebrain
- *  adapter is P3). */
-export const EXTAPPS_TOOL_RESULT = "ui/notifications/tool-result";
+// ---------------------------------------------------------------------------
+// MCP Apps standard (SEP-1865) — the convergence bridge, primary for Claude
+// Desktop and the NimbleBrain runtime. The View iframe is an MCP client and the
+// host an MCP server; they exchange raw JSON-RPC 2.0 objects over `postMessage`
+// (no wrapper envelope). Method names are canonical to the ext-apps spec.
+// ---------------------------------------------------------------------------
+
+/** Protocol version exchanged in the `ui/initialize` handshake. */
+export const MCPAPP_PROTOCOL_VERSION = "2026-01-26";
+/** View → host handshake request; the result carries the host context. */
+export const MCPAPP_INITIALIZE = "ui/initialize";
+/** View → host notification sent once after the init result — the host holds all
+ *  pushes until it arrives. */
+export const MCPAPP_INITIALIZED = "ui/notifications/initialized";
+/** Host → view notification carrying the tool output. `params` IS the
+ *  `CallToolResult` (data at `params.structuredContent`) — no `result` wrapper. */
+export const MCPAPP_TOOL_RESULT = "ui/notifications/tool-result";
+/** Host → view notification carrying a partial host context (theme, styles, …). */
+export const MCPAPP_HOST_CONTEXT_CHANGED = "ui/notifications/host-context-changed";
+/** View → host notification reporting intrinsic size (`{ width?, height? }`). A
+ *  host may keep the frame hidden until it receives one, so it is sent promptly. */
+export const MCPAPP_SIZE_CHANGED = "ui/notifications/size-changed";
+/** View → host request: open an external URL (`{ url }`). */
+export const MCPAPP_OPEN_LINK = "ui/open-link";
+/** View → host request: send a follow-up to the conversation
+ *  (`{ role: "user", content: ContentBlock[] }`). */
+export const MCPAPP_MESSAGE = "ui/message";
+/** Host → view request: graceful teardown; the view replies `{}`. */
+export const MCPAPP_TEARDOWN = "ui/resource-teardown";
+/** Standard MCP method the View may call over the same channel (pull). */
+export const MCP_TOOLS_CALL = "tools/call";

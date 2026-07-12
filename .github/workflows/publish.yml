@@ -60,7 +60,17 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: |
+          PKG_VERSION=$(node -e "console.log(require('./package.json').version)")
+          # Pre-release versions (e.g. 0.12.0-rc.0) publish under the `next`
+          # dist-tag so `npm install @nimblebrain/synapse` still resolves to the
+          # last stable `latest`.
+          NPM_TAG=latest
+          case "$PKG_VERSION" in
+            *-*) NPM_TAG=next ;;
+          esac
+          echo "Publishing $PKG_VERSION to npm (dist-tag: $NPM_TAG)"
+          npm publish --provenance --access public --tag "$NPM_TAG"
 
       - name: Create GitHub Release
         env:
@@ -69,14 +79,22 @@ jobs:
           TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${TAG#v}"
 
-          NOTES=$(awk -v ver="$VERSION" '
+          # A pre-release (e.g. 0.12.0-rc.0) is flagged as such and reads its notes
+          # from the target stable section (0.12.0) — the rc rarely has its own.
+          PRERELEASE=""
+          NOTES_VERSION="$VERSION"
+          case "$VERSION" in
+            *-*) PRERELEASE="--prerelease"; NOTES_VERSION="${VERSION%%-*}" ;;
+          esac
+
+          NOTES=$(awk -v ver="$NOTES_VERSION" '
             $0 ~ "^## \\[" ver "\\]" { capture=1; next }
             capture && /^## \[/ { exit }
             capture { print }
           ' CHANGELOG.md)
 
           if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
-            echo "::error::No CHANGELOG.md section found for version $VERSION"
+            echo "::error::No CHANGELOG.md section found for version $NOTES_VERSION"
             exit 1
           fi
 
@@ -87,5 +105,6 @@ jobs:
 
           printf '%s\n' "$NOTES" | gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
+            $PRERELEASE \
             --title "$TAG" \
             --notes-file -

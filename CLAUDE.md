@@ -90,8 +90,8 @@ unchanged.
   JSON-RPC bridge — `ui/initialize` → `ui/notifications/initialized` → `tool-result`
   / `host-context-changed`, plus `size-changed`, `ui/open-link`, `ui/message`, and
   `tools/call` (pull). `claude` and `nimblebrain` both route through it; the legacy
-  mcp-ui `ui-lifecycle-*` messages are folded in as a compat shim, suppressed once
-  the handshake confirms a standard host. A dedicated `nimblebrain` adapter over the
+  mcp-ui dialect is folded in as a compat shim, suppressed once the handshake
+  confirms a standard host. A dedicated `nimblebrain` adapter over the
   `synapse/*` extension is still P3.
 - **Gotchas.** A host keeps the iframe hidden until it receives `ui/initialize` **and**
   a `size-changed` — a spec-correct component that never runs the handshake renders

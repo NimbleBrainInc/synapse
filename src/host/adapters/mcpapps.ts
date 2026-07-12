@@ -64,6 +64,9 @@ export function createMcpAppsAdapter(
   const dataCbs = new Set<(d: unknown) => void>();
   const themeCbs = new Set<(t: SynapseUITheme) => void>();
   let destroyed = false;
+  // Set once `ui/initialize` resolves — proof we're on an MCP Apps standard host,
+  // which lets us stop mirroring actions to the legacy shim.
+  let standardConfirmed = false;
   let nextId = 1;
   const pending = new Map<number, PendingRequest>();
   let lastReportedHeight = -1;
@@ -74,6 +77,17 @@ export function createMcpAppsAdapter(
 
   function post(message: Record<string, unknown>): void {
     parent().postMessage(message, "*");
+  }
+
+  // The legacy mcp-ui frames (render-data in, size/link/prompt out) are a
+  // transitional shim for the one host that still speaks it — the NimbleBrain
+  // runtime, which shares this adapter via the `nimblebrain` kind until the P3
+  // `nimblebrain` adapter lands and this shim is removed. Once the handshake
+  // confirms a standard host we stop mirroring, so a host that understood both
+  // dialects never acts on an action twice.
+  function postLegacy(message: Record<string, unknown>): void {
+    if (standardConfirmed) return;
+    post(message);
   }
 
   function notify(method: string, params?: Record<string, unknown>): void {
@@ -127,14 +141,16 @@ export function createMcpAppsAdapter(
     if (h === lastReportedHeight) return;
     lastReportedHeight = h;
     notify(MCPAPP_SIZE_CHANGED, { height: h });
-    // Legacy mcp-ui size mirror (a standard host drops this non-JSON-RPC frame).
-    post({ type: MCPUI_SIZE_CHANGE, payload: { height: h } });
+    postLegacy({ type: MCPUI_SIZE_CHANGE, payload: { height: h } });
   }
 
   function handleResponse(d: Record<string, unknown>): void {
-    const p = pending.get(d.id as number);
+    // Normalize the echoed id: JSON-RPC requires a same-type echo, but a lax host
+    // that returned "1" for 1 would otherwise miss the numeric-keyed pending map.
+    const id = Number(d.id);
+    const p = pending.get(id);
     if (!p) return;
-    pending.delete(d.id as number);
+    pending.delete(id);
     clearTimeout(p.timer);
     if (d.error != null) {
       const err = d.error as { message?: string };
@@ -218,16 +234,20 @@ export function createMcpAppsAdapter(
       void request(MCPAPP_MESSAGE, { role: "user", content: [{ type: "text", text }] }).catch(
         () => {},
       );
-      post({ type: MCPUI_PROMPT, payload: { prompt: text } });
+      postLegacy({ type: MCPUI_PROMPT, payload: { prompt: text } });
     },
     openLink(url: string) {
       void request(MCPAPP_OPEN_LINK, { url }).catch(() => {});
-      post({ type: MCPUI_LINK, payload: { url } });
+      postLegacy({ type: MCPUI_LINK, payload: { url } });
     },
     resize(height?: number) {
       reportSize(height);
     },
     capabilities(): HostCapabilities {
+      // The MCP Apps standard host answers `tools/call` over this bridge, so pull
+      // is advertised. A legacy-only host that shares this adapter (nimblebrain,
+      // pre-P3) does not, so there callTool rejects only after REQUEST_TIMEOUT_MS
+      // rather than failing fast.
       return { pull: true, sendPrompt: true, openLink: true };
     },
     start() {
@@ -250,6 +270,7 @@ export function createMcpAppsAdapter(
       })
         .then((result) => {
           if (destroyed) return;
+          standardConfirmed = true;
           applyHostContext(result?.hostContext);
           notify(MCPAPP_INITIALIZED, {});
           // A host keeps the frame hidden until it gets a size after init — force one.

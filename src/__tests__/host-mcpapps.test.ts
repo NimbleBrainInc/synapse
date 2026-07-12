@@ -200,4 +200,48 @@ describe("connectUI — MCP Apps standard adapter", () => {
     notify(MCPAPP_TOOL_RESULT, { structuredContent: { domain: "late.com" } });
     expect(onData).not.toHaveBeenCalled();
   });
+
+  // -- legacy render-data invariants (the shim's data path) -----------------
+
+  function pushLegacyRenderData(payload: Record<string, unknown>): void {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { type: "ui-lifecycle-iframe-render-data", payload },
+      }),
+    );
+  }
+
+  it("a theme-only legacy render-data push applies theme without clobbering data", () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse.onData(vi.fn());
+    pushLegacyRenderData({ renderData: { domain: "pushed.com" } });
+    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
+
+    // A theme-only push carries no data — it must not wipe the populated widget.
+    pushLegacyRenderData({ theme: "dark" });
+    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
+  });
+
+  it("strips the host theme from flat legacy render-data (no leak into app data)", () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    const onData = vi.fn();
+    synapse.onData(onData);
+    pushLegacyRenderData({ theme: "dark", domain: "flat.com" });
+    expect(onData).toHaveBeenCalledWith({ domain: "flat.com" });
+    expect(synapse.data<Record<string, unknown>>()).toEqual({ domain: "flat.com" });
+  });
+
+  it("suppresses legacy action mirrors once the standard handshake confirms", async () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    respond(ofMethod(MCPAPP_INITIALIZE)[0].id, { hostContext: {} });
+    await flush();
+
+    postMessageSpy.mockClear();
+    synapse.openLink("https://example.com");
+    // The standard request still goes; the legacy mirror is now suppressed, so a
+    // host that spoke both dialects can't open the link twice.
+    expect(ofMethod("ui/open-link").length).toBe(1);
+    expect(ofType("link").length).toBe(0);
+  });
 });

@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.12.0] - 2026-07-11
+## [0.12.0] - 2026-07-12
 
 Adds a **cross-host UI client** so one Synapse-authored component renders in ChatGPT (OpenAI Apps SDK) and Claude (the **MCP Apps standard**, SEP-1865), not only the NimbleBrain runtime. The host bridge each surface needs — feature-detect the environment, locate pushed data, route theme / resize / link / follow-up — is now a versioned framework surface (`connectUI`) instead of a per-app hand-rolled shim. Purely additive: the ext-apps `connect` / `createSynapse` paths and every existing app are untouched.
 

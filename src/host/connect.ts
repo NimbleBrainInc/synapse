@@ -4,7 +4,7 @@ import type { ConnectUIOptions, SynapseUIClient } from "./types.js";
 
 /**
  * Connect a Synapse-authored component to whatever host it renders in — ChatGPT
- * (OpenAI Apps SDK), Claude (mcp-ui), or a plain/standalone page — behind one
+ * (OpenAI Apps SDK), Claude (MCP Apps standard), or a plain/standalone page — behind one
  * push-first API. Feature-detects the host, selects an adapter, and applies the
  * host theme to the DOM before returning.
  *

@@ -1,6 +1,6 @@
 import { createChatGPTAdapter } from "./adapters/chatgpt.js";
 import { createInlineAdapter } from "./adapters/inline.js";
-import { createMcpUiAdapter } from "./adapters/mcpui.js";
+import { createMcpAppsAdapter } from "./adapters/mcpapps.js";
 import type { ConnectUIOptions, HostAdapter, HostKind } from "./types.js";
 
 /**
@@ -18,7 +18,7 @@ interface DetectableWindow {
  *
  *  - `window.openai` present → **chatgpt** (OpenAI Apps SDK).
  *  - otherwise, a nested browsing context (`parent !== self`, or a cross-origin
- *    access that throws) → **claude** (mcp-ui / generic postMessage host).
+ *    access that throws) → **claude** (MCP Apps standard postMessage host).
  *  - top-level document → **generic** (inline / standalone).
  *
  * Returns the host *kind*; `chooseAdapter` maps it to a concrete adapter and
@@ -46,9 +46,9 @@ export function adapterForKind(
       return createChatGPTAdapter(win, options);
     case "claude":
     case "nimblebrain":
-      // `nimblebrain` shares the mcp-ui/postMessage path for now; a dedicated
-      // adapter over the ext-apps + `synapse/*` extension lands in P3.
-      return createMcpUiAdapter(win, options);
+      // Both speak the MCP Apps standard (SEP-1865). `nimblebrain` shares it for
+      // now; a dedicated adapter over the `synapse/*` extension lands in P3.
+      return createMcpAppsAdapter(win, options);
     default:
       return createInlineAdapter(win, options);
   }

@@ -30,6 +30,8 @@ The version-match check at workflow time is the load-bearing safety: a tag of `v
 
 Releases are public and provenance-attested — published artifacts carry a signed link back to the workflow run that produced them. Don't run `npm publish` from a local machine; do it through tags so provenance is preserved. Don't create the GitHub Release by hand either; the workflow handles it (and skips cleanly if the Release already exists, so manual reruns are safe).
 
+**Pre-releases.** A version with a pre-release suffix (e.g. `0.12.0-rc.0`) publishes under the npm `next` dist-tag, not `latest`, and the GitHub Release is marked prerelease with notes read from the target stable `## [<base>]` section (the rc rarely has its own). So `v0.12.0-rc.0` → `next`, soak, then `v0.12.0` → `latest`. `npm install @nimblebrain/synapse` still resolves to the last stable `latest` throughout.
+
 ## Hard Rules
 
 1. **Never hand-type a method string.** Import constants from `@modelcontextprotocol/ext-apps`:
@@ -73,25 +75,38 @@ Releases are public and provenance-attested — published artifacts carry a sign
 ## Cross-host UI client (`connectUI` / `src/host/`)
 
 A third, **push-first** path that renders one Synapse component across hosts that
-each speak a different bridge — ChatGPT (OpenAI Apps SDK), Claude (mcp-ui), and
-standalone — behind `synapse.data()/onData()/theme()/resize()/openLink()/
-sendPrompt()/callTool()`. It is deliberately **decoupled from `@modelcontextprotocol/*`**
-(pure `window.openai` + `postMessage`), so the `window.SynapseUI` IIFE a
-self-contained `ui://` component inlines stays ~7 KB (no Zod). This is additive —
-the ext-apps `connect`/`createSynapse` paths below are unchanged.
+each speak a different bridge — ChatGPT (OpenAI Apps SDK), Claude (the **MCP Apps
+standard**, SEP-1865), and standalone — behind `synapse.data()/onData()/theme()/
+resize()/openLink()/sendPrompt()/callTool()`. It is deliberately **decoupled from
+`@modelcontextprotocol/*`** (pure `window.openai` + JSON-RPC over `postMessage`), so
+the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays small
+(no Zod). This is additive — the ext-apps `connect`/`createSynapse` paths below are
+unchanged.
 
-- Adapters live in `src/host/adapters/` (`chatgpt`, `mcpui`, `inline`); detection
+- Adapters live in `src/host/adapters/` (`chatgpt`, `mcpapps`, `inline`); detection
   in `src/host/detect.ts`; the façade in `src/host/connect.ts`. Add a host by
   adding an adapter + a detection branch — apps never change.
-- **Keep `synapse/*` NimbleBrain-private fields out of the chatgpt/mcpui payloads.**
-  The `nimblebrain` adapter (ext-apps + `synapse/*`) is P3; for now `nimblebrain`
-  routes through the mcp-ui/postMessage path.
-- The server half is the Python `synapse-ui` package (`python/`). It emits the
-  dual-MIME `ui://` registration, `_meta`, the `<script>`-safe embed (XSS
-  defense), and the quarantined `CallToolResult` injection. Its vendored client
-  IIFE (`python/synapse_ui/_assets/synapse-ui.iife.js`) is regenerated from
-  `dist/synapse-ui.iife.global.js` — rebuild the IIFE and re-copy when the client
-  changes.
+- **`mcpapps` is the convergence adapter** (MCP Apps standard / SEP-1865): the `ui/*`
+  JSON-RPC bridge — `ui/initialize` → `ui/notifications/initialized` → `tool-result`
+  / `host-context-changed`, plus `size-changed`, `ui/open-link`, `ui/message`, and
+  `tools/call` (pull). `claude` and `nimblebrain` both route through it; the legacy
+  mcp-ui dialect is folded in as a compat shim, suppressed once the handshake
+  confirms a standard host. A dedicated `nimblebrain` adapter over the
+  `synapse/*` extension is still P3.
+- **Gotchas.** A host keeps the iframe hidden until it receives `ui/initialize` **and**
+  a `size-changed` — a spec-correct component that never runs the handshake renders
+  blank (looks like "nothing happened"). And `ui/notifications/tool-result` `params`
+  **is** the `CallToolResult` (data at `params.structuredContent`), not wrapped in
+  `params.result`. Keep `synapse/*` NimbleBrain-private fields out of the
+  chatgpt/mcpapps payloads.
+- The server half is the Python `synapse-ui` package (`python/`). It registers the
+  component as **two `ui://` resources** — `text/html+skybridge` (ChatGPT) and
+  `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
+  (`openai/outputTemplate` + nested `ui.resourceUri`), the `<script>`-safe embed (XSS
+  defense), and the quarantined `CallToolResult` injection. Its vendored client IIFE
+  (`python/synapse_ui/_assets/synapse-ui.iife.js`) is regenerated from
+  `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the
+  CI freshness gate enforces the copy).
 
 ## Two connection paths
 

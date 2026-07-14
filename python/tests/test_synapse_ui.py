@@ -24,6 +24,7 @@ class _IntegrationReport(BaseModel):
     domain: str
     company: dict
 
+
 TEMPLATE = f"""<!DOCTYPE html>
 <html><head><title>t</title></head><body>
 <script type="application/json" id="synapse-ui-data">{DATA_MARKER}</script>
@@ -102,6 +103,51 @@ def test_register_installs_both_host_resources():
     # ChatGPT skybridge (unchanged) + the MCP Apps standard resource for Claude.
     assert resources.get(UI_URI) == "text/html+skybridge"
     assert resources.get(f"{UI_URI}-mcp-app") == "text/html;profile=mcp-app"
+
+
+class _CapturingMCP:
+    """Records the ``meta`` each ``@mcp.resource(...)`` registration carries."""
+
+    def __init__(self) -> None:
+        self.registered: dict[str, dict] = {}
+
+    def resource(self, uri: str, *, mime_type: str, meta: dict):
+        self.registered[uri] = {"mime_type": mime_type, "meta": meta}
+        return lambda fn: fn
+
+
+def test_register_emits_widget_csp_and_domain_in_both_dialects():
+    mcp = _CapturingMCP()
+    SynapseUI(uri=UI_URI, template=TEMPLATE, domain="https://example.com").register(mcp)
+
+    # ChatGPT (skybridge) — flat openai/* dialect, snake_case CSP.
+    sky = mcp.registered[UI_URI]["meta"]
+    assert sky["openai/widgetPrefersBorder"] is True
+    assert sky["openai/widgetDomain"] == "https://example.com"
+    assert sky["openai/widgetCSP"] == {"connect_domains": [], "resource_domains": []}
+
+    # MCP Apps standard — nested ui.* dialect, camelCase CSP.
+    app = mcp.registered[f"{UI_URI}-mcp-app"]["meta"]["ui"]
+    assert app["prefersBorder"] is True
+    assert app["domain"] == "https://example.com"
+    assert app["csp"] == {"connectDomains": [], "resourceDomains": []}
+
+
+def test_register_carries_non_empty_allowlists_and_omits_domain_when_unset():
+    mcp = _CapturingMCP()
+    SynapseUI(
+        uri=UI_URI,
+        template=TEMPLATE,
+        connect_domains=["https://api.example.com"],
+        resource_domains=["https://cdn.example.com"],
+    ).register(mcp)
+
+    sky = mcp.registered[UI_URI]["meta"]
+    # CSP is always present (a self-contained default); domain only when provided.
+    assert sky["openai/widgetCSP"]["connect_domains"] == ["https://api.example.com"]
+    assert sky["openai/widgetCSP"]["resource_domains"] == ["https://cdn.example.com"]
+    assert "openai/widgetDomain" not in sky
+    assert "domain" not in mcp.registered[f"{UI_URI}-mcp-app"]["meta"]["ui"]
 
 
 def test_bind_injects_embedded_resource_and_result_meta():

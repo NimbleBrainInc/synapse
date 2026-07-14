@@ -74,6 +74,13 @@ class SynapseUI:
         inline_sdk: Inline the bundled client SDK into the HTML (default). Set
             ``False`` if the template already carries the SDK.
         sdk_source: Override the inlined SDK source (defaults to the bundled IIFE).
+        domain: Unique HTTPS origin for the hosted component (``openai/widgetDomain``
+            / ``ui.domain``). Required to submit an Apps SDK app; ChatGPT renders the
+            component under ``<hash>.web-sandbox.oaiusercontent.com`` keyed by it.
+        connect_domains: Origins the component may reach via fetch/XHR (widget CSP
+            ``connect_domains``). Empty for a self-contained component.
+        resource_domains: Origins the component may load static assets from (widget
+            CSP ``resource_domains``). Empty for a self-contained component.
     """
 
     def __init__(
@@ -85,6 +92,9 @@ class SynapseUI:
         data_element_id: str = DEFAULT_DATA_ELEMENT_ID,
         inline_sdk: bool = True,
         sdk_source: str | None = None,
+        domain: str | None = None,
+        connect_domains: list[str] | None = None,
+        resource_domains: list[str] | None = None,
     ) -> None:
         self.uri = uri
         # The MCP Apps standard resource is a sibling URI: a resource carries a
@@ -94,6 +104,12 @@ class SynapseUI:
         self.mcp_app_uri = f"{uri}-mcp-app"
         self.data_element_id = data_element_id
         self.preferred_size = preferred_size
+        # Widget CSP + a unique hosted-component origin: required to submit an
+        # Apps SDK app. A self-contained component (SDK inlined, no fetch/assets)
+        # takes empty allowlists — the most restrictive, accurate policy.
+        self.domain = domain
+        self.connect_domains = connect_domains or []
+        self.resource_domains = resource_domains or []
         self._bound: set[str] = set()
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
 
@@ -190,16 +206,40 @@ class SynapseUI:
         other MCP Apps hosts. Both point at the same inlined HTML.
         """
         html = self.template_html()
-        resource_meta = {"openai/widgetPrefersBorder": True, **(meta or {})}
+
+        # ChatGPT (skybridge): the flat `openai/*` dialect. CSP + a unique domain
+        # are required to submit the app; without them ChatGPT's dev view flags the
+        # template as submission-incomplete.
+        resource_meta: dict[str, Any] = {
+            "openai/widgetPrefersBorder": True,
+            "openai/widgetCSP": {
+                "connect_domains": self.connect_domains,
+                "resource_domains": self.resource_domains,
+            },
+        }
+        if self.domain is not None:
+            resource_meta["openai/widgetDomain"] = self.domain
+        resource_meta.update(meta or {})
 
         @mcp.resource(self.uri, mime_type=SKYBRIDGE_MIME, meta=resource_meta)
         def _synapse_ui_resource() -> str:
             return html
 
+        # MCP Apps standard (Claude et al.): the nested `ui.*` dialect, camelCase.
+        ui_meta: dict[str, Any] = {
+            "prefersBorder": True,
+            "csp": {
+                "connectDomains": self.connect_domains,
+                "resourceDomains": self.resource_domains,
+            },
+        }
+        if self.domain is not None:
+            ui_meta["domain"] = self.domain
+
         @mcp.resource(
             self.mcp_app_uri,
             mime_type=MCPAPP_MIME,
-            meta={"ui": {"prefersBorder": True}},
+            meta={"ui": ui_meta},
         )
         def _synapse_ui_mcp_app_resource() -> str:
             return html

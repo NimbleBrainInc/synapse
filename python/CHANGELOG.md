@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to `synapse-ui` (the Python package) are documented here.
+All notable changes to `nimblebrain-synapse` (the Python package) are documented here.
 It versions **independently** of the `@nimblebrain/synapse` npm package — the two
 meet only on the wire protocol, not on a shared version number.
 

@@ -57,7 +57,9 @@ _SDK_ASSET = "synapse-ui.iife.js"
 
 
 def _load_bundled_sdk() -> str:
-    return (resources.files("synapse_ui") / "_assets" / _SDK_ASSET).read_text(encoding="utf-8")
+    return (resources.files("nimblebrain_synapse") / "_assets" / _SDK_ASSET).read_text(
+        encoding="utf-8"
+    )
 
 
 class SynapseUI:

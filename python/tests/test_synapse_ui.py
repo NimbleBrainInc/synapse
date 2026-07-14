@@ -11,8 +11,8 @@ from mcp import types
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
 
-from synapse_ui import SynapseUI
-from synapse_ui.server import DATA_MARKER, SDK_MARKER
+from nimblebrain_synapse import SynapseUI
+from nimblebrain_synapse.server import DATA_MARKER, SDK_MARKER
 
 UI_URI = "ui://test/report"
 

@@ -1,7 +1,7 @@
-"""synapse-ui — the server (Python) half of the Synapse cross-host UI framework.
+"""nimblebrain-synapse — the server (Python) half of the Synapse cross-host UI framework.
 
 Pairs with the `@nimblebrain/synapse` client (`connectUI` / `window.SynapseUI`).
-See `SynapseUI` in `synapse_ui.server`.
+See `SynapseUI` in `nimblebrain_synapse.server`.
 """
 
 from __future__ import annotations

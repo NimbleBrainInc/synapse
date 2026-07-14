@@ -1,10 +1,10 @@
-# synapse-ui (Python)
+# nimblebrain-synapse (Python)
 
 The **server half** of the Synapse cross-host UI framework. Pairs with the
 `@nimblebrain/synapse` client (`connectUI` / `window.SynapseUI`).
 
 ```bash
-pip install synapse-ui   # or: uv add synapse-ui
+pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
 ```
 
 One `SynapseUI` declaration wires a self-contained HTML component into every host
@@ -14,7 +14,7 @@ per-app hand-rolled shim.
 
 ```python
 from mcp.server.fastmcp import FastMCP
-from synapse_ui import SynapseUI
+from nimblebrain_synapse import SynapseUI
 
 mcp = FastMCP("bassethound")
 
@@ -58,24 +58,24 @@ result-transform hook` note in `server.py`.
 
 ## Client SDK asset
 
-`synapse_ui/_assets/synapse-ui.iife.js` is the vendored client IIFE
+`nimblebrain_synapse/_assets/synapse-ui.iife.js` is the vendored client IIFE
 (`window.SynapseUI`), regenerated from the JS build
 (`dist/synapse-ui.iife.global.js`) and inlined at register time so a component
 is fully self-contained (CSP-safe, no CDN). CI fails on drift from the build.
-`synapse_ui.__client_version__` records which `@nimblebrain/synapse` release the
+`nimblebrain_synapse.__client_version__` records which `@nimblebrain/synapse` release the
 bundled IIFE was built from.
 
 ## Versioning & compatibility
 
-`synapse-ui` (PyPI) versions **independently** of `@nimblebrain/synapse` (npm).
+`nimblebrain-synapse` (PyPI) versions **independently** of `@nimblebrain/synapse` (npm).
 They change for different reasons at different cadences — the server descriptor is
 thin and stable; the JS client evolves with host adapters and theming — so they do
 not share a version number. What they share is the **wire protocol**: the `ui://`
 resource MIMEs, the `_meta` dialects, and the data-element contract. Both sides
 target the same named protocol versions.
 
-| `synapse-ui` | Bundled client (`@nimblebrain/synapse`) | Wire protocols |
+| `nimblebrain-synapse` | Bundled client (`@nimblebrain/synapse`) | Wire protocols |
 |---|---|---|
 | 0.1.0 | 0.12.0 | ext-apps `2026-01-26` · MCP Apps (SEP-1865) · OpenAI Apps SDK |
 
-Releases publish on a `synapse-ui-v*` tag (distinct from the npm `v*` tags).
+Releases publish on a `nimblebrain-synapse-v*` tag (distinct from the npm `v*` tags).

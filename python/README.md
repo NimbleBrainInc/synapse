@@ -3,9 +3,14 @@
 The **server half** of the Synapse cross-host UI framework. Pairs with the
 `@nimblebrain/synapse` client (`connectUI` / `window.SynapseUI`).
 
+```bash
+pip install synapse-ui   # or: uv add synapse-ui
+```
+
 One `SynapseUI` declaration wires a self-contained HTML component into every host
-bridge a Synapse app renders in — **ChatGPT** (OpenAI Apps SDK) and **Claude**
-(mcp-ui) — from a FastMCP server, replacing the per-app hand-rolled shim.
+bridge a Synapse app renders in — **ChatGPT** (OpenAI Apps SDK), **Claude** (MCP
+Apps), and the **NimbleBrain** runtime — from a FastMCP server, replacing the
+per-app hand-rolled shim.
 
 ```python
 from mcp.server.fastmcp import FastMCP
@@ -55,5 +60,22 @@ result-transform hook` note in `server.py`.
 
 `synapse_ui/_assets/synapse-ui.iife.js` is the vendored client IIFE
 (`window.SynapseUI`), regenerated from the JS build
-(`dist/synapse-ui.iife.global.js`). Server and client ship together so their
-versions stay coupled.
+(`dist/synapse-ui.iife.global.js`) and inlined at register time so a component
+is fully self-contained (CSP-safe, no CDN). CI fails on drift from the build.
+`synapse_ui.__client_version__` records which `@nimblebrain/synapse` release the
+bundled IIFE was built from.
+
+## Versioning & compatibility
+
+`synapse-ui` (PyPI) versions **independently** of `@nimblebrain/synapse` (npm).
+They change for different reasons at different cadences — the server descriptor is
+thin and stable; the JS client evolves with host adapters and theming — so they do
+not share a version number. What they share is the **wire protocol**: the `ui://`
+resource MIMEs, the `_meta` dialects, and the data-element contract. Both sides
+target the same named protocol versions.
+
+| `synapse-ui` | Bundled client (`@nimblebrain/synapse`) | Wire protocols |
+|---|---|---|
+| 0.1.0 | 0.12.0 | ext-apps `2026-01-26` · MCP Apps (SEP-1865) · OpenAI Apps SDK |
+
+Releases publish on a `synapse-ui-v*` tag (distinct from the npm `v*` tags).

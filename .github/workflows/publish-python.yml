@@ -1,0 +1,76 @@
+name: Publish synapse-ui to PyPI
+
+on:
+  push:
+    tags:
+      - 'synapse-ui-v*'
+
+defaults:
+  run:
+    working-directory: python
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+      - run: uv sync
+      - run: uv run ruff check synapse_ui tests
+      - run: uv run ruff format --check synapse_ui tests
+      - run: uv run pytest -q
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write # create the GitHub Release
+      id-token: write # PyPI trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/synapse-ui-v}"
+          PKG_VERSION=$(python3 -c \
+            "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) != pyproject version ($PKG_VERSION)"
+            exit 1
+          fi
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      # Trusted publishing (OIDC) — no token. Requires a PyPI publisher registered
+      # for repo NimbleBrainInc/synapse, workflow publish-python.yml, environment pypi.
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: python/dist
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${TAG#synapse-ui-v}"
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md)
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::No python/CHANGELOG.md section found for version $VERSION"
+            exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            exit 0
+          fi
+          printf '%s\n' "$NOTES" | gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --notes-file -

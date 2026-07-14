@@ -67,3 +67,17 @@ jobs:
           test -f dist/synapse-ui.iife.global.js
       - name: Vendored Python IIFE is fresh (fail on drift from the build)
         run: diff dist/synapse-ui.iife.global.js python/synapse_ui/_assets/synapse-ui.iife.js
+
+  python:
+    name: Python (synapse-ui)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+      - run: uv sync
+      - run: uv run ruff check synapse_ui tests
+      - run: uv run ruff format --check synapse_ui tests
+      - run: uv run pytest -q

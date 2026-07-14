@@ -188,9 +188,7 @@ def test_bind_skips_errors_and_empty_results():
 
 def test_bind_respects_should_render_predicate():
     ui = _ui()
-    ctr = types.CallToolResult(
-        content=[], structuredContent={"unrelated": True}, isError=False
-    )
+    ctr = types.CallToolResult(content=[], structuredContent={"unrelated": True}, isError=False)
     out = ui._attach(types.ServerResult(ctr), lambda d: "domain" in d).root
     # Predicate rejects → no injection.
     assert out.meta is None

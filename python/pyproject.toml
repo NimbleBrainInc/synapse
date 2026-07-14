@@ -1,15 +1,32 @@
 [project]
 name = "synapse-ui"
 version = "0.1.0"
-description = "Server (Python) half of the Synapse cross-host UI framework — one ui:// component rendered in ChatGPT (OpenAI Apps SDK) and Claude (mcp-ui) from FastMCP."
+description = "Server half of the Synapse cross-host UI framework: register one self-contained ui:// component from a FastMCP server and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 authors = [{ name = "NimbleBrain Inc." }]
-keywords = ["mcp", "fastmcp", "mcp-ui", "openai-apps", "synapse", "ui"]
+keywords = ["mcp", "fastmcp", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+]
 dependencies = [
     "mcp>=1.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/NimbleBrainInc/synapse"
+Repository = "https://github.com/NimbleBrainInc/synapse"
+Issues = "https://github.com/NimbleBrainInc/synapse/issues"
+Changelog = "https://github.com/NimbleBrainInc/synapse/blob/main/python/CHANGELOG.md"
 
 [dependency-groups]
 dev = [

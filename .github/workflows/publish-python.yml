@@ -19,6 +19,15 @@ jobs:
       - run: uv run ruff check nimblebrain_synapse tests
       - run: uv run ruff format --check nimblebrain_synapse tests
       - run: uv run pytest -q
+      - run: uv build
+      - name: Built wheel ships and loads the client asset
+        # A standalone pre-publish gate: pytest runs against source, so only an
+        # install-from-wheel catches a missing _assets/ before the irreversible
+        # upload. python -P keeps the source tree off sys.path.
+        run: |
+          WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
+          uv run --isolated --no-project --with "$WHEEL" \
+            python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"
 
   publish:
     needs: verify

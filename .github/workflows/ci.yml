@@ -67,15 +67,20 @@ jobs:
           test -f dist/synapse-ui.iife.global.js
       - name: Vendored Python IIFE is fresh (fail on drift from the build)
         run: diff dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
-      - name: Client version pin matches the npm package
+      - name: Client version pin + README table match the npm package
         # The vendored IIFE is forced to the current tree's build (step above),
-        # whose version is package.json's — so the recorded provenance pin must
-        # equal it, or it silently lies after the next npm release.
+        # whose version is package.json's — so the recorded provenance pin AND the
+        # README compat table that quotes it must equal it, or they silently lie
+        # after the next npm release.
         run: |
           PIN=$(sed -n 's/^__client_version__ = "\([^"]*\)".*/\1/p' python/nimblebrain_synapse/__init__.py)
           NPM=$(node -p "require('./package.json').version")
           if [ "$PIN" != "$NPM" ]; then
             echo "::error::nimblebrain_synapse.__client_version__ ('$PIN') != @nimblebrain/synapse package.json ('$NPM') — re-vendor the IIFE and bump __client_version__"
+            exit 1
+          fi
+          if ! grep -qF "$PIN" python/README.md; then
+            echo "::error::python/README.md compat table doesn't mention client version $PIN — update the table"
             exit 1
           fi
 

@@ -60,7 +60,9 @@ _SDK_ASSET = "synapse-ui.iife.js"
 
 
 def _load_bundled_sdk() -> str:
-    return (resources.files("nimblebrain_synapse") / "_assets" / _SDK_ASSET).read_text(
+    # `__package__ or __name__` is always this package (never None for an imported
+    # submodule) and carries no hardcoded name to update on a rename.
+    return (resources.files(__package__ or __name__) / "_assets" / _SDK_ASSET).read_text(
         encoding="utf-8"
     )
 

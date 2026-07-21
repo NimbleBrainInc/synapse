@@ -32,7 +32,7 @@ jobs:
     # (`nimblebrain-synapse-v*`) publishes on its own track and is not announced
     # here; letting it through would post npm-framed messages and cross the two
     # tracks in the compare-link math below.
-    if: ${{ !startsWith(github.event.release.tag_name, 'nimblebrain-synapse-') }}
+    if: ${{ !startsWith(github.event.release.tag_name || github.event.inputs.tag, 'nimblebrain-synapse-') }}
     steps:
       - uses: actions/checkout@v6
 

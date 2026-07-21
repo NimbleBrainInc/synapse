@@ -93,3 +93,11 @@ jobs:
       - run: uv run ruff format --check nimblebrain_synapse tests
       - run: uv run pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
+      - name: Built wheel ships and loads the client asset
+        # Import from the installed wheel (python -P keeps the source tree off
+        # sys.path) so a missing _assets/ fails here, not after an irreversible
+        # publish — pytest runs against source and would not catch it.
+        run: |
+          WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
+          uv run --isolated --no-project --with "$WHEEL" \
+            python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"

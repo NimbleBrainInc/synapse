@@ -41,6 +41,22 @@ jobs:
             exit 1
           fi
 
+      # Extract + validate notes BEFORE publishing: PyPI never permits reusing a
+      # version, so a missing CHANGELOG section must fail here, not after upload.
+      - name: Extract release notes
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/nimblebrain-synapse-v}"
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "^## \\[" ver "\\]" { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md)
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::No python/CHANGELOG.md section found for version $VERSION"
+            exit 1
+          fi
+          printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+
       - name: Build sdist + wheel
         run: uv build
 
@@ -56,21 +72,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${GITHUB_REF#refs/tags/}"
-          VERSION="${TAG#nimblebrain-synapse-v}"
-          NOTES=$(awk -v ver="$VERSION" '
-            $0 ~ "^## \\[" ver "\\]" { capture=1; next }
-            capture && /^## \[/ { exit }
-            capture { print }
-          ' CHANGELOG.md)
-          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
-            echo "::error::No python/CHANGELOG.md section found for version $VERSION"
-            exit 1
-          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "Release $TAG already exists; skipping."
             exit 0
           fi
-          printf '%s\n' "$NOTES" | gh release create "$TAG" \
+          gh release create "$TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --title "$TAG" \
-            --notes-file -
+            --notes-file "$RUNNER_TEMP/notes.md"

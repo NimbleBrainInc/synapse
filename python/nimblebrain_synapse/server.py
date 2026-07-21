@@ -26,9 +26,12 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from importlib import resources
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mcp import types
+
+if TYPE_CHECKING:
+    from mcp.server.fastmcp import FastMCP
 
 __all__ = ["SynapseUI"]
 
@@ -199,7 +202,7 @@ class SynapseUI:
         """`_meta` for the tool *result* — mirrors the template pointer per call."""
         return {"openai/outputTemplate": self.uri}
 
-    def register(self, mcp: Any, *, meta: dict[str, Any] | None = None) -> None:
+    def register(self, mcp: FastMCP, *, meta: dict[str, Any] | None = None) -> None:
         """Register both host-facing ``ui://`` resources (data-free, SDK inlined).
 
         The same component is served twice because a resource carries one MIME and
@@ -248,7 +251,7 @@ class SynapseUI:
 
     def bind(
         self,
-        mcp: Any,
+        mcp: FastMCP,
         *,
         tool: str,
         should_render: Callable[[Any], bool] | None = None,

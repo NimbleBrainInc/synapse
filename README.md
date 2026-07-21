@@ -37,6 +37,10 @@ npm install @nimblebrain/synapse
 
 **Peer dependency:** `@modelcontextprotocol/ext-apps@^1.3.1`
 
+**Building a Python MCP server?** The server half — one self-contained `ui://`
+component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
+[`nimblebrain-synapse`](python/README.md) PyPI package (`pip install nimblebrain-synapse`).
+
 ## Package Exports
 
 | Entry Point | Description |

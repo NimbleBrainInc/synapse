@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call: # reused as the pre-publish gate by publish-python.yml (tag path)
+
+permissions:
+  contents: read
 
 jobs:
   lint:

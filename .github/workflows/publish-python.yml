@@ -10,24 +10,11 @@ defaults:
     working-directory: python
 
 jobs:
+  # The full CI suite is the pre-publish gate — reused, not hand-copied, so the
+  # tag path can't drift from main's checks (lint, test, the IIFE-freshness diff,
+  # the version/README pin gate, and the Python job's install-from-wheel check).
   verify:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.3.2
-      - run: uv sync
-      - run: uv run ruff check nimblebrain_synapse tests
-      - run: uv run ruff format --check nimblebrain_synapse tests
-      - run: uv run pytest -q
-      - run: uv build
-      - name: Built wheel ships and loads the client asset
-        # A standalone pre-publish gate: pytest runs against source, so only an
-        # install-from-wheel catches a missing _assets/ before the irreversible
-        # upload. python -P keeps the source tree off sys.path.
-        run: |
-          WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
-          uv run --isolated --no-project --with "$WHEEL" \
-            python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"
+    uses: ./.github/workflows/ci.yml
 
   publish:
     needs: verify
@@ -56,7 +43,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/nimblebrain-synapse-v}"
           NOTES=$(awk -v ver="$VERSION" '
-            $0 ~ "^## \\[" ver "\\]" { capture=1; next }
+            index($0, "## [" ver "]") == 1 { capture=1; next }
             capture && /^## \[/ { exit }
             capture { print }
           ' CHANGELOG.md)

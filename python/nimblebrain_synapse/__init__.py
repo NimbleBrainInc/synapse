@@ -20,5 +20,6 @@ __version__ = "0.1.0"
 # The `@nimblebrain/synapse` npm release the vendored client IIFE
 # (`_assets/synapse-ui.iife.js`) was built from. This package versions
 # independently of the JS one (different cadence, different consumers); the two
-# meet only on the wire protocol. Bump this whenever the IIFE is re-vendored.
+# meet only on the wire protocol. CI keeps this equal to the sibling package.json
+# version (ci.yml build job), so the pin can't silently go stale.
 __client_version__ = "0.12.0"

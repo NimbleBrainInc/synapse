@@ -12,7 +12,7 @@ defaults:
 jobs:
   # The full CI suite is the pre-publish gate — reused, not hand-copied, so the
   # tag path can't drift from main's checks (lint, test, the IIFE-freshness diff,
-  # the version/README pin gate, and the Python job's install-from-wheel check).
+  # the __client_version__ pin gate, and the Python job's install-from-wheel check).
   verify:
     uses: ./.github/workflows/ci.yml
 

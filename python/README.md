@@ -72,7 +72,8 @@ They change for different reasons at different cadences — the server descripto
 thin and stable; the JS client evolves with host adapters and theming — so they do
 not share a version number. The exact client build a given release bundles is
 recorded in `nimblebrain_synapse.__client_version__` (and, per release, in the
-[CHANGELOG](CHANGELOG.md)); CI keeps it equal to the sibling `package.json` at HEAD.
+[CHANGELOG](https://github.com/NimbleBrainInc/synapse/blob/main/python/CHANGELOG.md));
+CI keeps it equal to the sibling `package.json` at HEAD.
 
 What both halves share is the **wire protocol** — the `ui://` resource MIMEs, the
 `_meta` dialects, and the data-element contract:

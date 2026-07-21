@@ -1,19 +1,38 @@
 [project]
-name = "synapse-ui"
+name = "nimblebrain-synapse"
 version = "0.1.0"
-description = "Server (Python) half of the Synapse cross-host UI framework — one ui:// component rendered in ChatGPT (OpenAI Apps SDK) and Claude (mcp-ui) from FastMCP."
+description = "Server half of the Synapse cross-host UI framework: register one self-contained ui:// component from a FastMCP server and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "NimbleBrain Inc." }]
-keywords = ["mcp", "fastmcp", "mcp-ui", "openai-apps", "synapse", "ui"]
-dependencies = [
-    "mcp>=1.12",
+keywords = ["mcp", "fastmcp", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
+dependencies = [
+    # register() passes meta= to @mcp.resource(); that kwarg landed in mcp 1.26.0.
+    "mcp>=1.26.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/NimbleBrainInc/synapse"
+Repository = "https://github.com/NimbleBrainInc/synapse"
+Issues = "https://github.com/NimbleBrainInc/synapse/issues"
+Changelog = "https://github.com/NimbleBrainInc/synapse/blob/main/python/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.9",
+    "ruff==0.15.21",
+    "ty==0.0.61",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
 ]
@@ -23,12 +42,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["synapse_ui"]
-
-[tool.hatch.build.targets.wheel.force-include]
-# The vendored client SDK IIFE ships as package data so server + client versions
-# stay coupled. Regenerated from the JS build (dist/synapse-ui.iife.global.js).
-"synapse_ui/_assets/synapse-ui.iife.js" = "synapse_ui/_assets/synapse-ui.iife.js"
+packages = ["nimblebrain_synapse"]
 
 [tool.ruff]
 line-length = 100

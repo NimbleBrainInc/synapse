@@ -1,0 +1,84 @@
+name: Publish nimblebrain-synapse to PyPI
+
+on:
+  push:
+    tags:
+      - 'nimblebrain-synapse-v*'
+
+defaults:
+  run:
+    working-directory: python
+
+jobs:
+  # The full CI suite is the pre-publish gate — reused, not hand-copied, so the
+  # tag path can't drift from main's checks (lint, test, the IIFE-freshness diff,
+  # the __client_version__ pin gate, and the Python job's install-from-wheel check).
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write # create the GitHub Release
+      id-token: write # PyPI trusted publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.3.2
+
+      - name: Verify tag matches package version
+        run: |
+          TAG_VERSION="${GITHUB_REF#refs/tags/nimblebrain-synapse-v}"
+          PKG_VERSION=$(python3 -c \
+            "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          if [ "$TAG_VERSION" != "$PKG_VERSION" ]; then
+            echo "::error::Tag version ($TAG_VERSION) != pyproject version ($PKG_VERSION)"
+            exit 1
+          fi
+
+      # Extract + validate notes BEFORE publishing: PyPI never permits reusing a
+      # version, so a missing CHANGELOG section must fail here, not after upload.
+      - name: Extract release notes
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/nimblebrain-synapse-v}"
+          NOTES=$(awk -v ver="$VERSION" '
+            index($0, "## [" ver "]") == 1 { capture=1; next }
+            capture && /^## \[/ { exit }
+            capture { print }
+          ' CHANGELOG.md)
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "::error::No python/CHANGELOG.md section found for version $VERSION"
+            exit 1
+          fi
+          printf '%s\n' "$NOTES" > "$RUNNER_TEMP/notes.md"
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      # Trusted publishing (OIDC) — no token. Requires a PyPI publisher registered
+      # for repo NimbleBrainInc/synapse, workflow publish-python.yml, environment pypi.
+      - name: Publish to PyPI
+        # SHA-pinned (not the mutable @release/v1 branch): this job holds
+        # id-token: write and the publish is irreversible on PyPI.
+        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
+        with:
+          packages-dir: python/dist
+          # Idempotent reruns: if a later step (the GitHub Release) fails after a
+          # successful upload, re-running must not 400 on "File already exists" and
+          # wedge the release — PyPI never permits reusing a version.
+          skip-existing: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            exit 0
+          fi
+          gh release create "$TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md"

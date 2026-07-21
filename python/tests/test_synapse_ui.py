@@ -11,8 +11,8 @@ from mcp import types
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel
 
-from synapse_ui import SynapseUI
-from synapse_ui.server import DATA_MARKER, SDK_MARKER
+from nimblebrain_synapse import SynapseUI
+from nimblebrain_synapse.server import DATA_MARKER, SDK_MARKER
 
 UI_URI = "ui://test/report"
 
@@ -188,9 +188,7 @@ def test_bind_skips_errors_and_empty_results():
 
 def test_bind_respects_should_render_predicate():
     ui = _ui()
-    ctr = types.CallToolResult(
-        content=[], structuredContent={"unrelated": True}, isError=False
-    )
+    ctr = types.CallToolResult(content=[], structuredContent={"unrelated": True}, isError=False)
     out = ui._attach(types.ServerResult(ctr), lambda d: "domain" in d).root
     # Predicate rejects → no injection.
     assert out.meta is None

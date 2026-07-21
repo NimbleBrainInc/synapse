@@ -5,6 +5,10 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_call: # reused as the pre-publish gate by publish-python.yml (tag path)
+
+permissions:
+  contents: read
 
 jobs:
   lint:
@@ -66,4 +70,51 @@ jobs:
           test -f dist/synapse-runtime.iife.global.js
           test -f dist/synapse-ui.iife.global.js
       - name: Vendored Python IIFE is fresh (fail on drift from the build)
-        run: diff dist/synapse-ui.iife.global.js python/synapse_ui/_assets/synapse-ui.iife.js
+        run: diff dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
+      - name: Client version pin matches the npm package
+        # The vendored IIFE is forced to the current tree's build (step above),
+        # whose version is package.json's — so the recorded provenance pin must
+        # equal it, or it silently lies after the next npm release.
+        run: |
+          PIN=$(sed -n 's/^__client_version__ = "\([^"]*\)".*/\1/p' python/nimblebrain_synapse/__init__.py)
+          NPM=$(node -p "require('./package.json').version")
+          if [ "$PIN" != "$NPM" ]; then
+            echo "::error::nimblebrain_synapse.__client_version__ ('$PIN') != @nimblebrain/synapse package.json ('$NPM') — re-vendor the IIFE and bump __client_version__"
+            exit 1
+          fi
+
+  python:
+    name: Python (nimblebrain-synapse)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: python
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.3.2
+      - run: uv sync
+      - run: uv run ruff check nimblebrain_synapse tests
+      - run: uv run ruff format --check nimblebrain_synapse tests
+      - run: uv run ty check nimblebrain_synapse # py.typed is a promise; keep it honest
+      - run: uv run pytest -q
+      - name: Tests pass at the declared mcp floor
+        # Default resolution installs the newest mcp, so the >= floor is never
+        # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
+        # a newer mcp API without raising the floor fails here, not for a consumer.
+        run: |
+          FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)".*/\1/p' pyproject.toml)
+          uv run --isolated --no-project --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
+            --with-editable . pytest -q
+      - name: Tests pass on the minimum supported Python
+        # requires-python is >=3.11 and the classifiers promise 3.11–3.13, but the
+        # default resolution runs one interpreter — exercise the floor too.
+        run: uv run --python 3.11 --isolated --no-project --with-editable . --with pytest --with pytest-asyncio pytest -q
+      - run: uv build # catch packaging breakage before a release tag is cut
+      - name: Built wheel ships and loads the client asset
+        # Import from the installed wheel (python -P keeps the source tree off
+        # sys.path) so a missing _assets/ fails here, not after an irreversible
+        # publish — pytest runs against source and would not catch it.
+        run: |
+          WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
+          uv run --isolated --no-project --with "$WHEEL" \
+            python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"

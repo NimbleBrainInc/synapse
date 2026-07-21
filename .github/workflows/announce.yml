@@ -57,7 +57,7 @@ jobs:
           # higher version would yield a cosmetically backwards compare link;
           # switch the pipe to `sort -V` if synapse ever ships out of order.
           # Empty on the first release -> the script omits the compare link.
-          PREV=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts \
+          PREV=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts --limit 100 \
             --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | grep -vxF "$TAG" | head -n1 || true)
           echo "PREV_TAG=$PREV" >> "$GITHUB_ENV"
 

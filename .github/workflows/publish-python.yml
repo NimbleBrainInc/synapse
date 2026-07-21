@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
       - run: uv sync
       - run: uv run ruff check nimblebrain_synapse tests
       - run: uv run ruff format --check nimblebrain_synapse tests
@@ -29,7 +29,7 @@ jobs:
       id-token: write # PyPI trusted publishing (OIDC)
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v8.3.2
 
       - name: Verify tag matches package version
         run: |

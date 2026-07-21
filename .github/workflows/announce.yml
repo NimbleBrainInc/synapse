@@ -28,6 +28,11 @@ permissions:
 jobs:
   announce:
     runs-on: ubuntu-latest
+    # This announces the npm package only (`v*` tags). The Python package
+    # (`nimblebrain-synapse-v*`) publishes on its own track and is not announced
+    # here; letting it through would post npm-framed messages and cross the two
+    # tracks in the compare-link math below.
+    if: ${{ !startsWith(github.event.release.tag_name, 'nimblebrain-synapse-') }}
     steps:
       - uses: actions/checkout@v6
 
@@ -43,13 +48,15 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json tagName,name,body,url,publishedAt > release.json
           # Previous release tag for the compare link: the newest non-current
-          # published release. Assumes single-track sequential releases (true for
-          # synapse — semver order matches publish order). A backport published
-          # after a higher version would yield a cosmetically backwards compare
-          # link; switch the pipe to `sort -V` if synapse ever ships out of order.
+          # published release on the npm track (`v*` only — the Python
+          # `nimblebrain-synapse-v*` track is excluded so the compare link never
+          # crosses tracks). Assumes single-track sequential releases within npm
+          # (semver order matches publish order). A backport published after a
+          # higher version would yield a cosmetically backwards compare link;
+          # switch the pipe to `sort -V` if synapse ever ships out of order.
           # Empty on the first release -> the script omits the compare link.
           PREV=$(gh release list --repo "$GITHUB_REPOSITORY" --exclude-drafts \
-            --json tagName --jq '.[].tagName' | grep -vxF "$TAG" | head -n1 || true)
+            --json tagName --jq '.[].tagName' | grep -E '^v[0-9]' | grep -vxF "$TAG" | head -n1 || true)
           echo "PREV_TAG=$PREV" >> "$GITHUB_ENV"
 
       - name: Announce to Discord

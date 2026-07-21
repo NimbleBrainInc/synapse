@@ -99,12 +99,12 @@ unchanged.
   **is** the `CallToolResult` (data at `params.structuredContent`), not wrapped in
   `params.result`. Keep `synapse/*` NimbleBrain-private fields out of the
   chatgpt/mcpapps payloads.
-- The server half is the Python `synapse-ui` package (`python/`). It registers the
-  component as **two `ui://` resources** — `text/html+skybridge` (ChatGPT) and
+- The server half is the Python `nimblebrain-synapse` package (`python/`). It registers
+  the component as **two `ui://` resources** — `text/html+skybridge` (ChatGPT) and
   `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
   (`openai/outputTemplate` + nested `ui.resourceUri`), the `<script>`-safe embed (XSS
   defense), and the quarantined `CallToolResult` injection. Its vendored client IIFE
-  (`python/synapse_ui/_assets/synapse-ui.iife.js`) is regenerated from
+  (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
   `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the
   CI freshness gate enforces the copy).
 

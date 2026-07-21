@@ -83,8 +83,9 @@ jobs:
             echo "::error::nimblebrain_synapse.__client_version__ ('$PIN') != @nimblebrain/synapse package.json ('$NPM') — re-vendor the IIFE and bump __client_version__"
             exit 1
           fi
-          if ! grep -qF "$PIN" python/README.md; then
-            echo "::error::python/README.md compat table doesn't mention client version $PIN — update the table"
+          PY=$(sed -n 's/^version = "\([^"]*\)".*/\1/p' python/pyproject.toml)
+          if ! grep -qE "^\| *${PY//./\\.} *\| *${PIN//./\\.} *\|" python/README.md; then
+            echo "::error::python/README.md compat table has no row '| $PY | $PIN |' — a substring match isn't enough; fix the row"
             exit 1
           fi
 
@@ -100,7 +101,16 @@ jobs:
       - run: uv sync
       - run: uv run ruff check nimblebrain_synapse tests
       - run: uv run ruff format --check nimblebrain_synapse tests
+      - run: uv run ty check nimblebrain_synapse # py.typed is a promise; keep it honest
       - run: uv run pytest -q
+      - name: Tests pass at the declared mcp floor
+        # Default resolution installs the newest mcp, so the >= floor is never
+        # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
+        # a newer mcp API without raising the floor fails here, not for a consumer.
+        run: |
+          FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)".*/\1/p' pyproject.toml)
+          uv run --isolated --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
+            --with-editable . pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
       - name: Built wheel ships and loads the client asset
         # Import from the installed wheel (python -P keeps the source tree off

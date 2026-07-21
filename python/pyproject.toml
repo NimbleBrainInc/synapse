@@ -19,7 +19,8 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    "mcp>=1.12",
+    # register() passes meta= to @mcp.resource(); that kwarg landed in mcp 1.26.0.
+    "mcp>=1.26.0",
 ]
 
 [project.urls]
@@ -31,6 +32,7 @@ Changelog = "https://github.com/NimbleBrainInc/synapse/blob/main/python/CHANGELO
 [dependency-groups]
 dev = [
     "ruff==0.15.21",
+    "ty==0.0.61",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
 ]

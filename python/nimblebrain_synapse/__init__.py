@@ -8,12 +8,13 @@ from __future__ import annotations
 
 from .server import (
     DEFAULT_DATA_ELEMENT_ID,
+    MCPAPP_MIME,
     MCPUI_MIME,
     SKYBRIDGE_MIME,
     SynapseUI,
 )
 
-__all__ = ["SynapseUI", "SKYBRIDGE_MIME", "MCPUI_MIME", "DEFAULT_DATA_ELEMENT_ID"]
+__all__ = ["SynapseUI", "SKYBRIDGE_MIME", "MCPUI_MIME", "MCPAPP_MIME", "DEFAULT_DATA_ELEMENT_ID"]
 
 __version__ = "0.1.0"
 

@@ -111,6 +111,10 @@ jobs:
           FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)".*/\1/p' pyproject.toml)
           uv run --isolated --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
             --with-editable . pytest -q
+      - name: Tests pass on the minimum supported Python
+        # requires-python is >=3.11 and the classifiers promise 3.11–3.13, but the
+        # default resolution runs one interpreter — exercise the floor too.
+        run: uv run --python 3.11 --isolated --with-editable . --with pytest --with pytest-asyncio pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
       - name: Built wheel ships and loads the client asset
         # Import from the installed wheel (python -P keeps the source tree off

@@ -30,8 +30,10 @@ jobs:
     runs-on: ubuntu-latest
     # This announces the npm package only (`v*` tags). The Python package
     # (`nimblebrain-synapse-v*`) publishes on its own track and is not announced
-    # here; letting it through would post npm-framed messages and cross the two
-    # tracks in the compare-link math below.
+    # here. The load-bearing guard is the `^v[0-9]` filter on PREV below; this
+    # `if` is mostly defensive, since a `nimblebrain-synapse-v*` release cut by
+    # publish-python.yml with GITHUB_TOKEN does not fire `release: published`
+    # anyway (it only covers a hand-cut release or a manual dispatch).
     if: ${{ !startsWith(github.event.release.tag_name || github.event.inputs.tag, 'nimblebrain-synapse-') }}
     steps:
       - uses: actions/checkout@v6

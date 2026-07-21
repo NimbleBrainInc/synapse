@@ -70,12 +70,15 @@ bundled IIFE was built from.
 `nimblebrain-synapse` (PyPI) versions **independently** of `@nimblebrain/synapse` (npm).
 They change for different reasons at different cadences — the server descriptor is
 thin and stable; the JS client evolves with host adapters and theming — so they do
-not share a version number. What they share is the **wire protocol**: the `ui://`
-resource MIMEs, the `_meta` dialects, and the data-element contract. Both sides
-target the same named protocol versions.
+not share a version number. The exact client build a given release bundles is
+recorded in `nimblebrain_synapse.__client_version__` (and, per release, in the
+[CHANGELOG](CHANGELOG.md)); CI keeps it equal to the sibling `package.json` at HEAD.
 
-| `nimblebrain-synapse` | Bundled client (`@nimblebrain/synapse`) | Wire protocols |
-|---|---|---|
-| 0.1.0 | 0.12.0 | ext-apps `2026-01-26` · MCP Apps (SEP-1865) · OpenAI Apps SDK |
+What both halves share is the **wire protocol** — the `ui://` resource MIMEs, the
+`_meta` dialects, and the data-element contract:
+
+- ext-apps `2026-01-26`
+- MCP Apps (SEP-1865)
+- OpenAI Apps SDK
 
 Releases publish on a `nimblebrain-synapse-v*` tag (distinct from the npm `v*` tags).

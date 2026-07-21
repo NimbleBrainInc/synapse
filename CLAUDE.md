@@ -107,8 +107,8 @@ unchanged.
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
   `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the
   CI freshness gate enforces the copy). A **version bump** to `package.json` also
-  requires updating `python/nimblebrain_synapse/__init__.py` `__client_version__` and
-  the README compat table to the new version — CI fails until both equal `package.json`.
+  requires updating `python/nimblebrain_synapse/__init__.py` `__client_version__` to
+  the new version — CI fails until it equals `package.json`.
 
 ## Two connection paths
 

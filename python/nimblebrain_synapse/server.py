@@ -9,9 +9,12 @@ Synapse app can render in, replacing the hand-rolled per-app shim:
   the template and feeds it the tool's ``structuredContent``.
 - **tool_meta / result_meta** emit the `_meta` a host binds an output template
   with (``openai/outputTemplate`` etc.).
-- **bind** installs the ``CallToolResult`` post-process that, for one tool, appends
-  the mcp-ui embedded resource (``text/html``, dossier baked into a ``<script>``)
-  and mirrors the result ``_meta`` — so Claude / mcp-ui render with no round-trip.
+- **bind** installs the ``CallToolResult`` post-process that, for one tool, mirrors
+  the template pointer into the result ``_meta`` so a standard host binds the
+  registered ``ui://`` component and renders it with the ``structuredContent``.
+  Opt into ``embed_resource=True`` to also bake the component HTML into the result
+  ``content`` (the legacy mcp-ui no-round-trip copy) — off by default so that
+  ``audience: ["user"]`` HTML can't leak into a client that won't render it.
 
 The client SDK (`window.SynapseUI`) is inlined into the served + embedded HTML so
 the component is fully self-contained (no CDN, CSP-safe). Plain MCP clients ignore
@@ -276,13 +279,27 @@ class SynapseUI:
         *,
         tool: str,
         should_render: Callable[[Any], bool] | None = None,
+        embed_resource: bool = False,
     ) -> None:
         """Install the ``CallToolResult`` post-process that renders `tool`'s output.
 
         For a successful, non-error result of ``tool`` that carries
-        ``structuredContent`` (and passes ``should_render``), appends the mcp-ui
-        embedded resource and mirrors the ChatGPT ``_meta``. Plain clients ignore
-        both and still read the structured JSON.
+        ``structuredContent`` (and passes ``should_render``), mirrors the template
+        pointer into the result ``_meta`` so an MCP Apps host binds the registered
+        ``ui://`` component (ChatGPT ``openai/outputTemplate``; Claude and other
+        SEP-1865 hosts ``ui.resourceUri``) and feeds it the ``structuredContent``.
+        A plain client ignores the ``_meta`` and still reads the structured JSON.
+
+        ``embed_resource`` (default ``False``) additionally bakes the fully rendered
+        component HTML into the result ``content`` as an mcp-ui ``EmbeddedResource``
+        — the legacy "render from the content block, no ``resources/read``
+        round-trip" path. It is off by default because that HTML is
+        ``audience: ["user"]`` UI, not model context: a client that can't render it
+        (a plain MCP client, a terminal agent) cannot negotiate it away on a
+        stateless server, so the whole component — tens of KB per call — lands
+        verbatim in the model's context. The pointer path above already reaches
+        every standard host, so enable this only for a host that renders *solely*
+        from the embedded copy and not the ``ui.resourceUri`` pointer.
 
         Quarantine note: this wraps FastMCP's ``CallToolRequest`` handler — a leak
         into FastMCP internals kept in this one place so no app pokes them.
@@ -298,7 +315,7 @@ class SynapseUI:
         async def _handler(req: types.CallToolRequest) -> types.ServerResult:
             result = await prev(req)
             if req.params.name == tool:
-                return self._attach(result, predicate)
+                return self._attach(result, predicate, embed_resource)
             return result
 
         mcp._mcp_server.request_handlers[types.CallToolRequest] = _handler
@@ -307,6 +324,7 @@ class SynapseUI:
         self,
         result: types.ServerResult,
         predicate: Callable[[Any], bool],
+        embed: bool = False,
     ) -> types.ServerResult:
         root = result.root
         if not isinstance(root, types.CallToolResult) or root.isError:
@@ -314,6 +332,12 @@ class SynapseUI:
         data = root.structuredContent
         if not data or not predicate(data):
             return result
-        root.content.append(self.embedded_resource(data))
+        # The `_meta` pointer alone is enough for a standard host: it fetches the
+        # registered ui:// component and renders it with the structuredContent, so
+        # no UI HTML rides in the model-facing content. `embed` adds the legacy
+        # mcp-ui copy (see bind) — off by default so it can't leak into a client
+        # that won't render it.
+        if embed:
+            root.content.append(self.embedded_resource(data))
         root.meta = {**(root.meta or {}), **self.result_meta()}
         return result

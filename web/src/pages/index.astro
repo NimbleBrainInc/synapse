@@ -99,7 +99,7 @@ import HostDemo from "../components/HostDemo.astro";
             </div>
             <div class="code-scroll">
 <pre><code><span class="t-kw">import</span> &#123; useToolResult, useAction &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
-<span class="t-kw">import</span> &#123; Card, Row, Heading, List, Button, Pill &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
+<span class="t-kw">import</span> &#123; Card, Stack, Inline, Heading, ListRow, Button, Badge &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
 
 <span class="t-cm">// Typed data, straight from your MCP tool</span>
 <span class="t-kw">type</span> <span class="t-ty">FollowUp</span> = &#123; to: <span class="t-ty">string</span>; company: <span class="t-ty">string</span> &#125;;
@@ -107,22 +107,26 @@ import HostDemo from "../components/HostDemo.astro";
 <span class="t-cm">// Real, typed React. The agent renders and drives it.</span>
 <span class="t-kw">export function</span> <span class="t-fn">FollowUps</span>() &#123;
   <span class="t-kw">const</span> data = <span class="t-fn">useToolResult</span>()?.structuredContent <span class="t-kw">as</span> &#123; drafts: <span class="t-ty">FollowUp</span>[] &#125;;
-  <span class="t-kw">const</span> send = <span class="t-fn">useAction</span>(<span class="t-str">"send_followups"</span>);
+  <span class="t-kw">const</span> send = <span class="t-fn">useAction</span>();
   <span class="t-kw">if</span> (!data) <span class="t-kw">return</span> <span class="t-kw">null</span>;
   <span class="t-kw">return</span> (
     &lt;<span class="t-tag">Card</span>&gt;
-      &lt;<span class="t-tag">Row</span>&gt;
+      &lt;<span class="t-tag">Inline</span>&gt;
         &lt;<span class="t-tag">Heading</span>&gt;Send &#123;data.drafts.length&#125; follow-ups&lt;/<span class="t-tag">Heading</span>&gt;
-        &lt;<span class="t-tag">Pill</span> tone=<span class="t-str">"warning"</span>&gt;Needs OK&lt;/<span class="t-tag">Pill</span>&gt;
-      &lt;/<span class="t-tag">Row</span>&gt;
-      &lt;<span class="t-tag">List</span> items=&#123;data.drafts&#125; render=&#123;(d) =&gt; d.to&#125; /&gt;
-      &lt;<span class="t-tag">Button</span> onClick=&#123;send&#125;&gt;Approve &amp; send&lt;/<span class="t-tag">Button</span>&gt;
+        &lt;<span class="t-tag">Badge</span> tone=<span class="t-str">"warning"</span>&gt;Needs OK&lt;/<span class="t-tag">Badge</span>&gt;
+      &lt;/<span class="t-tag">Inline</span>&gt;
+      &lt;<span class="t-tag">Stack</span>&gt;
+        &#123;data.drafts.map((d) =&gt; (
+          &lt;<span class="t-tag">ListRow</span> key=&#123;d.to&#125; title=&#123;d.to&#125; meta=&#123;d.company&#125; /&gt;
+        ))&#125;
+      &lt;/<span class="t-tag">Stack</span>&gt;
+      &lt;<span class="t-tag">Button</span> onClick=&#123;() =&gt; <span class="t-fn">send</span>(<span class="t-str">"send_followups"</span>)&#125;&gt;Approve &amp; send&lt;/<span class="t-tag">Button</span>&gt;
     &lt;/<span class="t-tag">Card</span>&gt;
   );
 &#125;</code></pre>
             </div>
           </div>
-          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Row</code>, <code>List</code>, <code>Pill</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
+          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Inline</code>, <code>Stack</code>, <code>ListRow</code>, <code>Badge</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
         </div>
 
         <div class="reveal d1">
@@ -292,7 +296,7 @@ import HostDemo from "../components/HostDemo.astro";
           <svg class="logo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
           <span class="wordmark">synapse</span>
         </a>
-        <p>The interoperability layer for MCP app UIs. Open source, MIT, by <a href="https://nimblebrain.ai" target="_blank" rel="noopener">NimbleBrain</a>.</p>
+        <p>The interoperability layer for MCP app UIs.</p>
       </div>
       <div class="foot-cols">
         <div class="foot-col">

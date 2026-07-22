@@ -1,0 +1,475 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+<a class="skip" href="#top">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="#top" aria-label="Synapse home">
+      <svg class="logo" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <defs><linearGradient id="lg-nav" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#2563FF"/><stop offset="1" stop-color="#20D6B5"/>
+        </linearGradient></defs>
+        <path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9"
+          stroke="url(#lg-nav)" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="22.5" cy="8.2" r="2.7" fill="#2563FF"/>
+        <circle cx="10" cy="21.7" r="2.7" fill="#20D6B5"/>
+        <circle cx="16.3" cy="13.7" r="1.7" fill="url(#lg-nav)"/>
+      </svg>
+      <span class="wordmark">synapse</span>
+      <span class="tag">SDK</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#why">Why Synapse</a>
+      <a href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Docs</a>
+    </nav>
+    <div class="nav-right">
+      <a class="icon-btn" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener" aria-label="View source on GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.5 2.3 1.1 2.9.8.1-.7.3-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.3 9.3 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 3.9-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2Z"/></svg>
+      </a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Get started</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <h1>One UI. Every MCP host, <span class="hl">including your own.</span></h1>
+        <p class="subhead">Build your MCP app's UI once with real, typed components. Synapse runs it in ChatGPT, Claude, VS Code, and a host you run yourself.</p>
+
+        <div class="install">
+          <div class="install-code">
+            <span class="prompt">$</span>
+            <code id="installCmd">npm install @nimblebrain/synapse</code>
+          </div>
+          <button class="copy-btn" id="copyBtn" type="button" aria-label="Copy install command">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            <span class="lbl">Copy</span>
+          </button>
+        </div>
+
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Read the docs
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.5 2.3 1.1 2.9.8.1-.7.3-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.3 9.3 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 3.9-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2Z"/></svg>
+            Star on GitHub</a>
+        </div>
+
+        <p class="trust">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+          Open source, MIT. Works with your existing MCP / FastMCP server. No rewrite.
+        </p>
+      </div>
+
+      <!-- INTEROP DEMO: one neutral component, every host chrome (the signature move) -->
+      <div class="demo elev" aria-labelledby="demoTitle">
+        <div class="demo-head">
+          <span class="lbl" id="demoTitle"><b>one</b> component &middot; <b>four</b> hosts</span>
+          <span class="lbl mono">ui://deploy-status</span>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="MCP host">
+          <button class="tab" role="tab" id="tab-chatgpt" type="button" aria-controls="stage" aria-selected="false" data-host="chatgpt" data-bridge="window.openai" tabindex="-1"><span class="hdot"></span>ChatGPT</button>
+          <button class="tab" role="tab" id="tab-claude" type="button" aria-controls="stage" aria-selected="false" data-host="claude" data-bridge="ui/* protocol" tabindex="-1"><span class="hdot"></span>Claude</button>
+          <button class="tab" role="tab" id="tab-vscode" type="button" aria-controls="stage" aria-selected="false" data-host="vscode" data-bridge="ui/* protocol" tabindex="-1"><span class="hdot"></span>VS Code</button>
+          <button class="tab home" role="tab" id="tab-yourapp" type="button" aria-controls="stage" aria-selected="true" data-host="yourapp" data-bridge="Synapse API" tabindex="0"><span class="hdot"></span>Your app<span class="badge">self-hosted</span></button>
+        </div>
+
+        <div class="stage" id="stage" role="tabpanel" data-host="yourapp" aria-labelledby="tab-yourapp">
+          <div class="host-bar">
+            <span class="host-mark" id="hostMark">
+              <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                <defs><linearGradient id="lg-host" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#2563FF"/><stop offset="1" stop-color="#20D6B5"/></linearGradient></defs>
+                <path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-host)" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="22.5" cy="8.2" r="2.8" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.8" fill="#20D6B5"/>
+              </svg>
+            </span>
+            <span class="host-name" id="hostName">Your app</span>
+            <span class="host-meta">
+              <span class="host-self">self-hosted</span>
+              <span class="bridge" id="bridge">Synapse API</span>
+            </span>
+          </div>
+          <div class="host-body">
+            <!-- The identical, neutral component rendered by every host -->
+            <article class="cmp" aria-label="Deploy status example component">
+              <div class="cmp-top">
+                <span class="cmp-glyph">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
+                </span>
+                <span class="cmp-meta">
+                  <span class="cmp-title">storefront-web</span>
+                  <span class="cmp-sub">deploy &middot; main &middot; #4f2a1c</span>
+                </span>
+                <span class="pill run live"><span class="dot"></span>Running</span>
+              </div>
+              <div class="cmp-bar" aria-hidden="true"><i></i></div>
+              <div class="cmp-steps">
+                <span class="step ok"><span class="d"></span>Build</span>
+                <span class="step run"><span class="d"></span>Test</span>
+                <span class="step wait"><span class="d"></span>Ship</span>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <div class="demo-foot">
+          <span class="k">bridge</span>
+          <span>Your MCP app, unchanged. Synapse speaks each host's protocol so you don't.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== POV BEAT : the thesis ===================== -->
+  <section class="beat tint">
+    <div class="wrap">
+      <h2 class="statement reveal fade d1">A UI shouldn't care <span class="hl">which host it runs in.</span></h2>
+      <p class="say-sub reveal fade d2">You built your MCP app once. Making its UI run in four different runtimes is Synapse's job, not yours. Every host speaks a different bridge. You should speak none of them.</p>
+    </div>
+  </section>
+
+  <!-- ===================== HOW IT WORKS ===================== -->
+  <section class="band" id="how">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2>Build your MCP app once. Synapse handles <span class="hl">every host's bridge.</span></h2>
+        <p>You write real, typed React from your MCP tool's data. Synapse builds it to a single <code style="font-family:var(--font-mono)">ui://</code> resource and renders it wherever your server is connected.</p>
+      </div>
+
+      <div class="how-grid">
+        <div class="reveal">
+          <div class="code-panel">
+            <div class="code-bar">
+              <span class="traffic"><i></i><i></i><i></i></span>
+              <span class="file"><b>DeployStatus.tsx</b>, your component</span>
+            </div>
+            <div class="code-scroll">
+<pre><code><span class="t-kw">import</span> &#123; defineUI, ui &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse"</span>;
+
+<span class="t-cm">// Typed data, straight from your MCP tool</span>
+<span class="t-kw">type</span> <span class="t-ty">Deploy</span> = &#123;
+  app: <span class="t-ty">string</span>;
+  commit: <span class="t-ty">string</span>;
+  status: <span class="t-str">"running"</span> <span class="t-pn">|</span> <span class="t-str">"live"</span> <span class="t-pn">|</span> <span class="t-str">"pending"</span>;
+&#125;;
+
+<span class="t-cm">// One component. Real, typed React.</span>
+<span class="t-kw">export default</span> <span class="t-fn">defineUI</span>&lt;<span class="t-ty">Deploy</span>&gt;((&#123; app, commit, status &#125;) =&gt; (
+  &lt;<span class="t-tag">ui.Card</span>&gt;
+    &lt;<span class="t-tag">ui.Row</span>&gt;
+      &lt;<span class="t-tag">ui.Title</span>&gt;&#123;app&#125;&lt;/<span class="t-tag">ui.Title</span>&gt;
+      &lt;<span class="t-tag">ui.Status</span> value=&#123;status&#125; /&gt;
+    &lt;/<span class="t-tag">ui.Row</span>&gt;
+    &lt;<span class="t-tag">ui.Mono</span>&gt;&#123;commit&#125;&lt;/<span class="t-tag">ui.Mono</span>&gt;
+  &lt;/<span class="t-tag">ui.Card</span>&gt;
+));</code></pre>
+            </div>
+          </div>
+          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Row</code>, <code>Status</code>, <code>Table</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
+        </div>
+
+        <div class="reveal d1">
+          <div class="flow">
+            <div class="flow-title">tool &rarr; component &rarr; every host</div>
+            <div class="flow-line">
+              <div class="node">
+                <div class="lab">your MCP tool</div>
+                <div class="val">get_deploy()</div>
+              </div>
+              <div class="connector" aria-hidden="true"></div>
+              <div class="node syn">
+                <div class="syn-in">
+                  <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-nav)" stroke-width="3" stroke-linecap="round"/><circle cx="22.5" cy="8.2" r="2.8" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.8" fill="#20D6B5"/></svg>
+                  <div>
+                    <div class="lab">Synapse</div>
+                    <div class="val">ui://component</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="fanout">
+              <div class="cap">rendered, unchanged, in every host</div>
+              <div class="host-chips">
+                <div class="hchip"><span class="cdot"></span>ChatGPT<small>window.openai</small></div>
+                <div class="hchip"><span class="cdot"></span>Claude<small>ui/* protocol</small></div>
+                <div class="hchip"><span class="cdot"></span>VS Code<small>ui/* protocol</small></div>
+                <div class="hchip home"><span class="cdot"></span>Your app<small>Synapse API</small></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bridges">
+            <p class="lede">You build your MCP app. Synapse writes the bridge.</p>
+            <div class="brow"><span class="bcode">window.openai</span><span class="arr" aria-hidden="true">&rarr;</span><span>ChatGPT's apps runtime</span></div>
+            <div class="brow"><span class="bcode">ui/* protocol</span><span class="arr" aria-hidden="true">&rarr;</span><span>the MCP Apps standard (Claude, VS Code)</span></div>
+            <div class="brow"><span class="bcode">Synapse API</span><span class="arr" aria-hidden="true">&rarr;</span><span>a host you run yourself (NimbleBrain, self-hosted)</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="how-cta reveal">
+        <a class="btn btn-ghost" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">See the full quickstart
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CAPABILITIES : what you actually build ===================== -->
+  <section class="band alt" id="build">
+    <div class="wrap">
+      <div class="cap-grid">
+        <div class="sec-head reveal cap-head">
+          <h2>One codebase, <span class="hl">fully typed,</span> backend you already have.</h2>
+          <p>The three things that make build-once-run-everywhere hold up in production, not just in a demo.</p>
+        </div>
+
+        <ul class="support reveal d1">
+          <li>
+            <span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/><rect x="8" y="8" width="8" height="8" rx="1.5"/></svg></span>
+            <div>
+              <h4>One codebase for every host</h4>
+              <p>Build your MCP app's UI once in typed React. Synapse renders it in ChatGPT, Claude, VS Code, and your own runtime. No per-host forks, no divergent UIs to maintain.</p>
+            </div>
+          </li>
+          <li>
+            <span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/><path d="M13.5 4.5 10.5 19.5" stroke-dasharray="0.1 3"/></svg></span>
+            <div>
+              <h4>Typed and agent-aware</h4>
+              <p>Your MCP app takes typed inputs from your MCP tools, so props stay honest as your server evolves. The host's agent reads and drives the UI it renders.</p>
+            </div>
+          </li>
+          <li>
+            <span class="sic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3.2"/><path d="M3 5v6c0 1.8 4 3.2 9 3.2s9-1.4 9-3.2V5M3 11v6c0 1.8 4 3.2 9 3.2s9-1.4 9-3.2v-6"/></svg></span>
+            <div>
+              <h4>Backend-agnostic, batteries-included</h4>
+              <p>Works with your existing MCP / FastMCP server as-is. Start with the included component kit: cards, rows, tables, and status pills, or bring your own React.</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== THE DIFFERENTIATOR : self-host wedge (merged) ===================== -->
+  <section class="band" id="why">
+    <div class="wrap">
+      <div class="selfhost">
+        <div class="reveal">
+          <h2>The one host you can't get anywhere else? <span class="hl">The one you run yourself.</span></h2>
+          <p class="lead">Ship your MCP app to ChatGPT, Claude, and VS Code, then run the exact same UI self-hosted inside your own product, on your own infrastructure. One MCP app, both worlds.</p>
+          <div class="compare" role="group" aria-label="Reach compared to other UI frameworks">
+            <div class="crow">
+              <span class="ctag">Other UI frameworks</span>
+              <span class="arr" aria-hidden="true">&rarr;</span>
+              <span class="cval">someone else's stores, and that's the ceiling</span>
+            </div>
+            <div class="crow win">
+              <span class="ctag">Synapse</span>
+              <span class="arr" aria-hidden="true">&rarr;</span>
+              <span class="cval">those same stores <b>plus a host you run yourself</b></span>
+            </div>
+          </div>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Start building
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+        </div>
+
+      <div class="reach panel reveal d1">
+        <div class="rt">reach of one MCP app</div>
+        <div class="reach-row">
+          <div class="reach-item">
+            <span class="rm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg></span>
+            <span class="rname">ChatGPT</span><span class="rkind">public store</span>
+          </div>
+          <div class="reach-item">
+            <span class="rm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 8l9 4 9-4"/></svg></span>
+            <span class="rname">Claude</span><span class="rkind">public store</span>
+          </div>
+          <div class="reach-item">
+            <span class="rm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></span>
+            <span class="rname">VS Code</span><span class="rkind">public store</span>
+          </div>
+          <div class="reach-divider">and, the part that isn't free elsewhere</div>
+          <div class="reach-item home">
+            <span class="rm"><svg viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-nav)" stroke-width="3" stroke-linecap="round"/><circle cx="22.5" cy="8.2" r="2.8" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.8" fill="#20D6B5"/></svg></span>
+            <span class="rname">Your app</span><span class="rkind">self-hosted &middot; yours</span>
+          </div>
+        </div>
+      </div>
+      </div>
+      <p class="accuracy reveal diff-acc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01" stroke-linecap="round"/></svg>
+        <span><b>What Synapse is:</b> the UI layer. The agent, memory, and multi-tenancy come from the host you run it in, not the SDK.</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="band alt" id="docs">
+    <div class="wrap">
+      <div class="cta reveal">
+        <h2>Build your UI once. Run it in <span class="hl">every host</span>, including your own.</h2>
+        <p>Your MCP app, typed to your tools, rendered everywhere your server connects.</p>
+        <div class="install">
+          <div class="install-code">
+            <span class="prompt">$</span>
+            <code>npm install @nimblebrain/synapse</code>
+          </div>
+          <button class="copy-btn" id="copyBtn2" type="button" aria-label="Copy install command">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+            <span class="lbl">Copy</span>
+          </button>
+        </div>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Read the docs
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Quickstart</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a class="brand" href="#top" aria-label="Synapse home">
+          <svg class="logo" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-nav)" stroke-width="2.5" stroke-linecap="round"/><circle cx="22.5" cy="8.2" r="2.7" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.7" fill="#20D6B5"/><circle cx="16.3" cy="13.7" r="1.7" fill="url(#lg-nav)"/></svg>
+          <span class="wordmark">synapse</span>
+        </a>
+        <p>The interoperability layer for MCP app UIs. Open source, MIT, by NimbleBrain.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>Product</h4>
+          <a href="#how">How it works</a>
+          <a href="#why">Why Synapse</a>
+          <a href="#why">Self-host</a>
+        </div>
+        <div class="foot-col">
+          <h4>Developers</h4>
+          <a href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Docs</a>
+          <a href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Component kit</a>
+          <a href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">GitHub</a>
+        </div>
+        <div class="foot-col">
+          <h4>Standards</h4>
+          <a href="#how">MCP Apps &middot; ui/*</a>
+          <a href="#how">window.openai</a>
+          <a href="#why">Self-hosted runtime</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; 2026 NimbleBrain &middot; MIT licensed</span>
+      <span class="example-row"><span class="exlabel">example app</span> Built with Synapse: Bassethound (domain intelligence).</span>
+    </div>
+  </div>
+</footer>
+
+<script is:inline>
+(function(){
+  var root=document.documentElement;
+  root.classList.add('js');
+
+  /* ---------- Copy install command (inline success feedback on the button) ---------- */
+  function wireCopy(id){
+    var b=document.getElementById(id); if(!b) return;
+    b.addEventListener('click',function(){
+      var lbl=b.querySelector('.lbl');
+      var done=function(){ b.classList.add('ok'); if(lbl) lbl.textContent='Copied'; setTimeout(function(){ b.classList.remove('ok'); if(lbl) lbl.textContent='Copy'; },1600); };
+      try{
+        navigator.clipboard.writeText('npm install @nimblebrain/synapse').then(done).catch(done);
+      }catch(e){ done(); }
+    });
+  }
+  wireCopy('copyBtn'); wireCopy('copyBtn2');
+
+  /* ---------- Interop host switcher (the signature move) ---------- */
+  var tabs=Array.prototype.slice.call(document.querySelectorAll('.tab'));
+  var stage=document.getElementById('stage');
+  var hostName=document.getElementById('hostName');
+  var bridge=document.getElementById('bridge');
+  var mark=document.getElementById('hostMark');
+  var names={chatgpt:'ChatGPT',claude:'Claude',vscode:'VS Code',yourapp:'Your app'};
+  var order=['yourapp','chatgpt','claude','vscode'];
+  var idx=0, auto=null, paused=false;
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function letterMark(host){
+    if(host==='yourapp') return;
+    var m={chatgpt:'G',claude:'C',vscode:'{}'}[host]||'';
+    mark.innerHTML='<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:#fff;line-height:1">'+m+'</span>';
+  }
+  var logoSVG=mark.innerHTML;
+
+  function select(host,focus){
+    tabs.forEach(function(t){
+      var on=t.dataset.host===host;
+      t.setAttribute('aria-selected',on?'true':'false');
+      t.tabIndex=on?0:-1;
+      if(on&&focus) t.focus();
+    });
+    stage.dataset.host=host;
+    stage.setAttribute('aria-labelledby','tab-'+host);
+    hostName.textContent=names[host];
+    var tab=document.getElementById('tab-'+host);
+    bridge.textContent=tab?tab.dataset.bridge:'';
+    if(host==='yourapp'){ mark.innerHTML=logoSVG; } else { letterMark(host); }
+    idx=order.indexOf(host);
+  }
+
+  tabs.forEach(function(t){
+    t.addEventListener('click',function(){ select(t.dataset.host,false); stopAuto(); });
+    t.addEventListener('keydown',function(e){
+      var i=tabs.indexOf(t), n=null;
+      if(e.key==='ArrowRight'||e.key==='ArrowDown') n=tabs[(i+1)%tabs.length];
+      else if(e.key==='ArrowLeft'||e.key==='ArrowUp') n=tabs[(i-1+tabs.length)%tabs.length];
+      else if(e.key==='Home') n=tabs[0];
+      else if(e.key==='End') n=tabs[tabs.length-1];
+      if(n){ e.preventDefault(); select(n.dataset.host,true); stopAuto(); }
+    });
+  });
+
+  function tick(){ if(paused) return; idx=(idx+1)%order.length; select(order[idx],false); }
+  function startAuto(){ if(reduce||auto) return; auto=setInterval(tick,3600); }
+  function stopAuto(){ if(auto){ clearInterval(auto); auto=null; } }
+
+  var demo=document.querySelector('.demo');
+  if(demo){
+    demo.addEventListener('mouseenter',function(){ paused=true; });
+    demo.addEventListener('mouseleave',function(){ paused=false; });
+    demo.addEventListener('focusin',function(){ paused=true; });
+    demo.addEventListener('focusout',function(){ paused=false; });
+  }
+
+  select('yourapp',false);
+  startAuto();
+
+  /* ---------- Reveal on scroll (enhancement only) ---------- */
+  var reveals=document.querySelectorAll('.reveal');
+  if(reduce||!('IntersectionObserver' in window)){
+    for(var r=0;r<reveals.length;r++) reveals[r].classList.add('in');
+  }else{
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
+    for(var s=0;s<reveals.length;s++) io.observe(reveals[s]);
+  }
+})();
+</script>
+</Layout>

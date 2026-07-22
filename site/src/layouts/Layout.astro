@@ -1,0 +1,54 @@
+---
+import "../styles/app.css";
+
+interface Props {
+  title?: string;
+  description?: string;
+}
+
+const site = "https://synapse.nimblebrain.ai";
+const {
+  title = "Synapse — one UI, every MCP host, including your own",
+  description = "Build your MCP app's UI once and render it in ChatGPT, Claude, VS Code, and a host you run yourself. The interoperability layer for MCP app UIs.",
+} = Astro.props;
+
+const canonical = new URL(Astro.url.pathname, site).href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Synapse" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "SoftwareSourceCode",
+        name: "Synapse",
+        description,
+        url: site,
+        codeRepository: "https://github.com/NimbleBrainInc/synapse",
+        programmingLanguage: "TypeScript",
+        license: "https://opensource.org/licenses/MIT",
+        author: { "@type": "Organization", name: "NimbleBrain", url: "https://nimblebrain.ai" },
+      })}
+    />
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>

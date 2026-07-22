@@ -101,28 +101,33 @@ import HostDemo from "../components/HostDemo.astro";
               <span class="file"><b>DeployStatus.tsx</b>, your component</span>
             </div>
             <div class="code-scroll">
-<pre><code><span class="t-kw">import</span> &#123; defineUI, ui &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse"</span>;
+<pre><code><span class="t-kw">import</span> &#123; useToolResult &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
+<span class="t-kw">import</span> &#123; Card, Stack, Heading, Text, StatusDot &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
 
 <span class="t-cm">// Typed data, straight from your MCP tool</span>
 <span class="t-kw">type</span> <span class="t-ty">Deploy</span> = &#123;
   app: <span class="t-ty">string</span>;
   commit: <span class="t-ty">string</span>;
-  status: <span class="t-str">"running"</span> <span class="t-pn">|</span> <span class="t-str">"live"</span> <span class="t-pn">|</span> <span class="t-str">"pending"</span>;
+  status: <span class="t-str">"working"</span> <span class="t-pn">|</span> <span class="t-str">"completed"</span> <span class="t-pn">|</span> <span class="t-str">"failed"</span>;
 &#125;;
 
-<span class="t-cm">// One component. Real, typed React.</span>
-<span class="t-kw">export default</span> <span class="t-fn">defineUI</span>&lt;<span class="t-ty">Deploy</span>&gt;((&#123; app, commit, status &#125;) =&gt; (
-  &lt;<span class="t-tag">ui.Card</span>&gt;
-    &lt;<span class="t-tag">ui.Row</span>&gt;
-      &lt;<span class="t-tag">ui.Title</span>&gt;&#123;app&#125;&lt;/<span class="t-tag">ui.Title</span>&gt;
-      &lt;<span class="t-tag">ui.Status</span> value=&#123;status&#125; /&gt;
-    &lt;/<span class="t-tag">ui.Row</span>&gt;
-    &lt;<span class="t-tag">ui.Mono</span>&gt;&#123;commit&#125;&lt;/<span class="t-tag">ui.Mono</span>&gt;
-  &lt;/<span class="t-tag">ui.Card</span>&gt;
-));</code></pre>
+<span class="t-cm">// Real, typed React. Compose the shipped kit.</span>
+<span class="t-kw">export function</span> <span class="t-fn">DeployStatus</span>() &#123;
+  <span class="t-kw">const</span> data = <span class="t-fn">useToolResult</span>()?.structuredContent <span class="t-kw">as</span> <span class="t-ty">Deploy</span>;
+  <span class="t-kw">if</span> (!data) <span class="t-kw">return</span> <span class="t-kw">null</span>;
+  <span class="t-kw">return</span> (
+    &lt;<span class="t-tag">Card</span>&gt;
+      &lt;<span class="t-tag">Stack</span>&gt;
+        &lt;<span class="t-tag">Heading</span>&gt;&#123;data.app&#125;&lt;/<span class="t-tag">Heading</span>&gt;
+        &lt;<span class="t-tag">StatusDot</span> status=&#123;data.status&#125; /&gt;
+        &lt;<span class="t-tag">Text</span>&gt;&#123;data.commit&#125;&lt;/<span class="t-tag">Text</span>&gt;
+      &lt;/<span class="t-tag">Stack</span>&gt;
+    &lt;/<span class="t-tag">Card</span>&gt;
+  );
+&#125;</code></pre>
             </div>
           </div>
-          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Row</code>, <code>Status</code>, <code>Table</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
+          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Table</code>, <code>StatusDot</code>, <code>Badge</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
         </div>
 
         <div class="reveal d1">

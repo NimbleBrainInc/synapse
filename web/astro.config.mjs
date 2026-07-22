@@ -21,6 +21,15 @@ export default defineConfig({
       title: "Synapse",
       favicon: "/favicon.svg",
       customCss: ["./src/styles/docs.css"],
+      // JetBrains Mono to match the landing; the code surface + border are
+      // forced from docs.css (Starlight resolves the frame fill to transparent,
+      // so it blends into the page unless overridden there).
+      expressiveCode: {
+        styleOverrides: {
+          borderRadius: "0.75rem",
+          codeFontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
+        },
+      },
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/NimbleBrainInc/synapse" },
         { icon: "discord", label: "Discord", href: "https://discord.gg/9MyfR7PKUw" },

@@ -38,6 +38,10 @@
 
   --sl-color-bg-sidebar: #0C111B;
   --sl-color-bg-nav: #0C111B;
+
+  /* Fenced-code surface: the landing panel, distinct from the page. */
+  --code-bg: #111725;
+  --code-border: rgba(255, 255, 255, 0.1);
 }
 
 /* ── Light mode ── */
@@ -60,6 +64,10 @@
   --sl-color-gray-7: #F7F9FB;
 
   --sl-color-bg-sidebar: #F7F9FB;
+  --sl-color-bg-nav: #F7F9FB;
+
+  --code-bg: #EEF1F6;
+  --code-border: rgba(11, 15, 26, 0.09);
 }
 
 /* ── Fonts ── */
@@ -74,4 +82,19 @@
   font-family: 'Space Grotesk', var(--sl-font-system);
   font-weight: 700;
   letter-spacing: -0.015em;
+}
+
+/* ── Fenced code blocks ──
+   Starlight resolves Expressive Code's frame fill to transparent, so code
+   blends into the page. Force the landing's panel surface plus a hairline
+   border and radius, so code reads as a distinct, on-brand box. */
+.sl-markdown-content .expressive-code .frame {
+  --code-background: var(--code-bg);
+  --ec-frm-edBg: var(--code-bg);
+  --ec-frm-trmBg: var(--code-bg);
+}
+.sl-markdown-content .expressive-code pre {
+  background: var(--code-bg);
+  border: 1px solid var(--code-border);
+  border-radius: 0.75rem;
 }

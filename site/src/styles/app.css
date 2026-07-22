@@ -503,8 +503,14 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
   display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:center;
   font-size:12.5px;color:var(--faint);
 }
-.example-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.example-row .exlabel{font-family:var(--font-mono);font-size:10.5px;color:var(--faint);border:1px solid var(--border-strong);padding:2px 6px;border-radius:5px}
+.foot-bottom a{color:var(--muted);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--border-strong)}
+@media (hover:hover){ .foot-bottom a:hover{color:var(--text)} }
+.foot-brand p a{color:var(--muted);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--border-strong)}
+@media (hover:hover){ .foot-brand p a:hover{color:var(--text)} }
+.foot-social{display:inline-flex;align-items:center;justify-content:center;color:var(--faint);border:1px solid var(--border-strong);border-radius:9px;width:34px;height:34px;transition:color var(--dur-fast) var(--ease-out),border-color var(--dur-fast) var(--ease-out)}
+.foot-social svg{width:18px;height:18px}
+@media (hover:hover){ .foot-social:hover{color:#5865F2;border-color:#5865F2} }
+.foot-social:focus-visible{outline:2px solid var(--ring);outline-offset:2px}
 
 /* ============================================================ Reveal-on-scroll + reduced motion */
 /* progressive reveal : enhancement only; content is fully visible without JS */

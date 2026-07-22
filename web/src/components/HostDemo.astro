@@ -1,0 +1,300 @@
+---
+// The hero's signature move: one Synapse app, rendered in every host.
+// The tab names the host (no redundant header bar); the host chrome + a
+// dynamic footer follow the selection. Vendor marks (/public/logos) are
+// used for identification only.
+---
+
+<div class="hd" aria-label="One app, rendered in every host">
+  <div class="hd-tabs" role="tablist" aria-label="MCP host">
+    <button class="hd-tab" id="hd-tab-chatgpt" data-host="chatgpt" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/openai.svg" alt="" />ChatGPT</button>
+    <button class="hd-tab" id="hd-tab-claude" data-host="claude" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/claude.png" alt="" />Claude</button>
+    <button class="hd-tab" id="hd-tab-vscode" data-host="vscode" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/vscode.svg" alt="" />VS Code</button>
+    <button class="hd-tab" id="hd-tab-yourapp" data-host="yourapp" role="tab" aria-selected="true" aria-controls="hdStage" tabindex="0" type="button"><img class="vl" src="/logos/nimblebrain.svg" alt="" />Your app</button>
+  </div>
+
+  <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel" aria-labelledby="hd-tab-yourapp">
+    <div class="hd-body">
+      <div class="hd-msg user"><div class="hd-bubble">send this week&rsquo;s follow-ups</div></div>
+      <p class="hd-say">Here are your follow-ups, ready to send:</p>
+
+      <article class="sapp" aria-label="Approve follow-ups (example Synapse app)">
+        <div class="s-top">
+          <span class="s-glyph"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z" /></svg></span>
+          <span class="s-meta"><span class="s-title">Send 3 follow-ups</span><span class="s-sub">drafted by the agent</span></span>
+          <span class="pill amber">Needs OK</span>
+        </div>
+        <div class="list">
+          <div class="item"><span class="a">JD</span><span class="s-meta"><span class="nm">Jane Doe &middot; Acme</span><span class="su">&ldquo;Recapping our pricing call&hellip;&rdquo;</span></span></div>
+          <div class="item"><span class="a">MR</span><span class="s-meta"><span class="nm">Marco Ruiz &middot; Northwind</span><span class="su">&ldquo;Sending the security doc&hellip;&rdquo;</span></span></div>
+        </div>
+        <div class="acts">
+          <button class="btn pri" type="button">Approve &amp; send<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg></button>
+          <button class="btn gho" type="button">Review</button>
+        </div>
+      </article>
+    </div>
+
+    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">Synapse API</code><span id="hdFootPost">.</span></p>
+  </div>
+</div>
+
+<style>
+  .hd {
+    border-radius: 16px;
+    border: 1px solid var(--elev-border, rgba(255, 255, 255, 0.16));
+    background: var(--surface-2, #161e2e);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  }
+
+  /* tabs — the only place the host is named */
+  .hd-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 12px 12px 0;
+  }
+  .hd-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    justify-content: center;
+    padding: 9px 8px;
+    border: 1px solid transparent;
+    border-radius: 10px 10px 0 0;
+    background: transparent;
+    color: var(--muted, #a2adc0);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  }
+  .hd-tab .vl {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    object-fit: contain;
+  }
+  .hd-tab:hover { color: var(--text, #edf0f6); }
+  .hd-tab:focus-visible {
+    outline: 2px solid var(--ring, rgba(143, 176, 255, 0.65));
+    outline-offset: 2px;
+  }
+  .hd-tab[aria-selected="true"] {
+    color: var(--text, #edf0f6);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: transparent;
+  }
+  .hd-tab.chatgpt[aria-selected="true"] { color: #eaeaea; box-shadow: inset 0 -2px 0 #10a37f; }
+  .hd-tab.claude[aria-selected="true"] { color: #d2734b; box-shadow: inset 0 -2px 0 #d2734b; }
+  .hd-tab.vscode[aria-selected="true"] { color: #3aa0f0; box-shadow: inset 0 -2px 0 #3aa0f0; }
+  .hd-tab.yourapp[aria-selected="true"] { color: var(--mint-l, #3fe0c4); box-shadow: inset 0 -2px 0 #20d6b5; }
+
+  /* stage (the host frame — morphs per host) */
+  .hd-stage {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background-color 0.3s ease;
+  }
+  .hd-body { padding: 18px 16px 16px; }
+
+  /* conversation: user bubble (right) -> assistant line (left) -> the app */
+  .hd-msg { display: flex; margin-bottom: 9px; }
+  .hd-msg.user { justify-content: flex-end; }
+  .hd-bubble {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 14px 14px 4px 14px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  .hd-say { margin: 0 0 11px; font-size: 12.5px; line-height: 1.45; }
+
+  /* dynamic footer — carries the bridge, tied to the host */
+  .hd-foot {
+    margin: 0;
+    padding: 11px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11.5px;
+    line-height: 1.45;
+  }
+  .hd-foot :global(code) {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 5px;
+  }
+
+  /* ---- per-host chrome ---- */
+  .hd-stage[data-host="yourapp"] { background: #0a1122; }
+  .hd-stage[data-host="yourapp"] .hd-bubble { background: rgba(63, 224, 196, 0.13); color: #dbe4f2; }
+  .hd-stage[data-host="yourapp"] .hd-say { color: #aeb9cc; }
+  .hd-stage[data-host="yourapp"] .hd-foot { color: #8f9bb0; border-top-color: rgba(63, 224, 196, 0.16); }
+  .hd-stage[data-host="yourapp"] .hd-foot :global(code) { color: #9af0e0; background: rgba(63, 224, 196, 0.12); }
+
+  .hd-stage[data-host="chatgpt"] { background: #1e1e20; }
+  .hd-stage[data-host="chatgpt"] .hd-bubble { background: #2f2f31; color: #ececec; }
+  .hd-stage[data-host="chatgpt"] .hd-say { color: #b6bac0; }
+  .hd-stage[data-host="chatgpt"] .hd-foot { color: #a2a7b0; border-top-color: #2a2b2e; }
+  .hd-stage[data-host="chatgpt"] .hd-foot :global(code) { color: #d4dae6; background: rgba(255, 255, 255, 0.07); }
+
+  .hd-stage[data-host="claude"] { background: #f3eee4; }
+  .hd-stage[data-host="claude"] .hd-bubble { background: #e7dcc8; color: #4a4238; }
+  .hd-stage[data-host="claude"] .hd-say { color: #6a5f50; }
+  .hd-stage[data-host="claude"] .hd-foot { color: #6a5f50; border-top-color: #e2d9c7; }
+  .hd-stage[data-host="claude"] .hd-foot :global(code) { color: #4a4238; background: rgba(0, 0, 0, 0.06); }
+
+  .hd-stage[data-host="vscode"] { background: #1e1e1e; }
+  .hd-stage[data-host="vscode"] .hd-bubble { background: #2a2d2e; color: #d4d7db; }
+  .hd-stage[data-host="vscode"] .hd-say { color: #9ea4ac; }
+  .hd-stage[data-host="vscode"] .hd-foot { color: #9ea4ac; border-top-color: #333; }
+  .hd-stage[data-host="vscode"] .hd-foot :global(code) { color: #cfe6f7; background: rgba(255, 255, 255, 0.06); }
+
+  /* ===== the Synapse app (identical in every host) ===== */
+  .sapp {
+    background: #fff;
+    color: #0b0f1a;
+    border: 1px solid #e6e9ef;
+    border-radius: 12px;
+    padding: 13px 14px;
+    box-shadow: 0 1px 2px rgba(11, 15, 26, 0.06), 0 16px 34px -20px rgba(0, 0, 0, 0.5);
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+  .sapp .s-top { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .sapp .s-glyph {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: rgba(37, 99, 255, 0.1);
+    color: #2563ff;
+  }
+  .sapp .s-glyph svg { width: 18px; height: 18px; }
+  .sapp .s-meta { display: flex; flex-direction: column; min-width: 0; }
+  .sapp .s-title { font-weight: 700; font-size: 13.5px; letter-spacing: -0.01em; line-height: 1.15; }
+  .sapp .s-sub { font-family: var(--font-mono); font-size: 10.5px; color: #6b7280; margin-top: 1px; }
+  .sapp .pill {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 11px;
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+  .sapp .pill.amber { color: #9a6208; background: rgba(245, 158, 11, 0.16); }
+  .sapp .list { display: flex; flex-direction: column; gap: 7px; }
+  .sapp .item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: #f7f9fc;
+    border: 1px solid #eef1f6;
+    border-radius: 9px;
+    padding: 7px 10px;
+  }
+  .sapp .item .a {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e2e8f5;
+    color: #33406a;
+    font-weight: 700;
+    font-size: 10px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+  }
+  .sapp .item .nm { font-weight: 600; font-size: 11.5px; }
+  .sapp .item .su { font-size: 10.5px; color: #6b7280; }
+  .sapp .acts { display: flex; gap: 8px; margin-top: 12px; }
+  .sapp .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 9px 13px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .sapp .btn svg { width: 14px; height: 14px; }
+  .sapp .btn.pri { background: #2563ff; color: #fff; }
+  .sapp .btn.gho { background: #fff; color: #0b0f1a; border-color: #d3d8e0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hd-stage { transition: none; }
+  }
+</style>
+
+<script>
+  const stage = document.getElementById("hdStage");
+  const footPre = document.getElementById("hdFootPre");
+  const footBridge = document.getElementById("hdFootBridge");
+  const footPost = document.getElementById("hdFootPost");
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".hd-tab"));
+  const cfg: Record<string, { pre: string; bridge: string; post: string }> = {
+    chatgpt: { pre: "In ChatGPT, Synapse renders your app via ", bridge: "window.openai", post: "." },
+    claude: { pre: "In Claude, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
+    vscode: { pre: "In VS Code, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
+    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "Synapse API", post: "." },
+  };
+  const order = ["yourapp", "chatgpt", "claude", "vscode"];
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let idx = 0;
+  let timer: ReturnType<typeof setInterval> | null = null;
+  let paused = false;
+
+  function select(host: string, focus: boolean) {
+    const c = cfg[host];
+    if (!c || !stage || !footPre || !footBridge || !footPost) return;
+    tabs.forEach((t) => {
+      const on = t.dataset.host === host;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      if (on && focus) t.focus();
+    });
+    stage.dataset.host = host;
+    stage.setAttribute("aria-labelledby", "hd-tab-" + host);
+    footPre.textContent = c.pre;
+    footBridge.textContent = c.bridge;
+    footPost.textContent = c.post;
+    idx = order.indexOf(host);
+  }
+
+  tabs.forEach((t) => t.dataset.host && t.classList.add(t.dataset.host));
+  tabs.forEach((t) => {
+    t.addEventListener("click", () => { select(t.dataset.host || "", false); stop(); });
+    t.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(t);
+      let n: HTMLButtonElement | null = null;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") n = tabs[(i + 1) % tabs.length];
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === "Home") n = tabs[0];
+      else if (e.key === "End") n = tabs[tabs.length - 1];
+      if (n) { e.preventDefault(); select(n.dataset.host || "", true); stop(); }
+    });
+  });
+
+  function tick() { if (!paused) select(order[(idx + 1) % order.length], false); }
+  function start() { if (!reduce && !timer) timer = setInterval(tick, 3600); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  const hd = document.querySelector(".hd");
+  if (hd) {
+    hd.addEventListener("mouseenter", () => { paused = true; });
+    hd.addEventListener("mouseleave", () => { paused = false; });
+    hd.addEventListener("focusin", () => { paused = true; });
+    hd.addEventListener("focusout", () => { paused = false; });
+  }
+  select("yourapp", false);
+  start();
+</script>

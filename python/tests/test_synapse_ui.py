@@ -170,19 +170,35 @@ def test_register_carries_non_empty_allowlists_and_omits_domains_when_unset():
     assert "domain" not in mcp.registered[f"{UI_URI}-mcp-app"]["meta"]["ui"]
 
 
-def test_bind_injects_embedded_resource_and_result_meta():
-    mcp = FastMCP("test")
+def test_attach_default_is_pointer_only_no_embedded():
+    """Default (no embed): the result carries the `_meta` template pointer so a
+    standard host renders the registered component, but NO embedded UI HTML rides
+    in the content — that `audience: ["user"]` blob must not reach a plain client's
+    model context."""
     ui = _ui()
-    ui.bind(mcp, tool="analyze")
-
     ctr = types.CallToolResult(
         content=[types.TextContent(type="text", text="{}")],
         structuredContent=_dossier(),
         isError=False,
     )
-    # Drive the bound handler by calling the wrapped request handler directly is
-    # heavy; instead exercise the attach path the handler delegates to.
     out = ui._attach(types.ServerResult(ctr), lambda d: bool(d)).root
+    assert isinstance(out, types.CallToolResult)
+    assert out.meta is not None
+    assert out.meta["openai/outputTemplate"] == UI_URI  # pointer emitted
+    assert all(not isinstance(c, types.EmbeddedResource) for c in out.content)  # no blob
+
+
+def test_attach_embed_resource_injects_embedded_and_meta():
+    """Opt-in (embed=True): the legacy mcp-ui copy is baked into the content in
+    addition to the `_meta` pointer."""
+    ui = _ui()
+    ctr = types.CallToolResult(
+        content=[types.TextContent(type="text", text="{}")],
+        structuredContent=_dossier(),
+        isError=False,
+    )
+    # Driving the bound handler is heavy; exercise the attach path it delegates to.
+    out = ui._attach(types.ServerResult(ctr), lambda d: bool(d), embed=True).root
     assert isinstance(out, types.CallToolResult)
     assert out.meta is not None
     assert out.meta["openai/outputTemplate"] == UI_URI
@@ -235,7 +251,9 @@ def _call_tool_request(name: str) -> types.CallToolRequest:
 
 
 async def test_bind_dispatches_by_tool_name():
-    """The installed wrapper injects for the bound tool and passes others through."""
+    """The installed wrapper injects for the bound tool and passes others through.
+    Bound with embed_resource=True, so a hit carries the embedded copy — this also
+    proves the flag threads through the closure into `_attach`."""
     ui = _ui()
 
     async def prev(req: types.CallToolRequest) -> types.ServerResult:
@@ -248,7 +266,7 @@ async def test_bind_dispatches_by_tool_name():
         )
 
     mcp = _FakeMcp(prev)
-    ui.bind(mcp, tool="analyze")
+    ui.bind(mcp, tool="analyze", embed_resource=True)
     handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
 
     # Bound tool → embedded resource + result meta injected.
@@ -262,34 +280,79 @@ async def test_bind_dispatches_by_tool_name():
     assert all(not isinstance(c, types.EmbeddedResource) for c in miss.content)
 
 
+async def test_bind_default_pointer_only_through_handler():
+    """The production default (no embed_resource): a bound-tool hit driven through
+    the installed handler carries the `_meta` pointer but no embedded UI blob — the
+    exact path a plain client hits, verified end-to-end through the wrapper."""
+    ui = _ui()
+
+    async def prev(req: types.CallToolRequest) -> types.ServerResult:
+        return types.ServerResult(
+            types.CallToolResult(
+                content=[types.TextContent(type="text", text="{}")],
+                structuredContent=_dossier(),
+                isError=False,
+            )
+        )
+
+    mcp = _FakeMcp(prev)
+    ui.bind(mcp, tool="analyze")  # default: pointer only
+    handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
+
+    hit = (await handler(_call_tool_request("analyze"))).root
+    assert hit.meta is not None and hit.meta["openai/outputTemplate"] == UI_URI
+    assert all(not isinstance(c, types.EmbeddedResource) for c in hit.content)
+
+
 async def test_bind_against_real_fastmcp_drives_installed_handler():
-    """Bind against a real FastMCP and drive a real CallToolRequest through the
+    """Bind against a real FastMCP and drive real CallToolRequests through the
     installed handler. The _FakeMcp tests can't catch drift in mcp's internal
-    request-handler registry — exactly the risk the bind() monkey-patch carries."""
+    request-handler registry — exactly the risk the bind() monkey-patch carries.
+
+    Covers both the shipped default (pointer only) and the embed_resource opt-in on
+    the same server, so the production path is anchored end-to-end — not just the
+    opt-in — and the per-tool flag is proven to survive the wrapped handler chain."""
     mcp = FastMCP("test")
 
     @mcp.tool()
     def analyze(domain: str) -> _IntegrationReport:
         return _IntegrationReport(domain=domain, company={"name": "Example Co"})
 
+    @mcp.tool()
+    def analyze_embed(domain: str) -> _IntegrationReport:
+        return _IntegrationReport(domain=domain, company={"name": "Example Co"})
+
     ui = _ui()
     ui.register(mcp)
-    ui.bind(mcp, tool="analyze")
+    ui.bind(mcp, tool="analyze")  # shipped default: pointer only
+    ui.bind(mcp, tool="analyze_embed", embed_resource=True)  # opt-in legacy embed
 
     handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
-    result = await handler(
-        types.CallToolRequest(
-            method="tools/call",
-            params=types.CallToolRequestParams(name="analyze", arguments={"domain": "example.com"}),
+
+    async def call(name: str) -> types.CallToolResult:
+        result = await handler(
+            types.CallToolRequest(
+                method="tools/call",
+                params=types.CallToolRequestParams(name=name, arguments={"domain": "example.com"}),
+            )
         )
-    )
-    root = result.root
-    assert isinstance(root, types.CallToolResult)
-    assert not root.isError
-    # FastMCP built structuredContent the real way; the patch appended the UI + meta.
-    assert root.meta is not None
-    assert root.meta["openai/outputTemplate"] == UI_URI
-    embedded = [c for c in root.content if isinstance(c, types.EmbeddedResource)]
+        root = result.root
+        assert isinstance(root, types.CallToolResult)
+        assert not root.isError
+        return root
+
+    # Shipped default: FastMCP built structuredContent the real way; the patch
+    # mirrored the pointer and appended NO UI blob.
+    default = await call("analyze")
+    assert default.meta is not None
+    assert default.meta["openai/outputTemplate"] == UI_URI
+    assert all(not isinstance(c, types.EmbeddedResource) for c in default.content)
+
+    # Opt-in: the same pointer, plus the embedded copy carrying the FastMCP-built data.
+    embed = await call("analyze_embed")
+    assert embed.meta is not None
+    assert embed.meta["openai/outputTemplate"] == UI_URI
+    embedded = [c for c in embed.content if isinstance(c, types.EmbeddedResource)]
     assert len(embedded) == 1
     assert "example.com" in embedded[0].resource.text
 
@@ -308,8 +371,8 @@ async def test_bind_is_idempotent_per_tool():
         )
 
     mcp = _FakeMcp(prev)
-    ui.bind(mcp, tool="analyze")
-    ui.bind(mcp, tool="analyze")  # second bind is a no-op
+    ui.bind(mcp, tool="analyze", embed_resource=True)
+    ui.bind(mcp, tool="analyze", embed_resource=True)  # second bind is a no-op
 
     handler = mcp._mcp_server.request_handlers[types.CallToolRequest]
     root = (await handler(_call_tool_request("analyze"))).root

@@ -6,6 +6,26 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0]
+
+### Changed
+
+- **BREAKING:** `bind(...)` no longer embeds the component HTML into the tool
+  result by default — the mcp-ui `EmbeddedResource` is now opt-in via
+  `embed_resource=True`. By default `bind` emits only the `_meta` template pointer
+  (`openai/outputTemplate` / `ui.resourceUri`), which is all a standard host needs
+  to bind the registered `ui://` component and render it with the tool's
+  `structuredContent`. The embedded copy was a legacy "render from the content
+  block, no `resources/read` round-trip" affordance, but that HTML is
+  `audience: ["user"]` UI, not model context: a client that can't render it (a
+  plain MCP client, a terminal coding agent) has no way to negotiate it away on a
+  stateless server, so the whole component — tens of KB per call — landed verbatim
+  in the model's context. Migration: standard hosts (ChatGPT via
+  `openai/outputTemplate`, Claude and other SEP-1865 hosts via `ui.resourceUri`,
+  the NimbleBrain runtime) need no change; they already render off the pointer.
+  Pass `embed_resource=True` only for a host that renders *solely* from the
+  embedded copy and not the `ui.resourceUri` pointer.
+
 ## [0.2.0]
 
 ### Changed

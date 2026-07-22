@@ -32,10 +32,16 @@ async def analyze_domain(domain: str) -> Dossier:
 report_ui.bind(mcp, tool="analyze_domain", should_render=lambda d: "domain" in d)
 ```
 
-`register` serves the ChatGPT-facing skybridge resource (data-free). `bind`
-post-processes the `CallToolResult` for one tool: appends the mcp-ui embedded
-`ui://` resource (dossier baked into a `<script>`) and mirrors the ChatGPT
-`_meta`. Plain MCP clients ignore both and still read `structuredContent`.
+`register` serves the host-facing `ui://` resources (data-free), and `tool_meta`
+on the tool descriptor carries the binding pointers (`openai/outputTemplate` for
+ChatGPT, `ui.resourceUri` for SEP-1865 hosts). `bind` post-processes the
+`CallToolResult` for one tool: by default it mirrors the ChatGPT
+`openai/outputTemplate` pointer into the result `_meta`, so a standard host
+renders the registered component from `structuredContent` with no UI HTML in the
+result content. Pass `embed_resource=True` to also bake the legacy mcp-ui embedded
+copy (dossier in a `<script>`) into the content — off by default so that
+`audience: ["user"]` HTML can't leak into a client that won't render it. Plain MCP
+clients ignore the `_meta` and still read `structuredContent`.
 
 ## Template contract
 

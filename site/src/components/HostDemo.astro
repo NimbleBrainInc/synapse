@@ -8,7 +8,7 @@
 <div class="hd" aria-label="One app, rendered in every host">
   <div class="hd-tabs" role="tablist" aria-label="MCP host">
     <button class="hd-tab" data-host="chatgpt" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/openai.svg" alt="" />ChatGPT</button>
-    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/anthropic.svg" alt="" />Claude</button>
+    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/claude.png" alt="" />Claude</button>
     <button class="hd-tab" data-host="vscode" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/vscode.svg" alt="" />VS Code</button>
     <button class="hd-tab" data-host="yourapp" role="tab" aria-selected="true" tabindex="0" type="button"><img class="vl" src="/logos/nimblebrain.svg" alt="" />Your app</button>
   </div>
@@ -299,7 +299,7 @@
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".hd-tab"));
   const cfg: Record<string, { name: string; bridge: string; logo: string }> = {
     chatgpt: { name: "ChatGPT", bridge: "window.openai", logo: "/logos/openai.svg" },
-    claude: { name: "Claude", bridge: "ui/* protocol", logo: "/logos/anthropic-ink.svg" },
+    claude: { name: "Claude", bridge: "ui/* protocol", logo: "/logos/claude.png" },
     vscode: { name: "Visual Studio Code", bridge: "ui/* protocol", logo: "/logos/vscode.svg" },
     yourapp: { name: "NimbleBrain", bridge: "Synapse API", logo: "/logos/nimblebrain.svg" },
   };

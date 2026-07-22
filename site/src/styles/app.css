@@ -303,119 +303,6 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 .trust{margin-top:22px;font-size:13px;color:var(--faint);display:flex;align-items:center;gap:8px;max-width:52ch}
 .trust svg{width:15px;height:15px;color:var(--mint);flex:0 0 auto}
 
-/* ---- Interop demo : the signature move: one component, every host ---- */
-.demo{
-  position:relative;z-index:1;border-radius:var(--r-lg);padding:14px;
-  opacity:0;transform:translateY(14px);
-  animation:rise 560ms var(--ease-out) 220ms forwards;
-}
-.demo-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 6px 12px}
-.demo-head .lbl{font-family:var(--font-mono);font-size:11.5px;color:var(--faint)}
-.demo-head .lbl b{color:var(--muted);font-weight:600}
-
-.tabs{display:flex;flex-wrap:wrap;gap:6px}
-.tab{
-  display:inline-flex;align-items:center;gap:7px;
-  padding:7px 11px;border-radius:9px;cursor:pointer;
-  background:transparent;border:1px solid transparent;
-  font-size:12.5px;font-weight:600;color:var(--muted);
-  transition:color var(--dur-fast) var(--ease-out),background-color var(--dur-fast) var(--ease-out),
-             border-color var(--dur-fast) var(--ease-out),transform var(--dur-fast) var(--ease-out);
-}
-.tab .hdot{width:7px;height:7px;border-radius:50%;background:currentColor;opacity:.55}
-@media (hover:hover){ .tab:hover{color:var(--text);background:var(--surface-2)} }
-.tab:active{transform:scale(.97)}
-.tab[aria-selected="true"]{color:var(--text);background:var(--surface-2);border-color:var(--border-strong)}
-.tab.home{color:var(--mint-ink)}
-.tab.home .hdot{background:var(--mint);opacity:1}
-.tab.home[aria-selected="true"]{border-color:var(--mint);background:var(--pill-con-bg)}
-.tab .badge{
-  font-family:var(--font-mono);font-size:9.5px;font-weight:700;letter-spacing:.02em;
-  padding:1px 5px;border-radius:5px;background:var(--pill-con-bg);color:var(--mint-ink);
-}
-
-/* host stage : a defined edge (dark screens don't float on shadow) */
-.stage{
-  margin-top:12px;border-radius:14px;overflow:hidden;
-  border:1px solid var(--border);
-  --host:#8a94a8;--host-body:var(--surface-2);--host-txt:var(--muted);
-  background:var(--host-body);
-  transition:background-color var(--dur-slow) var(--ease-out);
-}
-.stage[data-host="chatgpt"]{--host:#10A37F;--host-body:#1d2129;--host-txt:#c9cfda}
-.stage[data-host="claude"]{--host:#C15F3C;--host-body:#F3EEE5;--host-txt:#5b5348}
-.stage[data-host="vscode"]{--host:#3794FF;--host-body:#1e1f24;--host-txt:#c9cfda}
-.stage[data-host="yourapp"]{--host:var(--mint);--host-body:var(--surface);--host-txt:var(--muted)}
-.host-bar{
-  display:flex;align-items:center;gap:9px;
-  padding:9px 13px;border-bottom:1px solid rgba(128,128,128,.18);
-  background:color-mix(in srgb,var(--host-body) 88%,#000 4%);
-}
-.host-mark{width:16px;height:16px;border-radius:5px;background:var(--host);flex:0 0 auto;display:grid;place-items:center}
-.host-mark svg{width:11px;height:11px}
-.stage[data-host="yourapp"] .host-mark{background:transparent;border-radius:0}
-.host-name{font-family:var(--font-display);font-size:13px;font-weight:500;color:var(--host-txt)}
-.host-meta{margin-left:auto;display:flex;align-items:center;gap:8px}
-.host-self{
-  font-family:var(--font-mono);font-size:10px;font-weight:700;color:#062f27;
-  background:var(--mint);padding:2px 7px;border-radius:6px;display:none;
-}
-.stage[data-host="yourapp"] .host-self{display:inline-block}
-.bridge{
-  font-family:var(--font-mono);font-size:10.5px;color:var(--host-txt);
-  border:1px solid rgba(128,128,128,.28);padding:2px 8px;border-radius:6px;white-space:nowrap;
-}
-.host-body{padding:26px 22px 30px;position:relative;min-height:216px;display:grid;place-items:center}
-.stage[data-host="vscode"] .host-body{padding-left:40px}
-.stage[data-host="vscode"] .host-body::before{
-  content:"";position:absolute;left:0;top:0;bottom:0;width:26px;
-  background:#141519;border-right:1px solid rgba(255,255,255,.06);
-}
-/* the "your app" host is ringed in the signal gradient : a bridge surface, not type */
-.stage[data-host="yourapp"]{position:relative}
-.stage[data-host="yourapp"]::after{
-  content:"";position:absolute;inset:0;border-radius:14px;padding:1.5px;
-  background:var(--grad);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none;
-}
-
-/* The neutral, constant component : identical in every host. Elevation only. */
-.cmp{
-  width:100%;max-width:340px;
-  background:#FFFFFF;color:#0B0F1A;border-radius:12px;
-  box-shadow:0 10px 28px -14px rgba(11,15,26,.45);
-  padding:15px 16px;font-family:var(--font-body);
-}
-.cmp-top{display:flex;align-items:center;gap:11px}
-.cmp-glyph{
-  width:34px;height:34px;border-radius:9px;flex:0 0 auto;
-  background:linear-gradient(135deg,#eef2ff,#e0f7f1);
-  display:grid;place-items:center;color:#2563FF;
-}
-.cmp-glyph svg{width:18px;height:18px}
-.cmp-meta{min-width:0;flex:1 1 auto}
-.cmp-title{font-family:var(--font-display);font-weight:500;font-size:15px;color:#0B0F1A}
-.cmp-sub{font-size:11.5px;color:#5B6472;font-family:var(--font-mono);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cmp .pill.run{background:rgba(37,99,255,.12);color:#1B4DD8}.cmp .pill.run .dot{background:#2563FF}
-/* the progress bar carries the signal gradient : a bridge surface */
-.cmp-bar{height:6px;border-radius:999px;background:#EEF1F5;margin:14px 0 12px;overflow:hidden}
-.cmp-bar i{display:block;height:100%;width:64%;border-radius:999px;background:linear-gradient(90deg,#2563FF,#20D6B5)}
-.cmp-steps{display:flex;gap:7px;flex-wrap:wrap}
-.step{
-  display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
-  font-family:var(--font-mono);padding:3px 9px;border-radius:7px;
-}
-.step .d{width:6px;height:6px;border-radius:50%}
-.step.ok{background:rgba(32,214,181,.16);color:#0A6E5C}.step.ok .d{background:#20D6B5}
-.step.run{background:rgba(37,99,255,.12);color:#1B4DD8}.step.run .d{background:#2563FF;animation:pulse 2.2s ease-in-out infinite}
-.step.wait{background:rgba(245,158,11,.16);color:#9A6208}.step.wait .d{background:#F59E0B}
-
-.demo-foot{
-  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
-  padding:12px 6px 4px;font-size:12px;color:var(--muted);
-}
-.demo-foot .k{font-family:var(--font-mono);font-size:11px;color:var(--faint)}
-
 /* ============================================================ Sections + manifesto beats */
 .band{padding:88px 0}
 .band.alt{background:var(--bg-alt);border-block:1px solid var(--border)}
@@ -619,10 +506,9 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 /* reduced motion: keep opacity fades, drop movement and loops (not a blunt global zero) */
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
-  .hero-copy>*,.demo{animation:none;opacity:1;transform:none}
+  .hero-copy>*{animation:none;opacity:1;transform:none}
   .js .reveal{transition:opacity 260ms linear;transform:none}
-  .pill.live .dot,.step.run .d{animation:none;box-shadow:none}
-  .stage{transition:none}
+  .pill.live .dot{animation:none;box-shadow:none}
   .btn[data-loading="true"]::after{animation:none}
 }
 /* suppress every transition during a theme swap so colors don't animate */

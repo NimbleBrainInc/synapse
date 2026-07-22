@@ -10,11 +10,12 @@ Synapse app can render in, replacing the hand-rolled per-app shim:
 - **tool_meta / result_meta** emit the `_meta` a host binds an output template
   with (``openai/outputTemplate`` etc.).
 - **bind** installs the ``CallToolResult`` post-process that, for one tool, mirrors
-  the template pointer into the result ``_meta`` so a standard host binds the
-  registered ``ui://`` component and renders it with the ``structuredContent``.
-  Opt into ``embed_resource=True`` to also bake the component HTML into the result
-  ``content`` (the legacy mcp-ui no-round-trip copy) — off by default so that
-  ``audience: ["user"]`` HTML can't leak into a client that won't render it.
+  the ChatGPT ``openai/outputTemplate`` pointer into each result ``_meta`` (the
+  SEP-1865 ``ui.resourceUri`` binding rides the descriptor ``_meta`` from
+  ``tool_meta``). Opt into ``embed_resource=True`` to also bake the component HTML
+  into the result ``content`` (the legacy mcp-ui no-round-trip copy) — off by
+  default so that ``audience: ["user"]`` HTML can't leak into a client that won't
+  render it.
 
 The client SDK (`window.SynapseUI`) is inlined into the served + embedded HTML so
 the component is fully self-contained (no CDN, CSP-safe). Plain MCP clients ignore
@@ -284,11 +285,13 @@ class SynapseUI:
         """Install the ``CallToolResult`` post-process that renders `tool`'s output.
 
         For a successful, non-error result of ``tool`` that carries
-        ``structuredContent`` (and passes ``should_render``), mirrors the template
-        pointer into the result ``_meta`` so an MCP Apps host binds the registered
-        ``ui://`` component (ChatGPT ``openai/outputTemplate``; Claude and other
-        SEP-1865 hosts ``ui.resourceUri``) and feeds it the ``structuredContent``.
-        A plain client ignores the ``_meta`` and still reads the structured JSON.
+        ``structuredContent`` (and passes ``should_render``), mirrors the ChatGPT
+        ``openai/outputTemplate`` pointer into the result ``_meta`` per call. That,
+        the descriptor ``_meta`` from ``tool_meta`` (which also carries the SEP-1865
+        ``ui.resourceUri`` for Claude and other MCP Apps hosts), and the registered
+        ``ui://`` resource are what let a standard host bind the component and
+        render it with the ``structuredContent``. A plain client ignores the
+        ``_meta`` and still reads the structured JSON.
 
         ``embed_resource`` (default ``False``) additionally bakes the fully rendered
         component HTML into the result ``content`` as an mcp-ui ``EmbeddedResource``

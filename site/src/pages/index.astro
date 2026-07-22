@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro";
+import HostDemo from "../components/HostDemo.astro";
 ---
 <Layout>
 <a class="skip" href="#top">Skip to content</a>
@@ -18,7 +19,6 @@ import Layout from "../layouts/Layout.astro";
         <circle cx="16.3" cy="13.7" r="1.7" fill="url(#lg-nav)"/>
       </svg>
       <span class="wordmark">synapse</span>
-      <span class="tag">SDK</span>
     </a>
     <nav class="nav-links" aria-label="Primary">
       <a href="#how">How it works</a>
@@ -69,63 +69,7 @@ import Layout from "../layouts/Layout.astro";
         </p>
       </div>
 
-      <!-- INTEROP DEMO: one neutral component, every host chrome (the signature move) -->
-      <div class="demo elev" aria-labelledby="demoTitle">
-        <div class="demo-head">
-          <span class="lbl" id="demoTitle"><b>one</b> component &middot; <b>four</b> hosts</span>
-          <span class="lbl mono">ui://deploy-status</span>
-        </div>
-
-        <div class="tabs" role="tablist" aria-label="MCP host">
-          <button class="tab" role="tab" id="tab-chatgpt" type="button" aria-controls="stage" aria-selected="false" data-host="chatgpt" data-bridge="window.openai" tabindex="-1"><span class="hdot"></span>ChatGPT</button>
-          <button class="tab" role="tab" id="tab-claude" type="button" aria-controls="stage" aria-selected="false" data-host="claude" data-bridge="ui/* protocol" tabindex="-1"><span class="hdot"></span>Claude</button>
-          <button class="tab" role="tab" id="tab-vscode" type="button" aria-controls="stage" aria-selected="false" data-host="vscode" data-bridge="ui/* protocol" tabindex="-1"><span class="hdot"></span>VS Code</button>
-          <button class="tab home" role="tab" id="tab-yourapp" type="button" aria-controls="stage" aria-selected="true" data-host="yourapp" data-bridge="Synapse API" tabindex="0"><span class="hdot"></span>Your app<span class="badge">self-hosted</span></button>
-        </div>
-
-        <div class="stage" id="stage" role="tabpanel" data-host="yourapp" aria-labelledby="tab-yourapp">
-          <div class="host-bar">
-            <span class="host-mark" id="hostMark">
-              <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-                <defs><linearGradient id="lg-host" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#2563FF"/><stop offset="1" stop-color="#20D6B5"/></linearGradient></defs>
-                <path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-host)" stroke-width="3" stroke-linecap="round"/>
-                <circle cx="22.5" cy="8.2" r="2.8" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.8" fill="#20D6B5"/>
-              </svg>
-            </span>
-            <span class="host-name" id="hostName">Your app</span>
-            <span class="host-meta">
-              <span class="host-self">self-hosted</span>
-              <span class="bridge" id="bridge">Synapse API</span>
-            </span>
-          </div>
-          <div class="host-body">
-            <!-- The identical, neutral component rendered by every host -->
-            <article class="cmp" aria-label="Deploy status example component">
-              <div class="cmp-top">
-                <span class="cmp-glyph">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 2 3 7v10l9 5 9-5V7l-9-5Z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
-                </span>
-                <span class="cmp-meta">
-                  <span class="cmp-title">storefront-web</span>
-                  <span class="cmp-sub">deploy &middot; main &middot; #4f2a1c</span>
-                </span>
-                <span class="pill run live"><span class="dot"></span>Running</span>
-              </div>
-              <div class="cmp-bar" aria-hidden="true"><i></i></div>
-              <div class="cmp-steps">
-                <span class="step ok"><span class="d"></span>Build</span>
-                <span class="step run"><span class="d"></span>Test</span>
-                <span class="step wait"><span class="d"></span>Ship</span>
-              </div>
-            </article>
-          </div>
-        </div>
-
-        <div class="demo-foot">
-          <span class="k">bridge</span>
-          <span>Your MCP app, unchanged. Synapse speaks each host's protocol so you don't.</span>
-        </div>
-      </div>
+      <HostDemo />
     </div>
   </section>
 
@@ -385,6 +329,7 @@ import Layout from "../layouts/Layout.astro";
 (function(){
   var root=document.documentElement;
   root.classList.add('js');
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   /* ---------- Copy install command (inline success feedback on the button) ---------- */
   function wireCopy(id){
@@ -399,66 +344,6 @@ import Layout from "../layouts/Layout.astro";
   }
   wireCopy('copyBtn'); wireCopy('copyBtn2');
 
-  /* ---------- Interop host switcher (the signature move) ---------- */
-  var tabs=Array.prototype.slice.call(document.querySelectorAll('.tab'));
-  var stage=document.getElementById('stage');
-  var hostName=document.getElementById('hostName');
-  var bridge=document.getElementById('bridge');
-  var mark=document.getElementById('hostMark');
-  var names={chatgpt:'ChatGPT',claude:'Claude',vscode:'VS Code',yourapp:'Your app'};
-  var order=['yourapp','chatgpt','claude','vscode'];
-  var idx=0, auto=null, paused=false;
-  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function letterMark(host){
-    if(host==='yourapp') return;
-    var m={chatgpt:'G',claude:'C',vscode:'{}'}[host]||'';
-    mark.innerHTML='<span style="font-family:var(--font-mono);font-size:9px;font-weight:700;color:#fff;line-height:1">'+m+'</span>';
-  }
-  var logoSVG=mark.innerHTML;
-
-  function select(host,focus){
-    tabs.forEach(function(t){
-      var on=t.dataset.host===host;
-      t.setAttribute('aria-selected',on?'true':'false');
-      t.tabIndex=on?0:-1;
-      if(on&&focus) t.focus();
-    });
-    stage.dataset.host=host;
-    stage.setAttribute('aria-labelledby','tab-'+host);
-    hostName.textContent=names[host];
-    var tab=document.getElementById('tab-'+host);
-    bridge.textContent=tab?tab.dataset.bridge:'';
-    if(host==='yourapp'){ mark.innerHTML=logoSVG; } else { letterMark(host); }
-    idx=order.indexOf(host);
-  }
-
-  tabs.forEach(function(t){
-    t.addEventListener('click',function(){ select(t.dataset.host,false); stopAuto(); });
-    t.addEventListener('keydown',function(e){
-      var i=tabs.indexOf(t), n=null;
-      if(e.key==='ArrowRight'||e.key==='ArrowDown') n=tabs[(i+1)%tabs.length];
-      else if(e.key==='ArrowLeft'||e.key==='ArrowUp') n=tabs[(i-1+tabs.length)%tabs.length];
-      else if(e.key==='Home') n=tabs[0];
-      else if(e.key==='End') n=tabs[tabs.length-1];
-      if(n){ e.preventDefault(); select(n.dataset.host,true); stopAuto(); }
-    });
-  });
-
-  function tick(){ if(paused) return; idx=(idx+1)%order.length; select(order[idx],false); }
-  function startAuto(){ if(reduce||auto) return; auto=setInterval(tick,3600); }
-  function stopAuto(){ if(auto){ clearInterval(auto); auto=null; } }
-
-  var demo=document.querySelector('.demo');
-  if(demo){
-    demo.addEventListener('mouseenter',function(){ paused=true; });
-    demo.addEventListener('mouseleave',function(){ paused=false; });
-    demo.addEventListener('focusin',function(){ paused=true; });
-    demo.addEventListener('focusout',function(){ paused=false; });
-  }
-
-  select('yourapp',false);
-  startAuto();
 
   /* ---------- Reveal on scroll (enhancement only) ---------- */
   var reveals=document.querySelectorAll('.reveal');

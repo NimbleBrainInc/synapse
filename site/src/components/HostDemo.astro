@@ -1,0 +1,380 @@
+---
+// The hero's signature move: one Synapse app, rendered inside every host.
+// One morphing stage (the app stays put, the host chrome changes around it),
+// authentic per-host colors + vendor marks, and the agent operating the app.
+---
+
+<div class="hd" aria-label="One app, rendered in every host">
+  <div class="hd-tabs" role="tablist" aria-label="MCP host">
+    <button class="hd-tab" data-host="chatgpt" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="-16 -16 32 32" aria-hidden="true"><use href="#hl-openai" /></svg>ChatGPT</button>
+    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="-16 -16 32 32" aria-hidden="true"><use href="#hl-claude" /></svg>Claude</button>
+    <button class="hd-tab" data-host="vscode" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="0 0 24 24" aria-hidden="true"><use href="#hl-vscode" /></svg>VS Code</button>
+    <button class="hd-tab" data-host="yourapp" role="tab" aria-selected="true" tabindex="0" type="button"><svg class="vl" viewBox="0 0 32 32" aria-hidden="true"><use href="#hl-nimble" /></svg>Your app</button>
+  </div>
+
+  <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel">
+    <div class="hd-bar">
+      <span class="hd-logo"><svg id="hdLogo" viewBox="0 0 32 32" aria-hidden="true"><use href="#hl-nimble" /></svg></span>
+      <span class="hd-name" id="hdName">NimbleBrain</span>
+      <span class="hd-metabar">
+        <span class="hd-self">self-hosted</span>
+        <span class="hd-bridge" id="hdBridge">Synapse API</span>
+      </span>
+    </div>
+
+    <div class="hd-body">
+      <div class="hd-pmt"><span class="hd-av">You</span><span class="hd-t">send this week&rsquo;s follow-ups</span></div>
+      <p class="hd-note">drafted by the agent, pending your OK</p>
+
+      <article class="sapp" aria-label="Approve follow-ups (example Synapse app)">
+        <div class="s-top">
+          <span class="s-glyph"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9z" /></svg></span>
+          <span class="s-meta"><span class="s-title">Send 3 follow-ups</span><span class="s-sub">drafted by the agent</span></span>
+          <span class="pill amber">Needs OK</span>
+        </div>
+        <div class="list">
+          <div class="item"><span class="a">JD</span><span class="s-meta"><span class="nm">Jane Doe &middot; Acme</span><span class="su">&ldquo;Recapping our pricing call&hellip;&rdquo;</span></span></div>
+          <div class="item"><span class="a">MR</span><span class="s-meta"><span class="nm">Marco Ruiz &middot; Northwind</span><span class="su">&ldquo;Sending the security doc&hellip;&rdquo;</span></span></div>
+        </div>
+        <div class="acts">
+          <button class="btn pri" type="button">Approve &amp; send<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg></button>
+          <button class="btn gho" type="button">Review</button>
+        </div>
+      </article>
+    </div>
+  </div>
+
+  <div class="hd-foot">
+    <span class="k">bridge</span>
+    <span>Your MCP app, unchanged. Synapse speaks each host&rsquo;s protocol so you don&rsquo;t.</span>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="hl-openai" viewBox="-16 -16 32 32"><g fill="currentColor"><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(60)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(120)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(180)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(240)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(300)" /></g></symbol>
+  <symbol id="hl-claude" viewBox="-16 -16 32 32"><g fill="currentColor"><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(30)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(60)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(90)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(120)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(150)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(180)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(210)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(240)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(270)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(300)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(330)" /></g></symbol>
+  <symbol id="hl-vscode" viewBox="0 0 24 24"><path fill="currentColor" d="M23.15 2.587 18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a1 1 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12 .326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a1 1 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352ZM18 17.448 10.826 12 18 6.552Z" /></symbol>
+  <symbol id="hl-nimble" viewBox="0 0 32 32"><defs><linearGradient id="hl-nbg" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#5B8CFF" /><stop offset="1" stop-color="#3FE0C4" /></linearGradient></defs><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#hl-nbg)" stroke-width="3" stroke-linecap="round" fill="none" /><circle cx="22.5" cy="8.2" r="2.8" fill="#5B8CFF" /><circle cx="10" cy="21.7" r="2.8" fill="#3FE0C4" /></symbol>
+</svg>
+
+<style>
+  .hd {
+    border-radius: 16px;
+    border: 1px solid var(--elev-border, rgba(255, 255, 255, 0.16));
+    background: var(--surface-2, #161e2e);
+    overflow: hidden;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 30px 60px -30px rgba(0, 0, 0, 0.7);
+  }
+
+  /* tabs */
+  .hd-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 12px 12px 0;
+  }
+  .hd-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    flex: 1;
+    justify-content: center;
+    padding: 9px 8px;
+    border: 1px solid transparent;
+    border-radius: 10px 10px 0 0;
+    background: transparent;
+    color: var(--muted, #a2adc0);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s;
+  }
+  .hd-tab .vl {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+  }
+  .hd-tab:hover {
+    color: var(--text, #edf0f6);
+  }
+  .hd-tab:focus-visible {
+    outline: 2px solid var(--ring, rgba(143, 176, 255, 0.65));
+    outline-offset: 2px;
+  }
+  .hd-tab[aria-selected="true"] {
+    color: var(--text, #edf0f6);
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+    border-bottom-color: transparent;
+  }
+  .hd-tab.chatgpt[aria-selected="true"] { color: #eaeaea; box-shadow: inset 0 -2px 0 #10a37f; }
+  .hd-tab.claude[aria-selected="true"] { color: #d2734b; box-shadow: inset 0 -2px 0 #d2734b; }
+  .hd-tab.vscode[aria-selected="true"] { color: #3aa0f0; box-shadow: inset 0 -2px 0 #3aa0f0; }
+  .hd-tab.yourapp[aria-selected="true"] { color: var(--mint-l, #3fe0c4); box-shadow: inset 0 -2px 0 #20d6b5; }
+
+  /* stage (morphs per host) */
+  .hd-stage {
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    transition: background-color 0.3s ease;
+  }
+  .hd-bar {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 15px;
+    font-size: 13px;
+    font-weight: 600;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .hd-logo {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+  .hd-logo svg { width: 20px; height: 20px; }
+  .hd-metabar {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+  }
+  .hd-self {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 20px;
+  }
+  .hd-bridge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 400;
+    opacity: 0.72;
+  }
+  .hd-body { padding: 16px 16px 20px; }
+  .hd-pmt {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .hd-av {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    flex: 0 0 auto;
+    display: grid;
+    place-items: center;
+    font-size: 9.5px;
+    font-weight: 700;
+  }
+  .hd-t { font-size: 12.5px; line-height: 1.45; padding-top: 1px; }
+  .hd-note {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    margin: 0 0 11px 28px;
+    opacity: 0.72;
+  }
+
+  /* ---- per-host chrome ---- */
+  .hd-stage[data-host="yourapp"] { background: #0a1122; }
+  .hd-stage[data-host="yourapp"] .hd-bar { background: #0c1526; color: #dfe6f2; border-bottom-color: rgba(63, 224, 196, 0.2); }
+  .hd-stage[data-host="yourapp"] .hd-self { display: inline-block; color: #63e7ce; background: rgba(63, 224, 196, 0.14); }
+  .hd-stage[data-host="yourapp"] .hd-av { background: rgba(63, 224, 196, 0.18); color: #9af0e0; }
+  .hd-stage[data-host="yourapp"] .hd-t, .hd-stage[data-host="yourapp"] .hd-note { color: #c7d0e0; }
+
+  .hd-stage[data-host="chatgpt"] { background: #1e1e20; }
+  .hd-stage[data-host="chatgpt"] .hd-bar { background: #141416; color: #ececec; border-bottom-color: #2a2b2e; }
+  .hd-stage[data-host="chatgpt"] .hd-logo { color: #fff; }
+  .hd-stage[data-host="chatgpt"] .hd-av { background: #4b3fbf; color: #fff; }
+  .hd-stage[data-host="chatgpt"] .hd-t, .hd-stage[data-host="chatgpt"] .hd-note { color: #c9ccd1; }
+
+  .hd-stage[data-host="claude"] { background: #f3eee4; }
+  .hd-stage[data-host="claude"] .hd-bar { background: #efe9dd; color: #2a2621; border-bottom-color: #e2d9c7; }
+  .hd-stage[data-host="claude"] .hd-logo { color: #d2734b; }
+  .hd-stage[data-host="claude"] .hd-av { background: #d9cfbd; color: #5a5040; }
+  .hd-stage[data-host="claude"] .hd-t, .hd-stage[data-host="claude"] .hd-note { color: #5a5040; }
+
+  .hd-stage[data-host="vscode"] { background: #1e1e1e; }
+  .hd-stage[data-host="vscode"] .hd-bar { background: #181818; color: #cfd2d6; border-bottom-color: #333; }
+  .hd-stage[data-host="vscode"] .hd-logo { color: #3aa0f0; }
+  .hd-stage[data-host="vscode"] .hd-av { background: #2b4a63; color: #cfe6f7; }
+  .hd-stage[data-host="vscode"] .hd-t, .hd-stage[data-host="vscode"] .hd-note { color: #b6bcc4; }
+
+  /* foot */
+  .hd-foot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--surface-2, #161e2e);
+    font-size: 12px;
+    color: var(--muted, #a2adc0);
+    line-height: 1.4;
+  }
+  .hd-foot .k {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--faint, #828da1);
+    flex: 0 0 auto;
+  }
+
+  /* ===== the Synapse app (identical in every host) ===== */
+  .sapp {
+    background: #fff;
+    color: #0b0f1a;
+    border: 1px solid #e6e9ef;
+    border-radius: 12px;
+    padding: 13px 14px;
+    box-shadow: 0 1px 2px rgba(11, 15, 26, 0.06), 0 16px 34px -20px rgba(0, 0, 0, 0.5);
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+  .sapp .s-top { display: flex; align-items: center; gap: 10px; margin-bottom: 11px; }
+  .sapp .s-glyph {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    background: rgba(37, 99, 255, 0.1);
+    color: #2563ff;
+  }
+  .sapp .s-glyph svg { width: 18px; height: 18px; }
+  .sapp .s-meta { display: flex; flex-direction: column; min-width: 0; }
+  .sapp .s-title { font-weight: 700; font-size: 13.5px; letter-spacing: -0.01em; line-height: 1.15; }
+  .sapp .s-sub { font-family: var(--font-mono); font-size: 10.5px; color: #6b7280; margin-top: 1px; }
+  .sapp .pill {
+    margin-left: auto;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 700;
+    font-size: 11px;
+    border-radius: 20px;
+    padding: 3px 10px;
+  }
+  .sapp .pill.amber { color: #9a6208; background: rgba(245, 158, 11, 0.16); }
+  .sapp .list { display: flex; flex-direction: column; gap: 7px; }
+  .sapp .item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: #f7f9fc;
+    border: 1px solid #eef1f6;
+    border-radius: 9px;
+    padding: 7px 10px;
+  }
+  .sapp .item .a {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e2e8f5;
+    color: #33406a;
+    font-weight: 700;
+    font-size: 10px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+  }
+  .sapp .item .nm { font-weight: 600; font-size: 11.5px; }
+  .sapp .item .su { font-size: 10.5px; color: #6b7280; }
+  .sapp .acts { display: flex; gap: 8px; margin-top: 12px; }
+  .sapp .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-radius: 9px;
+    font-weight: 600;
+    font-size: 12.5px;
+    padding: 9px 13px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .sapp .btn svg { width: 14px; height: 14px; }
+  .sapp .btn.pri { background: #2563ff; color: #fff; }
+  .sapp .btn.gho { background: #fff; color: #0b0f1a; border-color: #d3d8e0; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hd-stage { transition: none; }
+  }
+</style>
+
+<script>
+  const stage = document.getElementById("hdStage");
+  const nameEl = document.getElementById("hdName");
+  const bridgeEl = document.getElementById("hdBridge");
+  const logoUse = document.querySelector("#hdLogo use");
+  const tabs = Array.from(document.querySelectorAll(".hd-tab"));
+  const cfg = {
+    chatgpt: { name: "ChatGPT", bridge: "window.openai", logo: "#hl-openai", vb: "-16 -16 32 32" },
+    claude: { name: "Claude", bridge: "ui/* protocol", logo: "#hl-claude", vb: "-16 -16 32 32" },
+    vscode: { name: "Visual Studio Code", bridge: "ui/* protocol", logo: "#hl-vscode", vb: "0 0 24 24" },
+    yourapp: { name: "NimbleBrain", bridge: "Synapse API", logo: "#hl-nimble", vb: "0 0 32 32" },
+  };
+  const order = ["yourapp", "chatgpt", "claude", "vscode"];
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let idx = 0;
+  let timer = null;
+  let paused = false;
+
+  function select(host, focus) {
+    const c = cfg[host];
+    if (!c) return;
+    tabs.forEach((t) => {
+      const on = t.dataset.host === host;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      t.tabIndex = on ? 0 : -1;
+      t.classList.toggle(host, on);
+      if (on && focus) t.focus();
+    });
+    tabs.forEach((t) => {
+      // keep only the active host class flag off non-active tabs
+      if (t.dataset.host !== host) t.classList.remove(host);
+    });
+    stage.dataset.host = host;
+    nameEl.textContent = c.name;
+    bridgeEl.textContent = c.bridge;
+    const logo = document.getElementById("hdLogo");
+    logo.setAttribute("viewBox", c.vb);
+    logoUse.setAttribute("href", c.logo);
+    idx = order.indexOf(host);
+  }
+
+  // tabs carry their own host class for the active-color rule
+  tabs.forEach((t) => t.classList.add(t.dataset.host));
+  tabs.forEach((t) => {
+    t.addEventListener("click", () => { select(t.dataset.host, false); stop(); });
+    t.addEventListener("keydown", (e) => {
+      const i = tabs.indexOf(t);
+      let n = null;
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") n = tabs[(i + 1) % tabs.length];
+      else if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = tabs[(i - 1 + tabs.length) % tabs.length];
+      else if (e.key === "Home") n = tabs[0];
+      else if (e.key === "End") n = tabs[tabs.length - 1];
+      if (n) { e.preventDefault(); select(n.dataset.host, true); stop(); }
+    });
+  });
+
+  function tick() { if (!paused) select(order[(idx + 1) % order.length], false); }
+  function start() { if (!reduce && !timer) timer = setInterval(tick, 3600); }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+  const hd = document.querySelector(".hd");
+  if (hd) {
+    hd.addEventListener("mouseenter", () => { paused = true; });
+    hd.addEventListener("mouseleave", () => { paused = false; });
+    hd.addEventListener("focusin", () => { paused = true; });
+    hd.addEventListener("focusout", () => { paused = false; });
+  }
+  select("yourapp", false);
+  start();
+</script>

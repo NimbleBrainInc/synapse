@@ -1,0 +1,62 @@
+---
+title: Develop locally with the Vite plugin
+description: Run your MCP app UI on your machine with hot reload, a preview host, and live tool calls, without deploying to a host every time you change a line.
+---
+
+## The problem
+
+An MCP app UI does not run on its own. It renders inside a host that speaks the
+ext-apps protocol. To test one locally the old way, you had to start the MCP
+server in stdio mode, write a bridge page that iframes your app, proxy postMessage
+between the iframe and the server's stdin and stdout, and drive the ext-apps
+handshake by hand. That is a lot of scaffolding to build before you can see your
+first render, and most people just deploy to a real host to test, which is slow.
+
+## The recipe
+
+Add `synapseVite` to your Vite config. It stands up the whole local host for you.
+
+```typescript
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { viteSingleFile } from "vite-plugin-singlefile";
+import { synapseVite } from "@nimblebrain/synapse/vite";
+
+export default defineConfig({
+  plugins: [react(), viteSingleFile(), synapseVite()],
+});
+```
+
+Then start the dev server and open the preview host:
+
+```bash
+npm run dev
+# open http://localhost:5173/__preview
+```
+
+## How it works
+
+By default the plugin reads `../manifest.json` (relative to your UI directory) to
+learn the app name and how to launch the server. On `npm run dev` it:
+
+- spawns your MCP server as a child process in stdio mode,
+- serves a preview host page at `/__preview` that iframes your app,
+- proxies tool calls from the iframe to the server over an internal `POST /__mcp`,
+- runs the ext-apps handshake so `connect()` resolves and every Synapse hook works,
+- keeps HMR live inside the iframe, so editing a `.tsx` file updates instantly.
+
+You interact with the app exactly as the agent would: call a tool from the preview
+host and watch the result flow into your UI through `useToolResult()`.
+
+The plugin takes options for the cases the defaults do not cover: `appName` (skip
+the manifest lookup), `manifest` (a non-default manifest path), `serverCmd` (an
+explicit command to start the server), and `preview` (set to `false` to disable
+the `/__preview` page).
+
+## Related
+
+- [Persist state across reloads](/docs/guides/state-store/)
+- [Generate types from your tools](/docs/guides/codegen/)
+- [Render one component across hosts](/docs/guides/cross-host/)
+- [Use Synapse without a bundler](/docs/guides/script-tag/)

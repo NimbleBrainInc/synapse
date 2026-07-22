@@ -5,8 +5,8 @@ description: A token-styled container that applies reading typography to rendere
 
 import ProseDemo from "../../../../components/ui/ProseDemo.tsx";
 
-`Prose` applies the host's reading typography to whatever rich text it wraps —
-headings, paragraphs, lists, links, blockquotes, and code all pick up consistent
+`Prose` applies the host's reading typography to whatever rich text it wraps.
+Headings, paragraphs, lists, links, blockquotes, and code all pick up consistent
 rhythm, tone, and font from the injected tokens. It owns the styling, not the
 parsing, so bring your own markdown parser upstream and hand `Prose` the result.
 The preview below is the real component from `@nimblebrain/synapse/ui`, live.
@@ -29,7 +29,7 @@ import { Prose } from "@nimblebrain/synapse/ui";
 ## Children or HTML
 
 Pass pre-rendered React nodes as `children`, or a trusted, pre-sanitized HTML
-string as `html` — useful when a markdown parser hands you a string. The `html`
+string as `html`, useful when a markdown parser hands you a string. The `html`
 path is inserted verbatim, so sanitize upstream; only pass HTML you control.
 
 ```tsx
@@ -44,12 +44,12 @@ attributes pass straight through. Provide either `html` or `children`, not both.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `html` | `string` | — |
-| `children` | `ReactNode` | — |
-| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+| `html` | `string` | None |
+| `children` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
 
 ## Related
 
-- [`Heading`](/docs/components/heading) — standalone display type outside a prose block.
-- [`Text`](/docs/components/text) — a single run of body copy.
-- [`Stack`](/docs/components/stack) — stack a prose block among other sections.
+- [`Heading`](/docs/components/heading): standalone display type outside a prose block.
+- [`Text`](/docs/components/text): a single run of body copy.
+- [`Stack`](/docs/components/stack): stack a prose block among other sections.

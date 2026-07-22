@@ -1,12 +1,12 @@
 ---
 title: Components
-description: The token-driven React component library in @nimblebrain/synapse/ui — primitives, layout scaffolds, and components that carry no brand and adopt whatever host they render in.
+description: "The token-driven React component library in @nimblebrain/synapse/ui: primitives, layout scaffolds, and components that carry no brand and adopt whatever host they render in."
 ---
 
 `@nimblebrain/synapse/ui` is a React component library for embedded Synapse
 apps. You get a token contract, layout primitives, a handful of data-display and
 interactive components, and three responsive layout scaffolds. Import them and
-your app inherits the look of whatever host it renders in — no theme wiring, no
+your app inherits the look of whatever host it renders in: no theme wiring, no
 brand baked into your bundle.
 
 ```tsx
@@ -23,19 +23,19 @@ explain why the components behave the way they do.
   the real palette and fonts at runtime through the ext-apps
   `hostContext.styles.variables`, so the same app adopts the NimbleBrain host, a
   ChatGPT surface, or your own runtime without changing a line. Standalone, with
-  no host to inject anything, the components render in neutral fallbacks — system
+  no host to inject anything, the components render in neutral fallbacks: system
   fonts, neutral grays, a generic blue.
 
 - **Theme via CSS, not React.** Components style with token-driven inline-style
   objects whose values are those `var()` references. When the host swaps the
-  `:root` variables — including a light-to-dark flip — every `var()` re-resolves
+  `:root` variables (including a light-to-dark flip), every `var()` re-resolves
   in CSS and the pixels change with no React re-render. Keyframes and pseudo-state
   rules inject once; brand values are never captured in component state.
 
 - **Scaffold only genuinely-complex layouts.** `AppFrame`, `SidebarLayout`, and
   `ListDetailLayout` exist because each one encapsulates real responsive and
   stateful complexity worth owning once. Boards, grids, and simple lists are not
-  components — they are primitives plus a recipe. The library codifies the shapes
+  components. They are primitives plus a recipe. The library codifies the shapes
   apps actually take, not a general-purpose layout engine.
 
 - **Responsive to the pane, not the device.** Layouts observe their own width
@@ -53,64 +53,64 @@ explain why the components behave the way they do.
 
 Every component has its own page with live previews, props, and copy-paste code.
 
-**Foundations** — the contract everything else reads from.
+**Foundations**: the contract everything else reads from.
 
-- [Tokens](/docs/components/tokens) — the `var(--token, fallback)` model, every
+- [Tokens](/docs/components/tokens): the `var(--token, fallback)` model, every
   token group, and how the host fills them.
-- [Fonts](/docs/components/fonts) — the two side-effect imports that load the
+- [Fonts](/docs/components/fonts): the two side-effect imports that load the
   brand faces and establish the root-height chain.
 
-**Layout primitives** — the low-level flow and spacing pieces.
+**Layout primitives**: the low-level flow and spacing pieces.
 
-- [Stack](/docs/components/stack) — vertical flow with a token-sized gap.
-- [Inline](/docs/components/inline) — horizontal flow that wraps and aligns.
-- [Spacer](/docs/components/spacer) — a flexible gap that pushes siblings apart.
-- [Divider](/docs/components/divider) — a hairline rule between sections.
+- [Stack](/docs/components/stack): vertical flow with a token-sized gap.
+- [Inline](/docs/components/inline): horizontal flow that wraps and aligns.
+- [Spacer](/docs/components/spacer): a flexible gap that pushes siblings apart.
+- [Divider](/docs/components/divider): a hairline rule between sections.
 
-**Layout scaffolds** — the responsive shells for whole views.
+**Layout scaffolds**: the responsive shells for whole views.
 
-- [AppFrame](/docs/components/app-frame) — the outer app shell (header, body,
+- [AppFrame](/docs/components/app-frame): the outer app shell (header, body,
   root-height chain, base reset applied automatically).
-- [SidebarLayout](/docs/components/sidebar-layout) — a sidebar beside a main
+- [SidebarLayout](/docs/components/sidebar-layout): a sidebar beside a main
   pane that collapses when the pane gets narrow.
-- [ListDetailLayout](/docs/components/list-detail-layout) — a list and a detail
+- [ListDetailLayout](/docs/components/list-detail-layout): a list and a detail
   view side by side, stacking on a narrow pane.
 
-**Typography** — the type scale in prose form.
+**Typography**: the type scale in prose form.
 
-- [Heading](/docs/components/heading) — the display scale (`sm`, `md`, `lg`) in
+- [Heading](/docs/components/heading): the display scale (`sm`, `md`, `lg`) in
   the heading face.
-- [Text](/docs/components/text) — body copy at four sizes with muted and faint
+- [Text](/docs/components/text): body copy at four sizes with muted and faint
   tones.
-- [Prose](/docs/components/prose) — a container that styles a block of rich or
+- [Prose](/docs/components/prose): a container that styles a block of rich or
   Markdown-rendered content.
 
-**Data display** — the components that render your data.
+**Data display**: the components that render your data.
 
-- [Card](/docs/components/card) — a surface that groups related content.
-- [ListRow](/docs/components/list-row) — a single list row with leading and
+- [Card](/docs/components/card): a surface that groups related content.
+- [ListRow](/docs/components/list-row): a single list row with leading and
   trailing slots.
-- [Table](/docs/components/table) — a token-styled data table.
-- [Avatar](/docs/components/avatar) — a user or entity image with an initials
+- [Table](/docs/components/table): a token-styled data table.
+- [Avatar](/docs/components/avatar): a user or entity image with an initials
   fallback.
-- [Badge](/docs/components/badge) — a small status or category label.
-- [StatusDot](/docs/components/status-dot) — a colored dot for compact status.
-- [Pagination](/docs/components/pagination) — page controls for long collections.
+- [Badge](/docs/components/badge): a small status or category label.
+- [StatusDot](/docs/components/status-dot): a colored dot for compact status.
+- [Pagination](/docs/components/pagination): page controls for long collections.
 
-**Interactive** — the components users act on.
+**Interactive**: the components users act on.
 
-- [Button](/docs/components/button) — a pressable action in three variants.
-- [TextLink](/docs/components/text-link) — a chrome-less text button for inline
+- [Button](/docs/components/button): a pressable action in three variants.
+- [TextLink](/docs/components/text-link): a chrome-less text button for inline
   actions.
-- [SearchField](/docs/components/search-field) — a search input with a clear
+- [SearchField](/docs/components/search-field): a search input with a clear
   affordance.
-- [SegmentedControl](/docs/components/segmented-control) — single-select among a
+- [SegmentedControl](/docs/components/segmented-control): single-select among a
   few options.
-- [Drawer](/docs/components/drawer) — an overlay panel built on native
+- [Drawer](/docs/components/drawer): an overlay panel built on native
   `<dialog>`.
 
-**Feedback** — the components that report state.
+**Feedback**: the components that report state.
 
-- [Spinner](/docs/components/spinner) — an indeterminate loading indicator.
-- [EmptyState](/docs/components/empty-state) — a placeholder for empty or
+- [Spinner](/docs/components/spinner): an indeterminate loading indicator.
+- [EmptyState](/docs/components/empty-state): a placeholder for empty or
   zero-result views.

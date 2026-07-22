@@ -7,8 +7,8 @@ export default function ProseDemo() {
       <Prose>
         <h2>Reading typography</h2>
         <p>
-          Prose styles rendered rich text — headings, paragraphs, lists, links, and{" "}
-          <code>code</code> — with the host's reading scale. Bring your own markdown
+          Prose styles rendered rich text: headings, paragraphs, lists, links, and{" "}
+          <code>code</code>, with the host's reading scale. Bring your own markdown
           parser; Prose owns the styling, not the parsing.
         </p>
         <ul>

@@ -1,6 +1,6 @@
 ---
 title: Tokens
-description: The token contract for @nimblebrain/synapse/ui — every color, font, size, radius, and shadow as a var(--token, fallback) reference the host fills at runtime.
+description: "The token contract for @nimblebrain/synapse/ui: every color, font, size, radius, and shadow as a var(--token, fallback) reference the host fills at runtime."
 ---
 
 Every visual value in the component library is a token, and every token is a CSS
@@ -19,7 +19,7 @@ the pixels are decided by whatever fills the custom properties.
 ## How the host fills them
 
 Under the MCP ext-apps protocol, the host injects a `:root` block of CSS
-variables into your app's iframe — the `hostContext.styles.variables` payload.
+variables into your app's iframe: the `hostContext.styles.variables` payload.
 Every `var(--token, …)` in the library re-resolves against that block:
 
 ```css
@@ -32,8 +32,8 @@ Every `var(--token, …)` in the library re-resolves against that block:
 }
 ```
 
-Because resolution happens in CSS, a theme change — including a light-to-dark
-flip — is just the host swapping those variables. Every `var()` re-resolves and
+Because resolution happens in CSS, a theme change (including a light-to-dark
+flip) is just the host swapping those variables. Every `var()` re-resolves and
 the UI repaints with **no React re-render**.
 
 **Standalone, the fallbacks win.** With no host to inject anything (a static
@@ -63,7 +63,7 @@ Foreground tones plus the accent pair.
 | `accent` | `--color-text-accent` | `#2563eb` |
 | `accentFg` | `--nb-color-accent-foreground` | `#ffffff` |
 
-`accentFg` is the foreground that sits on top of an `accent` fill — the label
+`accentFg` is the foreground that sits on top of an `accent` fill: the label
 color for a primary button, for instance.
 
 ## Border and ring

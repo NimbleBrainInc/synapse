@@ -2,7 +2,7 @@
  * Synapse docs theme for Starlight.
  *
  * Reuses the landing site's self-hosted fonts (public/fonts) and brand palette
- * so /docs reads as the same product as / — Space Grotesk display, Inter body,
+ * so /docs reads as the same product as /, with Space Grotesk display, Inter body,
  * JetBrains Mono code, Synapse Blue accent, and a dark ground that matches the
  * landing's #080B12.
  *
@@ -68,7 +68,7 @@
   --sl-font-mono: 'JetBrains Mono', var(--sl-font-system-mono);
 }
 
-/* Space Grotesk for headings — matches the landing's display face */
+/* Space Grotesk for headings, matching the landing's display face */
 .sl-markdown-content :is(h1, h2, h3, h4),
 .content-panel h1 {
   font-family: 'Space Grotesk', var(--sl-font-system);

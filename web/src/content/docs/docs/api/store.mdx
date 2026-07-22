@@ -1,0 +1,69 @@
+---
+title: State store
+description: createStore(synapse, config) builds a typed, reactive store with optional persistence and agent visibility, plus the useStore React hook.
+---
+
+`createStore(synapse, config)` builds a typed, Redux-like store bound to a
+[`Synapse`](/docs/api/createsynapse/) instance, with optional persistence and
+agent visibility. Actions are dispatched by name through `store.dispatch`.
+
+```typescript
+import { createSynapse, createStore } from "@nimblebrain/synapse";
+
+const synapse = createSynapse({ name: "my-app", version: "1.0.0" });
+
+const store = createStore(synapse, {
+  initialState: { count: 0, items: [] },
+  actions: {
+    increment: (state) => ({ ...state, count: state.count + 1 }),
+    addItem: (state, item: string) => ({
+      ...state,
+      items: [...state.items, item],
+    }),
+  },
+  persist: true,
+  visibleToAgent: true,
+  summarize: (state) => `${state.items.length} items, count=${state.count}`,
+});
+
+store.dispatch.increment();
+store.dispatch.addItem("hello");
+```
+
+## Config
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `initialState` | `object` | Starting state |
+| `actions` | `Record<string, Reducer>` | Reducer map. Each entry is `(state, payload?) => newState`, exposed as `store.dispatch.<name>` |
+| `persist` | `boolean?` | Persist state across sessions via the host. Default `false` |
+| `visibleToAgent` | `boolean?` | Expose a state summary to the agent. Default `false` |
+| `summarize` | `(state) => string` | Produce the agent-visible summary of state |
+
+## Store API
+
+| Method | Description |
+| --- | --- |
+| `getState()` | Return the current state |
+| `subscribe(listener)` | Subscribe to state changes. Returns an unsubscribe function. |
+| `dispatch` | Bound action dispatchers. Call `dispatch.<action>(payload?)`. |
+| `hydrate(state)` | Replace state (for example, from host-loaded persisted state) |
+| `destroy()` | Tear down subscriptions and listeners |
+
+## `useStore`
+
+Bind a store to React. Re-renders on every state change and returns the current
+state plus the bound `dispatch`.
+
+```tsx
+import { useStore } from "@nimblebrain/synapse/react";
+
+function Counter() {
+  const { state, dispatch } = useStore(store);
+  return <button onClick={() => dispatch.increment()}>{state.count}</button>;
+}
+```
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useStore(store)` | `{ state, dispatch }` | Bind a store to React |

@@ -6,10 +6,10 @@ description: Chrome-less prev/next text links with a "page X of Y" counter, for 
 import PaginationDemo from "../../../../components/ui/PaginationDemo.tsx";
 
 `Pagination` is a chrome-less prev/next control with a "page X of Y" counter, for
-paging a [`Table`](/docs/components/table) or list. It is fully controlled — you
+paging a [`Table`](/docs/components/table) or list. It is fully controlled. You
 hold the 1-based `page` and update it from `onChange`; the buttons disable at the
 ends. Its type and color resolve from the host's tokens. The preview below is the
-real component from `@nimblebrain/synapse/ui`, live — click Prev / Next.
+real component from `@nimblebrain/synapse/ui`, live. Click Prev / Next.
 
 ```tsx
 import { Pagination } from "@nimblebrain/synapse/ui";
@@ -25,7 +25,7 @@ const [page, setPage] = useState(1);
 ## Controlled paging
 
 `Pagination` holds no state of its own. Store `page` yourself, pass it in, and
-apply the next page in `onChange` — typically to slice the data you feed a
+apply the next page in `onChange`, typically to slice the data you feed a
 `Table`.
 
 ```tsx
@@ -46,12 +46,12 @@ through.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `page` | `number` (required) | — |
-| `pageCount` | `number` (required) | — |
-| `onChange` | `(page: number) => void` (required) | — |
-| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+| `page` | `number` (required) | None |
+| `pageCount` | `number` (required) | None |
+| `onChange` | `(page: number) => void` (required) | None |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
 
 ## Related
 
-- [`Table`](/docs/components/table) — the surface `Pagination` most often pages.
-- [`ListRow`](/docs/components/listrow) — page a long list of rows.
+- [`Table`](/docs/components/table): the surface `Pagination` most often pages.
+- [`ListRow`](/docs/components/listrow): page a long list of rows.

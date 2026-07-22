@@ -21,7 +21,7 @@ export default function ListRowDemo() {
         <ListRow
           leading={<StatusDot status="working" />}
           title="Nightly sync"
-          meta="Running — 412 records processed"
+          meta="Running: 412 records processed"
           trailing="12:04"
         />
       </Stack>

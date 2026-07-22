@@ -7,7 +7,7 @@ import StackDemo from "../../../../components/ui/StackDemo.tsx";
 
 `Stack` lays its children out top to bottom with a single `gap`, so you never
 hand-write `display:flex` or margin math for a column. It carries no brand of its
-own — spacing resolves in the host's units and any surfaces inside it resolve
+own. Spacing resolves in the host's units and any surfaces inside it resolve
 from the host's tokens, so it looks native wherever your app renders. The preview
 below is the real component from `@nimblebrain/synapse/ui`, live.
 
@@ -42,14 +42,14 @@ children flow onto multiple lines.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `gap` | `number` \| `string` | — |
-| `align` | `"start"` \| `"center"` \| `"end"` \| `"stretch"` \| `"baseline"` | — |
-| `justify` | `"start"` \| `"center"` \| `"end"` \| `"between"` \| `"around"` | — |
+| `gap` | `number` \| `string` | None |
+| `align` | `"start"` \| `"center"` \| `"end"` \| `"stretch"` \| `"baseline"` | None |
+| `justify` | `"start"` \| `"center"` \| `"end"` \| `"between"` \| `"around"` | None |
 | `wrap` | `boolean` | `false` |
-| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
 
 ## Related
 
-- [`Inline`](/docs/components/inline) — the same container, laid out horizontally.
-- [`Spacer`](/docs/components/spacer) — a flexible filler that pushes siblings apart.
-- [`Divider`](/docs/components/divider) — a hairline rule between stacked sections.
+- [`Inline`](/docs/components/inline): the same container, laid out horizontally.
+- [`Spacer`](/docs/components/spacer): a flexible filler that pushes siblings apart.
+- [`Divider`](/docs/components/divider): a hairline rule between stacked sections.

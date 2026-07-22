@@ -1,0 +1,66 @@
+---
+title: The token model
+description: "Why the component library ships without a brand: tokens are var(--token, fallback) references the host fills at runtime through hostContext.styles.variables, so theming resolves in CSS with no re-render and standalone renders neutral fallbacks."
+---
+
+The component library holds no brand. There is no palette baked into the bundle,
+no hex values in the components. Every color, font, radius, and shadow is a CSS
+custom-property reference with a neutral fallback, written `var(--token, fallback)`.
+This one decision is what lets a single component adopt the look of whatever host
+it renders in.
+
+## Why defer the brand
+
+A Synapse component can run in the NimbleBrain host, in a ChatGPT surface, in
+Claude, or standalone. If the brand were compiled into the bundle, you would need a
+build per host, or a runtime theme switch that rewrites styles. Neither scales.
+
+By expressing every visual value as a reference to a variable the host owns, the
+component stops carrying an opinion about color and type. The host supplies the
+opinion at runtime, and the same bytes look native everywhere.
+
+## How the host fills the tokens
+
+Under the ext-apps protocol, the host injects a `:root` block of CSS variables into
+your app's iframe. That payload arrives as `hostContext.styles.variables` during the
+handshake, and the host re-sends it whenever the theme changes (the
+`host-context-changed` notification). Every `var(--token, fallback)` in the library
+re-resolves against that block, so filling the variables is all it takes to brand
+the whole component.
+
+## Theming resolves in CSS, not React
+
+Components style with token-driven inline-style objects whose values are those
+`var()` references, never resolved colors. When the host swaps the `:root`
+variables, including a light-to-dark flip, every reference re-resolves in CSS and
+the pixels change. No component re-renders. Nothing in React state has to know the
+theme moved.
+
+Keyframes and pseudo-state rules (hover, focus) are injected once, up front, rather
+than recomputed per theme. Brand values are never captured into component state, so
+there is nothing to invalidate. A theme change is a repaint, not a render pass.
+
+## Standalone, the fallbacks win
+
+With no host to inject anything (a static render, a Storybook page, a unit test),
+each token falls back to its second argument: system fonts, neutral grays, a
+generic accent. The component renders unbranded but complete, never blank. That is
+also what the standalone `inline` adapter relies on when a component runs with no
+host at all.
+
+## What this buys you
+
+- Light and dark come for free, because they are just two sets of variable values
+  the host swaps.
+- The host's brand comes for free, because you never hardcoded a competing one.
+- Components are testable and previewable in isolation, because the fallbacks make
+  them self-sufficient.
+
+For the full list of tokens, their CSS variable names, and their fallbacks, see the
+[Tokens reference](/docs/components/tokens).
+
+## Related
+
+- [Tokens reference](/docs/components/tokens): every token group and how the host fills it.
+- [Fonts](/docs/components/fonts): loading the brand faces into the iframe.
+- [Match the host theme](/docs/guides/theming): tracking the host's theme reactively in your own code.

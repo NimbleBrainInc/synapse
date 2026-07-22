@@ -1,6 +1,6 @@
 ---
 title: ListRow
-description: The recurring list item — a leading slot, a title with optional meta, and a trailing slot.
+description: "The recurring list item: a leading slot, a title with optional meta, and a trailing slot."
 ---
 
 import ListRowDemo from "../../../../components/ui/ListRowDemo.tsx";
@@ -27,7 +27,7 @@ import { Avatar, Badge, ListRow } from "@nimblebrain/synapse/ui";
 ## Interactive rows
 
 Set `interactive` to add the pointer cursor and hover tint. The row becomes
-keyboard-operable — `role="button"`, `tabIndex`, and Enter / Space synthesize the
+keyboard-operable. `role="button"`, `tabIndex`, and Enter / Space synthesize the
 click that drives your `onClick`.
 
 ```tsx
@@ -41,16 +41,16 @@ click that drives your `onClick`.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `title` | `ReactNode` (required) | — |
-| `meta` | `ReactNode` | — |
-| `leading` | `ReactNode` | — |
-| `trailing` | `ReactNode` | — |
+| `title` | `ReactNode` (required) | None |
+| `meta` | `ReactNode` | None |
+| `leading` | `ReactNode` | None |
+| `trailing` | `ReactNode` | None |
 | `interactive` | `boolean` | `false` |
-| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
 
 ## Related
 
-- [`Avatar`](/docs/components/avatar) — a common `leading` chip.
-- [`StatusDot`](/docs/components/statusdot) — the other common `leading` chip.
-- [`Badge`](/docs/components/badge) — a natural fit for the `trailing` slot.
-- [`Table`](/docs/components/table) — for tabular data that rows don't fit.
+- [`Avatar`](/docs/components/avatar): a common `leading` chip.
+- [`StatusDot`](/docs/components/statusdot): the other common `leading` chip.
+- [`Badge`](/docs/components/badge): a natural fit for the `trailing` slot.
+- [`Table`](/docs/components/table): for tabular data that rows don't fit.

@@ -1,0 +1,70 @@
+---
+title: createSynapse()
+description: createSynapse(options) returns a Synapse instance with the full API for state, agent actions, file operations, and NimbleBrain features.
+---
+
+`createSynapse(options)` is the advanced (legacy) API. It returns a `Synapse`
+instance synchronously and exposes the full surface: the state store, agent
+actions, file operations, and NimbleBrain-specific features not yet surfaced in
+[`connect()`](/docs/api/connect/). Await `synapse.ready` before calling tools.
+
+```typescript
+import { createSynapse } from "@nimblebrain/synapse";
+
+const synapse = createSynapse({ name: "my-app", version: "1.0.0" });
+await synapse.ready;
+```
+
+## Signature
+
+```typescript
+function createSynapse(options: SynapseOptions): Synapse;
+```
+
+## Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | App name (must match registered bundle name) |
+| `version` | `string` | Semver version |
+| `internal` | `boolean?` | Enable cross-server tool calls (NB internal only) |
+| `forwardKeys` | `KeyForwardConfig[]?` | Custom keyboard forwarding rules |
+
+## `Synapse` methods
+
+| Method | Description |
+| --- | --- |
+| `ready` | Promise that resolves after the ext-apps handshake |
+| `isNimbleBrainHost` | Whether the host is a NimbleBrain platform |
+| `callTool(name, args?)` | Call an MCP tool and get a typed result |
+| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented. Returns a `TaskHandle` immediately. |
+| `onDataChanged(cb)` | Subscribe to data change events |
+| `onAction(cb)` | Subscribe to agent actions (typed, declarative) |
+| `getTheme()` | Get current theme |
+| `onThemeChanged(cb)` | Subscribe to theme changes |
+| `action(name, params?)` | Dispatch a NB platform action |
+| `chat(message, context?)` | Send a chat message to the agent |
+| `setVisibleState(state, summary?)` | Push LLM-visible state (debounced 250ms) |
+| `downloadFile(name, content, mime?)` | Trigger a file download (NB-only) |
+| `pickFile(options?)` | Open native file picker, single file (NB-only) |
+| `pickFiles(options?)` | Open native file picker, multiple files (NB-only) |
+| `openLink(url)` | Open a URL (host-aware) |
+| `destroy()` | Clean up all listeners and timers |
+
+## Long-running tools
+
+Use `callToolAsTask` (or [`useCallToolAsTask`](/docs/api/hooks/) in React) for
+tools whose work exceeds the stock MCP request timeout. The host returns a
+`CreateTaskResult` immediately, and the real `CallToolResult` is fetched via
+`tasks/result` once the task reaches a terminal state.
+
+`Synapse` also exposes `_hostTasksCapability: TasksCapability | undefined |
+null`, the host's declared `tasks` capability from `ui/initialize`. It is `null`
+pre-handshake, `undefined` if the host did not advertise tasks, or the
+`TasksCapability` shape if it did. Read it to feature-detect before calling
+`callToolAsTask`.
+
+## See also
+
+- [React hooks](/docs/api/hooks/) covers the `SynapseProvider` hook family.
+- [State store](/docs/api/store/) documents `createStore(synapse, config)`.

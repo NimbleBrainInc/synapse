@@ -5,7 +5,7 @@ description: A pressable action. Primary, secondary, and ghost variants in two s
 
 import ButtonDemo from "../../../../components/ui/ButtonDemo.tsx";
 
-`Button` triggers an action. It carries no brand of its own — its fill, radius,
+`Button` triggers an action. It carries no brand of its own. Its fill, radius,
 and focus ring all resolve from the host's tokens, so it looks native in whatever
 host renders your app. The previews below are the real component from
 `@nimblebrain/synapse/ui`, live.
@@ -20,7 +20,7 @@ import { Button } from "@nimblebrain/synapse/ui";
 
 ## Variants
 
-Three variants map to three levels of emphasis — one primary action per view,
+Three variants map to three levels of emphasis: one primary action per view,
 secondary for the alternative, ghost for low-stakes or repeated actions.
 
 ```tsx
@@ -38,9 +38,9 @@ secondary for the alternative, ghost for low-stakes or repeated actions.
 | --- | --- | --- |
 | `variant` | `"primary"` \| `"secondary"` \| `"ghost"` | `"primary"` |
 | `size` | `"sm"` \| `"md"` | `"md"` |
-| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | — |
+| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | None |
 
 ## Related
 
-- [`TextLink`](/docs/) — a chrome-less text button for inline actions.
+- [`TextLink`](/docs/): a chrome-less text button for inline actions.
 - Compose buttons with [`Inline`](/docs/) to lay out an action row.

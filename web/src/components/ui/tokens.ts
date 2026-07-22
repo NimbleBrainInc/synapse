@@ -1,13 +1,13 @@
 /**
  * Token maps for the live component previews.
  *
- * The `@nimblebrain/synapse/ui` components carry no brand — every color, font,
+ * The `@nimblebrain/synapse/ui` components carry no brand. Every color, font,
  * and radius is a `var(--token, fallback)` reference that a host fills in at
  * runtime. In the docs we play the host: we inject one of these maps onto the
  * preview container (not `:root`, so each preview is self-contained and the
  * docs chrome is untouched) and the components adopt it with no re-render.
  *
- * This is a Synapse-branded map — the landing's fonts and blue accent — so the
+ * This is a Synapse-branded map (the landing's fonts and blue accent), so the
  * previews read as the same product as the rest of the site. Baseline color
  * ramps follow the SDK's neutral defaults (gallery/src/demo-theme.ts).
  */
@@ -46,7 +46,7 @@ const RADII: TokenMap = {
   "--border-radius-xl": "1rem",
 };
 
-// Synapse brand faces — same self-hosted fonts the docs and landing load.
+// Synapse brand faces, the same self-hosted fonts the docs and landing load.
 const FONTS: TokenMap = {
   "--font-sans": "'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif",
   "--nb-font-heading": "'Space Grotesk', system-ui, sans-serif",

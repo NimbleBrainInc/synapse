@@ -7,7 +7,7 @@ import SpacerDemo from "../../../../components/ui/SpacerDemo.tsx";
 
 `Spacer` is a leaf element that grows to fill the free space in a `Stack` or
 `Inline`, pushing whatever sits after it to the far edge. It has no brand and no
-appearance of its own — it is pure layout, so a label on the left and a badge on
+appearance of its own. It is pure layout, so a label on the left and a badge on
 the right stay pinned to their ends regardless of the host's theme. The preview
 below is the real component from `@nimblebrain/synapse/ui`, live.
 
@@ -25,7 +25,7 @@ import { Inline, Spacer } from "@nimblebrain/synapse/ui";
 
 ## Usage
 
-`Spacer` takes no custom props — it is a `flex: 1` filler. Drop one between two
+`Spacer` takes no custom props. It is a `flex: 1` filler. Drop one between two
 siblings to split them to opposite ends, which reads more clearly than
 `justify="between"` when only one gap should expand.
 
@@ -45,10 +45,10 @@ no custom props.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
 
 ## Related
 
-- [`Inline`](/docs/components/inline) — the horizontal container a Spacer divides.
-- [`Stack`](/docs/components/stack) — the vertical container a Spacer divides.
-- [`Divider`](/docs/components/divider) — a visible rule, where Spacer is invisible.
+- [`Inline`](/docs/components/inline): the horizontal container a Spacer divides.
+- [`Stack`](/docs/components/stack): the vertical container a Spacer divides.
+- [`Divider`](/docs/components/divider): a visible rule, where Spacer is invisible.

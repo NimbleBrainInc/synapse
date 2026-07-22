@@ -5,7 +5,7 @@ description: A token-styled data table with declarative columns, a sticky header
 
 import TableDemo from "../../../../components/ui/TableDemo.tsx";
 
-`Table` is a token-styled data table with declarative columns — for the tabular
+`Table` is a token-styled data table with declarative columns, for the tabular
 list surfaces (CRM contacts, deals) that simple rows don't fit. It renders a real
 `<table>` for semantics, with a sticky header and rows that hover-tint and can be
 clickable. Sorting, selection, and virtualization are out of scope; compose
@@ -44,12 +44,12 @@ keyboard-operable, and `empty` to render a placeholder when `data` is empty.
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `data` | `T[]` | — |
-| `columns` | `Column<T>[]` | — |
-| `rowKey` | `(row: T, index: number) => string \| number` | — |
-| `onRowClick` | `(row: T, index: number) => void` | — |
-| `empty` | `ReactNode` | — |
-| `…rest` | `HTMLAttributes<HTMLTableElement>` | — |
+| `data` | `T[]` | None |
+| `columns` | `Column<T>[]` | None |
+| `rowKey` | `(row: T, index: number) => string \| number` | None |
+| `onRowClick` | `(row: T, index: number) => void` | None |
+| `empty` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLTableElement>` | None |
 
 ### The `Column<T>` shape
 
@@ -57,14 +57,14 @@ Each entry in `columns` describes one column.
 
 | Field | Type | Default |
 | --- | --- | --- |
-| `key` | `string` | — |
-| `header` | `ReactNode` | — |
-| `render` | `(row: T, index: number) => ReactNode` | — |
+| `key` | `string` | None |
+| `header` | `ReactNode` | None |
+| `render` | `(row: T, index: number) => ReactNode` | None |
 | `align` | `"left"` \| `"right"` \| `"center"` | `"left"` |
-| `width` | `number` \| `string` | — |
+| `width` | `number` \| `string` | None |
 
 ## Related
 
-- [`Pagination`](/docs/components/pagination) — page a long table.
-- [`ListRow`](/docs/components/listrow) — a lighter row for non-tabular lists.
-- [`Badge`](/docs/components/badge) — render inside a status column.
+- [`Pagination`](/docs/components/pagination): page a long table.
+- [`ListRow`](/docs/components/listrow): a lighter row for non-tabular lists.
+- [`Badge`](/docs/components/badge): render inside a status column.

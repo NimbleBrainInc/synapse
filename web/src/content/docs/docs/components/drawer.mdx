@@ -1,6 +1,6 @@
 ---
 title: Drawer
-description: An off-canvas panel built on the native dialog element — focus trap, Escape, and scroll lock for free.
+description: "An off-canvas panel built on the native dialog element: focus trap, Escape, and scroll lock for free."
 ---
 
 import DrawerDemo from "../../../../components/ui/DrawerDemo.tsx";
@@ -29,18 +29,18 @@ const [open, setOpen] = useState(false);
 
 `Drawer` is a compound component. Compose the panel from its three slots:
 
-- `Drawer.Header` — a title bar. Pass `title` for the heading (wired as the
+- `Drawer.Header`: a title bar. Pass `title` for the heading (wired as the
   dialog's accessible name), `onClose` for the close button, `onBack` for a back
   affordance, and `actions` for trailing controls.
-- `Drawer.Body` — the scrollable content region.
-- `Drawer.Footer` — a bordered footer, typically for confirm / cancel actions.
+- `Drawer.Body`: the scrollable content region.
+- `Drawer.Footer`: a bordered footer, typically for confirm / cancel actions.
 
 ## Props
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `open` | `boolean` | — (required) |
-| `onClose` | `() => void` | — (required) |
+| `open` | `boolean` | Required |
+| `onClose` | `() => void` | Required |
 | `onEscape` | `() => void` | `onClose` |
 | `side` | `"left"` \| `"right"` \| `"bottom"` | `"right"` |
 | `width` | `number` \| `string` | `480` (ignored for `bottom`) |
@@ -49,12 +49,12 @@ const [open, setOpen] = useState(false);
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `title` | `ReactNode` | — |
-| `onBack` | `() => void` | — |
-| `actions` | `ReactNode` | — |
-| `onClose` | `() => void` | — |
+| `title` | `ReactNode` | None |
+| `onBack` | `() => void` | None |
+| `actions` | `ReactNode` | None |
+| `onClose` | `() => void` | None |
 
 ## Related
 
-- [`Button`](/docs/components/button) — the confirm / cancel actions in a footer.
-- [`ListDetailLayout`](/docs/components/listdetaillayout) — an inline alternative when the detail is a peer of the list, not an overlay.
+- [`Button`](/docs/components/button): the confirm / cancel actions in a footer.
+- [`ListDetailLayout`](/docs/components/listdetaillayout): an inline alternative when the detail is a peer of the list, not an overlay.

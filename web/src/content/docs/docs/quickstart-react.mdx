@@ -1,6 +1,6 @@
 ---
 title: "Quickstart: React app"
-description: Build your first Synapse app in React — install the SDK, wrap your app in a provider, render a tool result, and run it in a host.
+description: "Build your first Synapse app in React: install the SDK, wrap your app in a provider, render a tool result, and run it in a host."
 ---
 
 import { Steps } from "@astrojs/starlight/components";
@@ -66,8 +66,8 @@ MCP server whose tool you want to give a UI.
    ```
 
 4. **Run it in a host.** Point your MCP server's UI resource at this app's built
-   output. In development, the [Vite plugin](/docs/) spins up a preview host that
-   proxies tool calls and hot-reloads the iframe — no deploy needed.
+   output. In development, the [Vite plugin](/docs/guides/local-dev/) spins up a preview host that
+   proxies tool calls and hot-reloads the iframe. No deploy needed.
 
 </Steps>
 
@@ -83,7 +83,7 @@ MCP server whose tool you want to give a UI.
 
 ## Next steps
 
-- Swap the plain `<ul>` for real [components](/docs/) — `Card`, `ListRow`, `Badge`.
-- Let the user act on the data: call tools with [`useCallTool`](/docs/) and give
+- Swap the plain `<ul>` for real [components](/docs/components/): `Card`, `ListRow`, `Badge`.
+- Let the user act on the data: call tools with [`useCallTool`](/docs/guides/call-tools/) and give
   the agent context about what the user is looking at.
 - Ship it: build the app and register it as a `ui://` resource on your MCP server.

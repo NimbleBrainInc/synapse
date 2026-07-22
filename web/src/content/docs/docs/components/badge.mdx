@@ -5,7 +5,7 @@ description: A small uppercase pill for status and priority labels, in seven tok
 
 import BadgeDemo from "../../../../components/ui/BadgeDemo.tsx";
 
-`Badge` is a small uppercase pill for status and priority labels — WON, AT RISK,
+`Badge` is a small uppercase pill for status and priority labels: WON, AT RISK,
 HIGH. Each tone is a soft tinted background with a same-hue label, and every hue
 resolves from the host's tokens, so a badge reads native in any host. The preview
 below is the real component from `@nimblebrain/synapse/ui`, live.
@@ -42,11 +42,11 @@ Seven tones map to the recurring label meanings. `neutral` is the default;
 | Prop | Type | Default |
 | --- | --- | --- |
 | `tone` | `"neutral"` \| `"accent"` \| `"success"` \| `"warning"` \| `"danger"` \| `"processing"` \| `"warm"` | `"neutral"` |
-| `children` | `ReactNode` | — |
-| `…rest` | `HTMLAttributes<HTMLSpanElement>` | — |
+| `children` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLSpanElement>` | None |
 
 ## Related
 
-- [`StatusDot`](/docs/components/statusdot) — a dot for run/task status.
-- [`ListRow`](/docs/components/listrow) — drop a `Badge` into its `trailing` slot.
-- [`Table`](/docs/components/table) — render a `Badge` inside a status column.
+- [`StatusDot`](/docs/components/statusdot): a dot for run/task status.
+- [`ListRow`](/docs/components/listrow): drop a `Badge` into its `trailing` slot.
+- [`Table`](/docs/components/table): render a `Badge` inside a status column.

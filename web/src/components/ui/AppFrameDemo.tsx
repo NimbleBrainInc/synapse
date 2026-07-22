@@ -31,7 +31,7 @@ export default function AppFrameDemo() {
           </AppFrame.Body>
           <AppFrame.Footer>
             <Text tone="muted" size="sm">
-              Header, scrollable body, footer — the shell fills the pane.
+              Header, scrollable body, footer. The shell fills the pane.
             </Text>
           </AppFrame.Footer>
         </AppFrame>

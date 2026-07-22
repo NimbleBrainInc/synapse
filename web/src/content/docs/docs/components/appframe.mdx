@@ -1,13 +1,13 @@
 ---
 title: AppFrame
-description: The universal app shell — a fixed header, a scrollable body, and an optional footer that fill the host pane.
+description: "The universal app shell: a fixed header, a scrollable body, and an optional footer that fill the host pane."
 ---
 
 import AppFrameDemo from "../../../../components/ui/AppFrameDemo.tsx";
 
 `AppFrame` is the chrome every Synapse app starts with: a fixed header, a
 scrollable body, and an optional fixed footer that fill the host pane. A body
-layout — `SidebarLayout`, `ListDetailLayout`, or plain content — goes inside
+layout (`SidebarLayout`, `ListDetailLayout`, or plain content) goes inside
 `AppFrame.Body`. It establishes the definite-height ancestor chain the shell
 needs on render, so it fills the pane instead of collapsing to content height.
 
@@ -25,11 +25,11 @@ import { AppFrame } from "@nimblebrain/synapse/ui";
 
 ## Anatomy
 
-- `AppFrame.Header` — fixed at the top, doesn't scroll.
-- `AppFrame.Body` — the scrollable region. Pass `bleed` to host a full-bleed
+- `AppFrame.Header`: fixed at the top, doesn't scroll.
+- `AppFrame.Body`: the scrollable region. Pass `bleed` to host a full-bleed
   layout (a `SidebarLayout` or board) edge-to-edge, where the panes manage their
   own scroll; leave it off for plain content, which gets a padded column.
-- `AppFrame.Footer` — fixed at the bottom, bordered.
+- `AppFrame.Footer`: fixed at the bottom, bordered.
 
 The `contentWidth` knob is a personality lever: `reading` centers header, body,
 and footer in a ~760px column (good for conversations or a report), while `full`
@@ -49,5 +49,5 @@ uses the whole pane (good for a CRM or dashboard).
 
 ## Related
 
-- [`SidebarLayout`](/docs/components/sidebarlayout) — a nav rail + main, inside `AppFrame.Body`.
-- [`ListDetailLayout`](/docs/components/listdetaillayout) — a master list + detail pane.
+- [`SidebarLayout`](/docs/components/sidebarlayout): a nav rail + main, inside `AppFrame.Body`.
+- [`ListDetailLayout`](/docs/components/listdetaillayout): a master list + detail pane.

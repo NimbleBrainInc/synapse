@@ -1,6 +1,6 @@
 ---
 title: SearchField
-description: A themed text input in two postures — an editorial underline or a bordered box.
+description: "A themed text input in two postures: an editorial underline or a bordered box."
 ---
 
 import SearchFieldDemo from "../../../../components/ui/SearchFieldDemo.tsx";
@@ -8,7 +8,7 @@ import SearchFieldDemo from "../../../../components/ui/SearchFieldDemo.tsx";
 `SearchField` is a controlled text input for filtering and search. It ships in
 two postures: `underline` is invisible at rest and reveals an underline on focus,
 while `boxed` is a bordered field with a focus ring. It defaults to
-`type="search"` and carries no brand of its own — colors, border, and radius all
+`type="search"` and carries no brand of its own. Colors, border, and radius all
 resolve from the host's tokens. The previews below are the real component from
 `@nimblebrain/synapse/ui`, live.
 
@@ -39,7 +39,7 @@ form field when you want a visible target.
 
 ## Props
 
-`SearchField` is controlled — hold the value in state and pass `value` plus
+`SearchField` is controlled. Hold the value in state and pass `value` plus
 `onChange`. It extends the native `InputHTMLAttributes`, so `placeholder`,
 `onChange`, `disabled`, `aria-*`, and every other input attribute pass straight
 through; `type` defaults to `"search"`.
@@ -48,9 +48,9 @@ through; `type` defaults to `"search"`.
 | --- | --- | --- |
 | `variant` | `"underline"` \| `"boxed"` | `"underline"` |
 | `type` | `string` | `"search"` |
-| `…rest` | `InputHTMLAttributes<HTMLInputElement>` | — |
+| `…rest` | `InputHTMLAttributes<HTMLInputElement>` | None |
 
 ## Related
 
-- [`SegmentedControl`](/docs/components/segmentedcontrol) — a mutually-exclusive view toggle.
-- [`Button`](/docs/components/button) — pair with a field to submit.
+- [`SegmentedControl`](/docs/components/segmentedcontrol): a mutually-exclusive view toggle.
+- [`Button`](/docs/components/button): pair with a field to submit.

@@ -5,7 +5,7 @@ description: A chrome-less text button for inline back, retry, and delete afford
 
 import TextLinkDemo from "../../../../components/ui/TextLinkDemo.tsx";
 
-`TextLink` is a button with no fill, border, or padding — just tinted, tappable
+`TextLink` is a button with no fill, border, or padding, just tinted, tappable
 text for low-stakes inline actions like back, retry, or delete. It carries no
 brand of its own; its resting and hover colors resolve from the host's tokens.
 The previews below are the real component from `@nimblebrain/synapse/ui`, live.
@@ -37,9 +37,9 @@ accent on hover; `danger` stays red throughout to mark a destructive action.
 | Prop | Type | Default |
 | --- | --- | --- |
 | `tone` | `"muted"` \| `"default"` \| `"danger"` | `"muted"` |
-| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | — |
+| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | None |
 
 ## Related
 
-- [`Button`](/docs/components/button) — a filled, emphasized action.
-- [`EmptyState`](/docs/components/emptystate) — often pairs a `TextLink` or `Button` as its action.
+- [`Button`](/docs/components/button): a filled, emphasized action.
+- [`EmptyState`](/docs/components/emptystate): often pairs a `TextLink` or `Button` as its action.

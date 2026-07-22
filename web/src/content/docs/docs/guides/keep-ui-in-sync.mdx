@@ -1,0 +1,66 @@
+---
+title: "Keep the UI in sync with the agent"
+description: "The agent mutates state on the same MCP server your UI renders, and the UI goes stale. useDataSync fires whenever the agent calls a tool, so you refresh on a push instead of polling."
+---
+
+The agent and your UI share one MCP server. A user asks the agent to "rename the
+deal" or "archive that task", the agent calls a tool, the server state moves, and
+your UI keeps showing the old value until the user reloads. Nothing in raw
+ext-apps tells the iframe that anything happened.
+
+The usual patch is polling, which lags by the poll interval and burns a tool call
+every tick whether or not anything changed:
+
+```tsx
+// The stale-UI patch: poll and hope.
+useEffect(() => {
+  const id = setInterval(() => call(), 2000);
+  return () => clearInterval(id);
+}, [call]);
+```
+
+## The recipe
+
+`useDataSync(callback)` subscribes to the host's data-change signal. The host
+fires it after the agent completes any tool call on this server, so you re-fetch
+exactly when state moved and stay idle otherwise. It is a `SynapseProvider` hook,
+so wrap your tree in `SynapseProvider`.
+
+```tsx
+import { SynapseProvider, useDataSync, useCallTool } from "@nimblebrain/synapse/react";
+
+function Root() {
+  return (
+    <SynapseProvider name="my-app" version="1.0.0">
+      <Workspace />
+    </SynapseProvider>
+  );
+}
+
+function Workspace() {
+  const { call, data } = useCallTool("get_workspace");
+
+  // Re-fetch whenever the agent mutates state on this server.
+  useDataSync(() => {
+    call();
+  });
+
+  if (!data) return <p>Loading…</p>;
+  return <Preview workspace={data} />;
+}
+```
+
+## How it works
+
+The host emits a data-changed notification when the agent finishes a tool call on
+this server, and `useDataSync` invokes your callback with a small event describing
+the change. The callback receives the `source`, the `server`, and the `tool` that
+ran, so you can refresh selectively (skip the re-fetch for tools that do not touch
+what you render) instead of reloading everything. It is a push, not a poll: the UI
+updates the moment the agent acts and does no work in between.
+
+## Related
+
+- [Call MCP tools with types](/docs/guides/call-tools): the `useCallTool` you refresh with.
+- [Handle long-running tools (tasks)](/docs/guides/long-running-tools): where the same data-changed channel carries the new entity ID.
+- [Give the agent context about the UI](/docs/guides/agent-context): the reverse direction, pushing UI state to the agent.

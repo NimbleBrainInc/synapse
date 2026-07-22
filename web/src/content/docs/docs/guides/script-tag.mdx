@@ -1,0 +1,52 @@
+---
+title: Use Synapse without a bundler
+description: Drop a single script tag into plain HTML to get connect(), the state store, and typed tool calls, with no npm install and no build step.
+---
+
+## The problem
+
+Not every MCP app UI is a React project with a build pipeline. Sometimes you have
+a single HTML file: a small widget an MCP server serves as its `ui://` resource, a
+quick prototype, or a page where pulling in npm and a bundler is more setup than
+the job is worth. You still want the Synapse handshake, tool results, and typed
+calls, just without the toolchain.
+
+## The recipe
+
+Load the pre-built IIFE bundle from a CDN. It attaches a `window.Synapse` global,
+so no import or bundler is needed.
+
+```html
+<script src="https://unpkg.com/@nimblebrain/synapse/dist/connect.iife.global.js"></script>
+<script>
+  Synapse.connect({ name: "widget", version: "1.0.0", autoResize: true })
+    .then((app) => {
+      app.on("tool-result", (data) => {
+        document.getElementById("root").innerHTML = render(data.content);
+      });
+    });
+</script>
+```
+
+## How it works
+
+The IIFE is the same core you would get from npm, pre-bundled for the browser. The
+`window.Synapse` global exposes `connect`, `createSynapse`, and `createStore`, so
+the vanilla-JS API is available with no module system.
+
+`Synapse.connect()` runs the ext-apps handshake and resolves to the same `App`
+instance the npm package returns, with `app.on(...)`, `app.callTool(...)`, and the
+rest. Passing `autoResize: true` tells the app to watch `document.body` and report
+its height to the host automatically, which is what you usually want for a widget
+that has no explicit layout code.
+
+Reach for this when there is no build step. Once you add React or a bundler, prefer
+the npm package (`npm install @nimblebrain/synapse`) so you get tree-shaking and
+the typed hooks.
+
+## Related
+
+- [Persist state across reloads](/docs/guides/state-store/)
+- [Develop locally with the Vite plugin](/docs/guides/local-dev/)
+- [Generate types from your tools](/docs/guides/codegen/)
+- [Render one component across hosts](/docs/guides/cross-host/)

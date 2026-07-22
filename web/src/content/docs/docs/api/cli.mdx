@@ -1,0 +1,46 @@
+---
+title: CLI
+description: The synapse CLI for generating TypeScript types (codegen) and previewing an app locally (preview).
+---
+
+The `synapse` CLI ships with `@nimblebrain/synapse`. Run it with `npx synapse`.
+It generates TypeScript types from your tool surface and previews an app locally.
+
+## `synapse codegen`
+
+Generate TypeScript types from an app manifest, a running MCP server, or a
+directory of JSON schemas. The `codegen` subcommand is required, and you pass at
+least one source flag (`--from-manifest`, `--from-server`, or `--from-schema`).
+
+| Flag | Argument | Description |
+| --- | --- | --- |
+| `--from-manifest` | `<path>` | Generate types from an app manifest JSON file |
+| `--from-server` | `<url>` | Generate types from a running MCP server's tool list |
+| `--from-schema` | `<dir>` | Generate CRUD tool types from a directory of `.schema.json` files |
+| `--out` | `<path>` | Write the generated TypeScript to this file |
+| `--app` | `<name>` | Scope generation to a single app by name |
+
+```bash
+# From an app manifest
+npx synapse codegen --from-manifest ./manifest.json --out src/generated/types.ts
+
+# From a running MCP server
+npx synapse codegen --from-server http://localhost:3000 --out src/generated/types.ts
+
+# From a directory of .schema.json files (generates CRUD tool types)
+npx synapse codegen --from-schema ./schemas --out src/generated/types.ts
+```
+
+## `synapse preview`
+
+Serve the app in a local host shell so you can exercise the ext-apps handshake,
+theming, and tool calls without deploying to a host.
+
+```bash
+npx synapse preview
+```
+
+## See also
+
+- [Package exports](/docs/api/exports/) for the `@nimblebrain/synapse/codegen`
+  programmatic entry point.

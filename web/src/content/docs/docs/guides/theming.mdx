@@ -1,0 +1,67 @@
+---
+title: "Match the host theme"
+description: "Matching the host's light and dark modes and brand tokens by hand means parsing the init message and listening for theme changes. useTheme tracks it for you, reactively."
+---
+
+Your app renders inside someone else's host, and it should look like it belongs
+there: the host's light or dark mode, the host's brand colors. Doing that over raw
+ext-apps means parsing theme tokens out of the init message, listening for later
+theme-changed notifications, and pushing every token onto the document as a CSS
+variable by hand, on every change.
+
+## The recipe
+
+Most of the time you do not need a hook at all. Components from
+`@nimblebrain/synapse/ui` style themselves with token references
+(`var(--color-...)`), and the provider applies the host's tokens as CSS variables
+on the document, so theming (including light and dark) resolves in CSS with no
+re-render. Your own elements can reference the same variables:
+
+```tsx
+<div style={{
+  background: "var(--color-background-primary)",
+  color: "var(--color-text-primary)",
+}}>
+```
+
+When you need theme values in JavaScript (branching on `mode`, feeding a token
+into a canvas or a chart), read them with `useTheme()`. It returns the current
+`SynapseTheme` and re-renders when the host theme changes. It is a
+`SynapseProvider` hook.
+
+```tsx
+import { useTheme } from "@nimblebrain/synapse/react";
+
+function Chart() {
+  const theme = useTheme();
+
+  const axisColor = theme.tokens["--color-text-secondary"];
+  const grid = theme.mode === "dark" ? 0.2 : 0.08;
+
+  return <canvas data-axis={axisColor} data-grid={grid} />;
+}
+```
+
+On the `connect()` and `AppProvider` path, the equivalent hook is
+`useConnectTheme()`. It returns a `Theme` with the same reactive `mode` and
+`tokens`:
+
+```tsx
+import { useConnectTheme } from "@nimblebrain/synapse/react";
+
+const theme = useConnectTheme();
+```
+
+## How it works
+
+The hook subscribes to the host's theme changes and re-renders only when the
+theme actually moves, so a host update that does not touch the theme (a workspace
+switch, say) will not re-render your consumers. Prefer plain `var(--color-...)`
+references for anything you can style in CSS: those never re-render and fall back
+to neutral defaults when the app runs standalone or in a host that ships no
+tokens. Reach for `useTheme()` only when a value has to cross into JavaScript.
+
+## Related
+
+- [Component tokens](/docs/components/tokens): the full token contract the host fills in.
+- [Give the agent context about the UI](/docs/guides/agent-context): another reactive host signal, pushed the other way.

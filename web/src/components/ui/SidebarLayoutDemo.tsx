@@ -29,7 +29,7 @@ export default function SidebarLayoutDemo() {
             <div style={{ padding: 20 }}>
               <Heading size="md">Contacts</Heading>
               <Text tone="muted">
-                The rail reacts to its own width, not the device — narrow the pane and it
+                The rail reacts to its own width, not the device. Narrow the pane and it
                 reflows to a strip on top.
               </Text>
             </div>

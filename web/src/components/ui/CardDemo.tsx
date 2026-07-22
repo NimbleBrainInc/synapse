@@ -17,7 +17,7 @@ export default function CardDemo() {
           <Stack gap={6}>
             <Heading size="sm">Interactive card</Heading>
             <Text size="sm" tone="muted">
-              Hover to see the lift — for clickable cards.
+              Hover to see the lift, for clickable cards.
             </Text>
           </Stack>
         </Card>

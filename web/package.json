@@ -1,5 +1,5 @@
 {
-  "name": "@nimblebrain/synapse-site",
+  "name": "@nimblebrain/synapse-web",
   "type": "module",
   "version": "0.1.0",
   "private": true,

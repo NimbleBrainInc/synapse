@@ -1,0 +1,37 @@
+---
+title: What is Synapse?
+description: Synapse is the agent-aware app SDK for the MCP ext-apps protocol — build your MCP app's UI once and render it in ChatGPT, Claude, VS Code, and a host you run yourself.
+---
+
+Synapse is an SDK for building the **UI half of an MCP app** — the interface that
+renders next to the agent in ChatGPT, Claude, VS Code, or a host you run yourself.
+It's an optional enhancement layer over the [MCP ext-apps
+protocol](https://modelcontextprotocol.io/specification/2025-06-18/user-interaction/ext-apps):
+you write one typed React app, and Synapse handles the handshake, the tool calls,
+the data sync, and the theming so it works the same in every host.
+
+```bash
+npm install @nimblebrain/synapse
+```
+
+## What you get
+
+- **Zero-config handshake.** `await connect()` resolves when the host is ready. You never touch `ui/initialize`.
+- **Typed tool calls.** Call MCP tools with full TypeScript input/output types and built-in loading state.
+- **Reactive data sync.** When the agent mutates state, your UI hears about it — no polling.
+- **Theme tracking.** Light/dark mode and the host's brand tokens flow in automatically, resolved in CSS with no re-render.
+- **A component library.** Typed, token-driven React components — `Card`, `Table`, `Badge`, `Drawer`, layout scaffolds — that adopt whatever host they render in.
+- **One UI, every host.** The same app runs in ChatGPT, Claude, and VS Code; host-specific features degrade gracefully to no-ops elsewhere.
+
+## Where to go next
+
+- **New here?** Start with the [React quickstart](/docs/quickstart-react/) — install to running-in-a-host in a few minutes.
+- **Building the UI?** Browse the [component library](/docs/) — every built-in component, live, with props and copy-paste code.
+- **Just need the plumbing?** Jump to the API reference for `connect()`, the hooks, and the state store.
+
+## When you don't need Synapse
+
+Synapse is optional. If your app just renders static content, or the agent never
+touches the same server the user is looking at, raw ext-apps is enough. Reach for
+Synapse when the plumbing starts to hurt — stale UI, untyped tool calls, manual
+theme wiring.

@@ -1,0 +1,77 @@
+/*
+ * Synapse docs theme for Starlight.
+ *
+ * Reuses the landing site's self-hosted fonts (public/fonts) and brand palette
+ * so /docs reads as the same product as / — Space Grotesk display, Inter body,
+ * JetBrains Mono code, Synapse Blue accent, and a dark ground that matches the
+ * landing's #080B12.
+ *
+ * Starlight's gray scale inverts between themes:
+ *   dark  → white = brightest text, black = page bg, gray-1 (readable) → gray-6 (dark surface)
+ *   light → white = darkest text,  black = page bg (off-white), gray-1 (readable) → gray-6 (light surface)
+ */
+
+/* ── Self-hosted fonts (latin subset woff2, SIL OFL 1.1) ── */
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:500;font-display:swap;src:url(/fonts/space-grotesk-500-latin.woff2) format('woff2')}
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:700;font-display:swap;src:url(/fonts/space-grotesk-700-latin.woff2) format('woff2')}
+@font-face{font-family:'Inter';font-style:normal;font-weight:100 900;font-display:swap;src:url(/fonts/inter-latin.woff2) format('woff2')}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:100 800;font-display:swap;src:url(/fonts/jetbrains-mono-latin.woff2) format('woff2')}
+
+/* ── Dark mode (default) ── */
+:root {
+  /* Accent: Synapse Blue */
+  --sl-color-accent-low:  #0B245E;
+  --sl-color-accent:      #2563FF;
+  --sl-color-accent-high: #A9C2FF;
+
+  /* white = brightest text, black = page bg (landing's #080B12) */
+  --sl-color-white: #EDF0F6;
+  --sl-color-black: #080B12;
+
+  /* Gray ramp: 1 (readable text) → 6 (dark surface) */
+  --sl-color-gray-1: #C9D1DE;
+  --sl-color-gray-2: #A2ADC0;
+  --sl-color-gray-3: #6B7688;
+  --sl-color-gray-4: #3A4356;
+  --sl-color-gray-5: #1B2333;
+  --sl-color-gray-6: #10151F;
+
+  --sl-color-bg-sidebar: #0C111B;
+  --sl-color-bg-nav: #0C111B;
+}
+
+/* ── Light mode ── */
+:root[data-theme='light'] {
+  --sl-color-accent-low:  #E7EEFF;
+  --sl-color-accent:      #1B4FE0;
+  --sl-color-accent-high: #10329E;
+
+  /* white = darkest text, black = page bg (off-white) */
+  --sl-color-white: #0B0F1A;
+  --sl-color-black: #FBFCFD;
+
+  /* Gray ramp: 1 (readable text) → 6 (light surface), 7 (nav) */
+  --sl-color-gray-1: #0B0F1A;
+  --sl-color-gray-2: #33404F;
+  --sl-color-gray-3: #5A6675;
+  --sl-color-gray-4: #93A0B0;
+  --sl-color-gray-5: #DCE1E8;
+  --sl-color-gray-6: #F1F3F5;
+  --sl-color-gray-7: #F7F9FB;
+
+  --sl-color-bg-sidebar: #F7F9FB;
+}
+
+/* ── Fonts ── */
+:root {
+  --sl-font: 'Inter', var(--sl-font-system);
+  --sl-font-mono: 'JetBrains Mono', var(--sl-font-system-mono);
+}
+
+/* Space Grotesk for headings — matches the landing's display face */
+.sl-markdown-content :is(h1, h2, h3, h4),
+.content-panel h1 {
+  font-family: 'Space Grotesk', var(--sl-font-system);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}

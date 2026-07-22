@@ -1,0 +1,161 @@
+---
+title: Tokens
+description: The token contract for @nimblebrain/synapse/ui — every color, font, size, radius, and shadow as a var(--token, fallback) reference the host fills at runtime.
+---
+
+Every visual value in the component library is a token, and every token is a CSS
+custom-property reference with a neutral fallback:
+
+```ts
+import { tokens } from "@nimblebrain/synapse/ui";
+
+tokens.bg;      // "var(--color-background-primary, #ffffff)"
+tokens.accent;  // "var(--color-text-accent, #2563eb)"
+```
+
+Components never hold a hex value. They style with these `var()` references, so
+the pixels are decided by whatever fills the custom properties.
+
+## How the host fills them
+
+Under the MCP ext-apps protocol, the host injects a `:root` block of CSS
+variables into your app's iframe — the `hostContext.styles.variables` payload.
+Every `var(--token, …)` in the library re-resolves against that block:
+
+```css
+:root {
+  --color-background-primary: #0b0b0f;
+  --color-text-primary: #f4f4f5;
+  --color-text-accent: #a78bfa;
+  --font-sans: "Satoshi", sans-serif;
+  --border-radius-md: 0.5rem;
+}
+```
+
+Because resolution happens in CSS, a theme change — including a light-to-dark
+flip — is just the host swapping those variables. Every `var()` re-resolves and
+the UI repaints with **no React re-render**.
+
+**Standalone, the fallbacks win.** With no host to inject anything (a static
+render, a Storybook, a unit test), each token falls back to its second argument:
+system fonts, neutral grays, a generic blue, plain radii. The library stays
+usable and unbranded rather than blank.
+
+## Surfaces
+
+Background layers, lightest to most recessed.
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `bg` | `--color-background-primary` | `#ffffff` |
+| `bgRaised` | `--color-background-secondary` | `#fafafa` |
+| `bgSubtle` | `--color-background-tertiary` | `#f3f4f6` |
+
+## Text
+
+Foreground tones plus the accent pair.
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `fg` | `--color-text-primary` | `#111827` |
+| `fgMuted` | `--color-text-secondary` | `#6b7280` |
+| `fgFaint` | `--color-text-tertiary` | `#9ca3af` |
+| `accent` | `--color-text-accent` | `#2563eb` |
+| `accentFg` | `--nb-color-accent-foreground` | `#ffffff` |
+
+`accentFg` is the foreground that sits on top of an `accent` fill — the label
+color for a primary button, for instance.
+
+## Border and ring
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `border` | `--color-border-primary` | `#e5e7eb` |
+| `borderStrong` | `--color-border-secondary` | `#d1d5db` |
+| `ring` | `--color-ring-primary` | `#2563eb` |
+
+`ring` is the focus-ring color; `borderWidth` (below) sets its width.
+
+## Status semantics
+
+Semantic colors for state. Each `…Light` pairs a saturated hue with a tinted
+background for badges, banners, and status rows.
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `danger` | `--nb-color-danger` | `#dc2626` |
+| `success` | `--nb-color-success` | `#059669` |
+| `warning` | `--nb-color-warning` | `#f59e0b` |
+| `warm` | `--nb-color-warm` | `#d4620a` |
+| `warmLight` | `--nb-color-warm-light` | `#fef5ee` |
+| `processing` | `--nb-color-processing` | `#7c3aed` |
+| `processingLight` | `--nb-color-processing-light` | `#f3eeff` |
+| `infoLight` | `--nb-color-info-light` | `#eef4ff` |
+
+## Fonts and weights
+
+Three faces and four weights. The face tokens name a font; the actual font files
+are loaded by [`@nimblebrain/synapse/ui/fonts`](/docs/components/fonts).
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `fontSans` | `--font-sans` | `system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
+| `fontMono` | `--font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` |
+| `fontHeading` | `--nb-font-heading` | `Georgia, 'Times New Roman', serif` |
+| `weightNormal` | `--font-weight-normal` | `400` |
+| `weightMedium` | `--font-weight-medium` | `500` |
+| `weightSemibold` | `--font-weight-semibold` | `600` |
+| `weightBold` | `--font-weight-bold` | `700` |
+
+## Type scale
+
+Every level is a size and a paired line-height. Body text has four sizes,
+consumed by [`Text`](/docs/components/text); headings have three, consumed by
+[`Heading`](/docs/components/heading). The helpers `textStyle(size)` and
+`headingStyle(size)` return the matching `fontSize` / `lineHeight` pair.
+
+### Text sizes
+
+| Size | Size variable | Size fallback | Line-height variable | Line-height fallback |
+| --- | --- | --- | --- | --- |
+| `xs` | `--font-text-xs-size` | `0.75rem` | `--font-text-xs-line-height` | `1rem` |
+| `sm` | `--font-text-sm-size` | `0.875rem` | `--font-text-sm-line-height` | `1.25rem` |
+| `base` | `--font-text-base-size` | `1rem` | `--font-text-base-line-height` | `1.5rem` |
+| `lg` | `--font-text-lg-size` | `1.125rem` | `--font-text-lg-line-height` | `1.75rem` |
+
+### Heading sizes
+
+| Size | Size variable | Size fallback | Line-height variable | Line-height fallback |
+| --- | --- | --- | --- | --- |
+| `sm` | `--font-heading-sm-size` | `1.25rem` | `--font-heading-sm-line-height` | `1.75rem` |
+| `md` | `--font-heading-md-size` | `1.5rem` | `--font-heading-md-line-height` | `2rem` |
+| `lg` | `--font-heading-lg-size` | `2rem` | `--font-heading-lg-line-height` | `2.5rem` |
+
+## Radii
+
+Corner rounding, extra-small to extra-large.
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `radiusXs` | `--border-radius-xs` | `0.25rem` |
+| `radiusSm` | `--border-radius-sm` | `0.5rem` |
+| `radiusMd` | `--border-radius-md` | `0.75rem` |
+| `radiusLg` | `--border-radius-lg` | `1rem` |
+| `radiusXl` | `--border-radius-xl` | `1.5rem` |
+
+## Border width
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `borderWidth` | `--border-width-regular` | `1px` |
+
+## Shadows
+
+Elevation from a flat hairline outline up to a lifted overlay.
+
+| Token | CSS variable | Neutral fallback |
+| --- | --- | --- |
+| `shadowHairline` | `--shadow-hairline` | `0 0 0 1px rgba(0,0,0,0.06)` |
+| `shadowSm` | `--shadow-sm` | `0 1px 2px rgba(0,0,0,0.05)` |
+| `shadowMd` | `--shadow-md` | `0 4px 6px -1px rgba(0,0,0,0.1)` |
+| `shadowLg` | `--shadow-lg` | `0 10px 15px -3px rgba(0,0,0,0.1)` |

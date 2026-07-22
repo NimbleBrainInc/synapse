@@ -1,0 +1,50 @@
+---
+title: Avatar
+description: A circular identity chip. Renders an image when given, otherwise initials derived from a name on a token-tinted background.
+---
+
+import AvatarDemo from "../../../../components/ui/AvatarDemo.tsx";
+
+`Avatar` is a circular identity chip. Give it a `name` and it renders up to two
+initials on a subtle tinted background; give it a `src` too and it renders the
+image, falling back to those initials if the image is absent or fails to load.
+Every color comes from the host's tokens, so it sits native in any host. The
+preview below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Avatar } from "@nimblebrain/synapse/ui";
+
+<Avatar name="Jordan Ratner" />
+<Avatar name="Priya Nair" src="/priya.jpg" size={40} />;
+```
+
+<AvatarDemo client:only="react" />
+
+## Sizes and fallback
+
+`size` sets the diameter in pixels; initials scale with it. When `src` is
+omitted or the image errors, `name` drives both the initials and the `alt` text.
+
+```tsx
+<Avatar name="Sam Okoye" size={40} />
+<Avatar name="Ada Lovelace" src="https://…/ada.jpg" size={40} />
+<Avatar name="Grace Hopper" size={56} />
+```
+
+## Props
+
+`Avatar` extends the native `HTMLAttributes` for a `<span>` (minus `children`),
+so `className`, `style`, `aria-*`, and other span attributes pass through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `name` | `string` (required) | — |
+| `src` | `string` | — |
+| `size` | `number` | `28` |
+| `…rest` | `HTMLAttributes<HTMLSpanElement>` | — |
+
+## Related
+
+- [`ListRow`](/docs/components/listrow) — pass an `Avatar` into its `leading` slot.
+- [`Badge`](/docs/components/badge) — a status pill that pairs with an avatar.
+- [`StatusDot`](/docs/components/statusdot) — the other common `leading` chip.

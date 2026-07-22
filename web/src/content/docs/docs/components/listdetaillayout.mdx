@@ -1,0 +1,50 @@
+---
+title: ListDetailLayout
+description: A master list beside a detail pane — side by side when wide, one at a time when narrow.
+---
+
+import ListDetailLayoutDemo from "../../../../components/ui/ListDetailLayoutDemo.tsx";
+
+`ListDetailLayout` pairs a master list with a detail pane: CRM contacts to a
+record, research runs to a report, conversations to a thread. It's responsive to
+the layout's own width — side by side when wide, and one at a time when narrow,
+showing the list or the selected detail with a back affordance to return.
+
+```tsx
+import { ListDetailLayout } from "@nimblebrain/synapse/ui";
+
+<ListDetailLayout selected={selected !== null} onBack={() => setSelected(null)}>
+  <ListDetailLayout.List>{/* rows */}</ListDetailLayout.List>
+  <ListDetailLayout.Detail>
+    <ListDetailLayout.Back />
+    {/* detail */}
+  </ListDetailLayout.Detail>
+</ListDetailLayout>;
+```
+
+<ListDetailLayoutDemo client:only="react" />
+
+## Anatomy
+
+- `ListDetailLayout.List` — the master list. On a narrow layout it's hidden once
+  something is `selected`, handing the stage to the detail.
+- `ListDetailLayout.Detail` — the detail pane.
+- `ListDetailLayout.Back` — a back link placed at the top of `Detail`; it renders
+  only on a narrow layout and calls `onBack`.
+
+`selected` is driven by your own selection state. Read the responsive state with
+the `useListDetail()` hook for custom back affordances.
+
+## Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `selected` | `boolean` | `false` |
+| `onBack` | `() => void` | — |
+| `listWidth` | `number` \| `string` | `320` |
+| `breakpoint` | `number` | `720` |
+
+## Related
+
+- [`ListRow`](/docs/components/listrow) — the rows that fill the master list.
+- [`Drawer`](/docs/components/drawer) — an overlay alternative when the detail shouldn't take a permanent column.

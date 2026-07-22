@@ -1,0 +1,78 @@
+---
+title: Fonts & base reset
+description: Two side-effect imports in @nimblebrain/synapse/ui — one loads the brand faces into the app iframe, the other establishes the root-height chain a full-pane app needs.
+---
+
+The token contract names the brand faces (`--font-sans: Satoshi`,
+`--nb-font-heading: Erode`), but a font *name* only renders if the font *files*
+are loaded in the document. Each Synapse app runs in its own iframe, a separate
+document that does not inherit the host's `@font-face` rules. Two side-effect
+imports close that gap — one loads the faces, one sets up the layout root.
+
+## Brand fonts
+
+Import `@nimblebrain/synapse/ui/fonts` once, at your app's entry, for its side
+effect:
+
+```tsx
+import "@nimblebrain/synapse/ui/fonts";
+```
+
+It injects a single Fontshare stylesheet `<link>` into the document head
+(idempotent, and a no-op during SSR). That stylesheet provides the two brand
+faces the token contract names:
+
+| Face | Token it satisfies | Weights loaded |
+| --- | --- | --- |
+| Satoshi | `--font-sans` | 400, 500, 700 |
+| Erode | `--nb-font-heading` | 400, 500 |
+
+With the files present, `fontSans` and `fontHeading` resolve to the brand faces
+instead of silently falling back to the neutral system stack.
+
+**CSP.** The stylesheet loads from `https://api.fontshare.com`, so the host
+iframe must allow that origin in its `style-src` and `font-src`. If the origin is
+blocked, the fonts simply fall back to the neutral system stack in the
+[token contract](/docs/components/tokens) — nothing breaks, it just looks
+unbranded.
+
+**The mono face is not injected.** JetBrains Mono (`--font-mono`) is deliberately
+left out — most apps do not render code, so the library does not pay for it. An
+app that does render code should add the mono face to its own bundle, for example
+with `@fontsource-variable/jetbrains-mono`.
+
+## Base reset
+
+Import `@nimblebrain/synapse/ui/base` for its side effect to establish the
+root-height chain a full-pane app needs:
+
+```tsx
+import "@nimblebrain/synapse/ui/base";
+```
+
+It injects two rules: the height chain
+
+```css
+html, body, #root { height: 100% }
+```
+
+so a `height: 100%` app shell resolves against the iframe's allocated pane, plus
+
+```css
+body { margin: 0 }
+```
+
+so the pane has no user-agent margin gap. A percentage chain, not a viewport
+unit, is the correct mechanism here — the app sizes to the pane the host gave it,
+not to the screen.
+
+The module also exports the function directly:
+
+```tsx
+import { injectBaseReset } from "@nimblebrain/synapse/ui/base";
+```
+
+`AppFrame` calls `injectBaseReset()` automatically when it renders, so apps built
+on it get the chain for free. Import the module explicitly in your entry when you
+want the chain established *before* React mounts — which avoids a first-paint
+layout jump — or when you render a full-pane root without `AppFrame`.

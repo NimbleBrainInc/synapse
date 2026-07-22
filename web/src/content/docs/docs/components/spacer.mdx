@@ -1,0 +1,54 @@
+---
+title: Spacer
+description: A flexible filler that expands to push its siblings apart inside a Stack or Inline.
+---
+
+import SpacerDemo from "../../../../components/ui/SpacerDemo.tsx";
+
+`Spacer` is a leaf element that grows to fill the free space in a `Stack` or
+`Inline`, pushing whatever sits after it to the far edge. It has no brand and no
+appearance of its own — it is pure layout, so a label on the left and a badge on
+the right stay pinned to their ends regardless of the host's theme. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Inline, Spacer } from "@nimblebrain/synapse/ui";
+
+<Inline gap={8}>
+  <Text weight="semibold">Deal name</Text>
+  <Spacer />
+  <Badge tone="success">Won</Badge>
+</Inline>;
+```
+
+<SpacerDemo client:only="react" />
+
+## Usage
+
+`Spacer` takes no custom props — it is a `flex: 1` filler. Drop one between two
+siblings to split them to opposite ends, which reads more clearly than
+`justify="between"` when only one gap should expand.
+
+```tsx
+<Inline gap={8}>
+  <Text>Follow-up call</Text>
+  <Spacer />
+  <Text tone="muted">Due today</Text>
+</Inline>
+```
+
+## Props
+
+`Spacer` extends the native `HTMLAttributes<HTMLDivElement>`, so `className`,
+`style`, `id`, and every other div attribute pass straight through. It defines
+no custom props.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+
+## Related
+
+- [`Inline`](/docs/components/inline) — the horizontal container a Spacer divides.
+- [`Stack`](/docs/components/stack) — the vertical container a Spacer divides.
+- [`Divider`](/docs/components/divider) — a visible rule, where Spacer is invisible.

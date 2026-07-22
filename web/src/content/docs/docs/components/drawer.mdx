@@ -1,0 +1,60 @@
+---
+title: Drawer
+description: An off-canvas panel built on the native dialog element — focus trap, Escape, and scroll lock for free.
+---
+
+import DrawerDemo from "../../../../components/ui/DrawerDemo.tsx";
+
+`Drawer` slides a panel in from the edge of the pane for detail views, forms, and
+filters. It's built on the native `<dialog>` element, so focus trapping, Escape to
+close, and background scroll locking come for free rather than being
+re-implemented. Its surface, border, and shadow resolve from the host's tokens.
+
+```tsx
+import { Drawer, Button } from "@nimblebrain/synapse/ui";
+
+const [open, setOpen] = useState(false);
+
+<Button onClick={() => setOpen(true)}>Open</Button>
+<Drawer open={open} onClose={() => setOpen(false)}>
+  <Drawer.Header title="Details" onClose={() => setOpen(false)} />
+  <Drawer.Body>…</Drawer.Body>
+  <Drawer.Footer>…</Drawer.Footer>
+</Drawer>;
+```
+
+<DrawerDemo client:only="react" />
+
+## Anatomy
+
+`Drawer` is a compound component. Compose the panel from its three slots:
+
+- `Drawer.Header` — a title bar. Pass `title` for the heading (wired as the
+  dialog's accessible name), `onClose` for the close button, `onBack` for a back
+  affordance, and `actions` for trailing controls.
+- `Drawer.Body` — the scrollable content region.
+- `Drawer.Footer` — a bordered footer, typically for confirm / cancel actions.
+
+## Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `open` | `boolean` | — (required) |
+| `onClose` | `() => void` | — (required) |
+| `onEscape` | `() => void` | `onClose` |
+| `side` | `"left"` \| `"right"` \| `"bottom"` | `"right"` |
+| `width` | `number` \| `string` | `480` (ignored for `bottom`) |
+
+### `Drawer.Header`
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `title` | `ReactNode` | — |
+| `onBack` | `() => void` | — |
+| `actions` | `ReactNode` | — |
+| `onClose` | `() => void` | — |
+
+## Related
+
+- [`Button`](/docs/components/button) — the confirm / cancel actions in a footer.
+- [`ListDetailLayout`](/docs/components/listdetaillayout) — an inline alternative when the detail is a peer of the list, not an overlay.

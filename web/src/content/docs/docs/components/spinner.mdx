@@ -1,0 +1,47 @@
+---
+title: Spinner
+description: A minimal rotating indicator for inline and button loading states, themed by the host.
+---
+
+import SpinnerDemo from "../../../../components/ui/SpinnerDemo.tsx";
+
+`Spinner` is a minimal rotating arc for inline and in-button loading states. It
+sizes to a single number and defaults its arc to the host's accent token, so it
+looks native in whatever host renders your app. It reports `role="status"` for
+assistive tech and eases its animation under `prefers-reduced-motion`. The
+previews below are the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Spinner } from "@nimblebrain/synapse/ui";
+
+<Spinner />;
+```
+
+<SpinnerDemo client:only="react" />
+
+## Sizes
+
+`size` is the diameter in pixels. Use the default 16 inline with text, and scale
+up for a standalone loading state.
+
+```tsx
+<Spinner />
+<Spinner size={24} />
+<Spinner size={40} />
+```
+
+## Props
+
+`Spinner` extends the native `HTMLAttributes`, so `aria-*`, `className`, and other
+span attributes pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `size` | `number` | `16` |
+| `color` | `string` | accent token |
+| `…rest` | `HTMLAttributes<HTMLSpanElement>` | — |
+
+## Related
+
+- [`Button`](/docs/components/button) — drop a `Spinner` inside for a loading action.
+- [`EmptyState`](/docs/components/emptystate) — the resting counterpart when there's nothing to load.

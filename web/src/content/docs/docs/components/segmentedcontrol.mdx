@@ -1,0 +1,64 @@
+---
+title: SegmentedControl
+description: A mutually-exclusive toggle for switching views, themed by the host.
+---
+
+import SegmentedControlDemo from "../../../../components/ui/SegmentedControlDemo.tsx";
+
+`SegmentedControl` is the view-toggle pattern — a small set of mutually-exclusive
+options (Board/Table, All/Today/Week) where the active one gets a raised pill. It
+is controlled and generic over the option value type, and carries no brand of its
+own; the track, pill, and text colors all resolve from the host's tokens. The
+preview below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { SegmentedControl } from "@nimblebrain/synapse/ui";
+import { useState } from "react";
+
+const [view, setView] = useState<"board" | "table">("board");
+
+<SegmentedControl
+  options={[
+    { label: "Board", value: "board" },
+    { label: "Table", value: "table" },
+  ]}
+  value={view}
+  onChange={setView}
+/>;
+```
+
+<SegmentedControlDemo client:only="react" />
+
+## Usage
+
+Keep the option set small — two to four segments. `onChange` receives the newly
+selected `value`, typed to your option union.
+
+```tsx
+<SegmentedControl
+  options={[
+    { label: "All", value: "all" },
+    { label: "Today", value: "today" },
+    { label: "Week", value: "week" },
+  ]}
+  value={range}
+  onChange={setRange}
+/>
+```
+
+## Props
+
+`SegmentedControl<T extends string>` is controlled and generic over the option
+value type. It extends `HTMLAttributes<HTMLDivElement>` (minus `onChange`).
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `options` | `{ label: string; value: T }[]` | — |
+| `value` | `T` | — |
+| `onChange` | `(value: T) => void` | — |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+
+## Related
+
+- [`SearchField`](/docs/components/searchfield) — a controlled input for filtering.
+- [`Button`](/docs/components/button) — a single pressable action.

@@ -4,11 +4,14 @@ import sitemap from "@astrojs/sitemap";
 import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import starlightLinksValidator from "starlight-links-validator";
+import remarkGfm from "remark-gfm";
 
 // https://astro.build/config
 export default defineConfig({
   site: "https://synapse.nimblebrain.ai",
   output: "static",
+  // GFM (tables, strikethrough, task lists) for the .mdx docs.
+  markdown: { remarkPlugins: [remarkGfm] },
   integrations: [
     // The bespoke landing lives at src/pages/index.astro (/). Starlight owns
     // the docs, nested under src/content/docs/docs/ so every doc route is
@@ -32,7 +35,65 @@ export default defineConfig({
         },
         {
           label: "Components",
-          items: [{ label: "Button", slug: "docs/components/button" }],
+          items: [
+            { slug: "docs/components" },
+            { slug: "docs/components/tokens" },
+            { slug: "docs/components/fonts" },
+            {
+              label: "Layout primitives",
+              items: [
+                { slug: "docs/components/stack" },
+                { slug: "docs/components/inline" },
+                { slug: "docs/components/spacer" },
+                { slug: "docs/components/divider" },
+              ],
+            },
+            {
+              label: "Layout scaffolds",
+              items: [
+                { slug: "docs/components/appframe" },
+                { slug: "docs/components/sidebarlayout" },
+                { slug: "docs/components/listdetaillayout" },
+              ],
+            },
+            {
+              label: "Typography",
+              items: [
+                { slug: "docs/components/heading" },
+                { slug: "docs/components/text" },
+                { slug: "docs/components/prose" },
+              ],
+            },
+            {
+              label: "Data display",
+              items: [
+                { slug: "docs/components/card" },
+                { slug: "docs/components/listrow" },
+                { slug: "docs/components/table" },
+                { slug: "docs/components/avatar" },
+                { slug: "docs/components/badge" },
+                { slug: "docs/components/statusdot" },
+                { slug: "docs/components/pagination" },
+              ],
+            },
+            {
+              label: "Interactive",
+              items: [
+                { slug: "docs/components/button" },
+                { slug: "docs/components/textlink" },
+                { slug: "docs/components/searchfield" },
+                { slug: "docs/components/segmentedcontrol" },
+                { slug: "docs/components/drawer" },
+              ],
+            },
+            {
+              label: "Feedback",
+              items: [
+                { slug: "docs/components/spinner" },
+                { slug: "docs/components/emptystate" },
+              ],
+            },
+          ],
         },
       ],
     }),

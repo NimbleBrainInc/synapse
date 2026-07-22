@@ -1,0 +1,55 @@
+---
+title: Prose
+description: A token-styled container that applies reading typography to rendered rich text or trusted HTML.
+---
+
+import ProseDemo from "../../../../components/ui/ProseDemo.tsx";
+
+`Prose` applies the host's reading typography to whatever rich text it wraps —
+headings, paragraphs, lists, links, blockquotes, and code all pick up consistent
+rhythm, tone, and font from the injected tokens. It owns the styling, not the
+parsing, so bring your own markdown parser upstream and hand `Prose` the result.
+The preview below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Prose } from "@nimblebrain/synapse/ui";
+
+<Prose>
+  <h2>Section title</h2>
+  <p>A paragraph of body copy.</p>
+  <ul>
+    <li>First point</li>
+    <li>Second point</li>
+  </ul>
+</Prose>;
+```
+
+<ProseDemo client:only="react" />
+
+## Children or HTML
+
+Pass pre-rendered React nodes as `children`, or a trusted, pre-sanitized HTML
+string as `html` — useful when a markdown parser hands you a string. The `html`
+path is inserted verbatim, so sanitize upstream; only pass HTML you control.
+
+```tsx
+<Prose html={renderedMarkdownHtml} />
+```
+
+## Props
+
+`Prose` extends `HTMLAttributes<HTMLDivElement>` (minus `children` and
+`dangerouslySetInnerHTML`), so `className`, `style`, `id`, and other div
+attributes pass straight through. Provide either `html` or `children`, not both.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `html` | `string` | — |
+| `children` | `ReactNode` | — |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | — |
+
+## Related
+
+- [`Heading`](/docs/components/heading) — standalone display type outside a prose block.
+- [`Text`](/docs/components/text) — a single run of body copy.
+- [`Stack`](/docs/components/stack) — stack a prose block among other sections.

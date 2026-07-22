@@ -32,6 +32,8 @@ Releases are public and provenance-attested — published artifacts carry a sign
 
 **Pre-releases.** A version with a pre-release suffix (e.g. `0.12.0-rc.0`) publishes under the npm `next` dist-tag, not `latest`, and the GitHub Release is marked prerelease with notes read from the target stable `## [<base>]` section (the rc rarely has its own). So `v0.12.0-rc.0` → `next`, soak, then `v0.12.0` → `latest`. `npm install @nimblebrain/synapse` still resolves to the last stable `latest` throughout.
 
+**Downstream CI right after a publish (Python).** The `nimblebrain-synapse` PyPI package publishes on a `nimblebrain-synapse-v*` tag (`publish-python.yml`), independent of the npm cadence. When you bump a *consumer's* pin to the version you just released, its CI can fail to resolve for ~1–2 min — PyPI's JSON API reflects the new version before the simple index `uv`/`pip` actually resolve against. Confirm propagation before re-running the consumer's CI (`uv run --isolated --no-project --with "nimblebrain-synapse>=<v>" python -c ""`) rather than reading a red run as a real break.
+
 ## Hard Rules
 
 1. **Never hand-type a method string.** Import constants from `@modelcontextprotocol/ext-apps`:
@@ -98,7 +100,13 @@ unchanged.
   blank (looks like "nothing happened"). And `ui/notifications/tool-result` `params`
   **is** the `CallToolResult` (data at `params.structuredContent`), not wrapped in
   `params.result`. Keep `synapse/*` NimbleBrain-private fields out of the
-  chatgpt/mcpapps payloads.
+  chatgpt/mcpapps payloads. A component that renders in one host but shows a generic
+  error in another ("There was a problem displaying content" on Claude) is usually a
+  rejected `_meta.ui.*` field, not broken HTML — `_meta.ui.domain` is a *host-validated*
+  sandbox origin (Claude derives `sha256(<connectorURL>)[:32] + ".claudemcpcontent.com"`
+  and rejects any other value), so pass that exact value or omit it (the host then
+  defaults the origin). Reproduce locally by loading the embedded resource top-level
+  (`host=generic`) and in a sandboxed iframe (`host=claude`), reading the console.
 - The server half is the Python `nimblebrain-synapse` package (`python/`). It registers
   the component as **two `ui://` resources** — `text/html+skybridge` (ChatGPT) and
   `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`

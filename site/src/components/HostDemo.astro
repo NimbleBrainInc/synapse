@@ -1,20 +1,21 @@
 ---
 // The hero's signature move: one Synapse app, rendered inside every host.
 // One morphing stage (the app stays put, the host chrome changes around it),
-// authentic per-host colors + vendor marks, and the agent operating the app.
+// authentic per-host colors + official vendor marks, and the agent operating
+// the app. Vendor marks (in /public/logos) are used for identification only.
 ---
 
 <div class="hd" aria-label="One app, rendered in every host">
   <div class="hd-tabs" role="tablist" aria-label="MCP host">
-    <button class="hd-tab" data-host="chatgpt" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="-16 -16 32 32" aria-hidden="true"><use href="#hl-openai" /></svg>ChatGPT</button>
-    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="-16 -16 32 32" aria-hidden="true"><use href="#hl-claude" /></svg>Claude</button>
-    <button class="hd-tab" data-host="vscode" role="tab" aria-selected="false" tabindex="-1" type="button"><svg class="vl" viewBox="0 0 24 24" aria-hidden="true"><use href="#hl-vscode" /></svg>VS Code</button>
-    <button class="hd-tab" data-host="yourapp" role="tab" aria-selected="true" tabindex="0" type="button"><svg class="vl" viewBox="0 0 32 32" aria-hidden="true"><use href="#hl-nimble" /></svg>Your app</button>
+    <button class="hd-tab" data-host="chatgpt" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/openai.svg" alt="" />ChatGPT</button>
+    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/anthropic.svg" alt="" />Claude</button>
+    <button class="hd-tab" data-host="vscode" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/vscode.svg" alt="" />VS Code</button>
+    <button class="hd-tab" data-host="yourapp" role="tab" aria-selected="true" tabindex="0" type="button"><img class="vl" src="/logos/nimblebrain.svg" alt="" />Your app</button>
   </div>
 
   <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel">
     <div class="hd-bar">
-      <span class="hd-logo"><svg id="hdLogo" viewBox="0 0 32 32" aria-hidden="true"><use href="#hl-nimble" /></svg></span>
+      <img class="hd-logo" id="hdLogo" src="/logos/nimblebrain.svg" alt="" />
       <span class="hd-name" id="hdName">NimbleBrain</span>
       <span class="hd-metabar">
         <span class="hd-self">self-hosted</span>
@@ -23,8 +24,8 @@
     </div>
 
     <div class="hd-body">
-      <div class="hd-pmt"><span class="hd-av">You</span><span class="hd-t">send this week&rsquo;s follow-ups</span></div>
-      <p class="hd-note">drafted by the agent, pending your OK</p>
+      <div class="hd-msg user"><div class="hd-bubble">send this week&rsquo;s follow-ups</div></div>
+      <p class="hd-say">Here are your follow-ups, ready to send:</p>
 
       <article class="sapp" aria-label="Approve follow-ups (example Synapse app)">
         <div class="s-top">
@@ -49,13 +50,6 @@
     <span>Your MCP app, unchanged. Synapse speaks each host&rsquo;s protocol so you don&rsquo;t.</span>
   </div>
 </div>
-
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <symbol id="hl-openai" viewBox="-16 -16 32 32"><g fill="currentColor"><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(60)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(120)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(180)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(240)" /><path d="M0 -4 C6 -7.5 6 -15 0 -15 C-6 -15 -6 -7.5 0 -4Z" transform="rotate(300)" /></g></symbol>
-  <symbol id="hl-claude" viewBox="-16 -16 32 32"><g fill="currentColor"><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(30)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(60)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(90)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(120)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(150)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(180)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(210)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(240)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(270)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(300)" /><path d="M0 -3.2 L1.5 -13 L0 -15 L-1.5 -13Z" transform="rotate(330)" /></g></symbol>
-  <symbol id="hl-vscode" viewBox="0 0 24 24"><path fill="currentColor" d="M23.15 2.587 18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a1 1 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12 .326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a1 1 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352ZM18 17.448 10.826 12 18 6.552Z" /></symbol>
-  <symbol id="hl-nimble" viewBox="0 0 32 32"><defs><linearGradient id="hl-nbg" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#5B8CFF" /><stop offset="1" stop-color="#3FE0C4" /></linearGradient></defs><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#hl-nbg)" stroke-width="3" stroke-linecap="round" fill="none" /><circle cx="22.5" cy="8.2" r="2.8" fill="#5B8CFF" /><circle cx="10" cy="21.7" r="2.8" fill="#3FE0C4" /></symbol>
-</svg>
 
 <style>
   .hd {
@@ -93,6 +87,7 @@
     width: 15px;
     height: 15px;
     flex: 0 0 auto;
+    object-fit: contain;
   }
   .hd-tab:hover {
     color: var(--text, #edf0f6);
@@ -127,13 +122,11 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
   .hd-logo {
-    display: grid;
-    place-items: center;
-    width: 20px;
-    height: 20px;
+    width: 19px;
+    height: 19px;
     flex: 0 0 auto;
+    object-fit: contain;
   }
-  .hd-logo svg { width: 20px; height: 20px; }
   .hd-metabar {
     margin-left: auto;
     display: inline-flex;
@@ -155,54 +148,44 @@
     opacity: 0.72;
   }
   .hd-body { padding: 16px 16px 20px; }
-  .hd-pmt {
-    display: flex;
-    gap: 8px;
-    align-items: flex-start;
-    margin-bottom: 8px;
+
+  /* conversation: user bubble (right) → assistant line (left) → the app */
+  .hd-msg { display: flex; margin-bottom: 9px; }
+  .hd-msg.user { justify-content: flex-end; }
+  .hd-bubble {
+    max-width: 80%;
+    padding: 8px 12px;
+    border-radius: 14px 14px 4px 14px;
+    font-size: 12.5px;
+    line-height: 1.4;
   }
-  .hd-av {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    flex: 0 0 auto;
-    display: grid;
-    place-items: center;
-    font-size: 9.5px;
-    font-weight: 700;
-  }
-  .hd-t { font-size: 12.5px; line-height: 1.45; padding-top: 1px; }
-  .hd-note {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    margin: 0 0 11px 28px;
-    opacity: 0.72;
+  .hd-say {
+    margin: 0 0 11px;
+    font-size: 12.5px;
+    line-height: 1.45;
   }
 
   /* ---- per-host chrome ---- */
   .hd-stage[data-host="yourapp"] { background: #0a1122; }
   .hd-stage[data-host="yourapp"] .hd-bar { background: #0c1526; color: #dfe6f2; border-bottom-color: rgba(63, 224, 196, 0.2); }
   .hd-stage[data-host="yourapp"] .hd-self { display: inline-block; color: #63e7ce; background: rgba(63, 224, 196, 0.14); }
-  .hd-stage[data-host="yourapp"] .hd-av { background: rgba(63, 224, 196, 0.18); color: #9af0e0; }
-  .hd-stage[data-host="yourapp"] .hd-t, .hd-stage[data-host="yourapp"] .hd-note { color: #c7d0e0; }
+  .hd-stage[data-host="yourapp"] .hd-bubble { background: rgba(63, 224, 196, 0.13); color: #dbe4f2; }
+  .hd-stage[data-host="yourapp"] .hd-say { color: #aeb9cc; }
 
   .hd-stage[data-host="chatgpt"] { background: #1e1e20; }
   .hd-stage[data-host="chatgpt"] .hd-bar { background: #141416; color: #ececec; border-bottom-color: #2a2b2e; }
-  .hd-stage[data-host="chatgpt"] .hd-logo { color: #fff; }
-  .hd-stage[data-host="chatgpt"] .hd-av { background: #4b3fbf; color: #fff; }
-  .hd-stage[data-host="chatgpt"] .hd-t, .hd-stage[data-host="chatgpt"] .hd-note { color: #c9ccd1; }
+  .hd-stage[data-host="chatgpt"] .hd-bubble { background: #2f2f31; color: #ececec; }
+  .hd-stage[data-host="chatgpt"] .hd-say { color: #b6bac0; }
 
   .hd-stage[data-host="claude"] { background: #f3eee4; }
   .hd-stage[data-host="claude"] .hd-bar { background: #efe9dd; color: #2a2621; border-bottom-color: #e2d9c7; }
-  .hd-stage[data-host="claude"] .hd-logo { color: #d2734b; }
-  .hd-stage[data-host="claude"] .hd-av { background: #d9cfbd; color: #5a5040; }
-  .hd-stage[data-host="claude"] .hd-t, .hd-stage[data-host="claude"] .hd-note { color: #5a5040; }
+  .hd-stage[data-host="claude"] .hd-bubble { background: #e7dcc8; color: #4a4238; }
+  .hd-stage[data-host="claude"] .hd-say { color: #6a5f50; }
 
   .hd-stage[data-host="vscode"] { background: #1e1e1e; }
   .hd-stage[data-host="vscode"] .hd-bar { background: #181818; color: #cfd2d6; border-bottom-color: #333; }
-  .hd-stage[data-host="vscode"] .hd-logo { color: #3aa0f0; }
-  .hd-stage[data-host="vscode"] .hd-av { background: #2b4a63; color: #cfe6f7; }
-  .hd-stage[data-host="vscode"] .hd-t, .hd-stage[data-host="vscode"] .hd-note { color: #b6bcc4; }
+  .hd-stage[data-host="vscode"] .hd-bubble { background: #2a2d2e; color: #d4d7db; }
+  .hd-stage[data-host="vscode"] .hd-say { color: #9ea4ac; }
 
   /* foot */
   .hd-foot {
@@ -312,55 +295,48 @@
   const stage = document.getElementById("hdStage");
   const nameEl = document.getElementById("hdName");
   const bridgeEl = document.getElementById("hdBridge");
-  const logoUse = document.querySelector("#hdLogo use");
-  const tabs = Array.from(document.querySelectorAll(".hd-tab"));
-  const cfg = {
-    chatgpt: { name: "ChatGPT", bridge: "window.openai", logo: "#hl-openai", vb: "-16 -16 32 32" },
-    claude: { name: "Claude", bridge: "ui/* protocol", logo: "#hl-claude", vb: "-16 -16 32 32" },
-    vscode: { name: "Visual Studio Code", bridge: "ui/* protocol", logo: "#hl-vscode", vb: "0 0 24 24" },
-    yourapp: { name: "NimbleBrain", bridge: "Synapse API", logo: "#hl-nimble", vb: "0 0 32 32" },
+  const logoImg = document.getElementById("hdLogo") as HTMLImageElement | null;
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".hd-tab"));
+  const cfg: Record<string, { name: string; bridge: string; logo: string }> = {
+    chatgpt: { name: "ChatGPT", bridge: "window.openai", logo: "/logos/openai.svg" },
+    claude: { name: "Claude", bridge: "ui/* protocol", logo: "/logos/anthropic-ink.svg" },
+    vscode: { name: "Visual Studio Code", bridge: "ui/* protocol", logo: "/logos/vscode.svg" },
+    yourapp: { name: "NimbleBrain", bridge: "Synapse API", logo: "/logos/nimblebrain.svg" },
   };
   const order = ["yourapp", "chatgpt", "claude", "vscode"];
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let idx = 0;
-  let timer = null;
+  let timer: ReturnType<typeof setInterval> | null = null;
   let paused = false;
 
-  function select(host, focus) {
+  function select(host: string, focus: boolean) {
     const c = cfg[host];
-    if (!c) return;
+    if (!c || !stage || !nameEl || !bridgeEl || !logoImg) return;
     tabs.forEach((t) => {
       const on = t.dataset.host === host;
       t.setAttribute("aria-selected", on ? "true" : "false");
       t.tabIndex = on ? 0 : -1;
-      t.classList.toggle(host, on);
       if (on && focus) t.focus();
-    });
-    tabs.forEach((t) => {
-      // keep only the active host class flag off non-active tabs
-      if (t.dataset.host !== host) t.classList.remove(host);
     });
     stage.dataset.host = host;
     nameEl.textContent = c.name;
     bridgeEl.textContent = c.bridge;
-    const logo = document.getElementById("hdLogo");
-    logo.setAttribute("viewBox", c.vb);
-    logoUse.setAttribute("href", c.logo);
+    logoImg.src = c.logo;
     idx = order.indexOf(host);
   }
 
-  // tabs carry their own host class for the active-color rule
-  tabs.forEach((t) => t.classList.add(t.dataset.host));
+  // each tab carries its own host class for the active-color rule
+  tabs.forEach((t) => t.dataset.host && t.classList.add(t.dataset.host));
   tabs.forEach((t) => {
-    t.addEventListener("click", () => { select(t.dataset.host, false); stop(); });
+    t.addEventListener("click", () => { select(t.dataset.host || "", false); stop(); });
     t.addEventListener("keydown", (e) => {
       const i = tabs.indexOf(t);
-      let n = null;
+      let n: HTMLButtonElement | null = null;
       if (e.key === "ArrowRight" || e.key === "ArrowDown") n = tabs[(i + 1) % tabs.length];
       else if (e.key === "ArrowLeft" || e.key === "ArrowUp") n = tabs[(i - 1 + tabs.length) % tabs.length];
       else if (e.key === "Home") n = tabs[0];
       else if (e.key === "End") n = tabs[tabs.length - 1];
-      if (n) { e.preventDefault(); select(n.dataset.host, true); stop(); }
+      if (n) { e.preventDefault(); select(n.dataset.host || "", true); stop(); }
     });
   });
 

@@ -3,6 +3,15 @@ import Layout from "../layouts/Layout.astro";
 import HostDemo from "../components/HostDemo.astro";
 ---
 <Layout>
+<!-- Shared gradient paint server (referenced by SVGs across the page). Kept here,
+     not in the nav logo, so restructuring the nav can't silently flatten it. -->
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <linearGradient id="lg-nav" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563FF"/><stop offset="1" stop-color="#20D6B5"/>
+    </linearGradient>
+  </defs>
+</svg>
 <a class="skip" href="#top">Skip to content</a>
 
 <header class="nav">
@@ -12,9 +21,6 @@ import HostDemo from "../components/HostDemo.astro";
         <defs>
           <linearGradient id="lg-mark" x1="0.08" y1="0.62" x2="0.9" y2="0.32">
             <stop offset="0" stop-color="#1158F6"/><stop offset="0.5" stop-color="#1E86E4"/><stop offset="1" stop-color="#24D1B5"/>
-          </linearGradient>
-          <linearGradient id="lg-nav" x1="4" y1="4" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#2563FF"/><stop offset="1" stop-color="#20D6B5"/>
           </linearGradient>
         </defs>
         <g transform="translate(-19.776089,122.165176) scale(0.1,-0.1)" fill="url(#lg-mark)" stroke="none">
@@ -50,7 +56,7 @@ import HostDemo from "../components/HostDemo.astro";
         <div class="install">
           <div class="install-code">
             <span class="prompt">$</span>
-            <code id="installCmd">npm install @nimblebrain/synapse</code>
+            <code>npm install @nimblebrain/synapse</code>
           </div>
           <button class="copy-btn" id="copyBtn" type="button" aria-label="Copy install command">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>

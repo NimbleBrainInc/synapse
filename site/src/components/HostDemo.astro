@@ -7,13 +7,13 @@
 
 <div class="hd" aria-label="One app, rendered in every host">
   <div class="hd-tabs" role="tablist" aria-label="MCP host">
-    <button class="hd-tab" data-host="chatgpt" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/openai.svg" alt="" />ChatGPT</button>
-    <button class="hd-tab" data-host="claude" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/claude.png" alt="" />Claude</button>
-    <button class="hd-tab" data-host="vscode" role="tab" aria-selected="false" tabindex="-1" type="button"><img class="vl" src="/logos/vscode.svg" alt="" />VS Code</button>
-    <button class="hd-tab" data-host="yourapp" role="tab" aria-selected="true" tabindex="0" type="button"><img class="vl" src="/logos/nimblebrain.svg" alt="" />Your app</button>
+    <button class="hd-tab" id="hd-tab-chatgpt" data-host="chatgpt" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/openai.svg" alt="" />ChatGPT</button>
+    <button class="hd-tab" id="hd-tab-claude" data-host="claude" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/claude.png" alt="" />Claude</button>
+    <button class="hd-tab" id="hd-tab-vscode" data-host="vscode" role="tab" aria-selected="false" aria-controls="hdStage" tabindex="-1" type="button"><img class="vl" src="/logos/vscode.svg" alt="" />VS Code</button>
+    <button class="hd-tab" id="hd-tab-yourapp" data-host="yourapp" role="tab" aria-selected="true" aria-controls="hdStage" tabindex="0" type="button"><img class="vl" src="/logos/nimblebrain.svg" alt="" />Your app</button>
   </div>
 
-  <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel">
+  <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel" aria-labelledby="hd-tab-yourapp">
     <div class="hd-body">
       <div class="hd-msg user"><div class="hd-bubble">send this week&rsquo;s follow-ups</div></div>
       <p class="hd-say">Here are your follow-ups, ready to send:</p>
@@ -263,6 +263,7 @@
       if (on && focus) t.focus();
     });
     stage.dataset.host = host;
+    stage.setAttribute("aria-labelledby", "hd-tab-" + host);
     footPre.textContent = c.pre;
     footBridge.textContent = c.bridge;
     footPost.textContent = c.post;

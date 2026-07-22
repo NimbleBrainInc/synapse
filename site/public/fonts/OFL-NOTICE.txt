@@ -1,0 +1,10 @@
+Self-hosted webfonts, licensed under the SIL Open Font License 1.1
+(https://openfontlicense.org). These files may be redistributed under the OFL.
+
+- inter-latin.woff2          Inter, Copyright (c) The Inter Project Authors
+                             https://github.com/rsms/inter
+- jetbrains-mono-latin.woff2 JetBrains Mono, Copyright (c) JetBrains
+                             https://github.com/JetBrains/JetBrainsMono
+
+Latin subset, variable weight (woff2). Space Grotesk (display) is inlined in
+src/styles/app.css and is likewise SIL OFL 1.1.

@@ -50,48 +50,16 @@ button{font:inherit;color:inherit}
 a{color:inherit}
 ::selection{background:rgba(37,99,255,.18)}
 
-/* ---- Semantic theme tokens: light (default) ---- */
+/* ---- Shared tokens (theme-independent) ---- */
 :root{
-  --bg:#FFFFFF;
-  --bg-alt:#F5F7FA;
-  --surface:#FFFFFF;
-  --surface-2:#F4F7FA;
-  --text:#0B0F1A;
-  --muted:#48505F;
-  --faint:#697285;
-  --border:#E6E9EF;
-  --border-strong:#D3D8E0;
-  --accent:#2563FF;
-  --accent-ink:#1B4DD8;
-  --accent-soft:rgba(37,99,255,.10);
-  --mint:#20D6B5;
-  --mint-ink:#0A6E5C;
-  --ring:rgba(37,99,255,.55);
-  --hero-glow-a:rgba(37,99,255,.16);
-  --hero-glow-b:rgba(32,214,181,.14);
-  --arcs-op:.18;
   --arcs:url("data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%201200%20420%27%20preserveAspectRatio%3D%27xMidYMid%20meet%27%3E%3Cdefs%3E%3ClinearGradient%20id%3D%27sg%27%20x1%3D%270%27%20y1%3D%270%27%20x2%3D%271%27%20y2%3D%270%27%3E%3Cstop%20offset%3D%270%27%20stop-color%3D%27%232563FF%27%2F%3E%3Cstop%20offset%3D%271%27%20stop-color%3D%27%2320D6B5%27%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cg%20fill%3D%27none%27%20stroke%3D%27url%28%23sg%29%27%20stroke-width%3D%271.6%27%3E%3Cpath%20d%3D%27M-40%20132%20C%20240%2044%20480%20220%20760%20132%20S%201240%2054%201320%20128%27%2F%3E%3Cpath%20d%3D%27M-40%20212%20C%20300%20132%20560%20300%20860%20206%20S%201260%20150%201320%20214%27%2F%3E%3Cpath%20d%3D%27M-40%20312%20C%20240%20232%20520%20360%20820%20296%20S%201240%20250%201320%20306%27%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%27%2320D6B5%27%3E%3Ccircle%20cx%3D%27760%27%20cy%3D%27132%27%20r%3D%273.4%27%2F%3E%3Ccircle%20cx%3D%27860%27%20cy%3D%27206%27%20r%3D%273.4%27%2F%3E%3Ccircle%20cx%3D%27520%27%20cy%3D%27296%27%20r%3D%272.8%27%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E");
-  --grid-line:rgba(11,15,26,.045);
-  --shadow-lift:0 1px 2px rgba(11,15,26,.05),0 22px 44px -24px rgba(11,15,26,.22);
-  --nav-bg:rgba(255,255,255,.74);
-  /* elevation primitive: light = soft shadow, no visible border */
-  --elev-bg:var(--surface);
-  --elev-border:transparent;
-  --elev-shadow:var(--shadow-lift);
-  --pill-run-bg:rgba(37,99,255,.12);   --pill-run-tx:#1B4DD8;
-  --pill-con-bg:rgba(32,214,181,.15);  --pill-con-tx:#0A6E5C;
-  --pill-pen-bg:rgba(245,158,11,.16);  --pill-pen-tx:#9A6208;
-  --pill-err-bg:rgba(239,68,68,.13);   --pill-err-tx:#B23127;
-  /* motion */
   --dur-fast:150ms; --dur:200ms; --dur-slow:320ms;
   --ease-out:cubic-bezier(.23,1,.32,1);
   --ease-in-out:cubic-bezier(.77,0,.175,1);
-  /* radii (all <= 16px) */
   --r-sm:8px; --r:12px; --r-lg:16px;
 }
 
-/* ---- Dark tokens: a designed sibling, not an inversion ---- */
-/* ---- Theme: dark (only) ---- */
+/* ---- Theme tokens (dark; the only theme) ---- */
 :root{
     --bg:#080B12;
     --bg-alt:#0C111B;
@@ -151,12 +119,6 @@ section{position:relative}
 .elev{background:var(--elev-bg);border:1px solid var(--elev-border);box-shadow:var(--elev-shadow)}
 .panel{background:var(--surface);border:1px solid var(--border)}
 
-.eyebrow{
-  display:inline-flex;align-items:center;gap:8px;
-  font-family:var(--font-mono);font-size:12px;letter-spacing:.02em;
-  color:var(--muted);
-}
-.eyebrow .sig{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px var(--pill-con-bg);flex:0 0 auto}
 
 /* Skip link */
 .skip{position:absolute;left:-999px;top:8px;z-index:200;background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;text-decoration:none;font-size:14px;font-weight:600}
@@ -226,7 +188,6 @@ a:focus-visible,button:focus-visible,[tabindex]:focus-visible{
 }
 .nav-in{display:flex;align-items:center;gap:16px;height:62px}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
-.brand .tag{font-family:var(--font-mono);font-size:10.5px;color:var(--muted);border:1px solid var(--border-strong);padding:2px 6px;border-radius:6px}
 .nav-links{display:flex;gap:4px;margin-left:12px}
 .nav-links a{
   font-size:13.5px;color:var(--muted);text-decoration:none;
@@ -304,8 +265,6 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 .copy-btn.ok{color:var(--mint-ink);border-color:var(--mint)}
 
 .cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:22px}
-.trust{margin-top:22px;font-size:13px;color:var(--faint);display:flex;align-items:center;gap:8px;max-width:52ch}
-.trust svg{width:15px;height:15px;color:var(--mint);flex:0 0 auto}
 
 /* ============================================================ Sections + manifesto beats */
 .band{padding:88px 0}
@@ -317,11 +276,6 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 /* Big POV beats : the manifesto voice. Solid type; one accented clause. */
 .beat{padding:clamp(70px,11vh,126px) 0}
 .beat.tint{background:var(--bg-alt);border-block:1px solid var(--border)}
-.idx{
-  display:inline-flex;align-items:center;gap:9px;
-  font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--faint);
-}
-.idx .sig{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px var(--pill-con-bg);flex:0 0 auto}
 .statement{font-size:clamp(2rem,5.6vw,3.9rem);line-height:1.04;letter-spacing:-.03em;max-width:19ch;margin-top:18px}
 .say-sub{font-size:clamp(1.05rem,2vw,1.26rem);color:var(--muted);max-width:56ch;margin-top:24px;line-height:1.55}
 /* the problem, made concrete : per-host protocol chips (the beat) */
@@ -335,9 +289,6 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 .brdg .who{font-size:11.5px;color:var(--faint)}
 .brdg.you{border-color:var(--mint);background:var(--pill-con-bg)}
 .brdg.you code{color:var(--mint-ink)}
-.beat.centered{border-block:1px solid var(--border)}
-.beat.centered .wrap{text-align:center}
-.beat.centered .statement,.beat.centered .say-sub{margin-left:auto;margin-right:auto}
 .cap-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:52px;align-items:start}
 .cap-head{margin-bottom:0}
 .how-cta{margin-top:40px;display:flex;justify-content:center}
@@ -387,28 +338,11 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
   border:1px solid var(--border-strong);border-radius:10px;padding:10px 8px;text-align:center;
   font-size:12px;font-weight:600;color:var(--muted);background:var(--surface-2);
 }
-.hchip small{display:block;font-family:var(--font-mono);font-size:9px;color:var(--faint);margin-top:3px;font-weight:400}
 .hchip.home{color:var(--mint-ink);border-color:var(--mint);background:var(--pill-con-bg);position:relative}
 .hchip .cdot{display:inline-block;width:6px;height:6px;border-radius:50%;background:currentColor;margin-right:5px;vertical-align:middle;opacity:.6}
 .hchip.home .cdot{background:var(--mint);opacity:1}
-.bridges{margin-top:22px;display:grid;gap:10px}
-.brow{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);flex-wrap:wrap}
-.brow .bcode{
-  font-family:var(--font-mono);font-size:12px;color:var(--text);
-  background:var(--surface-2);border:1px solid var(--border);border-radius:7px;padding:4px 9px;flex:0 0 auto;
-}
-.brow .arr{color:var(--accent);flex:0 0 auto}
-.bridges .lede{font-weight:600;color:var(--text);font-size:13.5px;margin-top:4px}
 
 /* ============================================================ Why it matters : asymmetric, mechanism-tied (no card grid) */
-.why-lead{min-width:0}
-.mini-label{
-  display:inline-flex;align-items:center;gap:8px;
-  font-family:var(--font-mono);font-size:12px;letter-spacing:.04em;color:var(--faint);
-}
-.mini-label .sig{width:6px;height:6px;border-radius:50%;background:var(--mint);flex:0 0 auto}
-.why-h{font-size:clamp(1.5rem,3vw,2.15rem);letter-spacing:-.02em;margin-top:14px;max-width:15ch;line-height:1.1}
-.why-p{color:var(--muted);margin-top:16px;font-size:16.5px;max-width:48ch;line-height:1.62}
 /* mechanism comparison : them vs us, not cards */
 .compare{margin-top:28px;display:grid;gap:10px;max-width:520px}
 .crow{
@@ -445,13 +379,6 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 .selfhost{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:52px;align-items:start}
 .selfhost h2{font-size:clamp(1.7rem,4vw,2.5rem);line-height:1.12}
 .selfhost .lead{color:var(--muted);margin-top:18px;font-size:clamp(1rem,2vw,1.12rem);max-width:52ch;line-height:1.6}
-.selfhost .acc{
-  margin-top:22px;padding:14px 16px;border-radius:var(--r);
-  background:var(--surface);border:1px solid var(--border);
-  font-size:13.5px;color:var(--muted);display:flex;gap:10px;align-items:flex-start;line-height:1.5;
-}
-.selfhost .acc b{color:var(--text);font-weight:600}
-.selfhost .acc svg{width:17px;height:17px;color:var(--accent);flex:0 0 auto;margin-top:1px}
 /* reach list = a defined edge, no shadow */
 .reach{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:22px}
 .reach .rt{font-family:var(--font-mono);font-size:11px;color:var(--faint);margin-bottom:14px}

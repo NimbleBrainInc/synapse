@@ -332,8 +332,8 @@ import HostDemo from "../components/HostDemo.astro";
       var lbl=b.querySelector('.lbl');
       var done=function(){ b.classList.add('ok'); if(lbl) lbl.textContent='Copied'; setTimeout(function(){ b.classList.remove('ok'); if(lbl) lbl.textContent='Copy'; },1600); };
       try{
-        navigator.clipboard.writeText('npm install @nimblebrain/synapse').then(done).catch(done);
-      }catch(e){ done(); }
+        navigator.clipboard.writeText('npm install @nimblebrain/synapse').then(done).catch(function(){});
+      }catch(e){}
     });
   }
   wireCopy('copyBtn'); wireCopy('copyBtn2');

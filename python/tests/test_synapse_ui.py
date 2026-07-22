@@ -116,9 +116,18 @@ class _CapturingMCP:
         return lambda fn: fn
 
 
-def test_register_emits_widget_csp_and_domain_in_both_dialects():
+def test_register_routes_each_origin_to_its_own_host_dialect():
+    """The two origins are distinct host fields: the OpenAI widget domain reaches
+    only ``openai/widgetDomain``, the ext-apps origin only ``ui.domain`` — never
+    the same value fed to both (an OpenAI origin in ``ui.domain`` fails a Claude
+    host's validation and the component does not render)."""
     mcp = _CapturingMCP()
-    SynapseUI(uri=UI_URI, template=TEMPLATE, domain="https://example.com").register(mcp)
+    SynapseUI(
+        uri=UI_URI,
+        template=TEMPLATE,
+        widget_domain="https://example.com",
+        mcp_app_domain="abc123.claudemcpcontent.com",
+    ).register(mcp)
 
     # ChatGPT (skybridge) — flat openai/* dialect, snake_case CSP.
     sky = mcp.registered[UI_URI]["meta"]
@@ -129,11 +138,22 @@ def test_register_emits_widget_csp_and_domain_in_both_dialects():
     # MCP Apps standard — nested ui.* dialect, camelCase CSP.
     app = mcp.registered[f"{UI_URI}-mcp-app"]["meta"]["ui"]
     assert app["prefersBorder"] is True
-    assert app["domain"] == "https://example.com"
+    assert app["domain"] == "abc123.claudemcpcontent.com"
     assert app["csp"] == {"connectDomains": [], "resourceDomains": []}
 
 
-def test_register_carries_non_empty_allowlists_and_omits_domain_when_unset():
+def test_widget_domain_never_leaks_into_ext_apps_ui_domain():
+    """Regression: `widget_domain` alone must not populate `ui.domain`. The OpenAI
+    origin is not a valid ext-apps sandbox origin, so an ext-apps host would reject
+    it — the omission lets the host default the origin instead."""
+    mcp = _CapturingMCP()
+    SynapseUI(uri=UI_URI, template=TEMPLATE, widget_domain="https://example.com").register(mcp)
+
+    assert mcp.registered[UI_URI]["meta"]["openai/widgetDomain"] == "https://example.com"
+    assert "domain" not in mcp.registered[f"{UI_URI}-mcp-app"]["meta"]["ui"]
+
+
+def test_register_carries_non_empty_allowlists_and_omits_domains_when_unset():
     mcp = _CapturingMCP()
     SynapseUI(
         uri=UI_URI,
@@ -143,7 +163,7 @@ def test_register_carries_non_empty_allowlists_and_omits_domain_when_unset():
     ).register(mcp)
 
     sky = mcp.registered[UI_URI]["meta"]
-    # CSP is always present (a self-contained default); domain only when provided.
+    # CSP is always present (a self-contained default); each origin only when provided.
     assert sky["openai/widgetCSP"]["connect_domains"] == ["https://api.example.com"]
     assert sky["openai/widgetCSP"]["resource_domains"] == ["https://cdn.example.com"]
     assert "openai/widgetDomain" not in sky

@@ -81,9 +81,21 @@ class SynapseUI:
         inline_sdk: Inline the bundled client SDK into the HTML (default). Set
             ``False`` if the template already carries the SDK.
         sdk_source: Override the inlined SDK source (defaults to the bundled IIFE).
-        domain: Unique HTTPS origin for the hosted component (``openai/widgetDomain``
-            / ``ui.domain``). Required to submit an Apps SDK app; ChatGPT renders the
-            component under ``<hash>.web-sandbox.oaiusercontent.com`` keyed by it.
+        widget_domain: The OpenAI Apps SDK origin, emitted as ``openai/widgetDomain``
+            on the ChatGPT (skybridge) resource. A developer-declared origin ChatGPT
+            keys the hosted component to (rendered under
+            ``<slug>.web-sandbox.oaiusercontent.com``); required to submit an Apps SDK
+            app. ChatGPT-specific — it is *not* a valid ext-apps sandbox origin, so it
+            is never emitted as ``ui.domain`` (see ``mcp_app_domain``).
+        mcp_app_domain: The ext-apps sandbox origin, emitted as ``_meta.ui.domain`` on
+            the MCP Apps (``text/html;profile=mcp-app``) resource. The spec makes this
+            value host-validated and its format host-specific (Claude, for one, derives
+            it as ``sha256(<connector URL>)[:32] + ".claudemcpcontent.com"`` and rejects
+            any other value), so one value cannot satisfy every host: supply it only
+            when the component needs a stable, dedicated origin (OAuth callback / CORS /
+            API-key allowlist) on a known target host, computed in that host's format.
+            Left unset by default, which the spec resolves to the host's own default
+            sandbox origin — the correct choice for a self-contained component.
         connect_domains: Origins the component may reach via fetch/XHR (widget CSP
             ``connect_domains``). Empty for a self-contained component.
         resource_domains: Origins the component may load static assets from (widget
@@ -99,7 +111,8 @@ class SynapseUI:
         data_element_id: str = DEFAULT_DATA_ELEMENT_ID,
         inline_sdk: bool = True,
         sdk_source: str | None = None,
-        domain: str | None = None,
+        widget_domain: str | None = None,
+        mcp_app_domain: str | None = None,
         connect_domains: list[str] | None = None,
         resource_domains: list[str] | None = None,
     ) -> None:
@@ -111,10 +124,13 @@ class SynapseUI:
         self.mcp_app_uri = f"{uri}-mcp-app"
         self.data_element_id = data_element_id
         self.preferred_size = preferred_size
-        # Widget CSP + a unique hosted-component origin: required to submit an
-        # Apps SDK app. A self-contained component (SDK inlined, no fetch/assets)
-        # takes empty allowlists — the most restrictive, accurate policy.
-        self.domain = domain
+        # The sandbox origin is host-owned, and the two hosts model it differently:
+        # `openai/widgetDomain` is a developer-declared origin (ChatGPT), while the
+        # ext-apps `ui.domain` is host-validated (Claude derives it and rejects a
+        # mismatch). They are distinct fields with distinct values — never one
+        # value fed to both — so each rides its own attribute.
+        self.widget_domain = widget_domain
+        self.mcp_app_domain = mcp_app_domain
         self.connect_domains = connect_domains or []
         self.resource_domains = resource_domains or []
         self._bound: set[str] = set()
@@ -214,7 +230,7 @@ class SynapseUI:
         """
         html = self.template_html()
 
-        # ChatGPT (skybridge): the flat `openai/*` dialect. CSP + a unique domain
+        # ChatGPT (skybridge): the flat `openai/*` dialect. CSP + the widget domain
         # are required to submit the app; without them ChatGPT's dev view flags the
         # template as submission-incomplete.
         resource_meta: dict[str, Any] = {
@@ -224,8 +240,8 @@ class SynapseUI:
                 "resource_domains": self.resource_domains,
             },
         }
-        if self.domain is not None:
-            resource_meta["openai/widgetDomain"] = self.domain
+        if self.widget_domain is not None:
+            resource_meta["openai/widgetDomain"] = self.widget_domain
         resource_meta.update(meta or {})
 
         @mcp.resource(self.uri, mime_type=SKYBRIDGE_MIME, meta=resource_meta)
@@ -233,6 +249,9 @@ class SynapseUI:
             return html
 
         # MCP Apps standard (Claude et al.): the nested `ui.*` dialect, camelCase.
+        # `ui.domain` is omitted unless a stable origin was supplied — the host
+        # then falls back to its own default sandbox origin (the correct, portable
+        # default; a host that derives its own origin rejects a foreign value).
         ui_meta: dict[str, Any] = {
             "prefersBorder": True,
             "csp": {
@@ -240,8 +259,8 @@ class SynapseUI:
                 "resourceDomains": self.resource_domains,
             },
         }
-        if self.domain is not None:
-            ui_meta["domain"] = self.domain
+        if self.mcp_app_domain is not None:
+            ui_meta["domain"] = self.mcp_app_domain
 
         @mcp.resource(
             self.mcp_app_uri,

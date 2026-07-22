@@ -1,8 +1,8 @@
 ---
-// The hero's signature move: one Synapse app, rendered inside every host.
-// One morphing stage (the app stays put, the host chrome changes around it),
-// authentic per-host colors + official vendor marks, and the agent operating
-// the app. Vendor marks (in /public/logos) are used for identification only.
+// The hero's signature move: one Synapse app, rendered in every host.
+// The tab names the host (no redundant header bar); the host chrome + a
+// dynamic footer follow the selection. Vendor marks (/public/logos) are
+// used for identification only.
 ---
 
 <div class="hd" aria-label="One app, rendered in every host">
@@ -14,15 +14,6 @@
   </div>
 
   <div class="hd-stage" id="hdStage" data-host="yourapp" role="tabpanel">
-    <div class="hd-bar">
-      <img class="hd-logo" id="hdLogo" src="/logos/nimblebrain.svg" alt="" />
-      <span class="hd-name" id="hdName">NimbleBrain</span>
-      <span class="hd-metabar">
-        <span class="hd-self">self-hosted</span>
-        <span class="hd-bridge" id="hdBridge">Synapse API</span>
-      </span>
-    </div>
-
     <div class="hd-body">
       <div class="hd-msg user"><div class="hd-bubble">send this week&rsquo;s follow-ups</div></div>
       <p class="hd-say">Here are your follow-ups, ready to send:</p>
@@ -43,11 +34,8 @@
         </div>
       </article>
     </div>
-  </div>
 
-  <div class="hd-foot">
-    <span class="k">bridge</span>
-    <span>Your MCP app, unchanged. Synapse speaks each host&rsquo;s protocol so you don&rsquo;t.</span>
+    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">Synapse API</code><span id="hdFootPost">.</span></p>
   </div>
 </div>
 
@@ -60,7 +48,7 @@
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 30px 60px -30px rgba(0, 0, 0, 0.7);
   }
 
-  /* tabs */
+  /* tabs — the only place the host is named */
   .hd-tabs {
     display: flex;
     gap: 6px;
@@ -89,9 +77,7 @@
     flex: 0 0 auto;
     object-fit: contain;
   }
-  .hd-tab:hover {
-    color: var(--text, #edf0f6);
-  }
+  .hd-tab:hover { color: var(--text, #edf0f6); }
   .hd-tab:focus-visible {
     outline: 2px solid var(--ring, rgba(143, 176, 255, 0.65));
     outline-offset: 2px;
@@ -107,49 +93,14 @@
   .hd-tab.vscode[aria-selected="true"] { color: #3aa0f0; box-shadow: inset 0 -2px 0 #3aa0f0; }
   .hd-tab.yourapp[aria-selected="true"] { color: var(--mint-l, #3fe0c4); box-shadow: inset 0 -2px 0 #20d6b5; }
 
-  /* stage (morphs per host) */
+  /* stage (the host frame — morphs per host) */
   .hd-stage {
     border-top: 1px solid rgba(255, 255, 255, 0.08);
     transition: background-color 0.3s ease;
   }
-  .hd-bar {
-    display: flex;
-    align-items: center;
-    gap: 9px;
-    padding: 11px 15px;
-    font-size: 13px;
-    font-weight: 600;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  }
-  .hd-logo {
-    width: 19px;
-    height: 19px;
-    flex: 0 0 auto;
-    object-fit: contain;
-  }
-  .hd-metabar {
-    margin-left: auto;
-    display: inline-flex;
-    align-items: center;
-    gap: 9px;
-  }
-  .hd-self {
-    display: none;
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 20px;
-  }
-  .hd-bridge {
-    font-family: var(--font-mono);
-    font-size: 10.5px;
-    font-weight: 400;
-    opacity: 0.72;
-  }
-  .hd-body { padding: 16px 16px 20px; }
+  .hd-body { padding: 18px 16px 16px; }
 
-  /* conversation: user bubble (right) → assistant line (left) → the app */
+  /* conversation: user bubble (right) -> assistant line (left) -> the app */
   .hd-msg { display: flex; margin-bottom: 9px; }
   .hd-msg.user { justify-content: flex-end; }
   .hd-bubble {
@@ -159,54 +110,47 @@
     font-size: 12.5px;
     line-height: 1.4;
   }
-  .hd-say {
-    margin: 0 0 11px;
-    font-size: 12.5px;
+  .hd-say { margin: 0 0 11px; font-size: 12.5px; line-height: 1.45; }
+
+  /* dynamic footer — carries the bridge, tied to the host */
+  .hd-foot {
+    margin: 0;
+    padding: 11px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 11.5px;
     line-height: 1.45;
+  }
+  .hd-foot :global(code) {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    padding: 1px 6px;
+    border-radius: 5px;
   }
 
   /* ---- per-host chrome ---- */
   .hd-stage[data-host="yourapp"] { background: #0a1122; }
-  .hd-stage[data-host="yourapp"] .hd-bar { background: #0c1526; color: #dfe6f2; border-bottom-color: rgba(63, 224, 196, 0.2); }
-  .hd-stage[data-host="yourapp"] .hd-self { display: inline-block; color: #63e7ce; background: rgba(63, 224, 196, 0.14); }
   .hd-stage[data-host="yourapp"] .hd-bubble { background: rgba(63, 224, 196, 0.13); color: #dbe4f2; }
   .hd-stage[data-host="yourapp"] .hd-say { color: #aeb9cc; }
+  .hd-stage[data-host="yourapp"] .hd-foot { color: #8f9bb0; border-top-color: rgba(63, 224, 196, 0.16); }
+  .hd-stage[data-host="yourapp"] .hd-foot :global(code) { color: #9af0e0; background: rgba(63, 224, 196, 0.12); }
 
   .hd-stage[data-host="chatgpt"] { background: #1e1e20; }
-  .hd-stage[data-host="chatgpt"] .hd-bar { background: #141416; color: #ececec; border-bottom-color: #2a2b2e; }
   .hd-stage[data-host="chatgpt"] .hd-bubble { background: #2f2f31; color: #ececec; }
   .hd-stage[data-host="chatgpt"] .hd-say { color: #b6bac0; }
+  .hd-stage[data-host="chatgpt"] .hd-foot { color: #a2a7b0; border-top-color: #2a2b2e; }
+  .hd-stage[data-host="chatgpt"] .hd-foot :global(code) { color: #d4dae6; background: rgba(255, 255, 255, 0.07); }
 
   .hd-stage[data-host="claude"] { background: #f3eee4; }
-  .hd-stage[data-host="claude"] .hd-bar { background: #efe9dd; color: #2a2621; border-bottom-color: #e2d9c7; }
   .hd-stage[data-host="claude"] .hd-bubble { background: #e7dcc8; color: #4a4238; }
   .hd-stage[data-host="claude"] .hd-say { color: #6a5f50; }
+  .hd-stage[data-host="claude"] .hd-foot { color: #6a5f50; border-top-color: #e2d9c7; }
+  .hd-stage[data-host="claude"] .hd-foot :global(code) { color: #4a4238; background: rgba(0, 0, 0, 0.06); }
 
   .hd-stage[data-host="vscode"] { background: #1e1e1e; }
-  .hd-stage[data-host="vscode"] .hd-bar { background: #181818; color: #cfd2d6; border-bottom-color: #333; }
   .hd-stage[data-host="vscode"] .hd-bubble { background: #2a2d2e; color: #d4d7db; }
   .hd-stage[data-host="vscode"] .hd-say { color: #9ea4ac; }
-
-  /* foot */
-  .hd-foot {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 15px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
-    background: var(--surface-2, #161e2e);
-    font-size: 12px;
-    color: var(--muted, #a2adc0);
-    line-height: 1.4;
-  }
-  .hd-foot .k {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--faint, #828da1);
-    flex: 0 0 auto;
-  }
+  .hd-stage[data-host="vscode"] .hd-foot { color: #9ea4ac; border-top-color: #333; }
+  .hd-stage[data-host="vscode"] .hd-foot :global(code) { color: #cfe6f7; background: rgba(255, 255, 255, 0.06); }
 
   /* ===== the Synapse app (identical in every host) ===== */
   .sapp {
@@ -293,15 +237,15 @@
 
 <script>
   const stage = document.getElementById("hdStage");
-  const nameEl = document.getElementById("hdName");
-  const bridgeEl = document.getElementById("hdBridge");
-  const logoImg = document.getElementById("hdLogo") as HTMLImageElement | null;
+  const footPre = document.getElementById("hdFootPre");
+  const footBridge = document.getElementById("hdFootBridge");
+  const footPost = document.getElementById("hdFootPost");
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".hd-tab"));
-  const cfg: Record<string, { name: string; bridge: string; logo: string }> = {
-    chatgpt: { name: "ChatGPT", bridge: "window.openai", logo: "/logos/openai.svg" },
-    claude: { name: "Claude", bridge: "ui/* protocol", logo: "/logos/claude.png" },
-    vscode: { name: "Visual Studio Code", bridge: "ui/* protocol", logo: "/logos/vscode.svg" },
-    yourapp: { name: "NimbleBrain", bridge: "Synapse API", logo: "/logos/nimblebrain.svg" },
+  const cfg: Record<string, { pre: string; bridge: string; post: string }> = {
+    chatgpt: { pre: "In ChatGPT, Synapse renders your app via ", bridge: "window.openai", post: "." },
+    claude: { pre: "In Claude, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
+    vscode: { pre: "In VS Code, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
+    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "Synapse API", post: "." },
   };
   const order = ["yourapp", "chatgpt", "claude", "vscode"];
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -311,7 +255,7 @@
 
   function select(host: string, focus: boolean) {
     const c = cfg[host];
-    if (!c || !stage || !nameEl || !bridgeEl || !logoImg) return;
+    if (!c || !stage || !footPre || !footBridge || !footPost) return;
     tabs.forEach((t) => {
       const on = t.dataset.host === host;
       t.setAttribute("aria-selected", on ? "true" : "false");
@@ -319,13 +263,12 @@
       if (on && focus) t.focus();
     });
     stage.dataset.host = host;
-    nameEl.textContent = c.name;
-    bridgeEl.textContent = c.bridge;
-    logoImg.src = c.logo;
+    footPre.textContent = c.pre;
+    footBridge.textContent = c.bridge;
+    footPost.textContent = c.post;
     idx = order.indexOf(host);
   }
 
-  // each tab carries its own host class for the active-color rule
   tabs.forEach((t) => t.dataset.host && t.classList.add(t.dataset.host));
   tabs.forEach((t) => {
     t.addEventListener("click", () => { select(t.dataset.host || "", false); stop(); });

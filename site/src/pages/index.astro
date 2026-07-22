@@ -51,7 +51,7 @@ import HostDemo from "../components/HostDemo.astro";
     <div class="wrap hero-grid">
       <div class="hero-copy">
         <h1>One UI. Every MCP host, <span class="hl">including your own.</span></h1>
-        <p class="subhead">Build your MCP app's UI once with real, typed components. Synapse runs it in ChatGPT, Claude, VS Code, and a host you run yourself.</p>
+        <p class="subhead">Build your MCP app's UI once with real, typed components. Synapse renders it in ChatGPT, Claude, and VS Code.</p>
 
         <div class="install">
           <div class="install-code">
@@ -81,8 +81,13 @@ import HostDemo from "../components/HostDemo.astro";
   <!-- ===================== POV BEAT : the thesis ===================== -->
   <section class="beat tint">
     <div class="wrap">
-      <h2 class="statement reveal fade d1">A UI shouldn't care <span class="hl">which host it runs in.</span></h2>
-      <p class="say-sub reveal fade d2">You built your MCP app once. Making its UI run in four different runtimes is Synapse's job, not yours. Every host speaks a different bridge. You should speak none of them.</p>
+      <h2 class="statement reveal fade d1">Every host speaks a <span class="hl">different protocol.</span></h2>
+      <p class="say-sub reveal fade d2">Build your app's UI for one host, and you've built it for one. Each speaks a different way.</p>
+      <div class="bridges-row reveal fade d2">
+        <span class="brdg"><code>window.openai</code><span class="who">ChatGPT</span></span>
+        <span class="brdg"><code>ui/* protocol</code><span class="who">Claude, VS Code</span></span>
+        <span class="brdg you"><code>Synapse API</code><span class="who">your runtime</span></span>
+      </div>
     </div>
   </section>
 
@@ -90,7 +95,7 @@ import HostDemo from "../components/HostDemo.astro";
   <section class="band" id="how">
     <div class="wrap">
       <div class="sec-head reveal">
-        <h2>Build your MCP app once. Synapse handles <span class="hl">every host's bridge.</span></h2>
+        <h2>You write typed React. Synapse ships <span class="hl">one ui:// resource.</span></h2>
         <p>You write real, typed React from your MCP tool's data. Synapse builds it to a single <code style="font-family:var(--font-mono)">ui://</code> resource and renders it wherever your server is connected.</p>
       </div>
 
@@ -99,45 +104,43 @@ import HostDemo from "../components/HostDemo.astro";
           <div class="code-panel">
             <div class="code-bar">
               <span class="traffic"><i></i><i></i><i></i></span>
-              <span class="file"><b>DeployStatus.tsx</b>, your component</span>
+              <span class="file"><b>FollowUps.tsx</b>, your component</span>
             </div>
             <div class="code-scroll">
-<pre><code><span class="t-kw">import</span> &#123; useToolResult &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
-<span class="t-kw">import</span> &#123; Card, Stack, Heading, Text, StatusDot &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
+<pre><code><span class="t-kw">import</span> &#123; useToolResult, useAction &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
+<span class="t-kw">import</span> &#123; Card, Row, Heading, List, Button, Pill &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
 
 <span class="t-cm">// Typed data, straight from your MCP tool</span>
-<span class="t-kw">type</span> <span class="t-ty">Deploy</span> = &#123;
-  app: <span class="t-ty">string</span>;
-  commit: <span class="t-ty">string</span>;
-  status: <span class="t-str">"working"</span> <span class="t-pn">|</span> <span class="t-str">"completed"</span> <span class="t-pn">|</span> <span class="t-str">"failed"</span>;
-&#125;;
+<span class="t-kw">type</span> <span class="t-ty">FollowUp</span> = &#123; to: <span class="t-ty">string</span>; company: <span class="t-ty">string</span> &#125;;
 
-<span class="t-cm">// Real, typed React. Compose the shipped kit.</span>
-<span class="t-kw">export function</span> <span class="t-fn">DeployStatus</span>() &#123;
-  <span class="t-kw">const</span> data = <span class="t-fn">useToolResult</span>()?.structuredContent <span class="t-kw">as</span> <span class="t-ty">Deploy</span>;
+<span class="t-cm">// Real, typed React. The agent renders and drives it.</span>
+<span class="t-kw">export function</span> <span class="t-fn">FollowUps</span>() &#123;
+  <span class="t-kw">const</span> data = <span class="t-fn">useToolResult</span>()?.structuredContent <span class="t-kw">as</span> &#123; drafts: <span class="t-ty">FollowUp</span>[] &#125;;
+  <span class="t-kw">const</span> send = <span class="t-fn">useAction</span>(<span class="t-str">"send_followups"</span>);
   <span class="t-kw">if</span> (!data) <span class="t-kw">return</span> <span class="t-kw">null</span>;
   <span class="t-kw">return</span> (
     &lt;<span class="t-tag">Card</span>&gt;
-      &lt;<span class="t-tag">Stack</span>&gt;
-        &lt;<span class="t-tag">Heading</span>&gt;&#123;data.app&#125;&lt;/<span class="t-tag">Heading</span>&gt;
-        &lt;<span class="t-tag">StatusDot</span> status=&#123;data.status&#125; /&gt;
-        &lt;<span class="t-tag">Text</span>&gt;&#123;data.commit&#125;&lt;/<span class="t-tag">Text</span>&gt;
-      &lt;/<span class="t-tag">Stack</span>&gt;
+      &lt;<span class="t-tag">Row</span>&gt;
+        &lt;<span class="t-tag">Heading</span>&gt;Send &#123;data.drafts.length&#125; follow-ups&lt;/<span class="t-tag">Heading</span>&gt;
+        &lt;<span class="t-tag">Pill</span> tone=<span class="t-str">"warning"</span>&gt;Needs OK&lt;/<span class="t-tag">Pill</span>&gt;
+      &lt;/<span class="t-tag">Row</span>&gt;
+      &lt;<span class="t-tag">List</span> items=&#123;data.drafts&#125; render=&#123;(d) =&gt; d.to&#125; /&gt;
+      &lt;<span class="t-tag">Button</span> onClick=&#123;send&#125;&gt;Approve &amp; send&lt;/<span class="t-tag">Button</span>&gt;
     &lt;/<span class="t-tag">Card</span>&gt;
   );
 &#125;</code></pre>
             </div>
           </div>
-          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Table</code>, <code>StatusDot</code>, <code>Badge</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
+          <p class="code-note">Batteries-included components (<code>Card</code>, <code>Row</code>, <code>List</code>, <code>Pill</code>) or drop in your own React. Synapse builds it to one <code>ui://</code> resource.</p>
         </div>
 
         <div class="reveal d1">
           <div class="flow">
-            <div class="flow-title">tool &rarr; component &rarr; every host</div>
+            <div class="flow-title">your data &rarr; one ui:// resource</div>
             <div class="flow-line">
               <div class="node">
                 <div class="lab">your MCP tool</div>
-                <div class="val">get_deploy()</div>
+                <div class="val">get_followups()</div>
               </div>
               <div class="connector" aria-hidden="true"></div>
               <div class="node syn">
@@ -145,7 +148,7 @@ import HostDemo from "../components/HostDemo.astro";
                   <svg width="18" height="18" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M22.5 8.2C22.5 5.6 18.6 4.6 14.6 5.6 10.2 6.7 8.8 10.6 12.4 12.6 15.9 14.5 20.5 14.9 20.5 18.6 20.5 22 15.2 23.4 10.2 21.9" stroke="url(#lg-nav)" stroke-width="3" stroke-linecap="round"/><circle cx="22.5" cy="8.2" r="2.8" fill="#2563FF"/><circle cx="10" cy="21.7" r="2.8" fill="#20D6B5"/></svg>
                   <div>
                     <div class="lab">Synapse</div>
-                    <div class="val">ui://component</div>
+                    <div class="val">ui://follow-ups</div>
                   </div>
                 </div>
               </div>
@@ -153,19 +156,12 @@ import HostDemo from "../components/HostDemo.astro";
             <div class="fanout">
               <div class="cap">rendered, unchanged, in every host</div>
               <div class="host-chips">
-                <div class="hchip"><span class="cdot"></span>ChatGPT<small>window.openai</small></div>
-                <div class="hchip"><span class="cdot"></span>Claude<small>ui/* protocol</small></div>
-                <div class="hchip"><span class="cdot"></span>VS Code<small>ui/* protocol</small></div>
-                <div class="hchip home"><span class="cdot"></span>Your app<small>Synapse API</small></div>
+                <div class="hchip"><span class="cdot"></span>ChatGPT</div>
+                <div class="hchip"><span class="cdot"></span>Claude</div>
+                <div class="hchip"><span class="cdot"></span>VS Code</div>
+                <div class="hchip home"><span class="cdot"></span>Your app</div>
               </div>
             </div>
-          </div>
-
-          <div class="bridges">
-            <p class="lede">You build your MCP app. Synapse writes the bridge.</p>
-            <div class="brow"><span class="bcode">window.openai</span><span class="arr" aria-hidden="true">&rarr;</span><span>ChatGPT's apps runtime</span></div>
-            <div class="brow"><span class="bcode">ui/* protocol</span><span class="arr" aria-hidden="true">&rarr;</span><span>the MCP Apps standard (Claude, VS Code)</span></div>
-            <div class="brow"><span class="bcode">Synapse API</span><span class="arr" aria-hidden="true">&rarr;</span><span>a host you run yourself (NimbleBrain, self-hosted)</span></div>
           </div>
         </div>
       </div>
@@ -219,7 +215,7 @@ import HostDemo from "../components/HostDemo.astro";
       <div class="selfhost">
         <div class="reveal">
           <h2>The one host you can't get anywhere else? <span class="hl">The one you run yourself.</span></h2>
-          <p class="lead">Ship your MCP app to ChatGPT, Claude, and VS Code, then run the exact same UI self-hosted inside your own product, on your own infrastructure. One MCP app, both worlds.</p>
+          <p class="lead">Ship it to the public app stores, then run the exact same UI self-hosted inside your own product. One MCP app, both worlds.</p>
           <div class="compare" role="group" aria-label="Reach compared to other UI frameworks">
             <div class="crow">
               <span class="ctag">Other UI frameworks</span>

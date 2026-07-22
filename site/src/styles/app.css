@@ -324,6 +324,13 @@ h1{font-size:clamp(2.5rem,6.3vw,4.6rem);margin-top:16px;line-height:1.02;letter-
 .idx .sig{width:7px;height:7px;border-radius:50%;background:var(--mint);box-shadow:0 0 0 4px var(--pill-con-bg);flex:0 0 auto}
 .statement{font-size:clamp(2rem,5.6vw,3.9rem);line-height:1.04;letter-spacing:-.03em;max-width:19ch;margin-top:18px}
 .say-sub{font-size:clamp(1.05rem,2vw,1.26rem);color:var(--muted);max-width:56ch;margin-top:24px;line-height:1.55}
+/* the problem, made concrete : per-host protocol chips (the beat) */
+.bridges-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.brdg{display:inline-flex;align-items:center;gap:9px;border:1px solid var(--border);border-radius:10px;padding:8px 13px;background:var(--surface-2)}
+.brdg code{font-family:var(--font-mono);font-size:12.5px;color:var(--text)}
+.brdg .who{font-size:11.5px;color:var(--faint)}
+.brdg.you{border-color:var(--mint);background:var(--pill-con-bg)}
+.brdg.you code{color:var(--mint-ink)}
 .beat.centered{border-block:1px solid var(--border)}
 .beat.centered .wrap{text-align:center}
 .beat.centered .statement,.beat.centered .say-sub{margin-left:auto;margin-right:auto}

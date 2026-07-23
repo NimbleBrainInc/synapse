@@ -18,9 +18,7 @@ export default defineConfig({
       title: "Synapse",
       favicon: "/favicon.svg",
       customCss: ["./src/styles/docs.css"],
-      // JetBrains Mono for code, matching the landing. Keep this to
-      // styleOverrides only: the deprecated top-level markdown.* options and a
-      // custom EC `themes` array both break EC's stylesheet in this build.
+      // JetBrains Mono for code, matching the landing.
       expressiveCode: {
         styleOverrides: {
           codeFontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",

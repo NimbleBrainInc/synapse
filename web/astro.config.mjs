@@ -5,14 +5,11 @@ import react from "@astrojs/react";
 import starlight from "@astrojs/starlight";
 import starlightLinksValidator from "starlight-links-validator";
 import starlightSidebarTopics from "starlight-sidebar-topics";
-import remarkGfm from "remark-gfm";
 
 // https://astro.build/config
 export default defineConfig({
   site: "https://synapse.nimblebrain.ai",
   output: "static",
-  // GFM (tables, strikethrough, task lists) for the .mdx docs.
-  markdown: { remarkPlugins: [remarkGfm] },
   integrations: [
     // The bespoke landing lives at src/pages/index.astro (/). Starlight owns
     // the docs, nested under src/content/docs/docs/ so every doc route is
@@ -21,12 +18,11 @@ export default defineConfig({
       title: "Synapse",
       favicon: "/favicon.svg",
       customCss: ["./src/styles/docs.css"],
-      // JetBrains Mono to match the landing; the code surface + border are
-      // forced from docs.css (Starlight resolves the frame fill to transparent,
-      // so it blends into the page unless overridden there).
+      // JetBrains Mono for code, matching the landing. Keep this to
+      // styleOverrides only: the deprecated top-level markdown.* options and a
+      // custom EC `themes` array both break EC's stylesheet in this build.
       expressiveCode: {
         styleOverrides: {
-          borderRadius: "0.75rem",
           codeFontFamily: "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace",
         },
       },

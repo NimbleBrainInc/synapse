@@ -36,6 +36,17 @@ const apps = [
     ],
   },
   {
+    name: "DB Query",
+    tag: "Synapse app",
+    tagline:
+      "Ask a question in plain language. The agent writes the SQL, runs it read-only against your Postgres, and presents the answer as a table and a chart.",
+    shot: "/showcase/db-query.png",
+    hosts: ["NimbleBrain"],
+    links: [
+      { label: "GitHub", href: "https://github.com/NimbleBrainInc/synapse-db-query", primary: true },
+    ],
+  },
+  {
     name: "Todo Board",
     tag: "Synapse app",
     tagline:
@@ -134,7 +145,7 @@ const description =
           <div class="slayer apps">
             <span class="sl-ey">the apps</span>
             <div class="sl-chips">
-              <span>Bassethound</span><span>Signal Graph</span><span>CRM</span><span>Research</span><span class="more">+ more</span>
+              <span>Bassethound</span><span>Signal Graph</span><span>CRM</span><span>DB Query</span><span>Research</span><span class="more">+ more</span>
             </div>
           </div>
           <div class="sconn" aria-hidden="true"></div>

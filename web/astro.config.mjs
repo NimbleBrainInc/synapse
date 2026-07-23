@@ -17,6 +17,11 @@ export default defineConfig({
     starlight({
       title: "Synapse",
       favicon: "/favicon.svg",
+      logo: {
+        src: "./src/assets/logo-mark.svg",
+        alt: "Synapse",
+        replacesTitle: false,
+      },
       customCss: ["./src/styles/docs.css"],
       // JetBrains Mono for code, matching the landing.
       expressiveCode: {

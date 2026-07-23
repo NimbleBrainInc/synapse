@@ -34,7 +34,7 @@
   --sl-color-gray-3: #6B7688;
   --sl-color-gray-4: #3A4356;
   --sl-color-gray-5: #1B2333;
-  --sl-color-gray-6: #10151F;
+  --sl-color-gray-6: #111725;
 
   --sl-color-bg-sidebar: #0C111B;
   --sl-color-bg-nav: #0C111B;
@@ -75,4 +75,19 @@
   font-family: 'Space Grotesk', var(--sl-font-system);
   font-weight: 700;
   letter-spacing: -0.015em;
+}
+
+/* Brand: the landing's wordmark (Space Grotesk, lowercase, light) beside the
+   gradient logo mark. */
+.site-title {
+  font-family: 'Space Grotesk', var(--sl-font-system);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  color: var(--sl-color-white);
+  gap: 0.55rem;
+}
+.site-title img {
+  height: 1.65rem;
+  width: auto;
 }

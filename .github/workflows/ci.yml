@@ -83,6 +83,26 @@ jobs:
             exit 1
           fi
 
+  docs-build:
+    name: Docs site build
+    # web/ (the landing + Starlight docs) otherwise only builds in web-pages.yml
+    # on push to main, so a broken docs build would first surface on the Pages
+    # deploy. Mirror that build here (Node 22 + web/'s lockfile) as a PR gate;
+    # `npm run build` runs Astro plus the internal-link validator.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
   python:
     name: Python (nimblebrain-synapse)
     runs-on: ubuntu-latest

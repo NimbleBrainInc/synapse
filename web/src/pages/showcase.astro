@@ -1,0 +1,353 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+// Apps built with Synapse. Add an entry here (+ a screenshot in
+// /public/showcase/) to feature another app — the grid is data-driven.
+const apps = [
+  {
+    name: "Bassethound",
+    tag: "Remote MCP",
+    tagline:
+      "Company intelligence for AI agents. One domain in, a correlated five-layer dossier out: tech stack, infrastructure, firmographics, AI-readiness, and security.",
+    shot: "/showcase/bassethound.png",
+    hosts: ["NimbleBrain", "ChatGPT", "Claude"],
+    links: [
+      { label: "bassethound.ai", href: "https://bassethound.ai", primary: true },
+    ],
+  },
+  {
+    name: "Signal Graph",
+    tag: "Synapse app",
+    tagline:
+      "Political-financial intelligence. Correlates congressional trades, insider transactions, and lobbying into scored signals, with an influence map and watchlists.",
+    shot: "/showcase/signal-graph.png",
+    hosts: ["NimbleBrain"],
+    links: [],
+  },
+  {
+    name: "CRM",
+    tag: "Synapse app",
+    tagline:
+      "A contact and deal tracker with agent-driven follow-ups. Pipeline board, nurture list, and contacts, kept in sync as the agent works the deals.",
+    shot: "/showcase/crm.png",
+    hosts: ["NimbleBrain"],
+    links: [
+      { label: "GitHub", href: "https://github.com/NimbleBrainInc/synapse-crm", primary: true },
+    ],
+  },
+  {
+    name: "Todo Board",
+    tag: "Synapse app",
+    tagline:
+      "A kanban task manager with board and table views. The agent creates, moves, and archives tasks; you keep the board in view and approve.",
+    shot: "/showcase/todo-board.png",
+    hosts: ["NimbleBrain"],
+    links: [
+      {
+        label: "GitHub",
+        href: "https://github.com/NimbleBrainInc/synapse-todo-board",
+        primary: true,
+      },
+    ],
+  },
+  {
+    name: "Research",
+    tag: "Task-augmented",
+    tagline:
+      "Deep research over the MCP tasks protocol. Kick off a run and watch the sources gather and the report stream in, live, while the agent works.",
+    shot: "/showcase/research.png",
+    hosts: ["NimbleBrain"],
+    links: [
+      { label: "GitHub", href: "https://github.com/NimbleBrainInc/synapse-research", primary: true },
+    ],
+  },
+];
+
+const title = "Built with Synapse — apps running in a host you own";
+const description =
+  "A showcase of real MCP apps built with Synapse, each rendered in NimbleBrain, the host that gives them an agent, memory, and multi-tenancy.";
+---
+
+<Layout title={title} description={description}>
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <defs>
+    <linearGradient id="lg-mark" x1="0.08" y1="0.62" x2="0.9" y2="0.32">
+      <stop offset="0" stop-color="#1158F6"/><stop offset="0.5" stop-color="#1E86E4"/><stop offset="1" stop-color="#24D1B5"/>
+    </linearGradient>
+    <symbol id="logo-mark" viewBox="0 0 103.90846 109.156321">
+      <g transform="translate(-19.776089,122.165176) scale(0.1,-0.1)" fill="url(#lg-mark)" stroke="none"><path d="M1060 1200 c-19 -19 -34 -20 -302 -20 -272 0 -285 -1 -339 -23 -145 -60 -220 -172 -221 -330 -1 -67 4 -86 31 -141 39 -79 111 -147 189 -177 48 -19 82 -23 214 -27 138 -4 159 -6 174 -23 17 -19 66 -25 99 -13 17 7 45 54 45 78 0 8 -12 28 -26 45 -32 38 -90 43 -119 11 -17 -18 -31 -20 -171 -20 l-152 0 -64 33 c-102 53 -156 151 -145 268 6 72 35 127 93 178 74 65 107 71 409 71 l262 0 23 -25 c50 -53 140 -16 140 58 0 67 -92 105 -140 57z m78 -58 c3 -16 -2 -22 -17 -22 -24 0 -35 15 -27 36 9 23 40 13 44 -14z m-264 -598 c21 -8 21 -40 0 -48 -21 -8 -34 1 -34 23 0 28 9 34 34 25z"/><path d="M515 885 c-44 -43 -21 -124 40 -139 27 -7 85 17 85 35 0 7 52 10 163 7 153 -3 165 -5 213 -30 91 -48 154 -147 154 -243 0 -89 -68 -215 -116 -215 -14 0 -39 -11 -56 -25 -34 -29 -13 -27 -353 -25 -250 1 -261 2 -283 23 -77 72 -192 -44 -117 -118 30 -31 82 -33 112 -6 20 19 39 20 327 22 271 1 309 0 325 -15 25 -23 86 -21 111 4 20 20 24 35 20 77 0 12 15 45 34 75 124 187 59 420 -144 517 -51 24 -66 26 -217 29 -155 4 -162 5 -184 28 -31 33 -82 32 -114 -1z m81 -70 c-3 -9 -14 -15 -23 -13 -22 4 -30 38 -11 49 18 11 43 -15 34 -36z m478 -571 c20 -8 20 -28 0 -44 -12 -11 -18 -10 -31 3 -13 13 -14 19 -3 31 14 18 13 18 34 10z m-746 -32 c3 -18 -1 -22 -22 -22 -19 0 -26 5 -26 18 0 39 43 43 48 4z"/></g>
+    </symbol>
+  </defs>
+</svg>
+<a class="skip" href="#top">Skip to content</a>
+
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="/" aria-label="Synapse home">
+      <svg class="logo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
+      <span class="wordmark">synapse</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="/docs/">Docs</a>
+      <a href="/showcase/" aria-current="page">Showcase</a>
+    </nav>
+    <div class="nav-right">
+      <a class="icon-btn" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener" aria-label="View source on GitHub">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.5 2 2 6.6 2 12.3c0 4.5 2.9 8.3 6.8 9.7.5.1.7-.2.7-.5v-1.7c-2.8.6-3.4-1.4-3.4-1.4-.5-1.2-1.1-1.5-1.1-1.5-.9-.6.1-.6.1-.6 1 .1 1.5 1.1 1.5 1.1.9 1.5 2.3 1.1 2.9.8.1-.7.3-1.1.6-1.4-2.2-.3-4.6-1.1-4.6-5 0-1.1.4-2 1-2.7-.1-.3-.4-1.3.1-2.7 0 0 .8-.3 2.7 1a9.3 9.3 0 0 1 5 0c1.9-1.3 2.7-1 2.7-1 .5 1.4.2 2.4.1 2.7.6.7 1 1.6 1 2.7 0 3.9-2.3 4.7-4.6 5 .4.3.7.9.7 1.9v2.8c0 .3.2.6.7.5 3.9-1.4 6.8-5.2 6.8-9.7C22 6.6 17.5 2 12 2Z"/></svg>
+      </a>
+      <a class="btn btn-primary nav-cta" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Get started</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- ===================== HERO ===================== -->
+  <section class="hero show-hero">
+    <div class="wrap">
+      <span class="eyebrow reveal fade">The Synapse gallery</span>
+      <h1 class="reveal fade d1">Built with Synapse. <span class="hl">Running in a host you own.</span></h1>
+      <p class="subhead show-sub reveal fade d2">Real MCP apps, each a typed UI built once with Synapse. They ship to ChatGPT and Claude, and come alive self-hosted in NimbleBrain, the host that gives them an agent, memory, and multi-tenancy.</p>
+    </div>
+  </section>
+
+  <!-- ===================== THE HOST : NimbleBrain ===================== -->
+  <section class="band host-band">
+    <div class="wrap">
+      <div class="host-feature reveal">
+        <div class="host-copy">
+          <span class="pill con host-pill"><span class="dot"></span>HOST</span>
+          <h2>Built with Synapse. Home in <span class="hl mint">NimbleBrain.</span></h2>
+          <p>Synapse builds each app's UI once. The same app runs in the public stores — <strong>ChatGPT, Claude, VS Code</strong> — and comes home to <strong>NimbleBrain</strong>, the host you own, where it gains an agent that drives it, persistent memory, and multi-tenancy.</p>
+          <div class="cta-row">
+            <a class="btn btn-primary" href="https://nimblebrain.ai" target="_blank" rel="noopener">Explore NimbleBrain
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </a>
+          </div>
+        </div>
+        <div class="host-stack" aria-label="Synapse builds the UI; the apps run in every host, including NimbleBrain">
+          <div class="slayer">
+            <svg class="slogo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
+            <div class="sl-txt"><span class="sl-name">Synapse SDK</span><span class="sl-kind">one typed UI &rarr; ui://</span></div>
+          </div>
+          <div class="sconn" aria-hidden="true"></div>
+          <div class="slayer apps">
+            <span class="sl-ey">the apps</span>
+            <div class="sl-chips">
+              <span>Bassethound</span><span>Signal Graph</span><span>CRM</span><span>Research</span><span class="more">+ more</span>
+            </div>
+          </div>
+          <div class="sconn" aria-hidden="true"></div>
+          <div class="scap">run in every host</div>
+          <div class="hostrow">
+            <span class="pubhost"><img src="/logos/openai.svg" alt="" width="14" height="14" />ChatGPT</span>
+            <span class="pubhost"><img src="/logos/claude.png" alt="" width="14" height="14" />Claude</span>
+            <span class="pubhost"><img src="/logos/vscode.svg" alt="" width="14" height="14" />VS Code</span>
+          </div>
+          <div class="slayer host">
+            <img class="nblogo" src="/logos/nimblebrain.svg" alt="" width="34" height="34" />
+            <div class="sl-txt"><span class="sl-name">NimbleBrain</span><span class="sl-kind mint">the host you own &middot; agent &middot; memory &middot; multi-tenant</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== APPS ===================== -->
+  <section class="band alt" id="apps">
+    <div class="wrap">
+      <div class="sec-head reveal">
+        <h2>The apps</h2>
+        <p>Each one is a real MCP server with a Synapse UI. Open the source or try it live.</p>
+      </div>
+
+      <div class="app-grid">
+        {apps.map((app) => (
+          <article class="app-card reveal">
+            <div class="app-shot">
+              <div class="app-bar">
+                <span class="traffic"><i></i><i></i><i></i></span>
+                <span class="app-bar-host">rendered in NimbleBrain</span>
+              </div>
+              <div class="app-shot-img">
+                <img src={app.shot} alt={`${app.name} rendered in the NimbleBrain host`} loading="lazy" width="1400" />
+              </div>
+            </div>
+            <div class="app-body">
+              <div class="app-head">
+                <h3>{app.name}</h3>
+                <span class="app-tag mono">{app.tag}</span>
+              </div>
+              <p class="app-tagline">{app.tagline}</p>
+              <div class="runs-in">
+                <span class="runs-lbl">Runs in</span>
+                {app.hosts.map((h) => (
+                  <span class={`hbadge${h === "NimbleBrain" ? " home" : ""}`}>{h}</span>
+                ))}
+              </div>
+              {app.links.length > 0 && (
+                <div class="app-links">
+                  {app.links.map((l) => (
+                    <a class={`btn ${l.primary ? "btn-primary" : "btn-ghost"}`} href={l.href} target="_blank" rel="noopener">{l.label}
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== CTA ===================== -->
+  <section class="band" id="build">
+    <div class="wrap">
+      <div class="cta reveal">
+        <h2>Build the next one. Ship it <span class="hl">everywhere.</span></h2>
+        <p>Your MCP app, typed to your tools, rendered in every host, including one you run yourself.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">Start with Synapse
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+          </a>
+          <a class="btn btn-ghost" href="/docs/">Read the docs</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div class="foot-top">
+      <div class="foot-brand">
+        <a class="brand" href="/" aria-label="Synapse home">
+          <svg class="logo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
+          <span class="wordmark">synapse</span>
+        </a>
+        <p>The interoperability layer for MCP app UIs.</p>
+      </div>
+      <div class="foot-cols">
+        <div class="foot-col">
+          <h4>Developers</h4>
+          <a href="/docs/">Docs</a>
+          <a href="/showcase/">Showcase</a>
+          <a href="https://github.com/NimbleBrainInc/synapse" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://www.npmjs.com/package/@nimblebrain/synapse" target="_blank" rel="noopener">npm</a>
+        </div>
+        <div class="foot-col">
+          <h4>Resources</h4>
+          <a href="https://modelcontextprotocol.io" target="_blank" rel="noopener">Model Context Protocol</a>
+          <a href="https://nimblebrain.ai" target="_blank" rel="noopener">NimbleBrain</a>
+        </div>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>&copy; 2026 <a href="https://nimblebrain.ai" target="_blank" rel="noopener">NimbleBrain</a> &middot; MIT licensed</span>
+      <a class="foot-social" href="https://discord.gg/9MyfR7PKUw" target="_blank" rel="noopener" aria-label="Join the Synapse Discord"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.317 4.3698a19.7913 19.7913 0 0 0-4.8851-1.5152.0741.0741 0 0 0-.0785.0371c-.211.3753-.4447.8648-.6083 1.2495-1.8447-.2762-3.68-.2762-5.4868 0-.1636-.3933-.4058-.8742-.6177-1.2495a.077.077 0 0 0-.0785-.037 19.7363 19.7363 0 0 0-4.8852 1.515.0699.0699 0 0 0-.0321.0277C.5334 9.0458-.319 13.5799.0992 18.0578a.0824.0824 0 0 0 .0312.0561c2.0528 1.5076 4.0413 2.4228 5.9929 3.0294a.0777.0777 0 0 0 .0842-.0276c.4616-.6304.8731-1.2952 1.226-1.9942a.076.076 0 0 0-.0416-.1057c-.6528-.2476-1.2743-.5495-1.8722-.8923a.077.077 0 0 1-.0076-.1277c.1258-.0943.2517-.1923.3718-.2914a.0743.0743 0 0 1 .0776-.0105c3.9278 1.7933 8.18 1.7933 12.0614 0a.0739.0739 0 0 1 .0785.0095c.1202.099.246.1981.3728.2924a.077.077 0 0 1-.0066.1276 12.2986 12.2986 0 0 1-1.873.8914.0766.0766 0 0 0-.0407.1067c.3604.698.7719 1.3628 1.225 1.9932a.076.076 0 0 0 .0842.0286c1.961-.6067 3.9495-1.5219 6.0023-3.0294a.077.077 0 0 0 .0313-.0552c.5004-5.177-.8382-9.6739-3.5485-13.6604a.061.061 0 0 0-.0312-.0286zM8.02 15.3312c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9555-2.4189 2.157-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.9555 2.4189-2.1569 2.4189zm7.9748 0c-1.1825 0-2.1569-1.0857-2.1569-2.419 0-1.3332.9554-2.4189 2.1569-2.4189 1.2108 0 2.1757 1.0952 2.1568 2.419 0 1.3332-.946 2.4189-2.1568 2.4189Z"/></svg></a>
+    </div>
+  </div>
+</footer>
+
+<style>
+  /* ---- Showcase hero (centered, single column) ---- */
+  .show-hero{padding:72px 0 20px;text-align:center}
+  .show-hero .wrap{max-width:820px}
+  .eyebrow{display:inline-block;font-family:var(--font-mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--mint-ink);border:1px solid var(--border-strong);border-radius:999px;padding:6px 13px;background:var(--pill-con-bg)}
+  .show-hero h1{font-size:clamp(2.3rem,5.6vw,4rem);margin-top:22px}
+  .show-sub{margin:22px auto 0;max-width:60ch}
+  .hl.mint{color:var(--mint-ink)}
+
+  /* ---- The Host feature banner ---- */
+  .host-band{padding-top:40px}
+  .host-feature{
+    display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:44px;align-items:center;
+    background:radial-gradient(680px 340px at 88% 0,var(--pill-con-bg),transparent 68%),var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-lg);padding:40px 40px;position:relative;overflow:hidden;
+  }
+  .host-feature::after{content:"";position:absolute;inset:0;border-radius:var(--r-lg);padding:1px;background:linear-gradient(135deg,rgba(63,224,196,.5),transparent 45%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;pointer-events:none}
+  .host-pill{margin-bottom:16px}
+  .host-copy h2{font-size:clamp(1.7rem,3.6vw,2.4rem);line-height:1.1}
+  .host-copy p{color:var(--muted);margin-top:16px;font-size:1.02rem;line-height:1.6;max-width:52ch}
+  .host-copy strong{color:var(--text);font-weight:600}
+  .host-copy .cta-row{margin-top:24px}
+
+  /* host stack : Synapse SDK -> the apps -> hosts (incl. NimbleBrain) */
+  .host-stack{display:flex;flex-direction:column;gap:0}
+  .slayer{display:flex;align-items:center;gap:12px;border:1px solid var(--border-strong);background:var(--surface-2);border-radius:var(--r);padding:13px 16px}
+  .slayer .slogo{width:26px;height:26px;flex:0 0 auto}
+  .sl-txt{display:flex;flex-direction:column;min-width:0}
+  .sl-name{font-family:var(--font-display);font-weight:500;font-size:15px;color:var(--text)}
+  .sl-kind{font-family:var(--font-mono);font-size:10.5px;color:var(--faint);margin-top:2px}
+  .sl-kind.mint{color:var(--mint-ink)}
+  .slayer.apps{flex-direction:column;align-items:flex-start;gap:10px}
+  .sl-ey{font-family:var(--font-mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+  .sl-chips{display:flex;flex-wrap:wrap;gap:6px}
+  .sl-chips span{font-size:12px;font-weight:600;color:var(--muted);background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;padding:5px 10px}
+  .sl-chips span.more{color:var(--faint);border-style:dashed}
+  /* vertical gradient connector between layers (the bridge motif) */
+  .sconn{width:2px;height:15px;background:var(--grad);border-radius:2px;margin:5px auto;opacity:.75}
+  .scap{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-align:center;margin:1px 0 9px}
+  .hostrow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:10px}
+  .pubhost{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:7px;padding:5px 9px}
+  .pubhost img{width:14px;height:14px;object-fit:contain;border-radius:3px}
+  .slayer.host{border-color:var(--mint);background:var(--pill-con-bg)}
+  .slayer.host .nblogo{width:32px;height:32px;flex:0 0 auto;border-radius:7px}
+
+  /* ---- App grid + cards ---- */
+  .app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}
+  .app-card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:border-color var(--dur) var(--ease-out),transform var(--dur) var(--ease-out)}
+  @media (hover:hover){.app-card:hover{border-color:var(--border-strong);transform:translateY(-2px)}}
+
+  .app-shot{background:#0B0F1A;border-bottom:1px solid var(--border)}
+  .app-bar{display:flex;align-items:center;gap:9px;padding:10px 14px;background:#0e1420;border-bottom:1px solid #1c2333}
+  .app-bar .traffic{display:flex;gap:7px}
+  .app-bar .traffic i{width:11px;height:11px;border-radius:50%}
+  .app-bar .traffic i:nth-child(1){background:#ff5f57}.app-bar .traffic i:nth-child(2){background:#febc2e}.app-bar .traffic i:nth-child(3){background:#28c840}
+  .app-bar-host{margin-left:6px;font-family:var(--font-mono);font-size:11px;color:var(--faint)}
+  .app-shot-img{height:260px;overflow:hidden}
+  .app-shot-img img{width:100%;height:auto;display:block;object-fit:cover;object-position:top}
+
+  .app-body{padding:24px 24px 26px;display:flex;flex-direction:column;flex:1}
+  .app-head{display:flex;align-items:center;gap:12px}
+  .app-head h3{font-family:var(--font-display);font-size:1.3rem;font-weight:500;letter-spacing:-.01em}
+  .app-tag{margin-left:auto;font-size:11px;color:var(--faint);border:1px solid var(--border);border-radius:7px;padding:3px 9px;background:var(--surface-2)}
+  .app-tagline{color:var(--muted);margin-top:12px;font-size:14.5px;line-height:1.6;flex:1}
+
+  .runs-in{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:20px}
+  .runs-lbl{font-family:var(--font-mono);font-size:11px;color:var(--faint);margin-right:2px}
+  .hbadge{font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border-strong);border-radius:7px;padding:4px 10px;background:var(--surface-2)}
+  .hbadge.home{color:var(--mint-ink);border-color:var(--mint);background:var(--pill-con-bg)}
+
+  .app-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+  .app-links .btn{padding:10px 15px;font-size:13.5px}
+  .app-links .btn svg{width:14px;height:14px}
+
+  @media (max-width:940px){
+    .host-feature{grid-template-columns:minmax(0,1fr);gap:32px;padding:32px 26px}
+    .app-grid{grid-template-columns:minmax(0,1fr)}
+  }
+  @media (max-width:560px){
+    .show-hero{padding:52px 0 12px}
+    .app-shot-img{height:210px}
+  }
+</style>
+
+<script is:inline>
+(function(){
+  document.documentElement.classList.add('js');
+  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var reveals=document.querySelectorAll('.reveal');
+  if(reduce||!('IntersectionObserver' in window)){
+    for(var r=0;r<reveals.length;r++) reveals[r].classList.add('in');
+  }else{
+    var io=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+    },{rootMargin:'0px 0px -8% 0px',threshold:.08});
+    for(var s=0;s<reveals.length;s++) io.observe(reveals[s]);
+  }
+})();
+</script>
+</Layout>

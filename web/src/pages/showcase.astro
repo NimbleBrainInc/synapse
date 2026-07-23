@@ -6,6 +6,7 @@ import Layout from "../layouts/Layout.astro";
 const apps = [
   {
     name: "Bassethound",
+    icon: "dog",
     tag: "Remote MCP",
     tagline:
       "Company intelligence for AI agents. One domain in, a correlated five-layer dossier out: tech stack, infrastructure, firmographics, AI-readiness, and security.",
@@ -17,6 +18,7 @@ const apps = [
   },
   {
     name: "Signal Graph",
+    icon: "chart-network",
     tag: "Synapse app",
     tagline:
       "Political-financial intelligence. Correlates congressional trades, insider transactions, and lobbying into scored signals, with an influence map and watchlists.",
@@ -26,6 +28,7 @@ const apps = [
   },
   {
     name: "CRM",
+    icon: "users",
     tag: "Synapse app",
     tagline:
       "A contact and deal tracker with agent-driven follow-ups. Pipeline board, nurture list, and contacts, kept in sync as the agent works the deals.",
@@ -37,6 +40,7 @@ const apps = [
   },
   {
     name: "DB Query",
+    icon: "database",
     tag: "Synapse app",
     tagline:
       "Ask a question in plain language. The agent writes the SQL, runs it read-only against your Postgres, and presents the answer as a table and a chart.",
@@ -48,6 +52,7 @@ const apps = [
   },
   {
     name: "Todo Board",
+    icon: "list-checks",
     tag: "Synapse app",
     tagline:
       "A kanban task manager with board and table views. The agent creates, moves, and archives tasks; you keep the board in view and approve.",
@@ -63,6 +68,7 @@ const apps = [
   },
   {
     name: "Research",
+    icon: "search",
     tag: "Task-augmented",
     tagline:
       "Deep research over the MCP tasks protocol. Kick off a run and watch the sources gather and the report stream in, live, while the agent works.",
@@ -74,7 +80,18 @@ const apps = [
   },
 ];
 
-const title = "Built with Synapse — apps running in a host you own";
+// Lucide icons (the same glyphs NimbleBrain uses for each app), inlined as
+// inner SVG so each card renders one <svg> with no runtime icon dependency.
+const ICONS: Record<string, string> = {
+  dog: '<path d="M11.25 16.25h1.5L12 17z"/><path d="M16 14v.5"/><path d="M4.42 11.247A13.152 13.152 0 0 0 4 14.556C4 18.728 7.582 21 12 21s8-2.272 8-6.444a11.702 11.702 0 0 0-.493-3.309"/><path d="M8 14v.5"/><path d="M8.5 8.5c-.384 1.05-1.083 2.028-2.344 2.5-1.931.722-3.576-.297-3.656-1-.113-.994 1.177-6.53 4-7 1.923-.321 3.651.845 3.651 2.235A7.497 7.497 0 0 1 14 5.277c0-1.39 1.844-2.598 3.767-2.277 2.823.47 4.113 6.006 4 7-.08.703-1.725 1.722-3.656 1-1.261-.472-1.855-1.45-2.239-2.5"/>',
+  "chart-network": '<path d="m13.11 7.664 1.78 2.672"/><path d="m14.162 12.788-3.324 1.424"/><path d="m20 4-6.06 1.515"/><path d="M3 3v16a2 2 0 0 0 2 2h16"/><circle cx="12" cy="6" r="2"/><circle cx="16" cy="12" r="2"/><circle cx="9" cy="15" r="2"/>',
+  users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/>',
+  "list-checks": '<path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/>',
+  search: '<path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/>',
+};
+
+const title = "Built with Synapse: apps running in a host you own";
 const description =
   "A showcase of real MCP apps built with Synapse, each rendered in NimbleBrain, the host that gives them an agent, memory, and multi-tenancy.";
 ---
@@ -178,16 +195,11 @@ const description =
         {apps.map((app) => (
           <article class="app-card reveal">
             <div class="app-shot">
-              <div class="app-bar">
-                <span class="traffic"><i></i><i></i><i></i></span>
-                <span class="app-bar-host">rendered in NimbleBrain</span>
-              </div>
-              <div class="app-shot-img">
-                <img src={app.shot} alt={`${app.name} rendered in the NimbleBrain host`} loading="lazy" width="1400" />
-              </div>
+              <img src={app.shot} alt={`${app.name} rendered in the NimbleBrain host`} loading="lazy" width="1400" />
             </div>
             <div class="app-body">
               <div class="app-head">
+                <span class="app-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS[app.icon]}></svg></span>
                 <h3>{app.name}</h3>
                 <span class="app-tag mono">{app.tag}</span>
               </div>
@@ -207,9 +219,7 @@ const description =
               {app.links.length > 0 && (
                 <div class="app-links">
                   {app.links.map((l) => (
-                    <a class={`btn ${l.primary ? "btn-primary" : "btn-ghost"}`} href={l.href} target="_blank" rel="noopener">{l.label}
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg>
-                    </a>
+                    <a href={l.href} target="_blank" rel="noopener">{l.label}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7M9 7h8v8"/></svg></a>
                   ))}
                 </div>
               )}
@@ -324,17 +334,13 @@ const description =
   .app-card{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);overflow:hidden;transition:border-color var(--dur) var(--ease-out),transform var(--dur) var(--ease-out)}
   @media (hover:hover){.app-card:hover{border-color:var(--border-strong);transform:translateY(-2px)}}
 
-  .app-shot{background:#0B0F1A;border-bottom:1px solid var(--border)}
-  .app-bar{display:flex;align-items:center;gap:9px;padding:10px 14px;background:#0e1420;border-bottom:1px solid #1c2333}
-  .app-bar .traffic{display:flex;gap:7px}
-  .app-bar .traffic i{width:11px;height:11px;border-radius:50%}
-  .app-bar .traffic i:nth-child(1){background:#ff5f57}.app-bar .traffic i:nth-child(2){background:#febc2e}.app-bar .traffic i:nth-child(3){background:#28c840}
-  .app-bar-host{margin-left:6px;font-family:var(--font-mono);font-size:11px;color:var(--faint)}
-  .app-shot-img{height:260px;overflow:hidden}
-  .app-shot-img img{width:100%;height:auto;display:block;object-fit:cover;object-position:top}
+  .app-shot{height:232px;overflow:hidden;background:#0B0F1A;border-bottom:1px solid var(--border)}
+  .app-shot img{width:100%;height:100%;display:block;object-fit:cover;object-position:top}
 
   .app-body{padding:24px 24px 26px;display:flex;flex-direction:column;flex:1}
-  .app-head{display:flex;align-items:center;gap:12px}
+  .app-head{display:flex;align-items:center;gap:11px}
+  .app-icon{width:34px;height:34px;flex:0 0 auto;border-radius:9px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-ink);border:1px solid var(--border-strong)}
+  .app-icon svg{width:18px;height:18px}
   .app-head h3{font-family:var(--font-display);font-size:1.3rem;font-weight:500;letter-spacing:-.01em}
   .app-tag{margin-left:auto;font-size:11px;color:var(--faint);border:1px solid var(--border);border-radius:7px;padding:3px 9px;background:var(--surface-2)}
   .app-tagline{color:var(--muted);margin-top:12px;font-size:14.5px;line-height:1.6;flex:1}
@@ -346,9 +352,10 @@ const description =
   .portable{display:flex;gap:8px;align-items:flex-start;margin-top:13px;font-size:12px;color:var(--faint);line-height:1.5}
   .port-ic{width:14px;height:14px;flex:0 0 auto;margin-top:2px;color:var(--faint)}
 
-  .app-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
-  .app-links .btn{padding:10px 15px;font-size:13.5px}
-  .app-links .btn svg{width:14px;height:14px}
+  .app-links{display:flex;flex-wrap:wrap;gap:18px;margin-top:20px}
+  .app-links a{display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;color:var(--accent-ink);text-decoration:none;transition:color var(--dur-fast) var(--ease-out)}
+  @media (hover:hover){.app-links a:hover{color:var(--accent)}}
+  .app-links a svg{width:13px;height:13px;opacity:.85}
 
   @media (max-width:940px){
     .host-feature{grid-template-columns:minmax(0,1fr);gap:32px;padding:32px 26px}

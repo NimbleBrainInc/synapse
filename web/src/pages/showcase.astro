@@ -129,19 +129,14 @@ const description =
         <div class="host-copy">
           <span class="pill con host-pill"><span class="dot"></span>HOST</span>
           <h2>Built with Synapse. Home in <span class="hl mint">NimbleBrain.</span></h2>
-          <p>Synapse builds each app's UI once. The same app runs in the public stores — <strong>ChatGPT, Claude, VS Code</strong> — and comes home to <strong>NimbleBrain</strong>, the host you own, where it gains an agent that drives it, persistent memory, and multi-tenancy.</p>
+          <p>Synapse builds each app's UI once. The same app runs in the public stores (<strong>ChatGPT, Claude, VS Code</strong>) and comes home to <strong>NimbleBrain</strong>, the host you own, where it gains an agent that drives it, persistent memory, and multi-tenancy.</p>
           <div class="cta-row">
             <a class="btn btn-primary" href="https://nimblebrain.ai" target="_blank" rel="noopener">Explore NimbleBrain
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </a>
           </div>
         </div>
-        <div class="host-stack" aria-label="Synapse builds the UI; the apps run in every host, including NimbleBrain">
-          <div class="slayer">
-            <svg class="slogo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
-            <div class="sl-txt"><span class="sl-name">Synapse SDK</span><span class="sl-kind">one typed UI &rarr; ui://</span></div>
-          </div>
-          <div class="sconn" aria-hidden="true"></div>
+        <div class="host-stack" aria-label="The apps are built with the Synapse SDK and render in any MCP App host, including NimbleBrain">
           <div class="slayer apps">
             <span class="sl-ey">the apps</span>
             <div class="sl-chips">
@@ -149,16 +144,23 @@ const description =
             </div>
           </div>
           <div class="sconn" aria-hidden="true"></div>
-          <div class="scap">run in every host</div>
-          <div class="hostrow">
-            <span class="pubhost"><img src="/logos/openai.svg" alt="" width="14" height="14" />ChatGPT</span>
-            <span class="pubhost"><img src="/logos/claude.png" alt="" width="14" height="14" />Claude</span>
-            <span class="pubhost"><img src="/logos/vscode.svg" alt="" width="14" height="14" />VS Code</span>
+          <div class="slayer">
+            <svg class="slogo" viewBox="0 0 103.90846 109.156321" aria-hidden="true"><use href="#logo-mark" /></svg>
+            <div class="sl-txt"><span class="sl-name">Synapse SDK</span><span class="sl-kind">builds each app's UI once</span></div>
           </div>
-          <div class="slayer host">
-            <img class="nblogo" src="/logos/nimblebrain.svg" alt="" width="34" height="34" />
-            <div class="sl-txt"><span class="sl-name">NimbleBrain</span><span class="sl-kind mint">the host you own &middot; agent &middot; memory &middot; multi-tenant</span></div>
+          <div class="sconn" aria-hidden="true"></div>
+          <div class="scap">render in NimbleBrain, or any other MCP App host</div>
+          <div class="host-grid">
+            <div class="hcard own">
+              <img src="/logos/nimblebrain.svg" alt="" width="18" height="18" />
+              <span class="hc-name">NimbleBrain</span>
+              <span class="hc-tag">yours</span>
+            </div>
+            <div class="hcard"><img src="/logos/openai.svg" alt="" width="18" height="18" /><span class="hc-name">ChatGPT</span></div>
+            <div class="hcard"><img src="/logos/claude.png" alt="" width="18" height="18" /><span class="hc-name">Claude</span></div>
+            <div class="hcard"><img src="/logos/vscode.svg" alt="" width="18" height="18" /><span class="hc-name">VS Code</span></div>
           </div>
+          <p class="host-note">In <span class="mint">NimbleBrain</span>, the host you own, apps also gain an agent that drives them, persistent memory, and multi-tenancy.</p>
         </div>
       </div>
     </div>
@@ -196,6 +198,12 @@ const description =
                   <span class={`hbadge${h === "NimbleBrain" ? " home" : ""}`}>{h}</span>
                 ))}
               </div>
+              {app.hosts.length === 1 && (
+                <p class="portable">
+                  <svg class="port-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>
+                  <span>Built cross-host with Synapse. Portable to ChatGPT, Claude, and VS&nbsp;Code.</span>
+                </p>
+              )}
               {app.links.length > 0 && (
                 <div class="app-links">
                   {app.links.map((l) => (
@@ -301,11 +309,15 @@ const description =
   /* vertical gradient connector between layers (the bridge motif) */
   .sconn{width:2px;height:15px;background:var(--grad);border-radius:2px;margin:5px auto;opacity:.75}
   .scap{font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-align:center;margin:1px 0 9px}
-  .hostrow{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-bottom:10px}
-  .pubhost{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--muted);background:var(--surface-2);border:1px solid var(--border-strong);border-radius:7px;padding:5px 9px}
-  .pubhost img{width:14px;height:14px;object-fit:contain;border-radius:3px}
-  .slayer.host{border-color:var(--mint);background:var(--pill-con-bg)}
-  .slayer.host .nblogo{width:32px;height:32px;flex:0 0 auto;border-radius:7px}
+  /* hosts are peers: a grid of sibling host cards, NimbleBrain emphasized */
+  .host-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .hcard{display:flex;align-items:center;gap:9px;border:1px solid var(--border-strong);background:var(--surface-2);border-radius:10px;padding:11px 13px}
+  .hcard img{width:18px;height:18px;object-fit:contain;border-radius:4px;flex:0 0 auto}
+  .hc-name{font-size:13px;font-weight:600;color:var(--text)}
+  .hcard.own{border-color:var(--mint);background:var(--pill-con-bg)}
+  .hc-tag{margin-left:auto;font-family:var(--font-mono);font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--mint-ink);border:1px solid var(--mint);border-radius:5px;padding:1px 6px}
+  .host-note{font-size:11.5px;color:var(--faint);line-height:1.55;text-align:center;margin-top:12px}
+  .host-note .mint{color:var(--mint-ink);font-weight:600}
 
   /* ---- App grid + cards ---- */
   .app-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px}
@@ -331,6 +343,8 @@ const description =
   .runs-lbl{font-family:var(--font-mono);font-size:11px;color:var(--faint);margin-right:2px}
   .hbadge{font-size:12px;font-weight:600;color:var(--muted);border:1px solid var(--border-strong);border-radius:7px;padding:4px 10px;background:var(--surface-2)}
   .hbadge.home{color:var(--mint-ink);border-color:var(--mint);background:var(--pill-con-bg)}
+  .portable{display:flex;gap:8px;align-items:flex-start;margin-top:13px;font-size:12px;color:var(--faint);line-height:1.5}
+  .port-ic{width:14px;height:14px;flex:0 0 auto;margin-top:2px;color:var(--faint)}
 
   .app-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
   .app-links .btn{padding:10px 15px;font-size:13.5px}

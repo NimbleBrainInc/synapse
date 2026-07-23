@@ -37,7 +37,7 @@ function createSynapse(options: SynapseOptions): Synapse;
 | `ready` | Promise that resolves after the ext-apps handshake |
 | `isNimbleBrainHost` | Whether the host is a NimbleBrain platform |
 | `callTool(name, args?)` | Call an MCP tool and get a typed result |
-| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented. Returns a `TaskHandle` immediately. |
+| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented. Returns a `Promise<TaskHandle>`. |
 | `onDataChanged(cb)` | Subscribe to data change events |
 | `onAction(cb)` | Subscribe to agent actions (typed, declarative) |
 | `getTheme()` | Get current theme |

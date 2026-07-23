@@ -39,6 +39,8 @@ store.dispatch.addItem("hello");
 | `persist` | `boolean?` | Persist state across sessions via the host. Default `false` |
 | `visibleToAgent` | `boolean?` | Expose a state summary to the agent. Default `false` |
 | `summarize` | `(state) => string` | Produce the agent-visible summary of state |
+| `version` | `number?` | Schema version stamped on persisted state |
+| `migrations` | `Array<(oldState) => newState>?` | Functions that upgrade persisted state to the current version |
 
 ## Store API
 

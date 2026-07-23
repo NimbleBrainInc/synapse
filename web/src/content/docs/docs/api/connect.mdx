@@ -26,6 +26,7 @@ function connect(options: ConnectOptions): Promise<App>;
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default `false` |
+| `on` | `Record<string, (data) => void>?` | Pre-register event handlers before the handshake, so no early messages are lost |
 
 ## `App` properties
 

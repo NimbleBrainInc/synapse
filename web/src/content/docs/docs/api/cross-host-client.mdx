@@ -29,7 +29,7 @@ function connectUI(options: ConnectUIOptions): SynapseUIClient;
 | `version` | `string` | Semver version |
 | `host` | `HostKind?` | Force a host adapter. Auto-detected if omitted. |
 | `dataElementId` | `string?` | DOM element id carrying the host-injected tool-result payload |
-| `autoResize` | `boolean?` | Observe content and auto-send height. Default `false` |
+| `autoResize` | `boolean?` | Observe content and auto-send height. Default `true` |
 | `window` | `Window?` | Target window. Defaults to the current global. |
 
 `HostKind` is the set of adapters the façade detects:

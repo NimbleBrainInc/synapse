@@ -20,7 +20,6 @@ import {
   useToolInput,
   useConnectTheme,
   useResize,
-  useCallTool,
 } from "@nimblebrain/synapse/react";
 ```
 
@@ -31,7 +30,10 @@ import {
 | `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
 | `useConnectTheme()` | `Theme` | Reactive theme from `connect()` |
 | `useResize()` | `(w?, h?) => void` | Resize helper, auto-measures body if no args |
-| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
+
+To call a tool on this path, use the `App` instance directly: `useApp()`, then
+`app.callTool(name, args)`. The `useCallTool` hook (with built-in loading state)
+belongs to the `SynapseProvider` set below.
 
 ## `SynapseProvider`-based (legacy)
 

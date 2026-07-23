@@ -1,0 +1,69 @@
+---
+title: "Give the agent context about the UI"
+description: "The user filters a view and asks the agent about this, but the agent cannot see the screen. Push an LLM-visible summary of what the user is looking at with useVisibleState or updateModelContext."
+---
+
+The user narrows a dashboard to "West Coast, Q2 revenue" and asks the agent "how
+does this compare to last quarter?" The agent has no idea what "this" refers to.
+It sees the chat, not the screen, so it either guesses or asks the user to
+re-describe the view they are already looking at.
+
+With raw ext-apps you would serialize the view into every tool call by hand, or
+hope the user spells it out. Synapse gives you one call that puts a short,
+LLM-visible summary of the current view into the agent's context.
+
+## The recipe
+
+`useVisibleState()` returns a push function. Call it whenever the view changes,
+with a structured state object and a one-line natural-language summary. It is a
+`SynapseProvider` hook.
+
+```tsx
+import { SynapseProvider, useVisibleState } from "@nimblebrain/synapse/react";
+
+function Root() {
+  return (
+    <SynapseProvider name="my-app" version="1.0.0">
+      <RevenueView />
+    </SynapseProvider>
+  );
+}
+
+function RevenueView() {
+  const pushVisible = useVisibleState();
+
+  // Whenever the filter changes, tell the agent what the user sees.
+  function applyFilter(region: string, period: string) {
+    pushVisible(
+      { region, period },
+      `User is viewing ${region} ${period} revenue`,
+    );
+  }
+
+  // …render the filtered view
+}
+```
+
+Not using React, or working from the `connect()` path? Use the `App` method
+directly. It takes the same state and summary:
+
+```typescript
+app.updateModelContext(
+  { region: "west-coast", period: "Q2-2026" },
+  "User is viewing West Coast Q2 2026 revenue",
+);
+```
+
+## How it works
+
+The structured state and summary are pushed to the host, which folds the summary
+into the agent's context for its next turn. Now "compare to Q1" resolves against a
+known region and period without a clarifying round-trip. The React hook debounces
+rapid updates, so you can call it on every filter or selection change without
+flooding the agent. Pass a state object the agent can reason over and a summary
+written the way you would describe the view out loud.
+
+## Related
+
+- [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): the reverse direction, keeping the UI fresh when the agent acts.
+- [Call MCP tools with types](/docs/guides/call-tools): let the user act on the view you just described.

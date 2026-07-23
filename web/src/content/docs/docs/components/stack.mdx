@@ -1,0 +1,55 @@
+---
+title: Stack
+description: A vertical flex container with a consistent gap. Replaces ad-hoc column layouts, themed by the host.
+---
+
+import StackDemo from "../../../../components/ui/StackDemo.tsx";
+
+`Stack` lays its children out top to bottom with a single `gap`, so you never
+hand-write `display:flex` or margin math for a column. It carries no brand of its
+own. Spacing resolves in the host's units and any surfaces inside it resolve
+from the host's tokens, so it looks native wherever your app renders. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Stack } from "@nimblebrain/synapse/ui";
+
+<Stack gap={12}>
+  <Card>First</Card>
+  <Card>Second</Card>
+</Stack>;
+```
+
+<StackDemo client:only="react" />
+
+## Alignment
+
+`align` controls the cross axis (horizontal) and `justify` the main axis
+(vertical). `gap` accepts a number (pixels) or any CSS length, and `wrap` lets
+children flow onto multiple lines.
+
+```tsx
+<Stack gap={8} align="center">
+  <Text weight="semibold">Centered column</Text>
+  <Text tone="muted">Each child centers on the cross axis.</Text>
+</Stack>
+```
+
+## Props
+
+`Stack` extends the native `HTMLAttributes<HTMLDivElement>`, so `className`,
+`style`, `id`, `aria-*`, and every other div attribute pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `gap` | `number` \| `string` | None |
+| `align` | `"start"` \| `"center"` \| `"end"` \| `"stretch"` \| `"baseline"` | None |
+| `justify` | `"start"` \| `"center"` \| `"end"` \| `"between"` \| `"around"` | None |
+| `wrap` | `boolean` | `false` |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Inline`](/docs/components/inline): the same container, laid out horizontally.
+- [`Spacer`](/docs/components/spacer): a flexible filler that pushes siblings apart.
+- [`Divider`](/docs/components/divider): a hairline rule between stacked sections.

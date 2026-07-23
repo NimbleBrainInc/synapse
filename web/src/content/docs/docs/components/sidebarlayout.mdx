@@ -1,0 +1,47 @@
+---
+title: SidebarLayout
+description: A responsive nav-rail-plus-content layout that reacts to its own pane width, not the device.
+---
+
+import SidebarLayoutDemo from "../../../../components/ui/SidebarLayoutDemo.tsx";
+
+`SidebarLayout` is the two-column layout for inside an app pane: a nav or list
+rail beside the main content. It reacts to the layout's **own width** (not the
+device) so it behaves correctly whether your app is fullscreen, split, or a
+narrow rail. Below `breakpoint` it collapses, either by reflowing the rail to a
+strip on top (`reflow`) or hiding it behind a hamburger (`drawer`).
+
+```tsx
+import { SidebarLayout } from "@nimblebrain/synapse/ui";
+
+<SidebarLayout>
+  <SidebarLayout.Sidebar>{/* nav items */}</SidebarLayout.Sidebar>
+  <SidebarLayout.Main>{/* content */}</SidebarLayout.Main>
+</SidebarLayout>;
+```
+
+<SidebarLayoutDemo client:only="react" />
+
+## Anatomy
+
+- `SidebarLayout.Sidebar`: the rail. Place nav items as flat children; it
+  controls direction (a column when expanded, a row when reflowed).
+- `SidebarLayout.Main`: the main content, which scrolls independently.
+- `SidebarLayout.Trigger`: a hamburger that opens the rail in `drawer` mode.
+  Renders only when collapsed; place it inside the layout (e.g. in `Main`).
+
+Read the responsive state anywhere inside with the `useSidebar()` hook.
+
+## Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `side` | `"left"` \| `"right"` | `"left"` |
+| `width` | `number` \| `string` | `240` |
+| `breakpoint` | `number` | `640` |
+| `collapseMode` | `"reflow"` \| `"drawer"` | `"reflow"` |
+
+## Related
+
+- [`AppFrame`](/docs/components/appframe): the shell `SidebarLayout` sits inside (use `AppFrame.Body` with `bleed`).
+- [`ListDetailLayout`](/docs/components/listdetaillayout): when the second column is a detail view of a selected list item.

@@ -1,0 +1,50 @@
+---
+title: StatusDot
+description: A small colored dot for run and task status. The working state pulses; the rest are steady.
+---
+
+import StatusDotDemo from "../../../../components/ui/StatusDotDemo.tsx";
+
+`StatusDot` is a small colored dot for run and task status. The `working` state
+gets a living ripple-pulse (gated on `prefers-reduced-motion`); `completed`,
+`failed`, and `idle` are steady. Colors resolve from the host's tokens, so status
+reads identically in a list row or a detail header, in any host. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { StatusDot } from "@nimblebrain/synapse/ui";
+
+<StatusDot status="working" />;
+```
+
+<StatusDotDemo client:only="react" />
+
+## Statuses
+
+Four statuses cover the run lifecycle. Pass `color` to override the hue for a
+bespoke state, and `size` to change the diameter.
+
+```tsx
+<StatusDot status="working" />
+<StatusDot status="completed" />
+<StatusDot status="failed" />
+<StatusDot status="idle" />
+<StatusDot color="#a855f7" size={12} />
+```
+
+## Props
+
+`StatusDot` extends the native `HTMLAttributes` for a `<span>` (minus `color`),
+so `className`, `style`, `aria-*`, and other span attributes pass through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `status` | `"working"` \| `"completed"` \| `"failed"` \| `"idle"` | `"idle"` |
+| `color` | `string` | None |
+| `size` | `number` | `8` |
+| `…rest` | `HTMLAttributes<HTMLSpanElement>` | None |
+
+## Related
+
+- [`Badge`](/docs/components/badge): a labeled pill for the same states.
+- [`ListRow`](/docs/components/listrow): pass a `StatusDot` into its `leading` slot.

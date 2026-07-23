@@ -1,0 +1,56 @@
+---
+title: SearchField
+description: "A themed text input in two postures: an editorial underline or a bordered box."
+---
+
+import SearchFieldDemo from "../../../../components/ui/SearchFieldDemo.tsx";
+
+`SearchField` is a controlled text input for filtering and search. It ships in
+two postures: `underline` is invisible at rest and reveals an underline on focus,
+while `boxed` is a bordered field with a focus ring. It defaults to
+`type="search"` and carries no brand of its own. Colors, border, and radius all
+resolve from the host's tokens. The previews below are the real component from
+`@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { SearchField } from "@nimblebrain/synapse/ui";
+import { useState } from "react";
+
+const [query, setQuery] = useState("");
+
+<SearchField
+  placeholder="Search…"
+  value={query}
+  onChange={(e) => setQuery(e.target.value)}
+/>;
+```
+
+<SearchFieldDemo client:only="react" />
+
+## Variants
+
+`underline` suits editorial, low-chrome layouts; `boxed` reads as a conventional
+form field when you want a visible target.
+
+```tsx
+<SearchField placeholder="Search…" />
+<SearchField variant="boxed" placeholder="Search…" />
+```
+
+## Props
+
+`SearchField` is controlled. Hold the value in state and pass `value` plus
+`onChange`. It extends the native `InputHTMLAttributes`, so `placeholder`,
+`onChange`, `disabled`, `aria-*`, and every other input attribute pass straight
+through; `type` defaults to `"search"`.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `variant` | `"underline"` \| `"boxed"` | `"underline"` |
+| `type` | `string` | `"search"` |
+| `…rest` | `InputHTMLAttributes<HTMLInputElement>` | None |
+
+## Related
+
+- [`SegmentedControl`](/docs/components/segmentedcontrol): a mutually-exclusive view toggle.
+- [`Button`](/docs/components/button): pair with a field to submit.

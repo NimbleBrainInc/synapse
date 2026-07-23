@@ -1,0 +1,54 @@
+---
+title: Divider
+description: A hairline rule drawn from the host's border token, horizontal or vertical.
+---
+
+import DividerDemo from "../../../../components/ui/DividerDemo.tsx";
+
+`Divider` draws a one-pixel rule to separate sections or inline items. Its color
+comes straight from the host's border token, so it always matches the surrounding
+chrome and follows light and dark. It is decorative (`aria-hidden`): a visual
+break, not a semantic separator. The preview below is the real component from
+`@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Divider } from "@nimblebrain/synapse/ui";
+
+<Stack gap={12}>
+  <Text>Above the rule</Text>
+  <Divider />
+  <Text>Below the rule</Text>
+</Stack>;
+```
+
+<DividerDemo client:only="react" />
+
+## Orientation
+
+A horizontal divider spans the full width of its container. A vertical divider
+stretches to the height of its flex row, so it is handy for separating inline
+items: give it an explicit height when the row has no intrinsic one.
+
+```tsx
+<Inline gap={12}>
+  <Text tone="muted">Drafts</Text>
+  <Divider orientation="vertical" style={{ height: 16 }} />
+  <Text tone="muted">Sent</Text>
+</Inline>
+```
+
+## Props
+
+`Divider` extends the native `HTMLAttributes<HTMLDivElement>`, so `className`,
+`style`, `id`, and every other div attribute pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `orientation` | `"horizontal"` \| `"vertical"` | `"horizontal"` |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Stack`](/docs/components/stack): separate stacked sections with a horizontal rule.
+- [`Inline`](/docs/components/inline): separate inline items with a vertical rule.
+- [`Spacer`](/docs/components/spacer): invisible spacing, where Divider is a visible line.

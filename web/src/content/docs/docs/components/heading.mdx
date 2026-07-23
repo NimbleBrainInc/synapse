@@ -1,0 +1,52 @@
+---
+title: Heading
+description: Display type bound to the host's heading font slot and type scale, in three sizes.
+---
+
+import HeadingDemo from "../../../../components/ui/HeadingDemo.tsx";
+
+`Heading` renders display type using the host's heading font slot: Erode in the
+NimbleBrain host, a serif fallback elsewhere. Size, weight, and color all resolve
+from the injected token scale, so headings carry no brand of their own and match
+whatever host renders your app. The preview below is the real component from
+`@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Heading } from "@nimblebrain/synapse/ui";
+
+<Heading size="lg">Pipeline overview</Heading>;
+```
+
+<HeadingDemo client:only="react" />
+
+## Size, weight, and tone
+
+Three sizes step through the display scale. `weight` and `tone` refine emphasis,
+and `as` sets the rendered element independently of size. Pick the heading level
+for document structure, the size for visual weight.
+
+```tsx
+<Heading size="lg" as="h1">Page title</Heading>
+<Heading size="md" tone="muted">Section</Heading>
+<Heading size="sm" weight="bold">Subsection</Heading>
+```
+
+## Props
+
+`Heading` extends the native `HTMLAttributes<HTMLHeadingElement>` (minus `color`),
+so `className`, `style`, `id`, `aria-*`, and other attributes pass straight
+through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `size` | `"sm"` \| `"md"` \| `"lg"` | `"md"` |
+| `weight` | `"normal"` \| `"medium"` \| `"semibold"` \| `"bold"` | `"semibold"` |
+| `tone` | `"default"` \| `"muted"` \| `"faint"` \| `"accent"` \| `"danger"` \| `"success"` | `"default"` |
+| `as` | `ElementType` | `"h2"` |
+| `…rest` | `HTMLAttributes<HTMLHeadingElement>` | None |
+
+## Related
+
+- [`Text`](/docs/components/text): body copy on the same tone and weight scale.
+- [`Prose`](/docs/components/prose): reading typography for rendered rich text.
+- [`Stack`](/docs/components/stack): stack a heading over its supporting text.

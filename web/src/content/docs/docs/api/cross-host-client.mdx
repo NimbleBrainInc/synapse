@@ -1,0 +1,55 @@
+---
+title: Cross-host client
+description: connectUI(options) renders one Synapse component across ChatGPT, Claude, NimbleBrain, and standalone hosts behind a single push-first façade.
+---
+
+`connectUI(options)` is the push-first, cross-host path. It renders one Synapse
+component across hosts that each speak a different bridge (ChatGPT via the OpenAI
+Apps SDK, Claude via the MCP Apps standard, NimbleBrain, and standalone) behind a
+single façade. It is decoupled from `@modelcontextprotocol/*` so the
+`window.SynapseUI` IIFE stays small.
+
+```typescript
+import { connectUI } from "@nimblebrain/synapse/host";
+
+const synapse = connectUI({ name: "my-app", version: "1.0.0" });
+```
+
+## Signature
+
+```typescript
+function connectUI(options: ConnectUIOptions): SynapseUIClient;
+```
+
+## Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Component name |
+| `version` | `string` | Semver version |
+| `host` | `HostKind?` | Force a host adapter. Auto-detected if omitted. |
+| `dataElementId` | `string?` | DOM element id carrying the host-injected tool-result payload |
+| `autoResize` | `boolean?` | Observe content and auto-send height. Default `true` |
+| `window` | `Window?` | Target window. Defaults to the current global. |
+
+`HostKind` is the set of adapters the façade detects:
+
+```typescript
+type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
+```
+
+## `SynapseUIClient` methods
+
+| Method | Description |
+| --- | --- |
+| `data()` | Return the current tool-result data |
+| `onData(cb)` | Subscribe to data changes. Returns an unsubscribe function. |
+| `theme()` | Return the current theme |
+| `onTheme(cb)` | Subscribe to theme changes. Returns an unsubscribe function. |
+| `callTool(name, args)` | Call a host tool (pull) and get the result |
+| `sendPrompt(text)` | Send a prompt to the agent |
+| `openLink(url)` | Open a URL via the host |
+| `resize(height)` | Send a new height to the host |
+| `capabilities()` | Return the detected host capabilities |
+| `host()` | Return the detected `HostKind` |
+| `destroy()` | Tear down listeners and bridges |

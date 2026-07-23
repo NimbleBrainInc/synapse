@@ -1,0 +1,56 @@
+---
+title: Inline
+description: A horizontal flex container with a consistent gap, vertically centered by default and themed by the host.
+---
+
+import InlineDemo from "../../../../components/ui/InlineDemo.tsx";
+
+`Inline` lays its children out left to right with a single `gap`, vertically
+centered by default: the row counterpart to `Stack`. It carries no brand of its
+own; spacing resolves in the host's units and any content inside it resolves from
+the host's tokens, so it looks native wherever your app renders. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Inline } from "@nimblebrain/synapse/ui";
+
+<Inline gap={10}>
+  <Badge>New</Badge>
+  <Text>A vertically centered row.</Text>
+</Inline>;
+```
+
+<InlineDemo client:only="react" />
+
+## Alignment
+
+`align` defaults to `"center"`, so items line up on their vertical centers; set
+`"baseline"` to align text baselines, or `"start"` / `"end"` to pin the edges.
+`justify` distributes items along the row. `"between"` pushes the first and last
+to the ends.
+
+```tsx
+<Inline gap={8} justify="between">
+  <Text weight="semibold">Acme renewal</Text>
+  <Text tone="muted">$12,000</Text>
+</Inline>
+```
+
+## Props
+
+`Inline` extends the native `HTMLAttributes<HTMLDivElement>`, so `className`,
+`style`, `id`, `aria-*`, and every other div attribute pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `gap` | `number` \| `string` | None |
+| `align` | `"start"` \| `"center"` \| `"end"` \| `"stretch"` \| `"baseline"` | `"center"` |
+| `justify` | `"start"` \| `"center"` \| `"end"` \| `"between"` \| `"around"` | None |
+| `wrap` | `boolean` | `false` |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Stack`](/docs/components/stack): the same container, laid out vertically.
+- [`Spacer`](/docs/components/spacer): a flexible filler that pushes siblings apart.
+- [`Divider`](/docs/components/divider): a vertical hairline between inline items.

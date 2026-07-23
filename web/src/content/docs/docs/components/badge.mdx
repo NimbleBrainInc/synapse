@@ -1,0 +1,52 @@
+---
+title: Badge
+description: A small uppercase pill for status and priority labels, in seven token-driven tones.
+---
+
+import BadgeDemo from "../../../../components/ui/BadgeDemo.tsx";
+
+`Badge` is a small uppercase pill for status and priority labels: WON, AT RISK,
+HIGH. Each tone is a soft tinted background with a same-hue label, and every hue
+resolves from the host's tokens, so a badge reads native in any host. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Badge } from "@nimblebrain/synapse/ui";
+
+<Badge tone="success">Won</Badge>;
+```
+
+<BadgeDemo client:only="react" />
+
+## Tones
+
+Seven tones map to the recurring label meanings. `neutral` is the default;
+`accent` for informational, `success` / `warning` / `danger` for state, and
+`processing` / `warm` for the two extended hues.
+
+```tsx
+<Badge>Neutral</Badge>
+<Badge tone="accent">Accent</Badge>
+<Badge tone="success">Success</Badge>
+<Badge tone="warning">Warning</Badge>
+<Badge tone="danger">Danger</Badge>
+<Badge tone="processing">Processing</Badge>
+<Badge tone="warm">Warm</Badge>
+```
+
+## Props
+
+`Badge` extends the native `HTMLAttributes` for a `<span>`, so `className`,
+`style`, `aria-*`, and other span attributes pass through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `tone` | `"neutral"` \| `"accent"` \| `"success"` \| `"warning"` \| `"danger"` \| `"processing"` \| `"warm"` | `"neutral"` |
+| `children` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLSpanElement>` | None |
+
+## Related
+
+- [`StatusDot`](/docs/components/statusdot): a dot for run/task status.
+- [`ListRow`](/docs/components/listrow): drop a `Badge` into its `trailing` slot.
+- [`Table`](/docs/components/table): render a `Badge` inside a status column.

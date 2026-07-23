@@ -1,0 +1,57 @@
+---
+title: Pagination
+description: Chrome-less prev/next text links with a "page X of Y" counter, for paging a Table or list.
+---
+
+import PaginationDemo from "../../../../components/ui/PaginationDemo.tsx";
+
+`Pagination` is a chrome-less prev/next control with a "page X of Y" counter, for
+paging a [`Table`](/docs/components/table) or list. It is fully controlled. You
+hold the 1-based `page` and update it from `onChange`; the buttons disable at the
+ends. Its type and color resolve from the host's tokens. The preview below is the
+real component from `@nimblebrain/synapse/ui`, live. Click Prev / Next.
+
+```tsx
+import { Pagination } from "@nimblebrain/synapse/ui";
+import { useState } from "react";
+
+const [page, setPage] = useState(1);
+
+<Pagination page={page} pageCount={5} onChange={setPage} />;
+```
+
+<PaginationDemo client:only="react" />
+
+## Controlled paging
+
+`Pagination` holds no state of its own. Store `page` yourself, pass it in, and
+apply the next page in `onChange`, typically to slice the data you feed a
+`Table`.
+
+```tsx
+const rows = all.slice((page - 1) * pageSize, page * pageSize);
+
+<Pagination
+  page={page}
+  pageCount={Math.ceil(all.length / pageSize)}
+  onChange={setPage}
+/>
+```
+
+## Props
+
+`Pagination` extends the native `HTMLAttributes` for a `<div>` (minus
+`onChange`), so `className`, `style`, `aria-*`, and other div attributes pass
+through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `page` | `number` (required) | None |
+| `pageCount` | `number` (required) | None |
+| `onChange` | `(page: number) => void` (required) | None |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Table`](/docs/components/table): the surface `Pagination` most often pages.
+- [`ListRow`](/docs/components/listrow): page a long list of rows.

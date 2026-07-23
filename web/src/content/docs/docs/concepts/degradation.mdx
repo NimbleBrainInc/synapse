@@ -1,0 +1,81 @@
+---
+title: Standalone and non-NimbleBrain hosts
+description: "How NimbleBrain-specific features (the synapse/* extensions: agent actions, data-change events, state persistence, file operations, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
+---
+
+Synapse runs in any host that implements ext-apps: Claude Desktop, VS Code,
+ChatGPT, the NimbleBrain runtime, or one you build. But some of what the SDK
+exposes has no equivalent in the standard. Those features are NimbleBrain
+extensions, and the design goal is that using them is always safe: on a host that
+does not understand them, they degrade to no-ops, and the ext-apps baseline keeps
+working.
+
+You do not have to feature-detect before calling them. You can, but the point of
+the degradation is that a component written for NimbleBrain still renders correctly
+in Claude or ChatGPT without a rewrite.
+
+## The baseline that works everywhere
+
+Everything defined by ext-apps is available in every conforming host:
+
+- the handshake and host context (theme tokens, container dimensions, tool context);
+- tool results, tool input, and tool cancellation notifications;
+- theme changes via `host-context-changed`;
+- calling MCP tools with `callTool`;
+- reporting size with `resize` and opening links with `openLink`;
+- teardown notification when the host removes the view.
+
+If your app only uses these, it behaves identically across hosts. This is the
+larger part of the surface.
+
+## The NimbleBrain extensions
+
+A smaller set of features is carried over `synapse/*` methods, which have no spec
+equivalent. On a non-NimbleBrain host there is nothing on the other end to receive
+them, so they no-op.
+
+| Feature | `synapse/*` method | Off NimbleBrain |
+| --- | --- | --- |
+| Agent actions (`onAction`, `action()`) | `synapse/action` | No-op |
+| Agent data-change events (`onDataChanged`, `useDataSync`) | `synapse/data-changed` | No-op |
+| State persistence (`persist: true`) | `synapse/persist-state`, `synapse/state-loaded` | In-memory only, not restored across reloads |
+| File download (`downloadFile`) | `synapse/download-file` | No-op |
+| File picker (`pickFile`, `pickFiles`) | `synapse/request-file` | No-op |
+| Keyboard forwarding | `synapse/keydown` | No-op |
+
+Two of these are worth calling out because they shape how you write the app:
+
+**Data-change events are NimbleBrain-only.** The push that says "the agent mutated
+data on this server" travels over `synapse/data-changed`. Off NimbleBrain, that
+channel is silent, so `useDataSync` never fires. The ext-apps `tool-result`
+notification still arrives, though, so refreshing on the tool result is the portable
+way to keep the UI current across hosts.
+
+**Persistence downgrades rather than errors.** A store marked `persist: true` relies
+on the host to hold state across a reload. Where that is unavailable the store still
+works, it just lives in memory and starts fresh on remount. Nothing throws.
+
+## Telling agent context apart from the extensions
+
+Pushing an LLM-visible summary of what the user is looking at is not a `synapse/*`
+extension. `updateModelContext` maps to an ext-apps request, so it works wherever
+the host implements that request and simply has no receiver where the host does not.
+NimbleBrain's `setVisibleState` builds a richer, debounced channel on top, but the
+underlying model-context push is part of the standard surface, not a NimbleBrain
+private. Treat it as baseline that is gated on host capability rather than as an
+extension that no-ops.
+
+## Detecting the host when you need to
+
+Most of the time you should just call the method and let it no-op. When you want to
+branch, read the host identity: `Synapse` exposes `isNimbleBrainHost`, and the
+`connect()` `App` exposes `hostInfo` with the host name and version. Use it to hide
+a NimbleBrain-only affordance (a download button, say) on hosts that cannot fulfill
+it, rather than to guard against a crash, because there is no crash to guard
+against.
+
+## Related
+
+- [Cross-host architecture](/docs/concepts/cross-host): the adapter model behind one component, many hosts.
+- [The MCP ext-apps protocol](/docs/concepts/ext-apps): the baseline that is preserved everywhere.
+- [Persist state across reloads](/docs/guides/state-store): the store, including its persistence behavior.

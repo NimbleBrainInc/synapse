@@ -1,0 +1,54 @@
+---
+title: Text
+description: Body copy bound to the host's sans font and type scale, with tone, weight, mono, and truncation.
+---
+
+import TextDemo from "../../../../components/ui/TextDemo.tsx";
+
+`Text` renders body copy using the host's sans font and type scale. Size, weight,
+and color resolve from the injected tokens, so it carries no brand of its own and
+reads native wherever your app renders. It renders a `span` by default and drops
+its own margins, so it composes cleanly inside a `Stack` or `Inline`. The preview
+below is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Text } from "@nimblebrain/synapse/ui";
+
+<Text tone="muted" size="sm">Last synced 2 minutes ago</Text>;
+```
+
+<TextDemo client:only="react" />
+
+## Size, weight, and tone
+
+Four sizes and four weights cover body copy; `tone` maps to the semantic text
+colors. Set `mono` for code and identifiers, and `truncate` to clip a single
+overflowing line with an ellipsis.
+
+```tsx
+<Text size="lg" weight="semibold">Lead paragraph</Text>
+<Text tone="danger">Payment failed</Text>
+<Text mono>sk-live-8f2a1c</Text>
+<Text truncate>A long value that ellipses past its container</Text>
+```
+
+## Props
+
+`Text` extends the native `HTMLAttributes<HTMLElement>` (minus `color`), so
+`className`, `style`, `id`, `aria-*`, and other attributes pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `size` | `"xs"` \| `"sm"` \| `"base"` \| `"lg"` | `"base"` |
+| `weight` | `"normal"` \| `"medium"` \| `"semibold"` \| `"bold"` | `"normal"` |
+| `tone` | `"default"` \| `"muted"` \| `"faint"` \| `"accent"` \| `"danger"` \| `"success"` | `"default"` |
+| `mono` | `boolean` | `false` |
+| `truncate` | `boolean` | `false` |
+| `as` | `ElementType` | `"span"` |
+| `…rest` | `HTMLAttributes<HTMLElement>` | None |
+
+## Related
+
+- [`Heading`](/docs/components/heading): display type on the same tone scale.
+- [`Prose`](/docs/components/prose): reading typography for rendered rich text.
+- [`Inline`](/docs/components/inline): pair text with a badge or value in a row.

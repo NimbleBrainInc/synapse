@@ -1,0 +1,51 @@
+---
+title: Card
+description: A raised surface with a hairline border, the default container for grouped content.
+---
+
+import CardDemo from "../../../../components/ui/CardDemo.tsx";
+
+`Card` is a raised surface with a hairline border, the default container for
+grouped content like deal cards, task cards, and panels. Its background, border,
+radius, and shadow all resolve from the host's tokens, so it looks native in any
+host. Compose anything inside it; the preview below wraps a `Heading` and `Text`.
+It is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Card, Heading, Text } from "@nimblebrain/synapse/ui";
+
+<Card>
+  <Heading size="sm">Acme migration</Heading>
+  <Text size="sm" tone="muted">Kickoff scheduled for Thursday.</Text>
+</Card>;
+```
+
+<CardDemo client:only="react" />
+
+## Padding and interactivity
+
+`padding` accepts a CSS length or a px number. Set `interactive` on clickable
+cards to add a hover lift (a shadow and border shift) without wiring per-card
+handlers.
+
+```tsx
+<Card padding="1.25rem">…</Card>
+<Card interactive onClick={open}>…</Card>
+```
+
+## Props
+
+`Card` extends the native `HTMLAttributes` for a `<div>`, so `onClick`,
+`className`, `style`, `aria-*`, and other div attributes pass through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `padding` | `number` \| `string` | `"0.875rem"` |
+| `interactive` | `boolean` | `false` |
+| `children` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`ListRow`](/docs/components/listrow): a lighter row for list surfaces.
+- [`Table`](/docs/components/table): for tabular data instead of a freeform card.

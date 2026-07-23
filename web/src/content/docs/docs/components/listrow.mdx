@@ -1,0 +1,56 @@
+---
+title: ListRow
+description: "The recurring list item: a leading slot, a title with optional meta, and a trailing slot."
+---
+
+import ListRowDemo from "../../../../components/ui/ListRowDemo.tsx";
+
+`ListRow` is the recurring list item: an optional `leading` slot (a `StatusDot`
+or `Avatar`), a `title` with an optional `meta` line, and a `trailing` slot (a
+timestamp, badge, or actions). It sits flat at rest with a rounded hover tint
+when `interactive`. Every color comes from the host's tokens. The preview below
+is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Avatar, Badge, ListRow } from "@nimblebrain/synapse/ui";
+
+<ListRow
+  leading={<Avatar name="Jordan Ratner" />}
+  title="Jordan Ratner"
+  meta="jordan@acme.co · Last touched 2d ago"
+  trailing={<Badge tone="success">Won</Badge>}
+/>;
+```
+
+<ListRowDemo client:only="react" />
+
+## Interactive rows
+
+Set `interactive` to add the pointer cursor and hover tint. The row becomes
+keyboard-operable. `role="button"`, `tabIndex`, and Enter / Space synthesize the
+click that drives your `onClick`.
+
+```tsx
+<ListRow title="Priya Nair" interactive onClick={open} />
+```
+
+## Props
+
+`ListRow` extends the native `HTMLAttributes` for a `<div>` (minus `title`), so
+`onClick`, `className`, `style`, `aria-*`, and other div attributes pass through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `title` | `ReactNode` (required) | None |
+| `meta` | `ReactNode` | None |
+| `leading` | `ReactNode` | None |
+| `trailing` | `ReactNode` | None |
+| `interactive` | `boolean` | `false` |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Avatar`](/docs/components/avatar): a common `leading` chip.
+- [`StatusDot`](/docs/components/statusdot): the other common `leading` chip.
+- [`Badge`](/docs/components/badge): a natural fit for the `trailing` slot.
+- [`Table`](/docs/components/table): for tabular data that rows don't fit.

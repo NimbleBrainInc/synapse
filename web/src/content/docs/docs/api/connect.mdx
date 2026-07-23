@@ -1,0 +1,57 @@
+---
+title: connect()
+description: connect(options) opens the ext-apps handshake and resolves to a connected App with theme, host info, and tool context ready.
+---
+
+`connect(options)` is the recommended entry point. It opens the MCP ext-apps
+handshake and resolves once the host is ready, returning a connected `App` whose
+theme, host info, and tool context are available immediately.
+
+```typescript
+import { connect } from "@nimblebrain/synapse";
+
+const app = await connect({ name: "my-app", version: "1.0.0" });
+```
+
+## Signature
+
+```typescript
+function connect(options: ConnectOptions): Promise<App>;
+```
+
+## Options
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | App name (must match registered bundle name) |
+| `version` | `string` | Semver version |
+| `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default `false` |
+| `on` | `Record<string, (data) => void>?` | Pre-register event handlers before the handshake, so no early messages are lost |
+
+## `App` properties
+
+Available synchronously once the promise resolves.
+
+| Property | Type | Description |
+| --- | --- | --- |
+| `theme` | `Theme` | Current theme (`mode`, `tokens`) |
+| `hostInfo` | `{ name, version }` | Host identity |
+| `toolInfo` | `{ tool } \| null` | Tool context if launched from a tool call |
+| `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
+
+## `App` methods
+
+| Method | Description |
+| --- | --- |
+| `on(event, handler)` | Subscribe to events. Returns an unsubscribe function. |
+| `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
+| `openLink(url)` | Open a URL (host-aware) |
+| `updateModelContext(state, summary?)` | Push LLM-visible state |
+| `callTool(name, args?)` | Call an MCP tool and get a typed result |
+| `sendMessage(text, context?)` | Send a chat message to the agent |
+| `destroy()` | Clean up all listeners, observers, and timers |
+
+## See also
+
+- [Events](/docs/api/events/) documents the full `app.on()` event table.
+- [React hooks](/docs/api/hooks/) provides `AppProvider` wrappers over `connect()`.

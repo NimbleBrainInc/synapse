@@ -1,0 +1,111 @@
+---
+title: "Quickstart: Python server"
+description: "Add one ui:// component to a FastMCP server with nimblebrain-synapse, and render it across ChatGPT, Claude, and NimbleBrain from a single declaration."
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+Synapse has two halves. The [React quickstart](/docs/quickstart-react) covers the
+client. This one covers the server: `nimblebrain-synapse`, the PyPI package that
+attaches a self-contained `ui://` component to a [FastMCP](https://github.com/modelcontextprotocol/python-sdk)
+server. From one declaration the component renders across ChatGPT (OpenAI Apps
+SDK), Claude (MCP Apps), and the NimbleBrain runtime, with the client SDK inlined
+so the component ships as one asset.
+
+This walks you from an empty server to a tool whose result renders in a UI. It
+assumes you already have a FastMCP server, or can start one.
+
+<Steps>
+
+1. **Install the package.**
+
+   ```bash
+   pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
+   ```
+
+   It pairs with FastMCP (the `mcp` Python package), which you use to define the
+   server and its tools.
+
+2. **Write a data-free template.**
+
+   The component's HTML carries no data. It carries two markers the package fills
+   in: one for the inlined client SDK, one for the data slot.
+
+   ```python
+   TEMPLATE = """
+   <div id="root"></div>
+   <!--__SYNAPSE_SDK__-->
+   <script type="application/json" id="synapse-ui-data">/*__SYNAPSE_DATA__*/</script>
+   """
+   ```
+
+   `<!--__SYNAPSE_SDK__-->` is replaced with the inlined client SDK `<script>`, so
+   the component is self-contained (no CDN, CSP-safe). The
+   `synapse-ui-data` script is the data slot: the served copy leaves the marker in
+   place, so the client reads `null` and falls back to the host's push, and a
+   per-result copy substitutes the escaped payload there.
+
+3. **Declare the component and register it.**
+
+   ```python
+   from mcp.server.fastmcp import FastMCP
+   from nimblebrain_synapse import SynapseUI
+
+   mcp = FastMCP("weather")
+
+   forecast_ui = SynapseUI(
+       uri="ui://weather/forecast",
+       template=TEMPLATE,
+       preferred_size=("100%", "auto"),
+   )
+   forecast_ui.register(mcp)
+   ```
+
+   `register` serves the `ui://` resource with the client SDK inlined. `uri` is the
+   resource id the host loads; `preferred_size` is the size hint the component asks
+   for.
+
+4. **Add a tool and bind the UI to it.**
+
+   ```python
+   @mcp.tool(
+       meta=forecast_ui.tool_meta(invoking="Checking the forecast", invoked="Forecast ready"),
+   )
+   async def get_forecast(city: str) -> dict:
+       return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
+
+   forecast_ui.bind(mcp, tool="get_forecast", should_render=lambda d: "city" in d)
+   ```
+
+   `tool_meta` attaches the status strings the host shows while the tool runs and
+   after it finishes, plus the metadata that points the tool at this component.
+   `bind` post-processes the tool's `CallToolResult`: it appends the embedded
+   `ui://` resource (the data baked into a `<script>`) and mirrors the ChatGPT
+   `_meta`. `should_render` receives the tool's output and decides whether to render
+   the UI for that call.
+
+5. **Run the server.** Start it however you normally run FastMCP (stdio or HTTP).
+   In a host that supports embedded UIs, calling `get_forecast` now renders your
+   component. A plain MCP client that renders no UI ignores the extra resource and
+   still reads the tool's `structuredContent`, so the same server works everywhere.
+
+</Steps>
+
+## What just happened
+
+- `SynapseUI` described one component once: a URI, a data-free template, and a size
+  hint.
+- `register` published it as a `ui://` resource with the client SDK inlined, so the
+  component is fully self-contained.
+- `tool_meta` and `bind` wired the component to a tool, so its result is delivered
+  both as `structuredContent` (for any MCP client) and as a rendered UI (for hosts
+  that support it).
+
+Because the component is self-contained and the wiring is declarative, the same
+server renders across ChatGPT, Claude, and NimbleBrain without per-host code.
+
+## Related
+
+- [Cross-host architecture](/docs/concepts/cross-host): how one component reaches three different host bridges.
+- [Quickstart: React app](/docs/quickstart-react): the client half of the same app.
+- [Standalone and non-NimbleBrain hosts](/docs/concepts/degradation): what renders where.

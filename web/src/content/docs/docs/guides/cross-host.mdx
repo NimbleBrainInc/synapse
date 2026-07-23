@@ -1,0 +1,61 @@
+---
+title: Render one component across hosts
+description: Write one Synapse component that runs in ChatGPT, Claude, and standalone, using connectUI to hide the fact that each host speaks a different bridge.
+---
+
+## The problem
+
+The same UI component can end up in very different hosts, and each one speaks its
+own bridge. ChatGPT uses the OpenAI Apps SDK, Claude uses the MCP Apps standard,
+and a standalone page has no host at all. Branch on all three by hand and you end
+up with three code paths and a pile of postMessage details in your component.
+
+## The recipe
+
+Call `connectUI` from `@nimblebrain/synapse/host`. It detects the host, picks the
+right adapter, applies the host theme to the DOM, and returns one
+`SynapseUIClient` façade you code against. It is synchronous, so `data()` is
+populated on return.
+
+```typescript
+import { connectUI } from "@nimblebrain/synapse/host";
+
+const synapse = connectUI({ name: "my-widget", version: "1.0.0" });
+
+// Render the data that spawned the widget, then subscribe to future pushes.
+render(synapse.data());
+synapse.onData(render);
+
+// Feature-detect before reaching for a capability that varies by host.
+if (synapse.capabilities().pull) {
+  const rows = await synapse.callTool("list_items", { limit: 10 });
+  render(rows);
+}
+
+if (synapse.capabilities().sendPrompt) {
+  synapse.sendPrompt("Summarize what I'm looking at");
+}
+```
+
+## How it works
+
+The façade exposes `data()` and `onData()` for pushed tool output, `theme()` and
+`onTheme()` for the resolved theme, `callTool()` for a widget-to-server call,
+`sendPrompt()` to send a follow-up to the conversation, `openLink()` to open an
+external URL, and `resize()` to report content height. `destroy()` tears down the
+listeners.
+
+`data()`, `onData()`, `theme()`, and `resize()` work in every host. The other
+three vary, which is why you feature-detect with `capabilities()`. It returns
+whether the host supports `pull` (so `callTool` can reach the server), `sendPrompt`,
+and `openLink`. Calling `callTool()` on a host with no pull rejects with a
+`HostUnsupportedError`, so gate it on `capabilities().pull` first. Use `host()`
+only as an escape hatch (it returns `"chatgpt"`, `"claude"`, `"nimblebrain"`, or
+`"generic"`); prefer `capabilities()` so your component stays host-agnostic.
+
+## Related
+
+- [Persist state across reloads](/docs/guides/state-store/)
+- [Develop locally with the Vite plugin](/docs/guides/local-dev/)
+- [Generate types from your tools](/docs/guides/codegen/)
+- [Use Synapse without a bundler](/docs/guides/script-tag/)

@@ -1,0 +1,75 @@
+---
+title: Persist state across reloads
+description: Keep UI state (selection, filters, open panels) alive when the host reloads or remounts your iframe, using the Synapse state store.
+---
+
+## The problem
+
+The host controls your iframe, and it can reload or remount it whenever it wants:
+the user navigates away and back, resizes the pane, or switches tabs. Every time
+that happens, plain React state is gone. The user's selected row, active filters,
+and scroll position reset to nothing, and the app feels like it forgot what they
+were doing.
+
+## The recipe
+
+Create a typed store with `createStore` and turn on `persist`. The host holds the
+state for you and hands it back on remount.
+
+```typescript
+import { createSynapse, createStore } from "@nimblebrain/synapse";
+
+const synapse = createSynapse({ name: "my-app", version: "1.0.0" });
+
+const store = createStore(synapse, {
+  initialState: { count: 0, items: [] },
+  actions: {
+    increment: (state) => ({ ...state, count: state.count + 1 }),
+    addItem: (state, item: string) => ({
+      ...state,
+      items: [...state.items, item],
+    }),
+  },
+  persist: true,
+  visibleToAgent: true,
+  summarize: (state) => `${state.items.length} items, count=${state.count}`,
+});
+
+store.dispatch.increment();
+store.dispatch.addItem("hello");
+```
+
+Each key in `actions` becomes a typed method on `store.dispatch`. An action takes
+the current state (plus any arguments you pass) and returns the next state. There
+is no reducer boilerplate and no action-type constants.
+
+Bind the store to React with `useStore`, which re-renders on every state change:
+
+```tsx
+import { useStore } from "@nimblebrain/synapse/react";
+
+function Counter() {
+  const { state, dispatch } = useStore(store);
+  return <button onClick={() => dispatch.increment()}>{state.count}</button>;
+}
+```
+
+## How it works
+
+`persist: true` sends the state to the host, which stores it under your app. When
+the host remounts the iframe, the store loads that snapshot back before your first
+render, so the UI comes back exactly where the user left it.
+
+The last two options wire the store into the agent, not just the UI. With
+`visibleToAgent: true`, the string that `summarize` returns is pushed into the
+agent's context as LLM-visible state, so the agent can answer questions about what
+the user is currently looking at without you serializing the view by hand. In
+hosts that do not support persistence or agent visibility, these options degrade
+to no-ops and the store still works as an in-memory store.
+
+## Related
+
+- [Develop locally with the Vite plugin](/docs/guides/local-dev/)
+- [Generate types from your tools](/docs/guides/codegen/)
+- [Render one component across hosts](/docs/guides/cross-host/)
+- [Use Synapse without a bundler](/docs/guides/script-tag/)

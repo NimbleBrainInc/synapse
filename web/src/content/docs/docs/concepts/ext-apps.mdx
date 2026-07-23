@@ -1,0 +1,94 @@
+---
+title: The MCP ext-apps protocol
+description: "What the ext-apps ui/* handshake is (initialize, initialized, tool-result, host-context-changed) and how Synapse layers zero-config connect, typed calls, and reactive sync on top without hiding the protocol."
+---
+
+Synapse is an enhancement layer, so it helps to know what it sits on. The
+substrate is the [MCP ext-apps protocol](https://modelcontextprotocol.io/specification/2025-06-18/user-interaction/ext-apps),
+the standard for rendering an app's UI inside a host next to the agent. Everything
+Synapse does maps back to a concrete ext-apps message.
+
+## The parts
+
+An ext-apps app is an HTML document the host loads in a sandboxed iframe. The app
+and the host talk over `postMessage` using JSON-RPC. Method names are namespaced
+under `ui/*`, and the protocol version Synapse targets is `2026-01-26`.
+
+There are two kinds of message you care about:
+
+- **Requests** the app sends to the host, such as `ui/initialize` (the handshake),
+  `tools/call` (invoke an MCP tool), `ui/open-link`, and `ui/message` (send a chat
+  message to the agent).
+- **Notifications** the host pushes to the app, such as
+  `ui/notifications/tool-result` (a tool the agent ran produced output),
+  `ui/notifications/host-context-changed` (theme or context changed), and
+  `ui/resource-teardown` (the host is tearing the view down).
+
+## The handshake
+
+Before anything renders, the app and host complete a short handshake. The sequence
+is always:
+
+1. The app reports its size to the host.
+2. The app sends a `ui/initialize` request carrying its name, version, and
+   capabilities.
+3. The host replies with its own identity, its capabilities, and the initial host
+   context (theme tokens, container dimensions, tool context if the app was
+   launched from a tool call).
+4. The app registers its notification handlers.
+5. The app sends `ui/notifications/initialized` to signal it is ready.
+
+One consequence is worth internalizing: a host keeps the iframe hidden until it has
+received both `ui/initialize` and a size report. A spec-correct component that never
+runs the handshake renders blank, which looks like nothing happened. Running the
+handshake is not optional.
+
+## How Synapse layers on top
+
+Synapse does not hide any of this. It removes the parts that are identical in every
+app and keeps the protocol visible where you want it.
+
+**Zero-config handshake.** You call `connect()` and await it. The promise resolves
+only after the full `ui/initialize` round trip completes, so by the time your code
+runs, theme, host identity, and tool context are already populated. You never write
+`ui/initialize` by hand.
+
+**Typed tool calls.** `callTool(name, args)` wraps a `tools/call` request: it
+tracks the request id, awaits the response, parses the content array, and hands you
+a typed result. No pending-promise bookkeeping.
+
+**Reactive sync.** Instead of adding a raw `message` listener and switching on
+method strings, you subscribe with `on(event, handler)`. Each event name maps
+one-to-one to an ext-apps notification, and the payload is parsed for you rather
+than delivered as raw JSON-RPC. The original params are still available on
+`data.raw` when you need to drop down a level.
+
+| `on()` event | ext-apps notification | Payload |
+| --- | --- | --- |
+| `"tool-result"` | `ui/notifications/tool-result` | Parsed tool result (`content`, `structuredContent`, `raw`) |
+| `"tool-input"` | `ui/notifications/tool-input` | The arguments the agent is calling with |
+| `"tool-input-partial"` | `ui/notifications/tool-input-partial` | Streaming partial arguments |
+| `"tool-cancelled"` | `ui/notifications/tool-cancelled` | (no payload) |
+| `"theme-changed"` | `ui/notifications/host-context-changed` | The updated theme |
+| `"teardown"` | `ui/resource-teardown` | (no payload) |
+
+Because the mapping is direct, the abstraction never traps you. You can reason in
+protocol terms and reach for the raw params, but you do not have to write the
+transport.
+
+## One detail that bites people
+
+The `ui/notifications/tool-result` params *are* the `CallToolResult`. The
+structured data lives at `params.structuredContent`, not wrapped in a
+`params.result`. Synapse reads it correctly, which is one less thing to get wrong,
+but it is worth knowing if you ever inspect the wire.
+
+Under the hood, Synapse imports the `ui/*` method strings as constants from the
+ext-apps package rather than typing them as literals, so a rename in the spec turns
+into a compile error instead of a silent runtime break.
+
+## Related
+
+- [Why Synapse](/docs/concepts/why): the concrete problems this layering solves.
+- [Call MCP tools with types](/docs/guides/call-tools): the typed `callTool` in practice.
+- [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): using `tool-result` and data sync to refresh on a push.

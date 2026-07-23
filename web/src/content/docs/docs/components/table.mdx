@@ -1,0 +1,70 @@
+---
+title: Table
+description: A token-styled data table with declarative columns, a sticky header, and clickable rows.
+---
+
+import TableDemo from "../../../../components/ui/TableDemo.tsx";
+
+`Table` is a token-styled data table with declarative columns, for the tabular
+list surfaces (CRM contacts, deals) that simple rows don't fit. It renders a real
+`<table>` for semantics, with a sticky header and rows that hover-tint and can be
+clickable. Sorting, selection, and virtualization are out of scope; compose
+[`Pagination`](/docs/components/pagination) for paging. The preview below is the
+real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Table, type Column } from "@nimblebrain/synapse/ui";
+
+const columns: Column<Person>[] = [
+  { key: "name", header: "Name", render: (p) => p.name },
+  { key: "deals", header: "Deals", align: "right", render: (p) => p.deals },
+];
+
+<Table data={people} columns={columns} rowKey={(p) => p.id} />;
+```
+
+<TableDemo client:only="react" />
+
+## Columns and clickable rows
+
+Each column is declared once. Pass `onRowClick` to make rows clickable and
+keyboard-operable, and `empty` to render a placeholder when `data` is empty.
+
+```tsx
+<Table
+  data={people}
+  columns={columns}
+  rowKey={(p) => p.id}
+  onRowClick={(p) => open(p)}
+  empty={<EmptyState title="No contacts yet" />}
+/>
+```
+
+## Props
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `data` | `T[]` | None |
+| `columns` | `Column<T>[]` | None |
+| `rowKey` | `(row: T, index: number) => string \| number` | None |
+| `onRowClick` | `(row: T, index: number) => void` | None |
+| `empty` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLTableElement>` | None |
+
+### The `Column<T>` shape
+
+Each entry in `columns` describes one column.
+
+| Field | Type | Default |
+| --- | --- | --- |
+| `key` | `string` | None |
+| `header` | `ReactNode` | None |
+| `render` | `(row: T, index: number) => ReactNode` | None |
+| `align` | `"left"` \| `"right"` \| `"center"` | `"left"` |
+| `width` | `number` \| `string` | None |
+
+## Related
+
+- [`Pagination`](/docs/components/pagination): page a long table.
+- [`ListRow`](/docs/components/listrow): a lighter row for non-tabular lists.
+- [`Badge`](/docs/components/badge): render inside a status column.

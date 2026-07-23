@@ -1,0 +1,98 @@
+---
+title: Why Synapse
+description: "The gap between raw MCP ext-apps and a UI that actually collaborates with an agent, and the six pieces of plumbing Synapse handles so you don't have to."
+---
+
+The [MCP ext-apps protocol](https://modelcontextprotocol.io/specification/2025-06-18/user-interaction/ext-apps)
+gives you two things: an iframe and a `postMessage` channel to the host. That is
+genuinely enough to render HTML next to a chat. It stops being enough the moment
+your UI has to *collaborate* with the agent rather than just sit beside it.
+
+At that point you find yourself writing the same plumbing every time: request
+tracking, state sync, theme wiring, a local dev harness. Synapse is that plumbing,
+written once and shared. It is an optional enhancement layer over ext-apps, not a
+replacement for it. You still get the iframe and the protocol. You just stop
+hand-rolling the parts that are the same in every app.
+
+Here is the gap, told as the six problems you hit in order.
+
+## The UI goes stale when the agent acts
+
+The user asks the agent to change something. The agent calls a tool on your MCP
+server and the data changes. Your iframe has no idea. It keeps showing the old
+value until the user reloads.
+
+Raw ext-apps has no standard channel for "the agent just mutated the thing you are
+displaying," so you reach for a polling loop or a bespoke event. Synapse turns
+that into a push: subscribe once, and the host tells the iframe whenever the agent
+calls a tool on the same server. You refresh on a signal instead of a timer.
+
+## The agent can't see what the user is doing
+
+The user is looking at a filtered view, say West Coast revenue for Q2, and asks
+"how does this compare to last quarter?" The agent has no idea what "this" points
+at. The screen is invisible to it.
+
+Without Synapse you serialize UI state into every tool call by hand, or you hope
+the user narrates what they are looking at. Synapse gives you one call to push an
+LLM-visible summary of the current view. The agent's context now carries "user is
+viewing West Coast Q2 revenue," so it can answer the follow-up without asking you
+to repeat yourself.
+
+## Tool calls are untyped and boilerplate-heavy
+
+Every call through raw `postMessage` means hand-rolling JSON-RPC: generate a
+request id, track the pending promise, wire a timeout, then walk the returned
+content array and try to parse it back into an object. You write that once, then
+copy it into the next app, and the one after that.
+
+Synapse collapses it to a typed call with loading and error state built in. You
+name the tool, pass typed arguments, and get a typed result. The request tracking
+and content parsing happen underneath.
+
+## Theming requires manual plumbing
+
+Your UI should match the host's light or dark mode and its brand colors. With raw
+ext-apps that means reading the theme tokens out of the init message, listening for
+later theme changes, and applying CSS variables by hand, in every app.
+
+Synapse tracks the host theme for you and exposes it reactively, with neutral
+fallbacks for hosts that send nothing. Better still, the component library resolves
+theming in CSS rather than React (see [the token model](/docs/concepts/theming)),
+so a light-to-dark flip repaints without a re-render.
+
+## Local development is painful
+
+To exercise an MCP app UI on your machine you normally have to start the server in
+stdio mode, build a bridge page that iframes your app, proxy `postMessage` between
+the iframe and the server's stdin and stdout, and run the handshake yourself. It is
+an afternoon of setup before you see a single pixel.
+
+Synapse ships a Vite plugin that stands the whole thing up. Running the dev server
+spawns your MCP server, serves a preview host, proxies tool calls, and completes
+the handshake. Hot module reload works inside the iframe, so you edit a file and
+see the change immediately.
+
+## State doesn't survive iframe reloads
+
+The host can reload or remount your iframe at any time: navigation, a resize, a tab
+switch. When it does, your component state is gone.
+
+Rather than negotiating storage with the host over `postMessage` or reaching for
+`localStorage`, Synapse offers a small reactive store you can mark as persistent.
+The host holds the state, and the iframe gets it back on remount.
+
+## The through-line
+
+Each of these is solvable on your own. The point is that you solve them the same
+way every time, and that repeated work has nothing to do with your actual app.
+Synapse absorbs it so the code you write is the UI, not the transport under it.
+
+None of this is mandatory. If your app never runs into these problems, you do not
+need the layer. See [when you don't need Synapse](/docs/concepts/when-not-to-use).
+
+## Related
+
+- [The MCP ext-apps protocol](/docs/concepts/ext-apps): what Synapse layers on top of, and how.
+- [When you don't need Synapse](/docs/concepts/when-not-to-use): the cases where raw ext-apps is enough.
+- [Quickstart: React app](/docs/quickstart-react): install to running-in-a-host in a few minutes.

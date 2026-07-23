@@ -1,0 +1,89 @@
+---
+title: "Quickstart: React app"
+description: "Build your first Synapse app in React: install the SDK, wrap your app in a provider, render a tool result, and run it in a host."
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+This walks you from an empty file to a working MCP app UI that receives a tool
+result from the agent and renders it. It assumes you have a React project and an
+MCP server whose tool you want to give a UI.
+
+<Steps>
+
+1. **Install the SDK.**
+
+   ```bash
+   npm install @nimblebrain/synapse
+   ```
+
+   Its one peer dependency is `@modelcontextprotocol/ext-apps`.
+
+2. **Wrap your app in `AppProvider`.**
+
+   `AppProvider` runs the ext-apps handshake and renders its children once the
+   host is connected.
+
+   ```tsx
+   import { AppProvider } from "@nimblebrain/synapse/react";
+
+   export default function Root() {
+     return (
+       <AppProvider name="my-app" version="1.0.0">
+         <ItemList />
+       </AppProvider>
+     );
+   }
+   ```
+
+3. **Read the tool result.**
+
+   `useToolResult()` re-renders your component every time the agent's tool
+   produces a result. It's `null` until the first result arrives.
+
+   ```tsx
+   import { useToolResult, useResize } from "@nimblebrain/synapse/react";
+   import { useEffect } from "react";
+
+   function ItemList() {
+     const result = useToolResult();
+     const resize = useResize();
+
+     // Tell the host how tall we are once we have content.
+     useEffect(() => { if (result) resize(); }, [result, resize]);
+
+     if (!result) return <p>Waiting for data…</p>;
+
+     const items = result.structuredContent?.items ?? [];
+     return (
+       <ul>
+         {items.map((item) => (
+           <li key={item.id}>{item.name}</li>
+         ))}
+       </ul>
+     );
+   }
+   ```
+
+4. **Run it in a host.** Point your MCP server's UI resource at this app's built
+   output. In development, the [Vite plugin](/docs/guides/local-dev/) spins up a preview host that
+   proxies tool calls and hot-reloads the iframe. No deploy needed.
+
+</Steps>
+
+## What just happened
+
+- `AppProvider` completed the ext-apps handshake, so `theme`, host info, and tool
+  context were available before your component first rendered.
+- `useToolResult()` subscribed to `ui/notifications/tool-result`. When the agent
+  called the tool, the host pushed the result to the iframe and your component
+  re-rendered.
+- `useResize()` reported the content height back to the host so the iframe fit
+  its contents.
+
+## Next steps
+
+- Swap the plain `<ul>` for real [components](/docs/components/): `Card`, `ListRow`, `Badge`.
+- Let the user act on the data: [call tools](/docs/guides/call-tools/) with `app.callTool()` and
+  give the agent context about what the user is looking at.
+- Ship it: build the app and register it as a `ui://` resource on your MCP server.

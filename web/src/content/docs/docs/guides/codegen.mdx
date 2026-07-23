@@ -1,0 +1,58 @@
+---
+title: Generate types from your tools
+description: Turn an MCP app manifest, a running server, or a folder of JSON schemas into TypeScript input and output types for every tool, so tool calls are typed end to end.
+---
+
+## The problem
+
+Your UI calls MCP tools, but the tool schemas live on the server. If you hand-write
+the input and output types in the UI, they drift the moment the server changes a
+field, and TypeScript cannot catch the mismatch. You want the types generated
+straight from the source of truth.
+
+## The recipe
+
+Run the `synapse codegen` CLI against whichever source you have. From an app
+manifest:
+
+```bash
+npx synapse codegen --from-manifest ./manifest.json --out src/generated/types.ts
+```
+
+From a running MCP server (it calls `tools/list` over HTTP):
+
+```bash
+npx synapse codegen --from-server http://localhost:3000/mcp --out src/generated/types.ts
+```
+
+From a directory of `.schema.json` entity files (generates CRUD tool types):
+
+```bash
+npx synapse codegen --from-schema ./schemas --out src/generated/types.ts
+```
+
+## How it works
+
+For every tool, codegen emits a PascalCase `XxxInput` interface from the tool's
+input schema and, when the tool declares an output schema, a matching `XxxOutput`
+interface (tools with no output schema map to `unknown`). It then emits one
+`AppToolMap` interface, named from your app, that maps each tool name to its
+`input` and `output` types. That map is what gives a typed `useCallTool` the right
+argument and result types per tool.
+
+`--from-schema` is the exception that generates tools rather than reading them.
+Each `<entity>.schema.json` file becomes a full CRUD set: `create_<entity>`,
+`read_<entity>`, `update_<entity>`, `delete_<entity>`, and `list_<entity>s`, each
+with input and output types derived from the entity schema.
+
+A few flags worth knowing: `--out` defaults to `src/generated/types.ts`, and
+`--app` overrides the app name used to name the tool map (with `--from-manifest`
+it defaults to the manifest's `name`). Re-run the command whenever the server's
+tools change, and commit the generated file or wire the command into your build.
+
+## Related
+
+- [Persist state across reloads](/docs/guides/state-store/)
+- [Develop locally with the Vite plugin](/docs/guides/local-dev/)
+- [Render one component across hosts](/docs/guides/cross-host/)
+- [Use Synapse without a bundler](/docs/guides/script-tag/)

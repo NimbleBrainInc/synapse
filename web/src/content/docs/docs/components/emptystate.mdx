@@ -1,0 +1,56 @@
+---
+title: EmptyState
+description: A centered placeholder for empty lists and views, with optional icon, title, description, and action.
+---
+
+import EmptyStateDemo from "../../../../components/ui/EmptyStateDemo.tsx";
+
+`EmptyState` is a centered placeholder for an empty list or view. Every slot is
+optional. Pass an `icon`, `title`, `description`, and an `action` (typically a
+`Button`) to tell the user what's missing and how to fix it. It carries no brand
+of its own; text and icon colors resolve from the host's tokens. The preview below
+is the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Button, EmptyState } from "@nimblebrain/synapse/ui";
+
+<EmptyState
+  title="No tasks yet"
+  description="Create your first task to get started."
+  action={<Button size="sm">New task</Button>}
+/>;
+```
+
+<EmptyStateDemo client:only="react" />
+
+## Slots
+
+Each slot is independent. Lead with an `icon` for a lighter touch, add an `action`
+when there's a clear next step, or use `title` alone for a terse placeholder.
+
+```tsx
+<EmptyState
+  icon={<span>📭</span>}
+  title="No tasks yet"
+  description="Everything you add will show up here."
+  action={<Button size="sm">New task</Button>}
+/>
+```
+
+## Props
+
+`EmptyState` extends `HTMLAttributes<HTMLDivElement>` (minus `title`), so
+`className`, `style`, and other div attributes pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `icon` | `ReactNode` | None |
+| `title` | `ReactNode` | None |
+| `description` | `ReactNode` | None |
+| `action` | `ReactNode` | None |
+| `…rest` | `HTMLAttributes<HTMLDivElement>` | None |
+
+## Related
+
+- [`Button`](/docs/components/button): the usual `action` for an empty state.
+- [`Spinner`](/docs/components/spinner): show while the view is still loading.

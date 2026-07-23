@@ -1,0 +1,45 @@
+---
+title: TextLink
+description: A chrome-less text button for inline back, retry, and delete affordances, themed by the host.
+---
+
+import TextLinkDemo from "../../../../components/ui/TextLinkDemo.tsx";
+
+`TextLink` is a button with no fill, border, or padding, just tinted, tappable
+text for low-stakes inline actions like back, retry, or delete. It carries no
+brand of its own; its resting and hover colors resolve from the host's tokens.
+The previews below are the real component from `@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { TextLink } from "@nimblebrain/synapse/ui";
+
+<TextLink onClick={goBack}>Back</TextLink>;
+```
+
+<TextLinkDemo client:only="react" />
+
+## Tones
+
+Three tones set the resting color. `muted` and `default` both move toward the
+accent on hover; `danger` stays red throughout to mark a destructive action.
+
+```tsx
+<TextLink>Back</TextLink>
+<TextLink tone="default">Edit</TextLink>
+<TextLink tone="danger">Delete</TextLink>
+```
+
+## Props
+
+`TextLink` extends the native `ButtonHTMLAttributes`, so `onClick`, `disabled`,
+`type`, `aria-*`, and every other button attribute pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `tone` | `"muted"` \| `"default"` \| `"danger"` | `"muted"` |
+| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | None |
+
+## Related
+
+- [`Button`](/docs/components/button): a filled, emphasized action.
+- [`EmptyState`](/docs/components/emptystate): often pairs a `TextLink` or `Button` as its action.

@@ -1,0 +1,51 @@
+---
+title: When you don't need Synapse
+description: "Synapse is optional. The cases where raw ext-apps is enough: display-only UI, one or two tools with no agent interaction, and non-iframe contexts."
+---
+
+Synapse earns its place when your UI has to collaborate with an agent. If it does
+not, the layer is overhead you can skip. Raw ext-apps is a perfectly good target on
+its own, and the cheapest correct app is the one that does not pull in machinery it
+never uses.
+
+Here are the cases where you should reach past Synapse and use raw ext-apps, or no
+UI framework at all.
+
+## Display-only UI
+
+If your UI just renders static content, a logo, a help page, a rendered document,
+then there is nothing to keep in sync, no tool to call, and no agent state to
+track. The value Synapse adds (reactive sync, typed calls, a store) has no surface
+to attach to. Plain HTML is the right amount of tool.
+
+## One or two tools, no agent interaction
+
+If the user clicks a button, sees a result, and the agent never touches the same
+server the user is looking at, the `postMessage` boilerplate is small and bounded.
+You write the request tracking once and you are done. The plumbing Synapse removes
+is only worth removing when it recurs and when the agent and the UI are mutating the
+same state. A single self-contained tool call does not clear that bar.
+
+## Non-iframe contexts
+
+If you are building a CLI, a server-only integration, or anything without an
+embedded UI, there is no iframe to enhance and nothing for Synapse to connect to.
+The SDK is a UI layer. No UI, no fit.
+
+## Start small, upgrade when it hurts
+
+The two positions are not exclusive. The reference [hello
+server](https://github.com/NimbleBrainInc/mcp-hello) ships both a Synapse-powered
+React UI and an inline HTML fallback, so you can see the same app at both altitudes.
+
+A good default is to start with the fallback. Ship the plainest thing that works,
+and adopt Synapse when the plumbing starts to hurt: when the UI goes stale after
+the agent acts, when tool-call boilerplate piles up, when you are wiring theme
+tokens by hand. Those are the signals covered in [Why Synapse](/docs/concepts/why),
+and each one is the moment the layer starts paying for itself.
+
+## Related
+
+- [Why Synapse](/docs/concepts/why): the problems that make the layer worth adopting.
+- [What is Synapse?](/docs): the one-page overview.
+- [Quickstart: React app](/docs/quickstart-react): when you have decided you do want it.

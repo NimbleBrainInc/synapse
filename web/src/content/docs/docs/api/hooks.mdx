@@ -1,0 +1,77 @@
+---
+title: React hooks
+description: The AppProvider and SynapseProvider React hooks for tool calls, data sync, theming, actions, and state.
+---
+
+Synapse ships two React hook families from `@nimblebrain/synapse/react`, one per
+connection path. Wrap your app in the matching provider, then use the hooks
+below.
+
+## `AppProvider`-based (recommended)
+
+Thin wrappers over [`connect()`](/docs/api/connect/). Wrap your tree in
+`<AppProvider>`.
+
+```tsx
+import {
+  AppProvider,
+  useApp,
+  useToolResult,
+  useToolInput,
+  useConnectTheme,
+  useResize,
+} from "@nimblebrain/synapse/react";
+```
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useApp()` | `App` | Access the connected `App` instance |
+| `useToolResult()` | `ToolResultData \| null` | Re-renders on every `tool-result` event |
+| `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
+| `useConnectTheme()` | `Theme` | Reactive theme from `connect()` |
+| `useResize()` | `(w?, h?) => void` | Resize helper, auto-measures body if no args |
+
+To call a tool on this path, use the `App` instance directly: `useApp()`, then
+`app.callTool(name, args)`. The `useCallTool` hook (with built-in loading state)
+belongs to the `SynapseProvider` set below.
+
+## `SynapseProvider`-based (legacy)
+
+For apps built on [`createSynapse()`](/docs/api/createsynapse/). Wrap your tree
+in `<SynapseProvider>`.
+
+```tsx
+import {
+  SynapseProvider,
+  useSynapse,
+  useCallTool,
+  useCallToolAsTask,
+  useDataSync,
+  useTheme,
+  useAction,
+  useAgentAction,
+  useChat,
+  useVisibleState,
+  useFileUpload,
+  useStore,
+} from "@nimblebrain/synapse/react";
+```
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useSynapse()` | `Synapse` | Access the Synapse instance |
+| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
+| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | Lifecycle wrapper around `callToolAsTask` for long-running tools |
+| `useDataSync(cb)` | none | Subscribe to data change events |
+| `useTheme()` | `SynapseTheme` | Reactive theme object |
+| `useAction()` | `(name, params?) => void` | Dispatch platform actions |
+| `useAgentAction(cb)` | none | Subscribe to agent actions |
+| `useChat()` | `(msg, ctx?) => void` | Send chat messages |
+| `useVisibleState()` | `(state, summary?) => void` | Push LLM-visible state |
+| `useFileUpload()` | File picker helpers | File upload (NB-only) |
+| `useStore(store)` | `{ state, dispatch }` | Bind a store to React |
+
+## See also
+
+- [Events](/docs/api/events/) for the underlying `app.on()` event names.
+- [State store](/docs/api/store/) for `createStore` and `useStore`.

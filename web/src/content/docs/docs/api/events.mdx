@@ -1,0 +1,50 @@
+---
+title: Events
+description: The app.on(event, handler) event table, mapping each Synapse event to its ext-apps spec method and data type.
+---
+
+The [`App`](/docs/api/connect/) returned by `connect()` uses a single `on()`
+method for every event. Each call returns an unsubscribe function.
+
+```typescript
+const app = await connect({ name: "my-app", version: "1.0.0" });
+
+const unsub = app.on("tool-result", (data) => {
+  console.log(data.content);           // parsed JSON or raw string
+  console.log(data.structuredContent); // structuredContent if host sent it
+  console.log(data.raw);               // original params for advanced use
+});
+
+unsub();
+```
+
+## Signature
+
+```typescript
+on(event: string, handler: (data: unknown) => void): () => void;
+```
+
+## Events
+
+| `on()` Event | Spec Method | Data |
+| --- | --- | --- |
+| `"tool-result"` | `ui/notifications/tool-result` | `ToolResultData` (parsed) |
+| `"tool-input"` | `ui/notifications/tool-input` | `Record<string, unknown>` |
+| `"tool-input-partial"` | `ui/notifications/tool-input-partial` | `Record<string, unknown>` |
+| `"tool-cancelled"` | `ui/notifications/tool-cancelled` | none |
+| `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` |
+| `"teardown"` | `ui/resource-teardown` | none |
+| Any custom string | Passed through as-is | `unknown` |
+
+NimbleBrain extensions work as passthrough event names (for example
+`app.on("synapse/data-changed", ...)`) and degrade to no-ops in other hosts.
+
+## `ToolResultData`
+
+The parsed payload delivered with `"tool-result"`.
+
+| Field | Description |
+| --- | --- |
+| `content` | Parsed JSON or raw string |
+| `structuredContent` | `structuredContent` if the host sent it |
+| `raw` | Original params, for advanced use |

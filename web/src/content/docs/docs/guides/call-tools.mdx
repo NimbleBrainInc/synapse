@@ -1,0 +1,65 @@
+---
+title: "Call MCP tools with types"
+description: "Raw postMessage tool calls mean hand-rolling JSON-RPC, tracking request IDs, and parsing content arrays. useCallTool gives you a typed call with loading and error state in one line."
+---
+
+Calling an MCP tool over raw ext-apps is a pile of boilerplate: build a JSON-RPC
+envelope, generate a request ID, post it to the parent, track the pending promise,
+time it out, then dig the payload out of the content array and parse it. You write
+it once, then again for the next tool, untyped every time.
+
+## The recipe
+
+`useCallTool<TOutput>(name)` returns everything you need: a `call` function, the
+last `data`, an `isPending` flag, and an `error`. Pass the tool's output type as
+the generic and `data` is typed for you. It is a `SynapseProvider` hook, so wrap
+your tree in `<SynapseProvider>`. On the `AppProvider` / `connect()` path, call
+the tool on the instance instead (shown below).
+
+```tsx
+import { useCallTool } from "@nimblebrain/synapse/react";
+
+interface DocumentInfo {
+  id: string;
+  title: string;
+}
+
+function DocumentList() {
+  const { call, data, isPending, error } = useCallTool<DocumentInfo[]>("list_documents");
+
+  if (isPending) return <Spinner />;
+  if (error) return <ErrorBox error={error} />;
+  if (!data) return <button onClick={() => call({ limit: 10 })}>Load documents</button>;
+
+  return (
+    <ul>
+      {data.map((doc) => (
+        <li key={doc.id}>{doc.title}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+Outside React, or on the `AppProvider` / `connect()` path, call the tool on the
+`App` (or `Synapse`) instance and read `result.data`:
+
+```typescript
+const result = await app.callTool("list_documents", { limit: 10 });
+console.log(result.data); // typed output
+```
+
+## How it works
+
+`call(args?)` sends the `tools/call` request, tracks it, waits for the host's
+response, and parses the content array into typed `data` for you. `isPending`
+flips around the call so you can render a loading state, and a thrown or errored
+call lands in `error` instead of an unhandled rejection. Concurrent calls are
+guarded, so if the user triggers the same tool twice only the latest result is
+kept, and a stale earlier response cannot overwrite it.
+
+## Related
+
+- [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): re-run a call when the agent mutates state.
+- [Handle long-running tools (tasks)](/docs/guides/long-running-tools): for tool work that outlives the request timeout.
+- [Give the agent context about the UI](/docs/guides/agent-context): tell the agent what the user is acting on.

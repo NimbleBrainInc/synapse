@@ -1,0 +1,46 @@
+---
+title: Button
+description: A pressable action. Primary, secondary, and ghost variants in two sizes, themed by the host.
+---
+
+import ButtonDemo from "../../../../components/ui/ButtonDemo.tsx";
+
+`Button` triggers an action. It carries no brand of its own. Its fill, radius,
+and focus ring all resolve from the host's tokens, so it looks native in whatever
+host renders your app. The previews below are the real component from
+`@nimblebrain/synapse/ui`, live.
+
+```tsx
+import { Button } from "@nimblebrain/synapse/ui";
+
+<Button onClick={save}>Save</Button>;
+```
+
+<ButtonDemo client:only="react" />
+
+## Variants
+
+Three variants map to three levels of emphasis: one primary action per view,
+secondary for the alternative, ghost for low-stakes or repeated actions.
+
+```tsx
+<Button>Primary</Button>
+<Button variant="secondary">Secondary</Button>
+<Button variant="ghost">Ghost</Button>
+```
+
+## Props
+
+`Button` extends the native `ButtonHTMLAttributes`, so `onClick`, `disabled`,
+`type`, `aria-*`, and every other button attribute pass straight through.
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `variant` | `"primary"` \| `"secondary"` \| `"ghost"` | `"primary"` |
+| `size` | `"sm"` \| `"md"` | `"md"` |
+| `…rest` | `ButtonHTMLAttributes<HTMLButtonElement>` | None |
+
+## Related
+
+- [`TextLink`](/docs/components/textlink): a chrome-less text button for inline actions.
+- Compose buttons with [`Inline`](/docs/components/inline) to lay out an action row.

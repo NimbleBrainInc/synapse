@@ -117,7 +117,7 @@ app.updateModelContext(
 ### React
 
 ```tsx
-import { AppProvider, useToolResult, useCallTool, useResize } from "@nimblebrain/synapse/react";
+import { AppProvider, useToolResult, useResize } from "@nimblebrain/synapse/react";
 
 function App() {
   return (
@@ -129,7 +129,6 @@ function App() {
 
 function ItemList() {
   const result = useToolResult();
-  const { call, data, isPending } = useCallTool("list_items");
   const resize = useResize();
 
   useEffect(() => { if (result) resize(); }, [result, resize]);
@@ -340,7 +339,7 @@ await synapse.ready;
 | `ready` | Promise that resolves after the ext-apps handshake |
 | `isNimbleBrainHost` | Whether the host is a NimbleBrain platform |
 | `callTool(name, args?)` | Call an MCP tool and get typed result |
-| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented; returns a `TaskHandle` immediately. See [Long-running tools](#long-running-tools-tasks) below. |
+| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks) below. |
 | `onDataChanged(cb)` | Subscribe to data change events |
 | `onAction(cb)` | Subscribe to agent actions (typed, declarative) |
 | `getTheme()` | Get current theme |
@@ -363,7 +362,7 @@ await synapse.ready;
 Wrap your app with `<AppProvider>` and use these hooks. Each is a thin wrapper over `connect()`.
 
 ```tsx
-import { AppProvider, useApp, useToolResult, useToolInput, useResize, useCallTool } from "@nimblebrain/synapse/react";
+import { AppProvider, useApp, useToolResult, useToolInput, useResize } from "@nimblebrain/synapse/react";
 ```
 
 | Hook | Returns | Description |
@@ -373,7 +372,8 @@ import { AppProvider, useApp, useToolResult, useToolInput, useResize, useCallToo
 | `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
 | `useConnectTheme()` | `Theme` | Reactive theme from `connect()` |
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
-| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
+
+To call a tool on this path, use the `App` instance: `useApp()`, then `app.callTool(name, args)`. The `useCallTool` hook (with built-in loading state) belongs to the `SynapseProvider` set below.
 
 ### `SynapseProvider`-based (Legacy)
 

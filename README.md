@@ -82,8 +82,10 @@ These are the durable decisions behind the library; they rarely change.
 - **Responsive to the pane, not the device.** Layouts observe their own width
   (`ResizeObserver` via `useBreakpoint`), because an app's iframe may be
   fullscreen, split, or a narrow rail regardless of screen size.
-- **Lean on the platform.** `Drawer` is built on the native `<dialog>` element
-  (focus-trap, Escape, scroll behavior for free) rather than re-implementing them.
+- **Sandbox-safe overlays.** `Drawer` is a plain `<div>` overlay, not a native
+  `<dialog>`: the app iframe withholds `allow-modals`, so `<dialog>.showModal()`
+  throws there. The scrim, Tab focus trap, focus-in/restore, scroll-lock, and
+  Escape are hand-rolled.
 
 ## Quick Start
 

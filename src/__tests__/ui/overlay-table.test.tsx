@@ -137,8 +137,12 @@ describe("Drawer", () => {
     const close = screen.getByLabelText("Close");
     const last = screen.getByText("B");
     last.focus();
-    fireEvent.keyDown(last, { key: "Tab" });
+    const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    last.dispatchEvent(ev);
     expect(document.activeElement).toBe(close);
+    // preventDefault cancels the browser's native traversal that would otherwise
+    // run after the handler and land focus one element past the wrap target.
+    expect(ev.defaultPrevented).toBe(true);
   });
 
   it("traps Shift+Tab from the first focusable to the last", () => {
@@ -154,8 +158,15 @@ describe("Drawer", () => {
     const close = screen.getByLabelText("Close"); // first
     const last = screen.getByText("B"); // last
     close.focus();
-    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+    const ev = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    close.dispatchEvent(ev);
     expect(document.activeElement).toBe(last);
+    expect(ev.defaultPrevented).toBe(true);
   });
 
   it("prevents Tab when the panel holds nothing tabbable", () => {

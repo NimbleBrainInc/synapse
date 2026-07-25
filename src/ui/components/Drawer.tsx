@@ -122,7 +122,9 @@ function DrawerRoot({
   }, [open, onEscape, onClose]);
 
   // On open, move focus into the panel and lock background scroll; restore both
-  // on close (what showModal()'s top-layer + inert did natively).
+  // on close — the scroll-lock + focus-in showModal()'s top-layer gave. It does
+  // NOT trap Tab focus within the panel (the `inert` containment); that's a
+  // follow-up (#40).
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;

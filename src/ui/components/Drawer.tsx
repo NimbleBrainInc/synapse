@@ -6,8 +6,10 @@
  * mounts every app in a sandboxed iframe that withholds `allow-modals`, so
  * `HTMLDialogElement.showModal()` throws there and white-screens the app; a
  * `<dialog>` is unusable in the one environment these apps run in. So the panel
- * hand-rolls what `showModal()` gave for free: a scrim, focus-into-panel on open
- * with focus restored on close, background scroll lock, and Escape. Controlled
+ * hand-rolls what `showModal()` gave for free: a scrim, focus containment (a
+ * Tab/Shift+Tab trap plus a `focusin` backstop that pulls stray focus back),
+ * focus-into-panel on open with focus restored on close, background scroll lock,
+ * and Escape. Controlled
  * via `open`/`onClose` (renders nothing when closed). Escape routes through
  * `onEscape` (defaults to `onClose`); clicking the scrim calls `onClose`. The
  * slide-in is a CSS keyframe on the panel.
@@ -137,6 +139,8 @@ function DrawerRoot({
     const prevOverflow = body.style.overflow;
     body.style.overflow = "hidden";
 
+    // The clean Tab/Shift+Tab wrap for the common case (focus is inside the
+    // panel, so this bubbles here). Keeps the common path flicker-free.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !panel) return;
       const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
@@ -159,8 +163,20 @@ function DrawerRoot({
     };
     panel?.addEventListener("keydown", onKeyDown);
 
+    // The containment guarantee (document-scoped, like the Escape handler). The
+    // keydown wrap above only sees keydowns bubbling from *inside* the panel; if
+    // focus ever lands outside — Tab past a mis-measured boundary, or React
+    // unmounting the focused element (which drops focus to <body>) — this pulls
+    // it straight back. `panel.contains(panel)` is true, so re-focusing the panel
+    // doesn't loop.
+    const onFocusIn = (e: FocusEvent) => {
+      if (panel && !panel.contains(e.target as Node)) panel.focus();
+    };
+    document.addEventListener("focusin", onFocusIn);
+
     return () => {
       panel?.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("focusin", onFocusIn);
       body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };

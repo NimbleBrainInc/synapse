@@ -158,14 +158,35 @@ describe("Drawer", () => {
     expect(document.activeElement).toBe(last);
   });
 
-  it("keeps focus on the panel when it holds nothing tabbable", () => {
+  it("prevents Tab when the panel holds nothing tabbable", () => {
     render(
       <Drawer open onClose={() => {}}>
         <Drawer.Body>just text, nothing focusable</Drawer.Body>
       </Drawer>,
     );
     const panel = screen.getByRole("dialog");
-    fireEvent.keyDown(panel, { key: "Tab" });
+    const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    panel.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it("pulls focus back into the panel if it escapes (focusin backstop)", () => {
+    render(
+      <>
+        <button type="button">outside</button>
+        <Drawer open onClose={() => {}}>
+          <Drawer.Body>
+            <button type="button">inside</button>
+          </Drawer.Body>
+        </Drawer>
+      </>,
+    );
+    const panel = screen.getByRole("dialog");
+    const outside = screen.getByText("outside");
+    outside.focus();
+    // A focus that lands outside the panel (Tab to a background control, or focus
+    // dropping to <body> on unmount) must be pulled back in by the backstop.
+    outside.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
     expect(document.activeElement).toBe(panel);
   });
 });

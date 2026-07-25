@@ -2,11 +2,15 @@
  * Drawer — an off-canvas overlay panel that slides in from an edge, over a
  * scrim. The general overlay the apps need (e.g. CRM's detail panel).
  *
- * Built on the native `<dialog>` element: `showModal()` gives the focus trap,
- * Escape handling, top-layer stacking, inert background, and scroll behavior
- * for free — no hand-rolled focus management. Controlled via `open`/`onClose`.
- * Escape routes through `onEscape` (defaults to `onClose`); clicking the
- * backdrop calls `onClose`. The slide-in is a CSS keyframe on `[open]`.
+ * A plain positioned `<div>` overlay — **not** a native `<dialog>`. The platform
+ * mounts every app in a sandboxed iframe that withholds `allow-modals`, so
+ * `HTMLDialogElement.showModal()` throws there and white-screens the app; a
+ * `<dialog>` is unusable in the one environment these apps run in. So the panel
+ * hand-rolls what `showModal()` gave for free: a scrim, focus-into-panel on open
+ * with focus restored on close, background scroll lock, and Escape. Controlled
+ * via `open`/`onClose` (renders nothing when closed). Escape routes through
+ * `onEscape` (defaults to `onClose`); clicking the scrim calls `onClose`. The
+ * slide-in is a CSS keyframe on the panel.
  *
  * Compose with the `Header` / `Body` / `Footer` slots, or pass plain children.
  * `Header` owns the standard affordances — `title` (a real heading, wired as
@@ -22,7 +26,6 @@
 
 import {
   createContext,
-  type DialogHTMLAttributes,
   type HTMLAttributes,
   type ReactNode,
   useContext,
@@ -39,21 +42,23 @@ type Side = "left" | "right" | "bottom";
 
 const STYLE_ID = "nb-synapse-drawer";
 const RULES = `
+.nb-drawer-scrim {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; background: rgba(0, 0, 0, 0.32);
+  animation: nb-drawer-fade 200ms ease;
+}
+.nb-drawer-scrim--right { justify-content: flex-end; }
+.nb-drawer-scrim--left { justify-content: flex-start; }
+.nb-drawer-scrim--bottom { align-items: flex-end; }
 .nb-drawer {
   margin: 0; padding: 0; border: none; max-width: 92%;
   height: 100%; max-height: 100%; display: flex; flex-direction: column;
+  outline: none;
 }
-.nb-drawer--right { margin-left: auto; }
-.nb-drawer--left { margin-right: auto; }
-.nb-drawer--bottom {
-  margin-top: auto; width: 100%; max-width: 100%;
-  height: auto; max-height: 92%;
-}
-.nb-drawer--right[open] { animation: nb-drawer-in-right 240ms cubic-bezier(0.2, 0, 0, 1); }
-.nb-drawer--left[open] { animation: nb-drawer-in-left 240ms cubic-bezier(0.2, 0, 0, 1); }
-.nb-drawer--bottom[open] { animation: nb-drawer-in-bottom 240ms cubic-bezier(0.2, 0, 0, 1); }
-.nb-drawer::backdrop { background: rgba(0, 0, 0, 0.32); }
-.nb-drawer[open]::backdrop { animation: nb-drawer-fade 200ms ease; }
+.nb-drawer--bottom { width: 100%; max-width: 100%; height: auto; max-height: 92%; }
+.nb-drawer--right { animation: nb-drawer-in-right 240ms cubic-bezier(0.2, 0, 0, 1); }
+.nb-drawer--left { animation: nb-drawer-in-left 240ms cubic-bezier(0.2, 0, 0, 1); }
+.nb-drawer--bottom { animation: nb-drawer-in-bottom 240ms cubic-bezier(0.2, 0, 0, 1); }
 @keyframes nb-drawer-in-right { from { transform: translateX(100%); } }
 @keyframes nb-drawer-in-left { from { transform: translateX(-100%); } }
 @keyframes nb-drawer-in-bottom { from { transform: translateY(100%); } }
@@ -71,10 +76,9 @@ interface DrawerContextValue {
 
 const DrawerContext = createContext<DrawerContextValue | null>(null);
 
-interface DrawerProps
-  extends Omit<DialogHTMLAttributes<HTMLDialogElement>, "title" | "onCancel" | "onClick"> {
+interface DrawerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onClick"> {
   open: boolean;
-  /** Called by the backdrop and the Header close button. */
+  /** Called by the scrim and the Header close button. */
   onClose: () => void;
   /** Called on Escape. Defaults to `onClose` — override to do something else
    * (e.g. pop one level of a panel stack before closing). */
@@ -96,18 +100,47 @@ function DrawerRoot({
   ...rest
 }: DrawerProps) {
   ensureStyle(STYLE_ID, RULES);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
-  // A `Header` with a `title` registers itself here so the dialog can name
+  // A `Header` with a `title` registers itself here so the panel can name
   // itself via `aria-labelledby` (preferred over a consumer-passed aria-label).
   const [hasTitle, setHasTitle] = useState(false);
 
+  // Escape → onEscape (defaults to onClose). A window keydown listener replaces
+  // the native <dialog> `onCancel`, which required showModal() — blocked in the
+  // app iframe sandbox (no `allow-modals`).
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog || typeof dialog.showModal !== "function") return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        (onEscape ?? onClose)();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onEscape, onClose]);
+
+  // On open, move focus into the panel and lock background scroll; restore both
+  // on close — the scroll-lock + focus-in showModal()'s top-layer gave. It does
+  // NOT trap Tab focus within the panel (the `inert` containment); that's a
+  // follow-up (#40).
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    panelRef.current?.focus();
+    const { body } = document;
+    const prevOverflow = body.style.overflow;
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.overflow = prevOverflow;
+      previouslyFocused?.focus?.();
+    };
   }, [open]);
+
+  const ctxValue = useMemo<DrawerContextValue>(() => ({ labelId, setHasTitle }), [labelId]);
+
+  if (!open) return null;
 
   const isBottom = side === "bottom";
   const panelStyle: StyleWithVars = {
@@ -115,6 +148,7 @@ function DrawerRoot({
     background: tokens.bg,
     color: tokens.fg,
     boxShadow: tokens.shadowLg,
+    outline: "none",
     ...(side === "right"
       ? { borderLeft: `${tokens.borderWidth} solid ${tokens.border}` }
       : side === "left"
@@ -123,28 +157,30 @@ function DrawerRoot({
     ...style,
   };
 
-  const ctxValue = useMemo<DrawerContextValue>(() => ({ labelId, setHasTitle }), [labelId]);
-
   return (
     <DrawerContext.Provider value={ctxValue}>
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: backdrop click is a mouse convenience; the dialog's Escape (onCancel) is the keyboard dismissal path. */}
-      <dialog
-        ref={dialogRef}
-        className={`nb-drawer nb-drawer--${side}`}
-        style={panelStyle}
-        aria-labelledby={hasTitle ? labelId : undefined}
-        onCancel={(e) => {
-          e.preventDefault(); // we own dismissal so onEscape can pop a stack
-          (onEscape ?? onClose)();
-        }}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: scrim click is a bonus mouse affordance; Escape (the window keydown above) and the Header close button are the keyboard dismissal paths. */}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a decorative dismissal backdrop; the panel below owns the dialog role/semantics. */}
+      <div
+        className={`nb-drawer-scrim nb-drawer-scrim--${side}`}
         onClick={(e) => {
-          // A click whose target is the dialog itself is a backdrop click.
-          if (e.target === dialogRef.current) onClose();
+          // A click whose target is the scrim itself (not the panel) dismisses.
+          if (e.target === e.currentTarget) onClose();
         }}
-        {...rest}
       >
-        {children}
-      </dialog>
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={hasTitle ? labelId : undefined}
+          tabIndex={-1}
+          className={`nb-drawer nb-drawer--${side}`}
+          style={panelStyle}
+          {...rest}
+        >
+          {children}
+        </div>
+      </div>
     </DrawerContext.Provider>
   );
 }

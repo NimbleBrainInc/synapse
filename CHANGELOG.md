@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.1] - 2026-07-24
+
+### Fixed
+
+- **`Drawer` no longer white-screens an app.** The platform mounts every app in a sandboxed iframe that withholds `allow-modals`, so the old native-`<dialog>` `Drawer` threw on `showModal()` and unmounted the whole app the moment it opened — the one environment these components run in is exactly the one a `<dialog>` can't. It is now a plain positioned-`<div>` overlay with the same API (`open` / `onClose` / `onEscape` / `side` / `width` and the `Header` / `Body` / `Footer` slots), hand-rolling what `showModal()` gave for free: the scrim, focus-into-panel on open (restored on close), background-scroll lock, and Escape. It renders nothing when closed, so an always-mounted `open={false}` Drawer no longer covers the layout.
+
 ## [0.12.0] - 2026-07-12
 
 Adds a **cross-host UI client** so one Synapse-authored component renders in ChatGPT (OpenAI Apps SDK) and Claude (the **MCP Apps standard**, SEP-1865), not only the NimbleBrain runtime. The host bridge each surface needs — feature-detect the environment, locate pushed data, route theme / resize / link / follow-up — is now a versioned framework surface (`connectUI`) instead of a per-app hand-rolled shim. Purely additive: the ext-apps `connect` / `createSynapse` paths and every existing app are untouched.

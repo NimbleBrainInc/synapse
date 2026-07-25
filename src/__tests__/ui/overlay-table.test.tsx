@@ -6,30 +6,46 @@ import { type Column, Table } from "../../ui/components/Table.js";
 afterEach(cleanup);
 
 describe("Drawer", () => {
-  it("renders the dialog closed (not open) when open is false", () => {
+  it("renders nothing when open is false", () => {
     const { container } = render(
       <Drawer open={false} onClose={() => {}}>
         body
       </Drawer>,
     );
-    const dialog = container.querySelector("dialog");
-    expect(dialog).not.toBeNull();
-    expect(dialog?.hasAttribute("open")).toBe(false);
+    expect(container.querySelector("[role='dialog']")).toBeNull();
+    expect(container.querySelector("dialog")).toBeNull();
   });
 
-  it("shows content when open and closes on backdrop + close button", () => {
+  it("is a plain <div> overlay, never a native <dialog> (the app iframe sandbox withholds allow-modals, so <dialog>.showModal() would throw)", () => {
+    const { container } = render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Body>Details</Drawer.Body>
+      </Drawer>,
+    );
+    expect(container.querySelector("dialog")).toBeNull();
+    const panel = screen.getByRole("dialog");
+    expect(panel.tagName).toBe("DIV");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("shows content when open and closes on scrim click + close button (but not on a panel click)", () => {
     const onClose = vi.fn();
-    render(
+    const { container } = render(
       <Drawer open onClose={onClose}>
         <Drawer.Header onClose={onClose}>Deal</Drawer.Header>
         <Drawer.Body>Details</Drawer.Body>
       </Drawer>,
     );
-    const dialog = screen.getByRole("dialog");
     expect(screen.getByText("Details")).toBeDefined();
 
-    // backdrop click — a click whose target is the dialog itself
-    fireEvent.click(dialog);
+    // scrim click — target is the scrim itself, not the panel — dismisses
+    const scrim = container.querySelector(".nb-drawer-scrim");
+    expect(scrim).not.toBeNull();
+    fireEvent.click(scrim as Element);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    // a click inside the panel does NOT dismiss
+    fireEvent.click(screen.getByRole("dialog"));
     expect(onClose).toHaveBeenCalledTimes(1);
 
     // header close button
@@ -37,7 +53,7 @@ describe("Drawer", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("routes the dialog's cancel (Escape) to onEscape, leaving onClose for backdrop/button", () => {
+  it("routes Escape to onEscape, leaving onClose for the scrim/button", () => {
     const onClose = vi.fn();
     const onEscape = vi.fn();
     render(
@@ -45,7 +61,7 @@ describe("Drawer", () => {
         <Drawer.Body>Details</Drawer.Body>
       </Drawer>,
     );
-    fireEvent(screen.getByRole("dialog"), new Event("cancel", { cancelable: true }));
+    fireEvent.keyDown(window, { key: "Escape" });
     expect(onEscape).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });
@@ -90,12 +106,12 @@ describe("Drawer", () => {
   });
 
   it("side=bottom applies the bottom-sheet modifier class", () => {
-    const { container } = render(
+    render(
       <Drawer open side="bottom" onClose={() => {}}>
         <Drawer.Body>Sheet</Drawer.Body>
       </Drawer>,
     );
-    expect(container.querySelector("dialog")?.className).toContain("nb-drawer--bottom");
+    expect(screen.getByRole("dialog").className).toContain("nb-drawer--bottom");
   });
 
   it("does not set aria-labelledby when the header uses plain children (no title)", () => {

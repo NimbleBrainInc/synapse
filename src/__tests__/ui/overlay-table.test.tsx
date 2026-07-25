@@ -320,6 +320,55 @@ describe("Drawer", () => {
     expect(ev.defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(b);
   });
+
+  it("excludes a trailing tabindex=-1 control from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <button type="button" tabIndex={-1}>
+            D
+          </button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // tabindex="-1" isn't tabbable, so `B` is the real last — Tab from it wraps.
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("excludes a leading tabindex=-1 control from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Body>
+          <button type="button" tabIndex={-1}>
+            L
+          </button>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // The leading tabindex="-1" isn't tabbable, so `A` is the real first —
+    // Shift+Tab from it wraps to the last (B).
+    const a = screen.getByText("A");
+    const b = screen.getByText("B");
+    a.focus();
+    const ev = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    a.dispatchEvent(ev);
+    expect(document.activeElement).toBe(b);
+    expect(ev.defaultPrevented).toBe(true);
+  });
 });
 
 interface Row {

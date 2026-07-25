@@ -72,13 +72,14 @@ const RULES = `
 `;
 
 // Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
-// Excludes the not-actually-tabbable cases that a selector can catch without
-// layout: the `[hidden]` attribute, `input[type="hidden"]`, and `[disabled]`.
-// CSS-hidden focusables (`display:none` / `visibility:hidden`) need layout to
-// detect, so they're NOT filtered — the keydown wrap tolerates a mis-measured
-// boundary there (worst case: one Tab exits).
+// A denylist over the candidate focusables: excludes the not-actually-tabbable
+// cases a selector catches without layout — `[hidden]`, `input[type="hidden"]`,
+// `[disabled]`, and negative `tabindex`. CSS-hidden focusables (`display:none` /
+// `visibility:hidden`) need layout to detect, so they're NOT filtered (worst
+// case: one Tab exits). This per-clause enumeration has leaked a rule at a time;
+// a positive isTabbable() predicate would centralize it — see #44.
 const FOCUSABLE =
-  'a[href]:not([hidden]), button:not([disabled]):not([hidden]), input:not([disabled]):not([type="hidden"]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])';
+  'a[href]:not([tabindex="-1"]):not([hidden]), button:not([disabled]):not([tabindex="-1"]):not([hidden]), input:not([disabled]):not([type="hidden"]):not([tabindex="-1"]):not([hidden]), select:not([disabled]):not([tabindex="-1"]):not([hidden]), textarea:not([disabled]):not([tabindex="-1"]):not([hidden]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])';
 
 interface DrawerContextValue {
   labelId: string;

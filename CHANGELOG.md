@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.2] - 2026-07-24
+
+### Fixed
+
+- **`Drawer` now traps focus** (a11y). The sandbox-safe rebuild in 0.12.1 focused into the panel and locked background scroll but did not contain Tab focus, so a keyboard user could Tab out to controls behind the scrim — the one piece of `showModal()`'s modal `inert` not yet reimplemented. `Tab` / `Shift+Tab` now cycle within the panel's focusable elements (and stay on the panel when it holds nothing tabbable).
+
 ## [0.12.1] - 2026-07-24
 
 ### Fixed

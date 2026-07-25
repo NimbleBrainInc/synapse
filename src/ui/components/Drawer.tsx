@@ -69,6 +69,10 @@ const RULES = `
 }
 `;
 
+// Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
 interface DrawerContextValue {
   labelId: string;
   setHasTitle: (has: boolean) => void;
@@ -121,18 +125,42 @@ function DrawerRoot({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onEscape, onClose]);
 
-  // On open, move focus into the panel and lock background scroll; restore both
-  // on close — the scroll-lock + focus-in showModal()'s top-layer gave. It does
-  // NOT trap Tab focus within the panel (the `inert` containment); that's a
-  // follow-up (#40).
+  // On open: focus into the panel, lock background scroll, and trap Tab/Shift+Tab
+  // within it — the scroll-lock + focus containment showModal()'s modal top-layer
+  // + `inert` gave natively. Restore focus + scroll on close.
   useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
+    panel?.focus();
     const { body } = document;
     const prevOverflow = body.style.overflow;
     body.style.overflow = "hidden";
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !panel) return;
+      const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
+      if (focusables.length === 0) {
+        // Nothing tabbable inside — keep focus on the panel, don't let it leave.
+        e.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey && (active === first || active === panel)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    panel?.addEventListener("keydown", onKeyDown);
+
     return () => {
+      panel?.removeEventListener("keydown", onKeyDown);
       body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };

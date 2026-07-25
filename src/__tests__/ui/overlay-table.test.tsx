@@ -122,6 +122,52 @@ describe("Drawer", () => {
     );
     expect(screen.getByRole("dialog").getAttribute("aria-labelledby")).toBeNull();
   });
+
+  it("traps Tab from the last focusable back to the first", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // DOM order: [Close (header), A, B]. first = Close, last = B.
+    const close = screen.getByLabelText("Close");
+    const last = screen.getByText("B");
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("traps Shift+Tab from the first focusable to the last", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    const close = screen.getByLabelText("Close"); // first
+    const last = screen.getByText("B"); // last
+    close.focus();
+    fireEvent.keyDown(close, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
+
+  it("keeps focus on the panel when it holds nothing tabbable", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Body>just text, nothing focusable</Drawer.Body>
+      </Drawer>,
+    );
+    const panel = screen.getByRole("dialog");
+    fireEvent.keyDown(panel, { key: "Tab" });
+    expect(document.activeElement).toBe(panel);
+  });
 });
 
 interface Row {

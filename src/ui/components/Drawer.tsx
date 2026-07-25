@@ -72,14 +72,23 @@ const RULES = `
 `;
 
 // Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
-// A denylist over the candidate focusables: excludes the not-actually-tabbable
-// cases a selector catches without layout — `[hidden]`, `input[type="hidden"]`,
-// `[disabled]`, and negative `tabindex`. CSS-hidden focusables (`display:none` /
-// `visibility:hidden`) need layout to detect, so they're NOT filtered (worst
-// case: one Tab exits). This per-clause enumeration has leaked a rule at a time;
-// a positive isTabbable() predicate would centralize it — see #44.
-const FOCUSABLE =
-  'a[href]:not([tabindex="-1"]):not([hidden]), button:not([disabled]):not([tabindex="-1"]):not([hidden]), input:not([disabled]):not([type="hidden"]):not([tabindex="-1"]):not([hidden]), select:not([disabled]):not([tabindex="-1"]):not([hidden]), textarea:not([disabled]):not([tabindex="-1"]):not([hidden]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])';
+// A positive predicate over the candidate focusables. It replaces a `:not(...)`
+// denylist that had to enumerate every non-tabbable case a selector matches
+// without layout; the predicate subsumes them structurally: `tabIndex >= 0`
+// rejects *any* negative tabindex (not just the literal `-1`), `:disabled`
+// inherits through `<fieldset disabled>`, and `[hidden]` is tested on the element
+// *and* its ancestors. CSS-hidden focusables (`display:none` / `visibility:hidden`)
+// need layout to detect, so they're NOT filtered (worst case: one Tab exits).
+const CANDIDATES = "a[href], button, input, select, textarea, summary, [tabindex]";
+function tabbables(panel: HTMLElement): HTMLElement[] {
+  return Array.from(panel.querySelectorAll<HTMLElement>(CANDIDATES)).filter(
+    (el) =>
+      el.tabIndex >= 0 &&
+      !el.matches(":disabled") &&
+      !el.closest("[hidden]") &&
+      (el as HTMLInputElement).type !== "hidden",
+  );
+}
 
 interface DrawerContextValue {
   labelId: string;
@@ -155,7 +164,7 @@ function DrawerRoot({
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !panel) return;
-      const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
+      const focusables = tabbables(panel);
       if (focusables.length === 0) {
         // Nothing tabbable inside — preventDefault keeps focus on the panel it's
         // already on (the open effect focused it), so Tab can't leave.

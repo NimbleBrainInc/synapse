@@ -369,6 +369,76 @@ describe("Drawer", () => {
     expect(document.activeElement).toBe(b);
     expect(ev.defaultPrevented).toBe(true);
   });
+
+  it("excludes a trailing negative tabindex (not only the literal -1) from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <button type="button" tabIndex={-2}>
+            D
+          </button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // Any negative tabindex is non-tabbable, so `B` is the real last — Tab wraps.
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("excludes a control under a [hidden] ancestor from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <div hidden>
+            <button type="button">D</button>
+          </div>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // The button inherits [hidden] from its ancestor, so it isn't tabbable — `B`
+    // is the real last. (A per-element check would miss this and make D the false last.)
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("scopes the Tab trap to the panel — a Tab dispatched outside it is not hijacked", () => {
+    render(
+      <>
+        <button type="button">outside</button>
+        <Drawer open onClose={() => {}}>
+          <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+          <Drawer.Body>
+            <button type="button">A</button>
+            <button type="button">B</button>
+          </Drawer.Body>
+        </Drawer>
+      </>,
+    );
+    const outside = screen.getByText("outside");
+    const b = screen.getByText("B"); // the real last, inside the panel
+    b.focus();
+    expect(document.activeElement).toBe(b);
+    // The listener is bound to the panel, not document, so a Tab that never bubbles
+    // through the panel is left alone. A document-scoped listener would see
+    // active===last and wrap to first — the round-2 regression (hijacking portal'd
+    // overlays / fighting a second Drawer) this pins against.
+    const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    outside.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(b);
+  });
 });
 
 interface Row {

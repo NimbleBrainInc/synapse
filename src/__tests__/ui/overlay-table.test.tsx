@@ -170,24 +170,23 @@ describe("Drawer", () => {
     expect(ev.defaultPrevented).toBe(true);
   });
 
-  it("pulls focus back into the panel if it escapes (focusin backstop)", () => {
+  it("excludes a trailing hidden input from the tab boundary", () => {
     render(
-      <>
-        <button type="button">outside</button>
-        <Drawer open onClose={() => {}}>
-          <Drawer.Body>
-            <button type="button">inside</button>
-          </Drawer.Body>
-        </Drawer>
-      </>,
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <input type="hidden" defaultValue="csrf" />
+        </Drawer.Body>
+      </Drawer>,
     );
-    const panel = screen.getByRole("dialog");
-    const outside = screen.getByText("outside");
-    outside.focus();
-    // A focus that lands outside the panel (Tab to a background control, or focus
-    // dropping to <body> on unmount) must be pulled back in by the backstop.
-    outside.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
-    expect(document.activeElement).toBe(panel);
+    // The hidden input is not tabbable, so `B` is the real last — Tab from it wraps.
+    const close = screen.getByLabelText("Close"); // first
+    const b = screen.getByText("B"); // last tabbable
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
   });
 });
 

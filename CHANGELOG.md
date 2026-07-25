@@ -8,7 +8,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **`Drawer` now traps focus** (a11y). The sandbox-safe rebuild in 0.12.1 focused into the panel and locked background scroll but did not contain Tab focus, so a keyboard user could Tab out to controls behind the scrim — the one piece of `showModal()`'s modal `inert` not yet reimplemented. `Tab` / `Shift+Tab` now cycle within the panel's focusable elements (and stay on the panel when it holds nothing tabbable).
+- **`Drawer` traps Tab focus** (a11y). The sandbox-safe rebuild in 0.12.1 focused into the panel and locked background scroll but let a keyboard user `Tab` out to controls behind the scrim. `Tab` / `Shift+Tab` now cycle within the panel's focusable elements (and stay on the panel when it holds nothing tabbable). Scope: this contains Tab while focus is inside the panel — the full native-`inert` behavior (recovering focus that drops to `<body>` when a focused child unmounts, and fencing off portal'd overlays) is a larger FocusScope effort tracked in #43.
 
 ## [0.12.1] - 2026-07-24
 

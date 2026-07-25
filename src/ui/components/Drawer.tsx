@@ -6,13 +6,13 @@
  * mounts every app in a sandboxed iframe that withholds `allow-modals`, so
  * `HTMLDialogElement.showModal()` throws there and white-screens the app; a
  * `<dialog>` is unusable in the one environment these apps run in. So the panel
- * hand-rolls what `showModal()` gave for free: a scrim, focus containment (a
- * Tab/Shift+Tab trap plus a `focusin` backstop that pulls stray focus back),
- * focus-into-panel on open with focus restored on close, background scroll lock,
- * and Escape. Controlled
- * via `open`/`onClose` (renders nothing when closed). Escape routes through
- * `onEscape` (defaults to `onClose`); clicking the scrim calls `onClose`. The
- * slide-in is a CSS keyframe on the panel.
+ * hand-rolls what `showModal()` gave for free: a scrim, a Tab/Shift+Tab focus
+ * trap (while focus is inside the panel — not the full native `inert`; see the
+ * scope note on the open effect and #43), focus-into-panel on open with focus
+ * restored on close, background scroll lock, and Escape. Controlled via
+ * `open`/`onClose` (renders nothing when closed). Escape routes through `onEscape`
+ * (defaults to `onClose`); clicking the scrim calls `onClose`. The slide-in is a
+ * CSS keyframe on the panel.
  *
  * Compose with the `Header` / `Body` / `Footer` slots, or pass plain children.
  * `Header` owns the standard affordances — `title` (a real heading, wired as
@@ -72,8 +72,11 @@ const RULES = `
 `;
 
 // Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
+// `input[type="hidden"]` is excluded (never tabbable, but matches `input`); CSS-
+// hidden focusables (display:none) aren't filtered — that needs layout, and the
+// keydown wrap tolerates a mis-measured boundary (worst case: one Tab exits).
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 interface DrawerContextValue {
   labelId: string;
@@ -128,8 +131,16 @@ function DrawerRoot({
   }, [open, onEscape, onClose]);
 
   // On open: focus into the panel, lock background scroll, and trap Tab/Shift+Tab
-  // within it — the scroll-lock + focus containment showModal()'s modal top-layer
-  // + `inert` gave natively. Restore focus + scroll on close.
+  // within it (the focus-into + Tab containment showModal()'s top-layer gave).
+  // Restore focus + scroll on close.
+  //
+  // Scope: this contains Tab while focus is *inside* the panel — the modal case.
+  // It is NOT the full native `inert`: it doesn't recover focus that drops to
+  // <body> when a focused child unmounts (that fires focusout, not focusin), nor
+  // fence off portal'd overlays a consumer opens outside the panel. A
+  // document-scoped focus backstop would do neither reliably and would yank focus
+  // out of legitimate nested overlays — so full containment is a FocusScope-style
+  // owner stack, deferred to #43.
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -139,8 +150,6 @@ function DrawerRoot({
     const prevOverflow = body.style.overflow;
     body.style.overflow = "hidden";
 
-    // The clean Tab/Shift+Tab wrap for the common case (focus is inside the
-    // panel, so this bubbles here). Keeps the common path flicker-free.
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab" || !panel) return;
       const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
@@ -163,20 +172,8 @@ function DrawerRoot({
     };
     panel?.addEventListener("keydown", onKeyDown);
 
-    // The containment guarantee (document-scoped, like the Escape handler). The
-    // keydown wrap above only sees keydowns bubbling from *inside* the panel; if
-    // focus ever lands outside — Tab past a mis-measured boundary, or React
-    // unmounting the focused element (which drops focus to <body>) — this pulls
-    // it straight back. `panel.contains(panel)` is true, so re-focusing the panel
-    // doesn't loop.
-    const onFocusIn = (e: FocusEvent) => {
-      if (panel && !panel.contains(e.target as Node)) panel.focus();
-    };
-    document.addEventListener("focusin", onFocusIn);
-
     return () => {
       panel?.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("focusin", onFocusIn);
       body.style.overflow = prevOverflow;
       previouslyFocused?.focus?.();
     };

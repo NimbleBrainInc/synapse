@@ -71,14 +71,33 @@ const RULES = `
 }
 `;
 
+// A control inside a *closed* <details> (other than its own <summary>) is not
+// reachable, even though its tabIndex is 0 — the collapse is a UA `display:none`
+// on the disclosure content. It's structural (the `open` attribute + DOM
+// position), so it's detectable without layout and belongs in the filter below,
+// alongside `[hidden]` (also a UA `display:none` rule).
+function inClosedDetails(el: HTMLElement): boolean {
+  const details = el.closest("details:not([open])");
+  if (!details) return false;
+  const summary = details.querySelector("summary");
+  return !summary || !summary.contains(el);
+}
+
 // Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
-// A positive predicate over the candidate focusables. It replaces a `:not(...)`
-// denylist that had to enumerate every non-tabbable case a selector matches
-// without layout; the predicate subsumes them structurally: `tabIndex >= 0`
-// rejects *any* negative tabindex (not just the literal `-1`), `:disabled`
-// inherits through `<fieldset disabled>`, and `[hidden]` is tested on the element
-// *and* its ancestors. CSS-hidden focusables (`display:none` / `visibility:hidden`)
-// need layout to detect, so they're NOT filtered (worst case: one Tab exits).
+// A broad candidate query filtered by a positive predicate, in place of a
+// `:not(...)` denylist that had to enumerate every non-tabbable case per clause.
+// The filter is the set of non-tabbable cases detectable *without layout*:
+// `tabIndex >= 0` rejects any negative tabindex, `:disabled` inherits through
+// `<fieldset disabled>`, `[hidden]` and closed-<details> collapse are tested on
+// the element and its ancestors. CSS-hidden focusables (`display:none` /
+// `visibility:hidden` set in a stylesheet) need layout to detect, so they're NOT
+// filtered (worst case: one Tab exits).
+//
+// CANDIDATES is an allowlist of mainstream focusables, not `*`: a bare `<a>` (no
+// href) reports tabIndex 0 but isn't focusable, so `*` would admit a phantom
+// boundary — `a[href]` is load-bearing. It is deliberately not exhaustive:
+// media/embeds (`<audio controls>`, `<iframe>`) and `[contenteditable]` are
+// omitted until a consumer needs one, to keep the set honest.
 const CANDIDATES = "a[href], button, input, select, textarea, summary, [tabindex]";
 function tabbables(panel: HTMLElement): HTMLElement[] {
   return Array.from(panel.querySelectorAll<HTMLElement>(CANDIDATES)).filter(
@@ -86,6 +105,7 @@ function tabbables(panel: HTMLElement): HTMLElement[] {
       el.tabIndex >= 0 &&
       !el.matches(":disabled") &&
       !el.closest("[hidden]") &&
+      !inClosedDetails(el) &&
       (el as HTMLInputElement).type !== "hidden",
   );
 }

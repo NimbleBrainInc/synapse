@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Drawer } from "../../ui/components/Drawer.js";
 import { type Column, Table } from "../../ui/components/Table.js";
@@ -438,6 +439,102 @@ describe("Drawer", () => {
     outside.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(false);
     expect(document.activeElement).toBe(b);
+  });
+
+  it("excludes a control buried in a closed <details> from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <details>
+            <summary>Advanced</summary>
+            <button type="button">D</button>
+          </details>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // The collapsed <details> hides D (a UA display:none), so it isn't reachable —
+    // `B` is the real last. (Its tabIndex is still 0, so a tabIndex-only check
+    // would make the unreachable D the false last and let Tab escape.)
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("includes controls in an OPEN <details> (the exclusion is scoped to closed)", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <details open>
+            <summary>Advanced</summary>
+            <button type="button">D</button>
+          </details>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // Open <details> reveals D, so it's reachable and is the real last — Tab wraps.
+    // Pins that the exclusion keys on `:not([open])`, not any <details> at all.
+    // (The closed-<details> `<summary>` stays a boundary too, but happy-dom reports
+    // summary.tabIndex === -1, so that half needs a browser test.)
+    const close = screen.getByLabelText("Close");
+    const d = screen.getByText("D");
+    d.focus();
+    fireEvent.keyDown(d, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  // CANDIDATES is net-new here; the exclusion side is covered exhaustively above,
+  // but every one of those tests admits a <button>. Pin that each element *kind*
+  // is counted as a boundary, so dropping a clause can't silently under-count.
+  it("counts every candidate element kind as the boundary, not only <button>", () => {
+    const kinds: Array<[string, ReactElement]> = [
+      [
+        "a[href]",
+        <a key="k" href="#x" data-testid="trailing">
+          L
+        </a>,
+      ],
+      ["input", <input key="k" type="text" data-testid="trailing" />],
+      [
+        "select",
+        <select key="k" data-testid="trailing">
+          <option>o</option>
+        </select>,
+      ],
+      ["textarea", <textarea key="k" data-testid="trailing" />],
+      [
+        "[tabindex]",
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: a bare [tabindex] element is exactly the CANDIDATES clause under test
+        <div key="k" tabIndex={0} data-testid="trailing">
+          T
+        </div>,
+      ],
+      // <summary> is a candidate too, but happy-dom reports summary.tabIndex === -1
+      // (Chrome: 0), so it can't be pinned in this fixture — needs a browser test.
+    ];
+    for (const [name, trailing] of kinds) {
+      const { unmount } = render(
+        <Drawer open onClose={() => {}}>
+          <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+          <Drawer.Body>
+            <button type="button">A</button>
+            {trailing}
+          </Drawer.Body>
+        </Drawer>,
+      );
+      const close = screen.getByLabelText("Close");
+      const last = screen.getByTestId("trailing");
+      last.focus();
+      fireEvent.keyDown(last, { key: "Tab" });
+      expect(document.activeElement, `${name} as trailing boundary`).toBe(close);
+      unmount();
+    }
   });
 });
 

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.12.2] - 2026-07-24
+
+### Fixed
+
+- **`Drawer` traps Tab focus** (a11y). The sandbox-safe rebuild in 0.12.1 focused into the panel and locked background scroll but let a keyboard user `Tab` out to controls behind the scrim. `Tab` / `Shift+Tab` now cycle within the panel's focusable elements (and stay on the panel when it holds nothing tabbable). Scope: this contains Tab while focus is inside the panel — the full native-`inert` behavior (recovering focus that drops to `<body>` when a focused child unmounts, and fencing off portal'd overlays) is a larger FocusScope effort tracked in #43.
+
 ## [0.12.1] - 2026-07-24
 
 ### Fixed

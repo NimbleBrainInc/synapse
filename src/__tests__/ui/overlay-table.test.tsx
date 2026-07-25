@@ -240,6 +240,86 @@ describe("Drawer", () => {
     fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
     expect(document.activeElement).toBe(last);
   });
+
+  it("excludes a trailing [hidden] control from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <input type="file" hidden />
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // The [hidden] input isn't tabbable, so `B` is the real last — Tab from it wraps.
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  // The trap must stay OUT of the way off-boundary: only wrap at the edges, only
+  // on Tab. These pin the guards (not just the branches that fire).
+  it("leaves a mid-panel Tab to the browser (no wrap)", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    const a = screen.getByText("A"); // middle of [Close, A, B]
+    a.focus();
+    const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    a.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(a);
+  });
+
+  it("leaves a mid-panel Shift+Tab to the browser (no jump to last)", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    const a = screen.getByText("A");
+    a.focus();
+    const ev = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    a.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(a);
+  });
+
+  it("ignores non-Tab keys at the boundary (typing isn't hijacked)", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    const b = screen.getByText("B"); // the last/boundary element
+    b.focus();
+    const ev = new KeyboardEvent("keydown", { key: "a", bubbles: true, cancelable: true });
+    b.dispatchEvent(ev);
+    expect(ev.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(b);
+  });
 });
 
 interface Row {

@@ -72,11 +72,13 @@ const RULES = `
 `;
 
 // Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
-// `input[type="hidden"]` is excluded (never tabbable, but matches `input`); CSS-
-// hidden focusables (display:none) aren't filtered — that needs layout, and the
-// keydown wrap tolerates a mis-measured boundary (worst case: one Tab exits).
+// Excludes the not-actually-tabbable cases that a selector can catch without
+// layout: the `[hidden]` attribute, `input[type="hidden"]`, and `[disabled]`.
+// CSS-hidden focusables (`display:none` / `visibility:hidden`) need layout to
+// detect, so they're NOT filtered — the keydown wrap tolerates a mis-measured
+// boundary there (worst case: one Tab exits).
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])';
+  'a[href]:not([hidden]), button:not([disabled]):not([hidden]), input:not([disabled]):not([type="hidden"]):not([hidden]), select:not([disabled]):not([hidden]), textarea:not([disabled]):not([hidden]), [tabindex]:not([tabindex="-1"]):not([disabled]):not([hidden])';
 
 interface DrawerContextValue {
   labelId: string;

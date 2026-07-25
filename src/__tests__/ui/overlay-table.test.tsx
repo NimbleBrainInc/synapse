@@ -188,6 +188,47 @@ describe("Drawer", () => {
     fireEvent.keyDown(b, { key: "Tab" });
     expect(document.activeElement).toBe(close);
   });
+
+  it("excludes a disabled control with an explicit tabindex from the boundary", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+          <button type="button" disabled tabIndex={0}>
+            D
+          </button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    // The disabled control isn't tabbable despite its tabindex, so `B` is the real
+    // last — Tab from it wraps to the first.
+    const close = screen.getByLabelText("Close");
+    const b = screen.getByText("B");
+    b.focus();
+    fireEvent.keyDown(b, { key: "Tab" });
+    expect(document.activeElement).toBe(close);
+  });
+
+  it("traps Shift+Tab from the panel itself to the last focusable", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <Drawer.Header onClose={() => {}}>H</Drawer.Header>
+        <Drawer.Body>
+          <button type="button">A</button>
+          <button type="button">B</button>
+        </Drawer.Body>
+      </Drawer>,
+    );
+    const panel = screen.getByRole("dialog");
+    const last = screen.getByText("B");
+    // The open effect leaves focus on the panel — the state a keyboard user is in
+    // on the first keystroke after the Drawer opens.
+    expect(document.activeElement).toBe(panel);
+    fireEvent.keyDown(panel, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+  });
 });
 
 interface Row {

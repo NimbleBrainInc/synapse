@@ -76,7 +76,7 @@ const RULES = `
 // hidden focusables (display:none) aren't filtered — that needs layout, and the
 // keydown wrap tolerates a mis-measured boundary (worst case: one Tab exits).
 const FOCUSABLE =
-  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])';
 
 interface DrawerContextValue {
   labelId: string;
@@ -154,9 +154,9 @@ function DrawerRoot({
       if (e.key !== "Tab" || !panel) return;
       const focusables = panel.querySelectorAll<HTMLElement>(FOCUSABLE);
       if (focusables.length === 0) {
-        // Nothing tabbable inside — keep focus on the panel, don't let it leave.
+        // Nothing tabbable inside — preventDefault keeps focus on the panel it's
+        // already on (the open effect focused it), so Tab can't leave.
         e.preventDefault();
-        panel.focus();
         return;
       }
       const first = focusables[0];

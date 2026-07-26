@@ -1,45 +1,83 @@
 ---
 title: Fonts & base reset
-description: "Two side-effect imports in @nimblebrain/synapse/ui: one loads the brand faces into the app iframe, the other establishes the root-height chain a full-pane app needs."
+description: "How a host loads its own typeface into a Synapse app, and the side-effect import that establishes the root-height chain a full-pane app needs."
 ---
 
-The token contract names the brand faces (`--font-sans: Satoshi`,
-`--nb-font-heading: Erode`), but a font *name* only renders if the font *files*
-are loaded in the document. Each Synapse app runs in its own iframe, a separate
-document that does not inherit the host's `@font-face` rules. Two side-effect
-imports close that gap: one loads the faces, one sets up the layout root.
+The token contract can *name* a font family (`--font-sans`), but a name only
+renders if the font *files* are loaded in the document — and each Synapse app
+runs in its own iframe, a separate document that inherits no `@font-face` from
+the host page. A host sending only tokens is therefore naming a typeface the app
+has no way to render.
 
-## Brand fonts
+**The library ships no fonts.** Font tokens fall back to web-safe system stacks,
+so an app renders correctly with no host, no network, and no font files. A host
+that wants its own typeface sends the faces alongside the tokens.
 
-Import `@nimblebrain/synapse/ui/fonts` once, at your app's entry, for its side
-effect:
+## Host fonts
 
-```tsx
-import "@nimblebrain/synapse/ui/fonts";
+A host supplies `@font-face` descriptors on the theme, as `SynapseTheme.fontFaces`.
+They travel over the wire as the `synapse/fontFaces` host-context extension, and
+the SDK loads them into the app document.
+
+```ts
+// Host side
+{
+  mode: "dark",
+  tokens: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
+  fontFaces: [
+    {
+      family: "Your Sans",
+      src: "url('/fonts/your-sans.woff2') format('woff2')",
+      weight: "400 700",
+    },
+  ],
+}
 ```
 
-It injects a single Fontshare stylesheet `<link>` into the document head
-(idempotent, and a no-op during SSR). That stylesheet provides the two brand
-faces the token contract names:
+| Field | Notes |
+| --- | --- |
+| `family` | Must match the family named in the host's `--font-*` token value. |
+| `src` | Any CSS `src` descriptor — relative, absolute, or `data:`. |
+| `weight` | Single weight (`400`) or a variable range (`400 700`). Optional. |
+| `style` | `normal`, `italic`, … Optional. |
+| `display` | Defaults to `swap`, so text paints in the fallback rather than blocking. Optional. |
 
-| Face | Token it satisfies | Weights loaded |
-| --- | --- | --- |
-| Satoshi | `--font-sans` | 400, 500, 700 |
-| Erode | `--nb-font-heading` | 400, 500 |
+Faces are loaded through the CSS Font Loading API (`new FontFace(...)`), not by
+building `@font-face` CSS text. Family and `src` stay separate arguments, so a
+host value can never escape a rule and inject styles into the app; the browser
+also parses `src` against its own grammar, so relative paths, absolute URLs, and
+`data:` URIs behave identically.
 
-With the files present, `fontSans` and `fontHeading` resolve to the brand faces
-instead of silently falling back to the neutral system stack.
+### Sending no fonts is supported, not degraded
 
-**CSP.** The stylesheet loads from `https://api.fontshare.com`, so the host
-iframe must allow that origin in its `style-src` and `font-src`. If the origin is
-blocked, the fonts simply fall back to the neutral system stack in the
-[token contract](/docs/components/tokens). Nothing breaks, it just looks
-unbranded.
+Omit `fontFaces` and the app renders in the web-safe fallbacks the
+[token contract](/docs/components/tokens) defines — `system-ui` for
+`fontSans`, `ui-monospace` for `fontMono`, `Georgia` for `fontHeading`.
 
-**The mono face is not injected.** JetBrains Mono (`--font-mono`) is deliberately
-left out. Most apps do not render code, so the library does not pay for it. An
-app that does render code should add the mono face to its own bundle, for example
-with `@fontsource-variable/jetbrains-mono`.
+### Give every font token a web-safe tail
+
+Write `"'Your Sans', system-ui, sans-serif"`, never `"'Your Sans'"`. A bare
+family name with no matching face falls through to the browser default rather
+than to your intended stack.
+
+### CSP: `'self'` may not mean what you expect
+
+A host that mounts apps in a `srcdoc` iframe *without* `allow-same-origin` — the
+usual choice, since granting it to third-party app HTML is a sandbox escape —
+gives the frame an **opaque origin**. CSP `'self'` then matches nothing. Under a
+typical `font-src 'self' data:`, a `data:` URI is the only form that works
+unconditionally; any http(s) URL, self-hosted or CDN, needs the host to add that
+origin to the frame's policy. Check the host's CSP before choosing.
+
+If a face is blocked, nothing breaks — the app falls back to the neutral system
+stack. It just looks unbranded.
+
+### Updates mid-session
+
+A `host-context-changed` notification carries only the fields that changed, so an
+absent `synapse/fontFaces` means "unchanged" and loaded faces stay loaded — a
+dark-mode toggle never drops the app's typeface. A host clears faces by sending
+an explicit empty list.
 
 ## Base reset
 

@@ -11,11 +11,17 @@ Moves typography onto the same host-wins footing as colour. The token contract c
 ### Added
 
 - **`SynapseTheme.fontFaces`** — an optional list of `@font-face` descriptors (`family`, `src`, and optional `weight` / `style` / `display`) a host sends to style the app in its own typeface. Arrives over the wire as the `synapse/fontFaces` host-context extension (`McpUiHostContext` declares `[key: string]: unknown` for forward compatibility, so this is spec-legal; hosts that omit it are unaffected). `src` takes any CSS `src` descriptor, so relative paths (`url('/fonts/x.woff2')`), absolute URLs, and `data:` URIs all work — whatever origin it names must satisfy the app iframe's `font-src` CSP.
-- **`applyTheme(mode, tokens, fontFaces?)`** — the single funnel by which theming reaches the DOM, replacing bare `applyThemeVariables` at every call site (handshake, `host-context-changed`, `<SynapseProvider>`, `applyHostTheme`). Colour and typography travel together deliberately: two entry points invite a caller to wire one and forget the other, shipping a host's palette under the wrong typeface. `applyThemeFontFaces` is exported for hosts that want the faces alone.
+- **`applyTheme(mode, tokens, fontFaces?)`** — the single funnel by which theming reaches the DOM, replacing bare `applyThemeVariables` at all six call sites (both connection paths' handshake and `host-context-changed`, plus `<SynapseProvider>` and `applyHostTheme`). Colour and typography travel together deliberately: a vars-only *or* faces-only entry point invites a caller to wire one and forget the other, shipping a host's palette under the wrong typeface — so it is the only one of the three exported.
+
+### Fixed
+
+- **Loaded faces survive a partial `host-context-changed`.** The ext-apps notification carries only the fields that changed, so a bare `{ theme: "dark" }` toggle must not be read as "the host has no fonts". Both connection paths now treat an absent `synapse/fontFaces` as *unchanged* and an explicit empty list as *clear*; `createSynapse().getTheme()` reports the faces actually loaded rather than what a partial context re-derives. Without this a dark-mode toggle dropped the app's typeface mid-session.
 
 ### Breaking
 
-- **`@nimblebrain/synapse/ui/fonts` is removed.** It injected a Fontshare stylesheet for one host's brand from inside a general-purpose library — fetching a third-party CDN as an import side effect, in a sandboxed iframe whose default `font-src 'self' data:` blocked it anyway. It had no importers. Hosts that want brand typography now send `fontFaces`; apps that imported it for the side effect should delete the import. A library that hardcodes a consumer's brand doesn't merely couple to it — it rots silently when that consumer rebrands, which is exactly what happened here.
+- **`@nimblebrain/synapse/ui/fonts` is removed.** It injected a Fontshare stylesheet for one host's brand from inside a general-purpose library — fetching a third-party CDN as an import side effect, into a sandboxed iframe whose CSP blocked it anyway. A library that hardcodes a consumer's brand doesn't merely couple to it: it rots silently when that consumer rebrands, which is exactly what happened here.
+
+  **Migration.** Delete `import "@nimblebrain/synapse/ui/fonts"` from your app entry; the app then renders in web-safe fallbacks until its host sends `fontFaces`. Existing apps pinned to `^0.11.0` / `^0.12.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
 
 ### Changed
 

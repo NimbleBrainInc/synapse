@@ -94,8 +94,9 @@ background for badges, banners, and status rows.
 
 ## Fonts and weights
 
-Three faces and four weights. The face tokens name a font; the actual font files
-are loaded by [`@nimblebrain/synapse/ui/fonts`](/docs/components/fonts).
+Three faces and four weights. The face tokens only *name* a font — the library
+ships no font files, so these resolve to the web-safe fallbacks below unless the
+host supplies the faces. See [Host fonts](/docs/components/fonts).
 
 | Token | CSS variable | Neutral fallback |
 | --- | --- | --- |

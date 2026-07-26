@@ -67,10 +67,16 @@ export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Synaps
 /**
  * Read the `synapse/fontFaces` host-context extension.
  *
- * Returns `undefined` when the host sends nothing, and drops individual entries
- * that aren't well-formed rather than rejecting the batch — one malformed face
- * must not cost the app the rest of its typography. Anything that survives is
- * still validated by the browser when the descriptor is constructed.
+ * `undefined` and `[]` are **distinct answers**, because a host-context-changed
+ * carries only the fields that changed:
+ *   - `undefined` — the host said nothing about fonts, so keep what's loaded.
+ *   - `[]` — the host explicitly sent an empty list, i.e. drop the faces.
+ * Collapsing the two would leave a host no way to clear typography it had
+ * previously set.
+ *
+ * Individual malformed entries are dropped rather than rejecting the batch —
+ * one bad face must not cost the app the rest of its typography. Anything that
+ * survives is still validated by the browser when the descriptor is built.
  */
 export function extractFontFaces(
   ctx: Partial<McpUiHostContext> | undefined,
@@ -78,13 +84,11 @@ export function extractFontFaces(
   const raw = ctx?.[FONT_FACES_CONTEXT_KEY];
   if (!Array.isArray(raw)) return undefined;
 
-  const faces = raw.filter(
+  return raw.filter(
     (entry): entry is FontFaceDescriptor =>
       !!entry &&
       typeof entry === "object" &&
       typeof (entry as FontFaceDescriptor).family === "string" &&
       typeof (entry as FontFaceDescriptor).src === "string",
   );
-
-  return faces.length > 0 ? faces : undefined;
 }

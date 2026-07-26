@@ -126,9 +126,14 @@ Three things worth knowing:
 - **Give every `--font-*` token value a web-safe tail.** A bare family name with
   no matching face falls through to the browser default, not to your intended
   stack. `"'Your Sans', system-ui, sans-serif"`, never `"'Your Sans'"`.
-- **The URL must satisfy the app iframe's CSP.** Hosts typically allow
-  `font-src 'self' data:`, so self-hosted files and `data:` URIs work without
-  widening; a third-party CDN needs the host to permit that origin.
+- **The URL must satisfy the app iframe's CSP — and `'self'` may not mean what
+  you expect.** A host that mounts apps in a `srcdoc` iframe *without*
+  `allow-same-origin` (the usual choice, since granting it to third-party app
+  HTML is a sandbox escape) gives the frame an **opaque origin**, and CSP
+  `'self'` then matches nothing. Under a typical `font-src 'self' data:`, a
+  `data:` URI is the only form that works unconditionally; any http(s) URL —
+  self-hosted or CDN — needs the host to add that origin to the frame's CSP.
+  Check the host's policy before choosing between them.
 
 Faces are applied through the same funnel as the token variables
 (`applyTheme`), so a theme change can never leave an app with the host's palette

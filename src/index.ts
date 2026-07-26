@@ -19,9 +19,10 @@ export {
   type SynapseUITheme,
 } from "./host/types.js";
 export { createStore } from "./store.js";
-// `applyThemeVariables` stays internal on purpose: a public vars-only entry
-// point is the half-theme footgun `applyTheme` exists to prevent.
-export { applyTheme, applyThemeFontFaces } from "./theme-defaults.js";
+// Only the combined funnel is public. A vars-only OR faces-only entry point is
+// the same half-theme footgun — a caller wires one and forgets the other — so
+// `applyThemeVariables` and `applyThemeFontFaces` both stay internal.
+export { applyTheme } from "./theme-defaults.js";
 export type {
   ActionReducer,
   AgentAction,

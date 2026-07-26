@@ -31,6 +31,7 @@ import type {
   CallToolAsTaskOptions,
   DataChangedEvent,
   FileResult,
+  FontFaceDescriptor,
   HostInfo,
   RequestFileOptions,
   Synapse,
@@ -67,6 +68,20 @@ export function createSynapse(options: SynapseOptions): Synapse {
   // populates a `workspace` field). `getTheme()` and any other typed view
   // is derived from this object — no parallel state.
   let currentHostContext: McpUiHostContext = {};
+  // Font faces are the one derived value that must NOT be recomputed from a
+  // replaced context. A `host-context-changed` carries only the fields that
+  // changed (per the ext-apps `McpUiHostContextChangedNotification` params
+  // doc), so a bare `{ theme: "dark" }` toggle would otherwise re-derive
+  // "no fonts" and unload the host's typeface mid-session — far more visible
+  // than the equivalent for a colour token. Sticky here, cleared only by an
+  // explicit empty list from the host.
+  let currentFontFaces: FontFaceDescriptor[] | undefined;
+
+  /** Fold a (possibly partial) context's faces into the sticky set. */
+  function syncFontFaces(theme: SynapseTheme): FontFaceDescriptor[] | undefined {
+    currentFontFaces = theme.fontFaces ?? currentFontFaces;
+    return currentFontFaces;
+  }
   // Module-private store for the host's declared `tasks` capability. Kept
   // in the closure (not on Synapse) so `callToolAsTask` reads it without
   // expanding the public surface. `null` before the handshake completes;
@@ -130,7 +145,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       // back any var the host omits (theme-correct), then host values win.
       {
         const theme = extractTheme(currentHostContext);
-        applyTheme(theme.mode, theme.tokens, theme.fontFaces);
+        applyTheme(theme.mode, theme.tokens, syncFontFaces(theme));
       }
 
       // Notify subscribers so React hooks (useTheme, useHostContext) and
@@ -143,12 +158,18 @@ export function createSynapse(options: SynapseOptions): Synapse {
       keyboard = new KeyboardForwarder(transport, forwardKeys);
     });
 
-  // Listen for host context changes (ext-apps spec). Notifications carry a
-  // full snapshot of the host context, so we replace — never merge.
+  // Listen for host context changes (ext-apps spec). The notification's params
+  // are a PARTIAL update — only the fields that changed — so `currentHostContext`
+  // being replaced wholesale here means any field the host omits is re-derived as
+  // absent. That is long-standing behaviour for the spec fields (a subscriber
+  // reads the notification as sent); fonts opt out via `syncFontFaces` because
+  // unloading a typeface on an unrelated toggle is a visible break, not a
+  // no-op. Making the whole context merge is a wider change than this one
+  // concerns — tracked separately.
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
     const theme = extractTheme(currentHostContext);
-    applyTheme(theme.mode, theme.tokens, theme.fontFaces);
+    applyTheme(theme.mode, theme.tokens, syncFontFaces(theme));
     for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 
@@ -264,7 +285,10 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     getTheme(): SynapseTheme {
-      return extractTheme(currentHostContext);
+      const theme = extractTheme(currentHostContext);
+      // Report the faces actually loaded, not what this (possibly partial)
+      // context re-derives — otherwise the public view contradicts the DOM.
+      return currentFontFaces ? { ...theme, fontFaces: currentFontFaces } : theme;
     },
 
     // Selector over `onHostContextChanged`: only fires when the *derived*

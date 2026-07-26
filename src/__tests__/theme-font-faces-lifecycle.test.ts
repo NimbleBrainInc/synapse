@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { createSynapse } from "../core.js";
 import { FONT_FACES_CONTEXT_KEY } from "../detection.js";
-import { resetAppliedFontFaces } from "../theme-defaults.js";
+import { applyTheme, resetAppliedFontFaces } from "../theme-defaults.js";
 import type { Synapse } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
@@ -163,5 +163,55 @@ describe("connect — host fonts survive a partial context change", () => {
     });
 
     expect(families()).toEqual([]);
+  });
+});
+
+describe("theme subscribers agree with what is loaded", () => {
+  it("onThemeChanged payload carries the sticky faces, matching getTheme()", async () => {
+    const synapse = createSynapse({ name: "t", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    const seen: (string[] | undefined)[] = [];
+    synapse.onThemeChanged((t) => seen.push(t.fontFaces?.map((f) => f.family)));
+
+    dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
+
+    // The two public accessors must not disagree: both report the loaded set.
+    expect(seen).toEqual([["Brand"]]);
+    expect(synapse.getTheme().fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
+  });
+
+  it("notifies subscribers on a fonts-only change", async () => {
+    const synapse = createSynapse({ name: "t", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+
+    const seen: (string[] | undefined)[] = [];
+    synapse.onThemeChanged((t) => seen.push(t.fontFaces?.map((f) => f.family)));
+
+    // Same mode, same tokens — only the typeface moves. The equality filter
+    // must not swallow it, or every useTheme() consumer reports stale faces.
+    dispatchNotification("ui/notifications/host-context-changed", {
+      theme: "light",
+      styles: { variables: {} },
+      [FONT_FACES_CONTEXT_KEY]: [{ family: "Other", src: "url('/other.woff2')" }],
+    });
+
+    expect(seen).toEqual([["Other"]]);
+    expect(families()).toEqual(["Other"]);
+  });
+
+  it("a theme re-applied without fontFaces leaves loaded faces alone", async () => {
+    const synapse = createSynapse({ name: "t", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+    expect(families()).toEqual(["Brand"]);
+
+    // What <SynapseProvider>'s ThemeInjector does on every theme change. A
+    // vars-only re-apply must never strip the host's typeface.
+    applyTheme("dark", { "--color-text-primary": "#fff" });
+
+    expect(families()).toEqual(["Brand"]);
   });
 });

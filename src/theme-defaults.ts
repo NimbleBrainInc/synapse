@@ -155,6 +155,13 @@ const managedFaces = new Set<FontFace>();
 /** Signature of the currently-applied set — lets a repeat call no-op. */
 let appliedFontKey = "";
 
+/** Stable signature of a face list — the one comparison rule for "same fonts?",
+ *  shared by the sink's re-apply guard and `onThemeChanged`'s equality filter. */
+export function fontFacesKey(faces: readonly FontFaceDescriptor[] | undefined | null): string {
+  if (!Array.isArray(faces)) return "";
+  return fontKey(faces);
+}
+
 function fontKey(faces: readonly FontFaceDescriptor[]): string {
   return JSON.stringify(faces.map((d) => [d.family, d.src, d.weight, d.style, d.display]));
 }
@@ -186,6 +193,12 @@ function fontKey(faces: readonly FontFaceDescriptor[]): string {
  * jsdom): both no-op. Re-applying an unchanged set is a no-op.
  */
 export function applyThemeFontFaces(faces: readonly FontFaceDescriptor[] | undefined | null): void {
+  // Absent means UNCHANGED — the same rule `extractFontFaces` applies at the
+  // wire, and the reason it is repeated here: any caller that re-applies a
+  // theme derived from a partial host context passes `undefined` for fonts,
+  // and unloading the host's typeface on an unrelated dark-mode toggle is a
+  // visible break. Only an explicit list is a change; `[]` is the clear.
+  if (faces === undefined || faces === null) return;
   if (typeof document === "undefined") return;
   // `document.fonts` (CSS Font Loading API) is absent in some test DOMs.
   if (!document.fonts || typeof FontFace === "undefined") return;
@@ -236,6 +249,10 @@ function isFontFaceDescriptor(value: unknown): value is FontFaceDescriptor {
  * here. Keeping colour and typography on one call is the point — two entry
  * points invite a caller to wire one and forget the other, shipping a host's
  * palette under the wrong typeface.
+ *
+ * Omitting `fontFaces` is safe and means "leave the loaded faces alone" (see
+ * {@link applyThemeFontFaces}), so a caller re-applying a theme derived from a
+ * partial host context cannot silently strip the host's typeface.
  */
 export function applyTheme(
   mode: "light" | "dark",

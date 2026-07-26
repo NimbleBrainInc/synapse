@@ -24,7 +24,7 @@ import { detectHost, extractTheme } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
-import { applyTheme } from "./theme-defaults.js";
+import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
@@ -81,6 +81,17 @@ export function createSynapse(options: SynapseOptions): Synapse {
   function syncFontFaces(theme: SynapseTheme): FontFaceDescriptor[] | undefined {
     currentFontFaces = theme.fontFaces ?? currentFontFaces;
     return currentFontFaces;
+  }
+
+  /**
+   * The theme as reported to consumers: derived from the context, with the
+   * sticky faces folded back in. Every public view goes through here —
+   * `getTheme()`, the `onThemeChanged` payload, and its equality filter — so
+   * they cannot disagree with each other or with what is actually loaded.
+   */
+  function resolveTheme(ctx: McpUiHostContext): SynapseTheme {
+    const theme = extractTheme(ctx);
+    return currentFontFaces ? { ...theme, fontFaces: currentFontFaces } : theme;
   }
   // Module-private store for the host's declared `tasks` capability. Kept
   // in the closure (not on Synapse) so `callToolAsTask` reads it without
@@ -285,10 +296,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     getTheme(): SynapseTheme {
-      const theme = extractTheme(currentHostContext);
-      // Report the faces actually loaded, not what this (possibly partial)
-      // context re-derives — otherwise the public view contradicts the DOM.
-      return currentFontFaces ? { ...theme, fontFaces: currentFontFaces } : theme;
+      return resolveTheme(currentHostContext);
     },
 
     // Selector over `onHostContextChanged`: only fires when the *derived*
@@ -305,9 +313,9 @@ export function createSynapse(options: SynapseOptions): Synapse {
     //    current derived theme, so a workspace-only `host-context-changed`
     //    notification correctly filters as a no-op.
     onThemeChanged(callback: (theme: SynapseTheme) => void): () => void {
-      let prev: SynapseTheme | null = hostInfo !== null ? extractTheme(currentHostContext) : null;
+      let prev: SynapseTheme | null = hostInfo !== null ? resolveTheme(currentHostContext) : null;
       const wrapped = (ctx: McpUiHostContext) => {
-        const next = extractTheme(ctx);
+        const next = resolveTheme(ctx);
         if (prev !== null && themesEqual(prev, next)) return;
         prev = next;
         callback(next);
@@ -478,9 +486,12 @@ function validateFileResult(value: unknown): FileResult {
 
 /** Shallow equality for `SynapseTheme` — used by `onThemeChanged` to filter
  *  host-context changes that don't actually move the theme (e.g. a workspace
- *  switch that leaves theme/styles untouched). Cheap; tokens are ~40 entries. */
+ *  switch that leaves theme/styles untouched). Cheap; tokens are ~40 entries.
+ *  Typography counts: a host can swap typeface without touching mode or tokens,
+ *  and that must still reach subscribers. */
 function themesEqual(a: SynapseTheme, b: SynapseTheme): boolean {
   if (a.mode !== b.mode || a.primaryColor !== b.primaryColor) return false;
+  if (fontFacesKey(a.fontFaces) !== fontFacesKey(b.fontFaces)) return false;
   const aKeys = Object.keys(a.tokens);
   const bKeys = Object.keys(b.tokens);
   if (aKeys.length !== bKeys.length) return false;

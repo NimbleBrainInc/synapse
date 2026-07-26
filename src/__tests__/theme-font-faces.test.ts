@@ -236,6 +236,30 @@ describe("wire format", () => {
     expect(faces).toEqual([{ family: "Keep", src: "url('/k.woff2')" }]);
   });
 
+  it("treats an all-malformed batch as unchanged, not as a clear", () => {
+    // A host that means to send fonts but gets the shape wrong (`fontFamily`
+    // for `family`) must not have its typo read as "drop my typeface". N
+    // garbage entries are neither absent nor an explicit empty list.
+    const faces = extractFontFaces({
+      [FONT_FACES_CONTEXT_KEY]: [
+        { fontFamily: "Brand", source: "url('/b.woff2')" },
+        { fontFamily: "Other", source: "url('/o.woff2')" },
+      ],
+    });
+    expect(faces).toBeUndefined();
+  });
+
+  it("still clears on an explicit empty list", () => {
+    expect(extractFontFaces({ [FONT_FACES_CONTEXT_KEY]: [] })).toEqual([]);
+  });
+
+  it("keeps usable entries when only some are malformed", () => {
+    const faces = extractFontFaces({
+      [FONT_FACES_CONTEXT_KEY]: [{ family: "Keep", src: "url('/k.woff2')" }, { fontFamily: "Bad" }],
+    });
+    expect(faces).toEqual([{ family: "Keep", src: "url('/k.woff2')" }]);
+  });
+
   it("ignores a non-array payload", () => {
     expect(extractFontFaces({ [FONT_FACES_CONTEXT_KEY]: "nope" })).toBeUndefined();
   });

@@ -35,10 +35,6 @@ export function createInlineAdapter(
     if (destroyed) return;
     const mode = coerceMode(event.matches ? "dark" : "light", currentTheme.mode);
     if (mode === currentTheme.mode) return;
-    // Rebuilds the theme from scratch: this host signals mode only, so there
-    // are no tokens or font faces to carry forward. If a font path is ever
-    // added here, preserve `currentTheme.fontFaces` — dropping them would
-    // unload the app's typeface on a mode change.
     currentTheme = { mode, tokens: {} };
     for (const cb of themeCbs) cb(currentTheme);
   };

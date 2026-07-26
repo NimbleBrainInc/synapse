@@ -20,7 +20,7 @@ import type {
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { detectHost, extractTheme } from "./detection.js";
+import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
@@ -78,8 +78,8 @@ export function createSynapse(options: SynapseOptions): Synapse {
   let currentFontFaces: FontFaceDescriptor[] | undefined;
 
   /** Fold a (possibly partial) context's faces into the sticky set. */
-  function syncFontFaces(theme: SynapseTheme): FontFaceDescriptor[] | undefined {
-    currentFontFaces = theme.fontFaces ?? currentFontFaces;
+  function syncFontFaces(ctx: McpUiHostContext): FontFaceDescriptor[] | undefined {
+    currentFontFaces = foldFontFaces(currentFontFaces, ctx);
     return currentFontFaces;
   }
 
@@ -156,7 +156,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       // back any var the host omits (theme-correct), then host values win.
       {
         const theme = extractTheme(currentHostContext);
-        applyTheme(theme.mode, theme.tokens, syncFontFaces(theme));
+        applyTheme(theme.mode, theme.tokens, syncFontFaces(currentHostContext));
       }
 
       // Notify subscribers so React hooks (useTheme, useHostContext) and
@@ -181,7 +181,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
     const theme = extractTheme(currentHostContext);
-    applyTheme(theme.mode, theme.tokens, syncFontFaces(theme));
+    applyTheme(theme.mode, theme.tokens, syncFontFaces(currentHostContext));
     for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 

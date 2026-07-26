@@ -84,11 +84,35 @@ export function extractFontFaces(
   const raw = ctx?.[FONT_FACES_CONTEXT_KEY];
   if (!Array.isArray(raw)) return undefined;
 
-  return raw.filter(
+  const usable = raw.filter(
     (entry): entry is FontFaceDescriptor =>
       !!entry &&
       typeof entry === "object" &&
       typeof (entry as FontFaceDescriptor).family === "string" &&
       typeof (entry as FontFaceDescriptor).src === "string",
   );
+
+  // A batch that arrived with entries but yielded none usable is NOT an
+  // explicit clear — the host tried to send fonts and got the shape wrong
+  // (`fontFamily` for `family`, say). Returning `[]` here would make a typo
+  // indistinguishable from "drop my typeface", so it reads as unchanged.
+  if (raw.length > 0 && usable.length === 0) return undefined;
+
+  return usable;
+}
+
+/**
+ * THE rule for merging incoming faces over what is already loaded, in one
+ * place: **absent — or a batch with nothing usable — means unchanged; an
+ * explicit list, including empty, replaces.**
+ *
+ * Every consumer of the host-context font extension folds through here. The
+ * rule leaked one layer at a time when each site spelled it itself, so the
+ * spelling now lives once and the call sites just call it.
+ */
+export function foldFontFaces(
+  prev: FontFaceDescriptor[] | undefined,
+  ctx: Partial<McpUiHostContext> | undefined,
+): FontFaceDescriptor[] | undefined {
+  return extractFontFaces(ctx) ?? prev;
 }

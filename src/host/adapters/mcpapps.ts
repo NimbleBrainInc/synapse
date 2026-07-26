@@ -1,7 +1,7 @@
 // `detection` and `theme-defaults` are type-only against `@modelcontextprotocol/*`,
 // so importing them keeps this adapter free of the ext-apps runtime (and Zod)
 // that the lean `window.SynapseUI` IIFE deliberately excludes.
-import { extractFontFaces } from "../../detection.js";
+import { foldFontFaces } from "../../detection.js";
 import { fontFacesKey } from "../../theme-defaults.js";
 import { readInlineData, unwrapRenderData } from "../data.js";
 import { coerceMode, preferredMode } from "../theme.js";
@@ -137,8 +137,8 @@ export function createMcpAppsAdapter(
       tokens = { ...tokens, ...styles.variables };
       changed = true;
     }
-    const nextFaces = extractFontFaces(ctx);
-    if (nextFaces !== undefined && fontFacesKey(nextFaces) !== fontFacesKey(fontFaces)) {
+    const nextFaces = foldFontFaces(fontFaces, ctx);
+    if (fontFacesKey(nextFaces) !== fontFacesKey(fontFaces)) {
       fontFaces = nextFaces;
       changed = true;
     }

@@ -24,7 +24,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
-import { extractFontFaces } from "./detection.js";
+import { extractFontFaces, foldFontFaces } from "./detection.js";
 import { resolveEventMethod } from "./event-map.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
@@ -129,10 +129,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
       variables && typeof variables === "object"
         ? (variables as Record<string, string>)
         : currentTheme.tokens;
-    // A host-context-changed carries only the fields that changed, so an absent
-    // `synapse/fontFaces` means "unchanged" — keep the loaded set rather than
-    // dropping the app back to fallback typography on a dark-mode toggle.
-    const fontFaces = extractFontFaces(ctx) ?? currentTheme.fontFaces;
+    // A host-context-changed carries only the fields that changed; `foldFontFaces`
+    // owns what an absent or unusable list means (see its doc).
+    const fontFaces = foldFontFaces(currentTheme.fontFaces, ctx);
     currentTheme = { mode, tokens, ...(fontFaces ? { fontFaces } : {}) };
     applyTheme(mode, tokens, fontFaces);
     const set = handlers.get(HOST_CONTEXT_CHANGED_METHOD);

@@ -215,3 +215,20 @@ describe("theme subscribers agree with what is loaded", () => {
     expect(families()).toEqual(["Brand"]);
   });
 });
+
+describe("an all-malformed batch never unloads the typeface", () => {
+  it("keeps loaded faces when every incoming entry is the wrong shape", async () => {
+    const synapse = createSynapse({ name: "t", version: "1.0.0" });
+    completeHandshake();
+    await synapse.ready;
+    expect(families()).toEqual(["Brand"]);
+
+    dispatchNotification("ui/notifications/host-context-changed", {
+      theme: "dark",
+      [FONT_FACES_CONTEXT_KEY]: [{ fontFamily: "Brand", source: "url('/brand.woff2')" }],
+    });
+
+    expect(families()).toEqual(["Brand"]);
+    expect(synapse.getTheme().fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
+  });
+});

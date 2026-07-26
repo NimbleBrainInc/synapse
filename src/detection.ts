@@ -1,4 +1,5 @@
 import type { McpUiHostContext, McpUiInitializeResult } from "@modelcontextprotocol/ext-apps";
+import { normalizeFontFaces } from "./theme-defaults.js";
 import type { FontFaceDescriptor, HostInfo, SynapseTheme } from "./types";
 
 /**
@@ -54,14 +55,12 @@ export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Synaps
       ? (variables as Record<string, string>)
       : {};
 
-  const fontFaces = extractFontFaces(ctx);
-
-  return {
-    mode,
-    primaryColor: DEFAULT_THEME.primaryColor,
-    tokens,
-    ...(fontFaces ? { fontFaces } : {}),
-  };
+  // Deliberately no `fontFaces` here. Faces are sticky across a partial context
+  // (see `foldFontFaces`), and this function sees only the context in hand — so
+  // populating the field would publish a NON-sticky value on the return type and
+  // invite `extractTheme(ctx).fontFaces`, which is the unload-on-toggle bug.
+  // `resolveTheme` overlays the sticky set; nothing else should.
+  return { mode, primaryColor: DEFAULT_THEME.primaryColor, tokens };
 }
 
 /**
@@ -81,24 +80,7 @@ export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Synaps
 export function extractFontFaces(
   ctx: Partial<McpUiHostContext> | undefined,
 ): FontFaceDescriptor[] | undefined {
-  const raw = ctx?.[FONT_FACES_CONTEXT_KEY];
-  if (!Array.isArray(raw)) return undefined;
-
-  const usable = raw.filter(
-    (entry): entry is FontFaceDescriptor =>
-      !!entry &&
-      typeof entry === "object" &&
-      typeof (entry as FontFaceDescriptor).family === "string" &&
-      typeof (entry as FontFaceDescriptor).src === "string",
-  );
-
-  // A batch that arrived with entries but yielded none usable is NOT an
-  // explicit clear — the host tried to send fonts and got the shape wrong
-  // (`fontFamily` for `family`, say). Returning `[]` here would make a typo
-  // indistinguishable from "drop my typeface", so it reads as unchanged.
-  if (raw.length > 0 && usable.length === 0) return undefined;
-
-  return usable;
+  return normalizeFontFaces(ctx?.[FONT_FACES_CONTEXT_KEY]);
 }
 
 /**

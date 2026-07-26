@@ -31,6 +31,7 @@ export type {
   DataChangedEvent,
   Dimensions,
   FileResult,
+  FontDisplayValue,
   FontFaceDescriptor,
   HostInfo,
   KeyForwardConfig,

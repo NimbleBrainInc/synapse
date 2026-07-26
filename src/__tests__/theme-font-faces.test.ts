@@ -264,3 +264,29 @@ describe("wire format", () => {
     expect(extractFontFaces({ [FONT_FACES_CONTEXT_KEY]: "nope" })).toBeUndefined();
   });
 });
+
+describe("the public applyHostTheme sink normalises like the wire", () => {
+  it("keeps loaded faces when every entry is mis-shaped", () => {
+    // Reachable from `@nimblebrain/synapse/host`, where a host may build
+    // `fontFaces` from untrusted JSON — so the input is not necessarily typed.
+    // A shape mistake must not read as "drop my typeface".
+    const added = installFontStub();
+    applyThemeFontFaces([{ family: "Brand", src: "url('/b.woff2')" }]);
+    applyThemeFontFaces([{ fontFamily: "Brand", source: "url('/b.woff2')" }] as never);
+    expect([...added].map((f) => f.family)).toEqual(["Brand"]);
+  });
+
+  it("keeps loaded faces when handed a non-array", () => {
+    const added = installFontStub();
+    applyThemeFontFaces([{ family: "Brand", src: "url('/b.woff2')" }]);
+    applyThemeFontFaces("nope" as never);
+    expect([...added].map((f) => f.family)).toEqual(["Brand"]);
+  });
+
+  it("still clears on an explicit empty list", () => {
+    const added = installFontStub();
+    applyThemeFontFaces([{ family: "Brand", src: "url('/b.woff2')" }]);
+    applyThemeFontFaces([]);
+    expect([...added]).toEqual([]);
+  });
+});

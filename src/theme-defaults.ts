@@ -159,11 +159,27 @@ let appliedFontKey = "";
  *  shared by the sink's re-apply guard and `onThemeChanged`'s equality filter. */
 export function fontFacesKey(faces: readonly FontFaceDescriptor[] | undefined | null): string {
   if (!Array.isArray(faces)) return "";
-  return fontKey(faces);
+  return JSON.stringify(faces.map((d) => [d.family, d.src, d.weight, d.style, d.display]));
 }
 
-function fontKey(faces: readonly FontFaceDescriptor[]): string {
-  return JSON.stringify(faces.map((d) => [d.family, d.src, d.weight, d.style, d.display]));
+/**
+ * Normalise an untrusted face list into the one shape every layer trusts.
+ *
+ * THE rule, in one place:
+ *   - not an array           → `undefined` — nothing was said, keep what's loaded
+ *   - array, none usable     → `undefined` — a shape mistake is not a clear
+ *   - array, some usable     → those entries
+ *   - empty array            → `[]` — the explicit clear
+ *
+ * The wire and the sink each used to spell this out separately and drifted
+ * apart, so a host whose descriptors were mis-shaped kept its typeface through
+ * one path and lost it through the other. One predicate, one spelling.
+ */
+export function normalizeFontFaces(raw: unknown): FontFaceDescriptor[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const usable = raw.filter(isFontFaceDescriptor);
+  if (raw.length > 0 && usable.length === 0) return undefined;
+  return usable;
 }
 
 /**
@@ -193,18 +209,17 @@ function fontKey(faces: readonly FontFaceDescriptor[]): string {
  * jsdom): both no-op. Re-applying an unchanged set is a no-op.
  */
 export function applyThemeFontFaces(faces: readonly FontFaceDescriptor[] | undefined | null): void {
-  // Absent means UNCHANGED — the same rule `extractFontFaces` applies at the
-  // wire, and the reason it is repeated here: any caller that re-applies a
-  // theme derived from a partial host context passes `undefined` for fonts,
-  // and unloading the host's typeface on an unrelated dark-mode toggle is a
-  // visible break. Only an explicit list is a change; `[]` is the clear.
-  if (faces === undefined || faces === null) return;
+  // `normalizeFontFaces` owns what absent/garbage means. Reached from the public
+  // `applyHostTheme`, so the input here is not necessarily typed: a host
+  // building `fontFaces` from untrusted JSON can hand us mis-shaped entries,
+  // and reading those as "clear" would unload the typeface over a typo.
+  const next = normalizeFontFaces(faces);
+  if (next === undefined) return;
   if (typeof document === "undefined") return;
   // `document.fonts` (CSS Font Loading API) is absent in some test DOMs.
   if (!document.fonts || typeof FontFace === "undefined") return;
 
-  const next = Array.isArray(faces) ? faces.filter(isFontFaceDescriptor) : [];
-  const key = fontKey(next);
+  const key = fontFacesKey(next);
   if (key === appliedFontKey) return;
   appliedFontKey = key;
 

@@ -62,6 +62,10 @@ export function createChatGPTAdapter(
     if ("theme" in globals && globals.theme != null) {
       const mode = coerceMode(globals.theme, currentTheme.mode);
       if (mode !== currentTheme.mode) {
+        // Rebuilds the theme from scratch: this host signals mode only, so there
+        // are no tokens or font faces to carry forward. If a font path is ever
+        // added here, preserve `currentTheme.fontFaces` — dropping them would
+        // unload the app's typeface on a mode change.
         currentTheme = { mode, tokens: {} };
         for (const cb of themeCbs) cb(currentTheme);
       }

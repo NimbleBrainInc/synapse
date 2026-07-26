@@ -176,7 +176,8 @@ export function createSynapse(options: SynapseOptions): Synapse {
   // reads the notification as sent); fonts opt out via `syncFontFaces` because
   // unloading a typeface on an unrelated toggle is a visible break, not a
   // no-op. Making the whole context merge is a wider change than this one
-  // concerns — tracked separately.
+  // concerns: it also wipes the host's tokens, and fixing it changes what every
+  // subscriber observes. Tracked in #46.
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
     const theme = extractTheme(currentHostContext);

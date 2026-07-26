@@ -24,7 +24,7 @@ import { detectHost, extractTheme } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
-import { applyThemeVariables } from "./theme-defaults.js";
+import { applyTheme } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
@@ -130,7 +130,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       // back any var the host omits (theme-correct), then host values win.
       {
         const theme = extractTheme(currentHostContext);
-        applyThemeVariables(theme.mode, theme.tokens);
+        applyTheme(theme.mode, theme.tokens, theme.fontFaces);
       }
 
       // Notify subscribers so React hooks (useTheme, useHostContext) and
@@ -148,7 +148,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
     const theme = extractTheme(currentHostContext);
-    applyThemeVariables(theme.mode, theme.tokens);
+    applyTheme(theme.mode, theme.tokens, theme.fontFaces);
     for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 

@@ -14,8 +14,7 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@nimblebrain/synapse/ui": ["../dist/ui/index.d.ts"],
-      "@nimblebrain/synapse/ui/fonts": ["../dist/ui/fonts.d.ts"]
+      "@nimblebrain/synapse/ui": ["../dist/ui/index.d.ts"]
     }
   },
   "include": ["src"]

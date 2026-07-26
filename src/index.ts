@@ -4,6 +4,7 @@ export type {
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { createSynapse } from "./core.js";
+export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
 // Cross-host UI client (push-first; ChatGPT / Claude / standalone). Additive —
 // the ext-apps `connect`/`createSynapse` paths above are unchanged.
 export { connectUI } from "./host/connect.js";
@@ -18,6 +19,9 @@ export {
   type SynapseUITheme,
 } from "./host/types.js";
 export { createStore } from "./store.js";
+// `applyThemeVariables` stays internal on purpose: a public vars-only entry
+// point is the half-theme footgun `applyTheme` exists to prevent.
+export { applyTheme, applyThemeFontFaces } from "./theme-defaults.js";
 export type {
   ActionReducer,
   AgentAction,
@@ -30,6 +34,7 @@ export type {
   DataChangedEvent,
   Dimensions,
   FileResult,
+  FontFaceDescriptor,
   HostInfo,
   KeyForwardConfig,
   NavigatePayload,

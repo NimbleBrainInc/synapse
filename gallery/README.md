@@ -27,8 +27,9 @@ cd gallery && npm run build   # → gallery/dist (base: "./", relative assets)
 
 ## Layout
 
-- **Foundations** — color swatches, the type scale (Erode / Satoshi / JetBrains
-  Mono), radius and shadow specimens.
+- **Foundations** — color swatches, the type scale, radius and shadow specimens.
+  Typography here is the gallery's own demo theme, not the SDK's: the library
+  ships no fonts and falls back to web-safe system stacks.
 - **Primitives** — Stack, Inline, Spacer, Divider.
 - **Components** — buttons & links, badges & status, inputs, list rows, cards &
   avatars, pagination, prose, empty state.

@@ -125,6 +125,15 @@ export const DEFAULTS_LAYER_NAME = "synapse-defaults";
 /** `id` of the single `<style>` element this module owns. */
 export const DEFAULTS_STYLE_ID = "synapse-theme-defaults";
 
+/** Custom properties this module last wrote inline, so a later apply clears only
+ *  what it owns and never an inline property the app set itself. */
+let appliedInlineKeys = new Set<string>();
+
+/** Test seam — forget what was written inline so a fresh apply is observable. */
+export function resetAppliedInlineKeys(): void {
+  appliedInlineKeys = new Set();
+}
+
 /**
  * Install the neutral defaults for `mode` as a cascade layer.
  *
@@ -177,17 +186,28 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
  *
  * The host's variables go inline on `documentElement`, where they outrank
  * everything; the neutral defaults for `mode` go into a cascade layer, where
- * they lose to any rule that actually declares the var. So the host wins for the
- * keys it provides through *either* channel — the protocol or a stylesheet it
- * injects — and a var nobody declares still resolves to a theme-correct default.
+ * they lose to any rule that actually declares the var. So a host value beats
+ * this module's default through *either* channel — the protocol or a stylesheet
+ * it injects — and a var nobody declares still resolves to a theme-correct
+ * default. Only the protocol channel also outranks the app: a host's injected
+ * stylesheet and the app's own `:root` are both unlayered rules of equal
+ * specificity, so document order decides between them, not this module.
  *
- * A defaulted key the incoming set does NOT carry is *removed* inline rather than
- * left behind, because a host may legitimately narrow its key set: stop sending a
- * var and it must stop applying, or it stays pinned inline forever where the
- * layer, the host's own stylesheet and the app's `:root` all cannot reach it.
- * Removing lets the cascade resolve it against those three in that order, which
- * is the property this module exists to establish, and is strictly less
- * destructive than overwriting the key with our own default.
+ * A key this module wrote on a previous call and the incoming set does NOT carry
+ * is *removed* inline rather than left behind, because a host may legitimately
+ * narrow its key set: stop sending a var and it must stop applying, or it stays
+ * pinned inline forever where the layer, the host's own stylesheet and the app's
+ * own rules all cannot reach it. Removing lets the cascade resolve it against
+ * those instead, which is the property this module exists to establish, and is
+ * strictly less destructive than overwriting the key with our own default.
+ *
+ * Tracked as the set of keys last written, not as `DEFAULT_THEME_VARS`'s keys.
+ * Those are two different sets: a host can send any spec-enum var, and ~25
+ * theme-sensitive ones (`--color-text-danger`, `--color-background-inverse`, …)
+ * have no neutral default, so keying the removal off the default map would pin
+ * exactly those at the previous mode's value. Tracking what we wrote also means
+ * this module never clears an inline property it did not set — an app writing its
+ * own `documentElement.style` is left alone.
  *
  * Today an empty var set also arrives for a reason that is a bug rather than a
  * narrowing — `core.ts` replaces the host context wholesale, so a partial
@@ -225,10 +245,11 @@ export function applyThemeVariables(
   }
 
   const root = document.documentElement.style;
-  for (const k of Object.keys(DEFAULT_THEME_VARS[mode])) {
+  for (const k of appliedInlineKeys) {
     if (!(k in incoming)) root.removeProperty(k);
   }
   for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
+  appliedInlineKeys = new Set(Object.keys(incoming));
 }
 
 /** The faces this module has added, so a re-apply replaces rather than accumulates. */

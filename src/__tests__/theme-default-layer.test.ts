@@ -32,6 +32,7 @@ import {
   DEFAULT_THEME_VARS,
   DEFAULTS_LAYER_NAME,
   DEFAULTS_STYLE_ID,
+  resetAppliedInlineKeys,
 } from "../theme-defaults.js";
 
 /** A key the neutral map backs, used as the subject of "can it be overridden". */
@@ -44,6 +45,7 @@ function someDefaultedKey(mode: "light" | "dark"): string {
 beforeEach(() => {
   document.getElementById(DEFAULTS_STYLE_ID)?.remove();
   document.documentElement.removeAttribute("style");
+  resetAppliedInlineKeys();
 });
 
 describe("the neutral default theme is a fallback, not an override", () => {
@@ -132,20 +134,25 @@ describe("a narrowed var set does not leave the previous one pinned inline", () 
     expect(document.documentElement.style.getPropertyValue("--color-text-primary")).toBe("#fafafa");
   });
 
-  it("leaves a non-defaulted host var alone — a known limit, not a guarantee", () => {
-    // `--font-sans` is not in the neutral map, so this function has no default to
-    // fall back to and nothing to clear it against. Pinning it forever is the
-    // consequence: a host that stops sending it cannot displace it even from its
-    // own stylesheet, because the value is still inline. Recorded as the current
-    // behaviour rather than as intent — the clear loop only knows the keys the
-    // neutral map defines, and widening it to every key the host ever sent would
-    // need this module to track that history.
+  it("clears a key with no neutral default too — tracked by what was written", () => {
+    // `--font-sans` has no entry in the neutral map, and ~25 theme-sensitive
+    // spec-enum vars (`--color-text-danger`, `--color-background-inverse`, …)
+    // don't either. Keying the removal off `DEFAULT_THEME_VARS` would pin exactly
+    // those at the previous mode's value, so it is keyed off what was written.
     applyThemeVariables("light", { "--font-sans": "'Brand', sans-serif" });
     applyThemeVariables("dark", {});
 
-    expect(document.documentElement.style.getPropertyValue("--font-sans")).toBe(
-      "'Brand', sans-serif",
-    );
+    expect(document.documentElement.style.getPropertyValue("--font-sans")).toBe("");
+  });
+
+  it("never clears an inline property the app set itself", () => {
+    // Tracking our own writes means an app driving `documentElement.style`
+    // directly is left alone — the previous key set was the neutral map, which
+    // would have removed this.
+    document.documentElement.style.setProperty("--color-text-accent", "#ff00ff");
+    applyThemeVariables("dark", {});
+
+    expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe("#ff00ff");
   });
 
   it("clears a defaulted key whose new value is not a usable string", () => {

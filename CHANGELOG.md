@@ -16,6 +16,12 @@ Makes the neutral default theme behave like a default. It was applied as inline 
 
   The host's protocol-delivered variables still go inline, so they continue to win over both the layer and any app rule. Overriding a default from an app now needs no `!important` — a plain `:root` rule is enough.
 
+- **A narrowed variable set no longer leaves the previous one pinned inline.** An ext-apps `host-context-changed` carries only the fields that changed, so a notification that flips mode while omitting `styles` reaches `applyThemeVariables` as an empty var set. Applying the defaults inline used to mask that by rewriting every defaulted key on each call; a layer cannot, because it cannot outrank an inline property. A defaulted key the incoming set does not carry is now removed inline, letting the cascade resolve it against the host's stylesheet, the app's rule, or the layer — rather than pinning the previous theme's values while the layer flips.
+
+### Note for hosts with a strict CSP
+
+The defaults now arrive as an injected `<style>` element rather than CSSOM writes on `documentElement`. A CSSOM write is outside CSP's reach; a `<style>` element is subject to `style-src`. A host serving the app document under `style-src` without `'unsafe-inline'` (or a nonce) will drop the default map, and every `ui` token then resolves to its static light `var()` fallback in both modes — the exact failure 0.10.2 fixed. Hosts that already allow inline styles for their own injected theme block are unaffected. If this becomes a real constraint, the escape hatch is a constructable `CSSStyleSheet` on `document.adoptedStyleSheets`, which is CSSOM and layer-capable both.
+
 ## [0.13.0] - 2026-07-26
 
 Moves typography onto the same host-wins footing as colour. The token contract could always *name* a font family (`--font-sans`), but a CSS custom property cannot carry the `@font-face` rule that loads one — and an app iframe is its own document, inheriting no faces from the host page. So a host sending only tokens was naming a typeface the app had no way to render. Hosts now send the faces alongside the tokens, and the SDK ships no font data at all.

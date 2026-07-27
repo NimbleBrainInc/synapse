@@ -9,10 +9,11 @@
  * and only breaks when the theme is toggled.
  *
  * This module closes that gap with a default layer the SDK controls and that
- * CAN branch on theme. {@link applyThemeVariables} writes the neutral defaults
- * for the active `mode` first, then the host's variables on top — so:
- *   - the host's (brand) values always win for the keys it provides, and
- *   - any var the host omits still resolves to a theme-correct neutral value.
+ * CAN branch on theme. {@link applyThemeVariables} puts the neutral defaults for
+ * the active `mode` in a cascade layer and the host's variables inline — so:
+ *   - the host's (brand) values always win for the keys it provides, through
+ *     either the protocol or a stylesheet it injects, and
+ *   - any var nobody declares still resolves to a theme-correct neutral value.
  *
  * It's the `var()` fallback, but able to branch on theme. The values stay
  * deliberately NEUTRAL (grays + a generic blue), never NimbleBrain brand —
@@ -146,6 +147,11 @@ export const DEFAULTS_STYLE_ID = "synapse-theme-defaults";
  * and repeat calls are cheap. SSR-safe.
  */
 function applyDefaultThemeLayer(mode: "light" | "dark"): void {
+  // Safe to concatenate ONLY because every key and value here is module-local
+  // (`DEFAULT_THEME_VARS`). `applyThemeFontFaces` below deliberately avoids
+  // building CSS text for exactly this reason — a host-supplied value containing
+  // `}` would escape the rule. Never fold host or app input into this template;
+  // host variables go through `setProperty`, which cannot escape.
   const declarations = Object.entries(DEFAULT_THEME_VARS[mode])
     .map(([k, v]) => `    ${k}: ${v};`)
     .join("\n");
@@ -160,8 +166,10 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
   const el = document.createElement("style");
   el.id = DEFAULTS_STYLE_ID;
   el.textContent = css;
-  // `head` is absent in some minimal test DOMs; `documentElement` always works.
-  (document.head ?? document.documentElement).prepend(el);
+  // Prepended so this is the first layer the document declares, which puts it
+  // first in layer order — an app that declares its own layers sorts after, and
+  // therefore wins. Unlayered app rules win regardless of DOM order.
+  document.head.prepend(el);
 }
 
 /**
@@ -172,6 +180,17 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
  * they lose to any rule that actually declares the var. So the host wins for the
  * keys it provides through *either* channel — the protocol or a stylesheet it
  * injects — and a var nobody declares still resolves to a theme-correct default.
+ *
+ * A defaulted key the incoming set does NOT carry is *removed* inline rather than
+ * left behind. This matters because an ext-apps `host-context-changed` carries
+ * only the fields that changed, so a notification that flips mode while omitting
+ * `styles` arrives here as an empty var set: without the removal, the host's
+ * previous (light) values stay pinned inline while the layer flips to dark, and
+ * the app renders half of each — `--color-text-secondary` on a retained white
+ * background computes to 2.56:1, under WCAG AA. Removing lets the cascade resolve
+ * the key against the host's stylesheet, the app's rule, or the layer, in that
+ * order, which is the property this module exists to establish. Strictly less
+ * destructive than overwriting the key with our own default.
  *
  * SSR-safe (no-ops when `document` is unavailable). Idempotent — re-applying on
  * every theme change is correct and cheap.
@@ -185,12 +204,14 @@ export function applyThemeVariables(
 ): void {
   if (typeof document === "undefined") return;
   applyDefaultThemeLayer(mode);
-  if (hostVars && typeof hostVars === "object") {
-    const root = document.documentElement.style;
-    for (const [k, v] of Object.entries(hostVars)) {
-      if (typeof k === "string" && typeof v === "string") {
-        root.setProperty(k, v);
-      }
+  const incoming = hostVars && typeof hostVars === "object" ? hostVars : {};
+  const root = document.documentElement.style;
+  for (const k of Object.keys(DEFAULT_THEME_VARS[mode])) {
+    if (!(k in incoming)) root.removeProperty(k);
+  }
+  for (const [k, v] of Object.entries(incoming)) {
+    if (typeof k === "string" && typeof v === "string") {
+      root.setProperty(k, v);
     }
   }
 }

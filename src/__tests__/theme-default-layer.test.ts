@@ -84,17 +84,53 @@ describe("the neutral default theme is a fallback, not an override", () => {
     applyThemeVariables("dark", null);
     applyThemeVariables("dark", null);
 
-    expect(document.querySelectorAll("style").length).toBe(1);
+    expect(document.querySelectorAll(`#${DEFAULTS_STYLE_ID}`).length).toBe(1);
+  });
+});
+
+describe("a narrowed var set does not leave the previous one pinned inline", () => {
+  // An ext-apps `host-context-changed` carries only the fields that changed, so a
+  // notification that flips mode while omitting `styles` reaches
+  // `applyThemeVariables` as an empty var set. Writing the defaults inline used to
+  // mask this by rewriting every defaulted key on every call; a layer cannot,
+  // because it can't outrank an inline property.
+  it("clears a defaulted key the new set omits, so the layer resolves it", () => {
+    applyThemeVariables("light", {
+      "--color-background-primary": "#ffffff",
+      "--color-text-primary": "#111827",
+    });
+    expect(document.documentElement.style.getPropertyValue("--color-background-primary")).toBe(
+      "#ffffff",
+    );
+
+    applyThemeVariables("dark", {});
+
+    // Nothing of the light palette may remain pinned — half-light/half-dark is
+    // worse than either, and put `--color-text-secondary` on a retained white
+    // background at 2.56:1, under WCAG AA.
+    for (const key of Object.keys(DEFAULT_THEME_VARS.dark)) {
+      expect(
+        document.documentElement.style.getPropertyValue(key),
+        `${key} is still pinned inline from the previous theme`,
+      ).toBe("");
+    }
   });
 
-  it("does not throw when the document has no head", () => {
-    // Some minimal test DOMs expose `documentElement` but no `head`.
-    const head = document.head;
-    Object.defineProperty(document, "head", { value: null, configurable: true });
-    try {
-      expect(() => applyThemeVariables("light", null)).not.toThrow();
-    } finally {
-      Object.defineProperty(document, "head", { value: head, configurable: true });
-    }
+  it("keeps a key the new set still carries", () => {
+    applyThemeVariables("light", { "--color-text-primary": "#111827" });
+    applyThemeVariables("dark", { "--color-text-primary": "#fafafa" });
+
+    expect(document.documentElement.style.getPropertyValue("--color-text-primary")).toBe("#fafafa");
+  });
+
+  it("leaves a non-defaulted host var alone — absent means unchanged", () => {
+    // `--font-sans` is not in the neutral map, so the SDK has no opinion on it and
+    // must not clear what the host set earlier.
+    applyThemeVariables("light", { "--font-sans": "'Brand', sans-serif" });
+    applyThemeVariables("dark", {});
+
+    expect(document.documentElement.style.getPropertyValue("--font-sans")).toBe(
+      "'Brand', sans-serif",
+    );
   });
 });

@@ -37,15 +37,23 @@ also ships a neutral default for every color token, in both modes, as a cascade
 layer named `synapse-defaults`.
 
 Because it is a layer, it loses to everything that actually declares the variable.
-For any token, the winner is the first of these that declares it:
+For any token, the winner is:
 
 1. **The host, over the protocol** — `hostContext.styles.variables`, applied as an
-   inline style on `:root`.
-2. **The host, via a stylesheet it injects** into your app document. Hosts need
-   this channel because `styles.variables` is a closed enum, so a design system
-   larger than that enum delivers the remainder this way.
-3. **Your app's own `:root` rule.**
-4. **`@layer synapse-defaults`** — the SDK's neutral value for the active mode.
+   inline style on `:root`. Inline outranks every stylesheet, so this always wins.
+2. **Any ordinary `:root` rule** — both the stylesheet a host injects into your app
+   document and your app's own CSS land here. Hosts need that channel because
+   `styles.variables` is a closed enum, so a design system larger than the enum
+   delivers the remainder as a stylesheet.
+3. **`@layer synapse-defaults`** — the SDK's neutral value for the active mode,
+   when nothing above declares the token.
+
+Tier 2 is one tier, not two: both are unlayered `:root` rules of identical
+specificity with no `!important`, so nothing in the cascade separates them and
+**whichever comes later in the document wins**. The NimbleBrain host injects its
+block at the top of `<head>`, ahead of your app's bundled styles — so against that
+host, your app's rule wins. A host token delivered by stylesheet is yours to
+override; a host token delivered over the protocol is not.
 
 Overriding an SDK default from your app therefore needs nothing special:
 

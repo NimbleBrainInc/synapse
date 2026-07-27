@@ -182,15 +182,19 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
  * injects — and a var nobody declares still resolves to a theme-correct default.
  *
  * A defaulted key the incoming set does NOT carry is *removed* inline rather than
- * left behind. This matters because an ext-apps `host-context-changed` carries
- * only the fields that changed, so a notification that flips mode while omitting
- * `styles` arrives here as an empty var set: without the removal, the host's
- * previous (light) values stay pinned inline while the layer flips to dark, and
- * the app renders half of each — `--color-text-secondary` on a retained white
- * background computes to 2.56:1, under WCAG AA. Removing lets the cascade resolve
- * the key against the host's stylesheet, the app's rule, or the layer, in that
- * order, which is the property this module exists to establish. Strictly less
+ * left behind, because a host may legitimately narrow its key set: stop sending a
+ * var and it must stop applying, or it stays pinned inline forever where the
+ * layer, the host's own stylesheet and the app's `:root` all cannot reach it.
+ * Removing lets the cascade resolve it against those three in that order, which
+ * is the property this module exists to establish, and is strictly less
  * destructive than overwriting the key with our own default.
+ *
+ * Today an empty var set also arrives for a reason that is a bug rather than a
+ * narrowing — `core.ts` replaces the host context wholesale, so a partial
+ * `host-context-changed` that omits `styles` reads as "no tokens" (#46;
+ * `connect.ts` already carries them forward). Fixing #46 is the better outcome —
+ * it keeps the host's brand across a mode flip instead of collapsing to our
+ * neutral — and does not make this loop unnecessary.
  *
  * SSR-safe (no-ops when `document` is unavailable). Idempotent — re-applying on
  * every theme change is correct and cheap.
@@ -204,16 +208,27 @@ export function applyThemeVariables(
 ): void {
   if (typeof document === "undefined") return;
   applyDefaultThemeLayer(mode);
-  const incoming = hostVars && typeof hostVars === "object" ? hostVars : {};
+
+  // ONE definition of "the host provided this key", read by both loops below.
+  // Wire data is untyped, so a key can arrive with a non-string value; that is
+  // not a provided value, so the clear loop must reach it. Two predicates —
+  // `k in hostVars` to clear, `typeof v === "string"` to write — leave such a key
+  // in the gap: neither removed nor written, so the previous theme's value stays
+  // pinned inline where the layer, the host's stylesheet and the app's `:root`
+  // all cannot reach it. That is the un-self-healing pin this module exists to
+  // eliminate, re-entered by a different door.
+  const incoming: Record<string, string> = {};
+  if (hostVars && typeof hostVars === "object") {
+    for (const [k, v] of Object.entries(hostVars)) {
+      if (typeof k === "string" && typeof v === "string") incoming[k] = v;
+    }
+  }
+
   const root = document.documentElement.style;
   for (const k of Object.keys(DEFAULT_THEME_VARS[mode])) {
     if (!(k in incoming)) root.removeProperty(k);
   }
-  for (const [k, v] of Object.entries(incoming)) {
-    if (typeof k === "string" && typeof v === "string") {
-      root.setProperty(k, v);
-    }
-  }
+  for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
 }
 
 /** The faces this module has added, so a re-apply replaces rather than accumulates. */

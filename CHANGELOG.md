@@ -20,7 +20,7 @@ Makes the neutral default theme behave like a default. It was applied as inline 
 
 ### Note for hosts with a strict CSP
 
-The defaults now arrive as an injected `<style>` element rather than CSSOM writes on `documentElement`. A CSSOM write is outside CSP's reach; a `<style>` element is subject to `style-src`. A host serving the app document under `style-src` without `'unsafe-inline'` (or a nonce) will drop the default map, and every `ui` token then resolves to its static light `var()` fallback in both modes — the exact failure 0.10.2 fixed. Hosts that already allow inline styles for their own injected theme block are unaffected. If this becomes a real constraint, the escape hatch is a constructable `CSSStyleSheet` on `document.adoptedStyleSheets`, which is CSSOM and layer-capable both.
+The defaults now arrive as an injected `<style>` element rather than CSSOM writes on `documentElement`. A CSSOM write is outside CSP's reach; a `<style>` element is subject to `style-src`. A host serving the app document under `style-src` without `'unsafe-inline'` (or a nonce) will drop the default map, and every `ui` token then resolves to its static light `var()` fallback in both modes — the exact failure 0.10.2 fixed. Hosts that already allow inline styles for their own injected theme block are unaffected. A browser without `@layer` support (Safari < 15.4) discards the block for the same net effect — the SDK's supported floor is above that, but it is the same failure if a consumer targets lower. If this becomes a real constraint, the escape hatch is a constructable `CSSStyleSheet` on `document.adoptedStyleSheets`, which is CSSOM and layer-capable both.
 
 ## [0.13.0] - 2026-07-26
 

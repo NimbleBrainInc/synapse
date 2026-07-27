@@ -28,6 +28,37 @@ handshake, and the host re-sends it whenever the theme changes (the
 re-resolves against that block, so filling the variables is all it takes to brand
 the whole component.
 
+## Who wins: the resolution order
+
+A `var()` fallback is a static literal, so it cannot branch on light versus dark. A
+token the host never fills would otherwise resolve to its single hardcoded light
+fallback in *both* themes — white-on-white the moment the theme flips. So the SDK
+also ships a neutral default for every color token, in both modes, as a cascade
+layer named `synapse-defaults`.
+
+Because it is a layer, it loses to everything that actually declares the variable.
+For any token, the winner is the first of these that declares it:
+
+1. **The host, over the protocol** — `hostContext.styles.variables`, applied as an
+   inline style on `:root`.
+2. **The host, via a stylesheet it injects** into your app document. Hosts need
+   this channel because `styles.variables` is a closed enum, so a design system
+   larger than that enum delivers the remainder this way.
+3. **Your app's own `:root` rule.**
+4. **`@layer synapse-defaults`** — the SDK's neutral value for the active mode.
+
+Overriding an SDK default from your app therefore needs nothing special:
+
+```css
+/* Wins over the SDK default. No !important, no layer of your own. */
+:root {
+  --color-text-accent: #ff6600;
+}
+```
+
+If you declare your own cascade layers, they sort *after* `synapse-defaults` and so
+win over it too.
+
 ## Theming resolves in CSS, not React
 
 Components style with token-driven inline-style objects whose values are those
@@ -43,10 +74,12 @@ there is nothing to invalidate. A theme change is a repaint, not a render pass.
 ## Standalone, the fallbacks win
 
 With no host to inject anything (a static render, a Storybook page, a unit test),
-each token falls back to its second argument: system fonts, neutral grays, a
-generic accent. The component renders unbranded but complete, never blank. That is
-also what the standalone `inline` adapter relies on when a component runs with no
-host at all.
+color tokens resolve through the `synapse-defaults` layer above, so they stay
+theme-correct in dark as well as light. Everything the layer does not cover — fonts,
+radii, shadows — falls back to its `var()` second argument: system fonts and neutral
+geometry. The component renders unbranded but complete, never blank. That is also
+what the standalone `inline` adapter relies on when a component runs with no host at
+all.
 
 ## What this buys you
 

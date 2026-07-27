@@ -13,8 +13,17 @@
  * any host whose design system is larger than the enum has to deliver the
  * remainder as a stylesheet — that is the only channel available to it.
  *
- * These tests pin the property rather than the mechanism: whatever the map grows
- * to, nothing in it may be applied in a way that outranks a declaration.
+ * These tests assert the MECHANISM — that the defaults land in a layer and that
+ * nothing in the map is written inline — not the cascade outcome. happy-dom does
+ * not compute cascade layers, so "unlayered beats layered" cannot be observed
+ * here; a green suite is not evidence of it. That half is verified by hand in a
+ * real browser (Chrome 148, recorded on the PR): with the layer, a host's
+ * injected `:root` and an app's own `:root` both win, and an undeclared var still
+ * resolves to the neutral default in both modes.
+ *
+ * The mechanism is nonetheless the right thing to pin, because it is the part a
+ * future edit can silently reverse: put one default back inline and the cascade
+ * outcome changes everywhere at once.
  */
 
 import { beforeEach, describe, expect, it } from "vitest";
@@ -123,14 +132,30 @@ describe("a narrowed var set does not leave the previous one pinned inline", () 
     expect(document.documentElement.style.getPropertyValue("--color-text-primary")).toBe("#fafafa");
   });
 
-  it("leaves a non-defaulted host var alone — absent means unchanged", () => {
-    // `--font-sans` is not in the neutral map, so the SDK has no opinion on it and
-    // must not clear what the host set earlier.
+  it("leaves a non-defaulted host var alone — a known limit, not a guarantee", () => {
+    // `--font-sans` is not in the neutral map, so this function has no default to
+    // fall back to and nothing to clear it against. Pinning it forever is the
+    // consequence: a host that stops sending it cannot displace it even from its
+    // own stylesheet, because the value is still inline. Recorded as the current
+    // behaviour rather than as intent — the clear loop only knows the keys the
+    // neutral map defines, and widening it to every key the host ever sent would
+    // need this module to track that history.
     applyThemeVariables("light", { "--font-sans": "'Brand', sans-serif" });
     applyThemeVariables("dark", {});
 
     expect(document.documentElement.style.getPropertyValue("--font-sans")).toBe(
       "'Brand', sans-serif",
     );
+  });
+
+  it("clears a defaulted key whose new value is not a usable string", () => {
+    // Wire data is untyped. A non-string value is not a provided value, so it must
+    // reach the clear loop rather than falling between the two: `k in hostVars`
+    // would skip the removal while `typeof v === "string"` skips the write, and
+    // the previous theme's value would stay pinned inline.
+    applyThemeVariables("light", { "--color-text-primary": "#111827" });
+    applyThemeVariables("dark", { "--color-text-primary": 42 as unknown as string });
+
+    expect(document.documentElement.style.getPropertyValue("--color-text-primary")).toBe("");
   });
 });

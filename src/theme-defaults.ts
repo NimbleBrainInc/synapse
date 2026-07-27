@@ -118,15 +118,63 @@ export const DEFAULT_THEME_VARS: Record<"light" | "dark", Record<string, string>
   dark: DARK,
 };
 
+/** Cascade layer holding the neutral defaults. Named so an app can order it. */
+export const DEFAULTS_LAYER_NAME = "synapse-defaults";
+
+/** `id` of the single `<style>` element this module owns. */
+export const DEFAULTS_STYLE_ID = "synapse-theme-defaults";
+
 /**
- * Apply theme CSS custom properties onto `document.documentElement`.
+ * Install the neutral defaults for `mode` as a cascade layer.
  *
- * Writes the neutral defaults for `mode` FIRST, then the host's variables on
- * top — so the host's values win for the keys it provides, and any var it omits
- * still resolves to a theme-correct neutral default.
+ * A layer, not inline properties on `documentElement`, and that distinction is
+ * the whole point: **a default has to lose.** An inline style outranks every
+ * author stylesheet, so writing defaults there made them beat any rule a host or
+ * app had written for the same var — the opposite of a fallback.
  *
- * SSR-safe (no-ops when `document` is unavailable). Idempotent — `setProperty`
- * overwrites, so re-applying on every theme change is correct and cheap.
+ * A host cannot always deliver a var through the protocol.
+ * `hostContext.styles.variables` is a closed enum, so a host whose design system
+ * is larger than that enum has to put the remainder in a stylesheet it injects
+ * into the app document. Those declarations are ordinary unlayered author rules.
+ * Unlayered beats layered, so they now win — while a var nobody declares still
+ * resolves to a neutral default, which is what this map is for.
+ *
+ * An app's own `:root` rule wins for the same reason, so overriding a default
+ * needs no `!important` and no knowledge of this module.
+ *
+ * One element, replaced in place, so a mode flip swaps the whole map atomically
+ * and repeat calls are cheap. SSR-safe.
+ */
+function applyDefaultThemeLayer(mode: "light" | "dark"): void {
+  const declarations = Object.entries(DEFAULT_THEME_VARS[mode])
+    .map(([k, v]) => `    ${k}: ${v};`)
+    .join("\n");
+  const css = `@layer ${DEFAULTS_LAYER_NAME} {\n  :root {\n${declarations}\n  }\n}`;
+
+  const existing = document.getElementById(DEFAULTS_STYLE_ID);
+  if (existing) {
+    // Avoid a needless style invalidation when the mode hasn't changed.
+    if (existing.textContent !== css) existing.textContent = css;
+    return;
+  }
+  const el = document.createElement("style");
+  el.id = DEFAULTS_STYLE_ID;
+  el.textContent = css;
+  // `head` is absent in some minimal test DOMs; `documentElement` always works.
+  (document.head ?? document.documentElement).prepend(el);
+}
+
+/**
+ * Apply theme CSS custom properties to the app document.
+ *
+ * The host's variables go inline on `documentElement`, where they outrank
+ * everything; the neutral defaults for `mode` go into a cascade layer, where
+ * they lose to any rule that actually declares the var. So the host wins for the
+ * keys it provides through *either* channel — the protocol or a stylesheet it
+ * injects — and a var nobody declares still resolves to a theme-correct default.
+ *
+ * SSR-safe (no-ops when `document` is unavailable). Idempotent — re-applying on
+ * every theme change is correct and cheap.
  *
  * Prefer {@link applyTheme}: it applies variables *and* font faces together, so
  * a caller cannot wire up half a theme.
@@ -136,11 +184,9 @@ export function applyThemeVariables(
   hostVars: Record<string, string> | undefined | null,
 ): void {
   if (typeof document === "undefined") return;
-  const root = document.documentElement.style;
-  for (const [k, v] of Object.entries(DEFAULT_THEME_VARS[mode])) {
-    root.setProperty(k, v);
-  }
+  applyDefaultThemeLayer(mode);
   if (hostVars && typeof hostVars === "object") {
+    const root = document.documentElement.style;
     for (const [k, v] of Object.entries(hostVars)) {
       if (typeof k === "string" && typeof v === "string") {
         root.setProperty(k, v);

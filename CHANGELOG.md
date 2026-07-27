@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.1] - 2026-07-27
+
+Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.
+
+### Fixed
+
+- **A default no longer overrides the host.** `applyThemeVariables` now installs `DEFAULT_THEME_VARS` as a `@layer synapse-defaults` stylesheet instead of writing it to `documentElement.style`. An unlayered rule outranks a layered one, so a host's or app's own `:root` declaration wins, while a var nobody declares still resolves to a theme-correct neutral default — which is what the map was always documented to do.
+
+  This mattered because `hostContext.styles.variables` is a closed enum: a host whose design system is larger than that enum has to deliver the remainder as a stylesheet injected into the app document, and that is the only channel available to it. Every such var that the SDK also defaulted was silently replaced by the SDK's value, permanently, with no self-heal path. A host sending its brand accent that way rendered in the SDK's neutral blue instead.
+
+  The host's protocol-delivered variables still go inline, so they continue to win over both the layer and any app rule. Overriding a default from an app now needs no `!important` — a plain `:root` rule is enough.
+
 ## [0.13.0] - 2026-07-26
 
 Moves typography onto the same host-wins footing as colour. The token contract could always *name* a font family (`--font-sans`), but a CSS custom property cannot carry the `@font-face` rule that loads one — and an app iframe is its own document, inheriting no faces from the host page. So a host sending only tokens was naming a typeface the app had no way to render. Hosts now send the faces alongside the tokens, and the SDK ships no font data at all.
@@ -100,6 +112,8 @@ Makes the `Drawer` header affordances first-class so consumers stop re-rolling t
 
 
 
+## [0.9.0] - 2026-06-07
+
 Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so embedded Synapse apps share one system with per-host personality. Components hold no brand; the host injects the theme via CSS variables (`hostContext.styles.variables`), so the same app adopts any host's look with no re-render. Purely additive — no changes to existing exports. See [PR #12](https://github.com/NimbleBrainInc/synapse/pull/12).
 
 ### Added
@@ -111,6 +125,8 @@ Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so
 - `@nimblebrain/synapse/ui/fonts` subpath for font wiring.
 
 
+
+## [0.8.0] - 2026-04-27
 
 Fixes the file picker, which was effectively dead in NimbleBrain hosts and inflated bytes through tool-call JSON. `pickFile` / `pickFiles` now resolve to a stable workspace file ID; the host persists the bytes server-side over multipart.
 

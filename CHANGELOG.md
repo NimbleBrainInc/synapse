@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.13.1] - 2026-07-27
+## [0.14.0] - 2026-07-27
 
 Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.
 

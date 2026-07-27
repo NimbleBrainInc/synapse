@@ -36,10 +36,13 @@ Because resolution happens in CSS, a theme change (including a light-to-dark
 flip) is just the host swapping those variables. Every `var()` re-resolves and
 the UI repaints with **no React re-render**.
 
-**Standalone, the fallbacks win.** With no host to inject anything (a static
-render, a Storybook, a unit test), each token falls back to its second argument:
-system fonts, neutral grays, a generic blue, plain radii. The library stays
-usable and unbranded rather than blank.
+**Standalone, the library still renders.** With no host to inject anything (a
+static render, a Storybook, a unit test), color tokens resolve through the
+`synapse-defaults` cascade layer, so they stay theme-correct in dark as well as
+light — a `var()` fallback is a static literal and cannot do that. Everything the
+layer does not cover — fonts, radii, shadows — falls back to its second argument:
+system fonts and plain geometry. The library stays usable and unbranded rather
+than blank. See [Theming](/docs/concepts/theming/) for the full resolution order.
 
 ## Surfaces
 

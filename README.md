@@ -48,7 +48,6 @@ component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
 | `@nimblebrain/synapse` | Vanilla JS core — `connect()`, `createSynapse()`, `createStore()` |
 | `@nimblebrain/synapse/react` | React hooks and providers (`AppProvider`, `SynapseProvider`) |
 | `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
-| `@nimblebrain/synapse/ui/fonts` | Side-effect import that loads the brand fonts into the iframe |
 | `@nimblebrain/synapse/ui/base` | Side-effect import that establishes the root-height chain (`html, body, #root`) the app shell fills. `AppFrame` does this automatically on render; import it in your entry to apply it before first paint |
 | `@nimblebrain/synapse/vite` | Vite plugin for dev mode |
 | `@nimblebrain/synapse/codegen` | CLI + programmatic code generation |
@@ -67,9 +66,14 @@ every token and component in light/dark across several themes.
 These are the durable decisions behind the library; they rarely change.
 
 - **The library holds no brand.** Tokens are `var(--token, neutral-fallback)`
-  references, not hex values. The host injects the real palette/fonts at runtime
+  references, not hex values. The host injects the real palette at runtime
   (the MCP ext-apps `hostContext.styles.variables`), so the same app adopts
   whatever host it runs in. Standalone, it renders in neutral fallbacks.
+- **That includes typography — the SDK ships no fonts.** Font fallbacks are
+  web-safe system stacks, so an app renders correctly with no host, no network,
+  and no font files. A host that wants its own typeface sends `@font-face`
+  descriptors on the theme; the library fetches nothing on its own. See
+  [Host fonts](#host-fonts).
 - **Theme via CSS, not React.** Components style with token-driven inline-style
   objects whose values are those `var()` refs, so theming — including light/dark —
   resolves in CSS with no re-render. `ensureStyle` injects keyframes and
@@ -86,6 +90,54 @@ These are the durable decisions behind the library; they rarely change.
   `<dialog>`: the app iframe withholds `allow-modals`, so `<dialog>.showModal()`
   throws there. The scrim, Tab focus trap, focus-in/restore, scroll-lock, and
   Escape are hand-rolled.
+
+### Host fonts
+
+A CSS custom property can *name* a font family but cannot *load* one, and an app
+iframe is its own document — it inherits no `@font-face` from the host page. So a
+host that sends only tokens is naming a typeface the app has no way to render.
+`SynapseTheme.fontFaces` closes that gap: the host sends the faces alongside the
+tokens, and the SDK loads them into the app document.
+
+```ts
+// Host side — sent as the `synapse/fontFaces` host-context extension.
+{
+  mode: "dark",
+  tokens: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
+  fontFaces: [
+    { family: "Your Sans", src: "url('/fonts/your-sans.woff2') format('woff2')", weight: "400 700" },
+  ],
+}
+```
+
+| Field | Notes |
+|---|---|
+| `family` | Must match the family named in the host's `--font-*` token value. |
+| `src` | Any CSS `src` descriptor — relative (`url('/fonts/x.woff2')`), absolute (`url('https://cdn.example/x.woff2')`), or `data:`. |
+| `weight` | Single weight (`400`) or a variable range (`400 700`). Optional. |
+| `style` | `normal`, `italic`, … Optional. |
+| `display` | Defaults to `swap`, so text paints in the fallback rather than blocking. Optional. |
+
+Three things worth knowing:
+
+- **Sending no fonts is a supported configuration, not a degraded one.** Omit
+  `fontFaces` and the app renders in the web-safe fallbacks (`system-ui`,
+  `ui-monospace`, `Georgia`).
+- **Give every `--font-*` token value a web-safe tail.** A bare family name with
+  no matching face falls through to the browser default, not to your intended
+  stack. `"'Your Sans', system-ui, sans-serif"`, never `"'Your Sans'"`.
+- **The URL must satisfy the app iframe's CSP — and `'self'` may not mean what
+  you expect.** A host that mounts apps in a `srcdoc` iframe *without*
+  `allow-same-origin` (the usual choice, since granting it to third-party app
+  HTML is a sandbox escape) gives the frame an **opaque origin**, and CSP
+  `'self'` then matches nothing. Under a typical `font-src 'self' data:`, a
+  `data:` URI is the only form that works unconditionally; any http(s) URL —
+  self-hosted or CDN — needs the host to add that origin to the frame's CSP.
+  Check the host's policy before choosing between them.
+
+Faces are applied through the same funnel as the token variables
+(`applyTheme`), so a theme change can never leave an app with the host's palette
+under the wrong typeface.
 
 ## Quick Start
 

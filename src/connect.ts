@@ -24,10 +24,11 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
+import { extractFontFaces, foldFontFaces } from "./detection.js";
 import { resolveEventMethod } from "./event-map.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
-import { applyThemeVariables } from "./theme-defaults.js";
+import { applyTheme } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type { App, ConnectOptions, Dimensions, Theme, ToolCallResult } from "./types.js";
 
@@ -92,12 +93,14 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
     const ctx: McpUiHostContext | undefined = result.hostContext;
     if (ctx) {
+      const initialFontFaces = extractFontFaces(ctx);
       currentTheme = {
         mode: ctx.theme === "dark" ? "dark" : "light",
         tokens:
           ctx.styles?.variables && typeof ctx.styles.variables === "object"
             ? (ctx.styles.variables as Record<string, string>)
             : {},
+        ...(initialFontFaces ? { fontFaces: initialFontFaces } : {}),
       };
 
       if (ctx.toolInfo && typeof ctx.toolInfo === "object") {
@@ -108,8 +111,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
       }
 
       // Inject the theme into the DOM: neutral defaults for the mode back any
-      // var the host omits, then host values win.
-      applyThemeVariables(currentTheme.mode, currentTheme.tokens);
+      // var the host omits, then host values win. Any host-supplied font faces
+      // load alongside — a token names a family, it cannot load one.
+      applyTheme(currentTheme.mode, currentTheme.tokens, currentTheme.fontFaces);
     }
   }
 
@@ -125,8 +129,11 @@ export async function connect(options: ConnectOptions): Promise<App> {
       variables && typeof variables === "object"
         ? (variables as Record<string, string>)
         : currentTheme.tokens;
-    currentTheme = { mode, tokens };
-    applyThemeVariables(mode, tokens);
+    // A host-context-changed carries only the fields that changed; `foldFontFaces`
+    // owns what an absent or unusable list means (see its doc).
+    const fontFaces = foldFontFaces(currentTheme.fontFaces, ctx);
+    currentTheme = { mode, tokens, ...(fontFaces ? { fontFaces } : {}) };
+    applyTheme(mode, tokens, fontFaces);
     const set = handlers.get(HOST_CONTEXT_CHANGED_METHOD);
     if (set) {
       for (const handler of set) handler(currentTheme);

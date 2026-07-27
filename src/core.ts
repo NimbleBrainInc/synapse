@@ -20,17 +20,18 @@ import type {
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { detectHost, extractTheme } from "./detection.js";
+import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { parseToolResult } from "./result-parser.js";
 import { callToolAsTask as callToolAsTaskImpl, createTaskStatusRouter } from "./task-handle.js";
-import { applyThemeVariables } from "./theme-defaults.js";
+import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
   CallToolAsTaskOptions,
   DataChangedEvent,
   FileResult,
+  FontFaceDescriptor,
   HostInfo,
   RequestFileOptions,
   Synapse,
@@ -67,6 +68,31 @@ export function createSynapse(options: SynapseOptions): Synapse {
   // populates a `workspace` field). `getTheme()` and any other typed view
   // is derived from this object — no parallel state.
   let currentHostContext: McpUiHostContext = {};
+  // Font faces are the one derived value that must NOT be recomputed from a
+  // replaced context. A `host-context-changed` carries only the fields that
+  // changed (per the ext-apps `McpUiHostContextChangedNotification` params
+  // doc), so a bare `{ theme: "dark" }` toggle would otherwise re-derive
+  // "no fonts" and unload the host's typeface mid-session — far more visible
+  // than the equivalent for a colour token. Sticky here, cleared only by an
+  // explicit empty list from the host.
+  let currentFontFaces: FontFaceDescriptor[] | undefined;
+
+  /** Fold a (possibly partial) context's faces into the sticky set. */
+  function syncFontFaces(ctx: McpUiHostContext): FontFaceDescriptor[] | undefined {
+    currentFontFaces = foldFontFaces(currentFontFaces, ctx);
+    return currentFontFaces;
+  }
+
+  /**
+   * The theme as reported to consumers: derived from the context, with the
+   * sticky faces folded back in. Every public view goes through here —
+   * `getTheme()`, the `onThemeChanged` payload, and its equality filter — so
+   * they cannot disagree with each other or with what is actually loaded.
+   */
+  function resolveTheme(ctx: McpUiHostContext): SynapseTheme {
+    const theme = extractTheme(ctx);
+    return currentFontFaces ? { ...theme, fontFaces: currentFontFaces } : theme;
+  }
   // Module-private store for the host's declared `tasks` capability. Kept
   // in the closure (not on Synapse) so `callToolAsTask` reads it without
   // expanding the public surface. `null` before the handshake completes;
@@ -130,7 +156,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
       // back any var the host omits (theme-correct), then host values win.
       {
         const theme = extractTheme(currentHostContext);
-        applyThemeVariables(theme.mode, theme.tokens);
+        applyTheme(theme.mode, theme.tokens, syncFontFaces(currentHostContext));
       }
 
       // Notify subscribers so React hooks (useTheme, useHostContext) and
@@ -143,12 +169,19 @@ export function createSynapse(options: SynapseOptions): Synapse {
       keyboard = new KeyboardForwarder(transport, forwardKeys);
     });
 
-  // Listen for host context changes (ext-apps spec). Notifications carry a
-  // full snapshot of the host context, so we replace — never merge.
+  // Listen for host context changes (ext-apps spec). The notification's params
+  // are a PARTIAL update — only the fields that changed — so `currentHostContext`
+  // being replaced wholesale here means any field the host omits is re-derived as
+  // absent. That is long-standing behaviour for the spec fields (a subscriber
+  // reads the notification as sent); fonts opt out via `syncFontFaces` because
+  // unloading a typeface on an unrelated toggle is a visible break, not a
+  // no-op. Making the whole context merge is a wider change than this one
+  // concerns: it also wipes the host's tokens, and fixing it changes what every
+  // subscriber observes. Tracked in #46.
   const unsubHostContext = transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
     currentHostContext = (params ?? {}) as McpUiHostContext;
     const theme = extractTheme(currentHostContext);
-    applyThemeVariables(theme.mode, theme.tokens);
+    applyTheme(theme.mode, theme.tokens, syncFontFaces(currentHostContext));
     for (const cb of hostContextCallbacks) cb(currentHostContext);
   });
 
@@ -264,7 +297,7 @@ export function createSynapse(options: SynapseOptions): Synapse {
     },
 
     getTheme(): SynapseTheme {
-      return extractTheme(currentHostContext);
+      return resolveTheme(currentHostContext);
     },
 
     // Selector over `onHostContextChanged`: only fires when the *derived*
@@ -281,9 +314,9 @@ export function createSynapse(options: SynapseOptions): Synapse {
     //    current derived theme, so a workspace-only `host-context-changed`
     //    notification correctly filters as a no-op.
     onThemeChanged(callback: (theme: SynapseTheme) => void): () => void {
-      let prev: SynapseTheme | null = hostInfo !== null ? extractTheme(currentHostContext) : null;
+      let prev: SynapseTheme | null = hostInfo !== null ? resolveTheme(currentHostContext) : null;
       const wrapped = (ctx: McpUiHostContext) => {
-        const next = extractTheme(ctx);
+        const next = resolveTheme(ctx);
         if (prev !== null && themesEqual(prev, next)) return;
         prev = next;
         callback(next);
@@ -454,9 +487,12 @@ function validateFileResult(value: unknown): FileResult {
 
 /** Shallow equality for `SynapseTheme` — used by `onThemeChanged` to filter
  *  host-context changes that don't actually move the theme (e.g. a workspace
- *  switch that leaves theme/styles untouched). Cheap; tokens are ~40 entries. */
+ *  switch that leaves theme/styles untouched). Cheap; tokens are ~40 entries.
+ *  Typography counts: a host can swap typeface without touching mode or tokens,
+ *  and that must still reach subscribers. */
 function themesEqual(a: SynapseTheme, b: SynapseTheme): boolean {
   if (a.mode !== b.mode || a.primaryColor !== b.primaryColor) return false;
+  if (fontFacesKey(a.fontFaces) !== fontFacesKey(b.fontFaces)) return false;
   const aKeys = Object.keys(a.tokens);
   const bKeys = Object.keys(b.tokens);
   if (aKeys.length !== bKeys.length) return false;

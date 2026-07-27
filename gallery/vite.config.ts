@@ -10,7 +10,6 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@nimblebrain/synapse/ui/fonts": resolve(__dirname, "../dist/ui/fonts.js"),
       "@nimblebrain/synapse/ui": resolve(__dirname, "../dist/ui/index.js"),
     },
   },

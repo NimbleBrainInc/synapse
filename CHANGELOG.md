@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.0] - 2026-07-26
+
+Moves typography onto the same host-wins footing as colour. The token contract could always *name* a font family (`--font-sans`), but a CSS custom property cannot carry the `@font-face` rule that loads one — and an app iframe is its own document, inheriting no faces from the host page. So a host sending only tokens was naming a typeface the app had no way to render. Hosts now send the faces alongside the tokens, and the SDK ships no font data at all.
+
+### Added
+
+- **Host fonts on the cross-host client.** The `mcpapps` adapter (the MCP Apps standard path, which both Claude and the NimbleBrain runtime route through) carries `synapse/fontFaces` into `SynapseUITheme`, so `connectUI` apps receive host typography too. ChatGPT's Apps SDK supplies only a mode string, so that adapter cannot.
+- **`SynapseTheme.fontFaces`** — an optional list of `@font-face` descriptors (`family`, `src`, and optional `weight` / `style` / `display`) a host sends to style the app in its own typeface. Arrives over the wire as the `synapse/fontFaces` host-context extension (`McpUiHostContext` declares `[key: string]: unknown` for forward compatibility, so this is spec-legal; hosts that omit it are unaffected). `src` takes any CSS `src` descriptor, so relative paths (`url('/fonts/x.woff2')`), absolute URLs, and `data:` URIs all work — whatever origin it names must satisfy the app iframe's `font-src` CSP.
+- **`applyTheme(mode, tokens, fontFaces?)`** — internal, and now the single funnel by which theming reaches the DOM, replacing bare `applyThemeVariables` at all six call sites (both connection paths' handshake and `host-context-changed`, plus `<SynapseProvider>` and `applyHostTheme`). Colour and typography travel together deliberately: a vars-only *or* faces-only entry point invites a caller to wire one and forget the other, shipping a host's palette under the wrong typeface. The package's public surface is unchanged — no theming entry point is exported, since every funnel call is inside the SDK.
+
+### Fixed
+
+- **Loaded faces survive a partial `host-context-changed`.** The ext-apps notification carries only the fields that changed, so a bare `{ theme: "dark" }` toggle must not be read as "the host has no fonts". One rule now holds end to end — at the wire, in both connection paths, and at the sink: **absent means unchanged, an explicit list (including empty) replaces.** `applyTheme(mode, tokens)` therefore leaves loaded faces alone rather than wiping them. Without this a dark-mode toggle dropped the app's typeface mid-session, including under `<SynapseProvider>`, whose `ThemeInjector` re-applies the theme a tick after the transport handler.
+- **`getTheme()` and the `onThemeChanged` payload agree with the DOM.** Both resolve through the same fold, so neither reports typography the app isn't actually using.
+- **A fonts-only host change reaches theme subscribers.** `onThemeChanged`'s equality filter compares font faces, so a host swapping typeface without touching mode or tokens no longer updates the DOM while every `useTheme()` consumer reports the old faces.
+
+### Breaking
+
+- **`@nimblebrain/synapse/ui/fonts` is removed.** It injected a Fontshare stylesheet for one host's brand from inside a general-purpose library — fetching a third-party CDN as an import side effect, into a sandboxed iframe whose CSP blocked it anyway. A library that hardcodes a consumer's brand doesn't merely couple to it: it rots silently when that consumer rebrands, which is exactly what happened here.
+
+  **Migration.** Delete `import "@nimblebrain/synapse/ui/fonts"` from your app entry; the app then renders in web-safe fallbacks until its host sends `fontFaces`. Existing apps pinned to `^0.11.0` / `^0.12.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
+
+### Changed
+
+- **The no-host path is now a supported configuration, not a degraded one.** With no host, no network and no font files, an app renders in web-safe stacks (`system-ui` / `ui-monospace` / `Georgia`) — pinned by test, along with the guarantees that the SDK names no font CDN and carries no font binaries. Hosts should still give every `--font-*` token value a web-safe tail: a bare family name with no matching face falls through to the browser default.
+
 ## [0.12.2] - 2026-07-24
 
 ### Fixed

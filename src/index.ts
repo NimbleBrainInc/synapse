@@ -4,6 +4,7 @@ export type {
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { createSynapse } from "./core.js";
+export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
 // Cross-host UI client (push-first; ChatGPT / Claude / standalone). Additive —
 // the ext-apps `connect`/`createSynapse` paths above are unchanged.
 export { connectUI } from "./host/connect.js";
@@ -30,6 +31,8 @@ export type {
   DataChangedEvent,
   Dimensions,
   FileResult,
+  FontDisplayValue,
+  FontFaceDescriptor,
   HostInfo,
   KeyForwardConfig,
   NavigatePayload,

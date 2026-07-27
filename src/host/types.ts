@@ -18,6 +18,8 @@
  * hatch — apps should rarely branch on it; `capabilities()` is the supported way
  * to feature-detect. `"nimblebrain"` is reserved for the runtime adapter (P3).
  */
+import type { FontFaceDescriptor } from "../types.js";
+
 export type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
 
 /** Resolved theme. `mode` always resolves to light or dark. `tokens` are CSS
@@ -27,6 +29,9 @@ export type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
 export interface SynapseUITheme {
   mode: "light" | "dark";
   tokens: Record<string, string>;
+  /** Font faces the host wants loaded. Absent where the host sends none, which
+   *  leaves the SDK's web-safe fallbacks in force. See `FontFaceDescriptor`. */
+  fontFaces?: FontFaceDescriptor[];
 }
 
 /** What the active host actually supports. `data()`/`onData()`/`theme()`/

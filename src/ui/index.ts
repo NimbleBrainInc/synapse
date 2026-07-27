@@ -6,7 +6,11 @@
  * variables (so theming and light/dark work via CSS, no re-render). Brand
  * values are NOT held here — they arrive by injection; fallbacks are neutral.
  *
- * Load brand fonts with a side-effect import: `import "@nimblebrain/synapse/ui/fonts"`.
+ * That includes typography. The fallbacks are web-safe system stacks, so an app
+ * renders correctly with no host, no network, and no font files. A host that
+ * wants its own typeface sends `@font-face` descriptors on the theme
+ * (`SynapseTheme.fontFaces`) and the SDK loads them — the SDK itself ships no
+ * font data and fetches nothing.
  */
 
 // Tier C — components
@@ -24,8 +28,6 @@ export { SegmentedControl } from "./components/SegmentedControl.js";
 export { Spinner } from "./components/Spinner.js";
 export { type Status, StatusDot } from "./components/StatusDot.js";
 export { type Column, Table } from "./components/Table.js";
-// Brand fonts are loaded via a side-effect import: `import "@nimblebrain/synapse/ui/fonts"`.
-// (Not re-exported here — that would make importing the barrel inject fonts.)
 // Tier B — layout scaffolds + responsive hooks
 export { AppFrame } from "./layouts/AppFrame.js";
 export { ListDetailLayout, useListDetail } from "./layouts/ListDetailLayout.js";

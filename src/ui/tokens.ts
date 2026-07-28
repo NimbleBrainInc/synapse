@@ -13,6 +13,8 @@
  * NimbleBrain brand. Brand arrives by injection when the app runs inside the
  * NimbleBrain host; standalone/static renders get a sane
  * unbranded default. This keeps the library host-agnostic.
+ * `__tests__/ui/tokens.test.ts` holds the line: every hex in these fallbacks
+ * must be in the sanctioned set, same as `theme-defaults.ts`.
  *
  * Components import the static `tokens` object and style with CSS `var()`, so
  * theming (incl. light/dark) resolves in CSS with no re-render.

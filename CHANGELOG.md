@@ -19,7 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Typography got a guard in 0.13.0; colour had none, which is how a brand orange sat in the map across two releases while the docblock above it claimed the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
+- **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` *and* in the `tokens` `var()` fallbacks must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Both maps, because both are the unbranded-default claim and the brand orange sat in both: one is the block the SDK injects, the other is what each component resolves against when a host declares nothing. Typography got a guard in 0.13.0; colour had none, which is how that orange survived two releases under docblocks claiming the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
 
 ## [0.14.0] - 2026-07-27
 

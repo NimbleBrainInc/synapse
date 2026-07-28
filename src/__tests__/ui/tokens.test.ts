@@ -34,8 +34,14 @@ describe("token contract", () => {
   it("backs every default with an unbranded value, never a brand hex", () => {
     // The font side got a guard in 0.13.0 when a brand stylesheet import was
     // removed; the colour side got none, which is how #d4620a — the warm accent
-    // from a NimbleBrain brand generation — sat in this map across two releases
-    // while the docblock above claimed the values were unbranded.
+    // from a NimbleBrain brand generation — sat across two releases in *both*
+    // unbranded-default maps, each under a docblock claiming otherwise.
+    //
+    // Both are checked here, because both are that claim: DEFAULT_THEME_VARS is
+    // the block the SDK injects, and `tokens` holds the `var()` fallback each
+    // component resolves against when a host declares nothing. A guard on one
+    // leaves the other free to reintroduce exactly what this test exists to
+    // catch.
     //
     // An allowlist rather than a denylist: the map is small and hand-authored,
     // so the sanctioned set can be stated outright. A denylist only catches the
@@ -101,6 +107,18 @@ describe("token contract", () => {
             true,
           );
         }
+      }
+    }
+
+    // No anchor here, and the extracting loop is load-bearing for it: these
+    // values are `var(--token, <fallback>)` strings, not bare hexes, and the
+    // non-colour ones (font stacks, radii, weights) carry no hex at all and
+    // simply contribute nothing to check.
+    for (const [name, value] of Object.entries(tokens)) {
+      for (const hex of value.toLowerCase().match(/#[0-9a-f]{3,8}/g) ?? []) {
+        expect(SANCTIONED.has(hex), `tokens.${name}: ${hex} is not a sanctioned neutral`).toBe(
+          true,
+        );
       }
     }
   });

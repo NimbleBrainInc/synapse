@@ -8,17 +8,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **A partial `document` no longer takes down the connection.** All three connection entry points — `createSynapse`, `connect`, `connectUI` — guarded only `typeof document === "undefined"`, which asks whether a document exists, not whether it can do the thing about to be asked of it. Those were the same question until 0.14.0 moved the neutral defaults into a `<style>` element, adding `getElementById`, `createElement` and `head.prepend` as requirements. A `document` carrying `documentElement.style` and listeners — everything the defaults needed while they were inline — now throws.
+- **The defaults no longer add DOM requirements that break an existing caller.** Through 0.13.0 this module needed exactly `document.documentElement.style.setProperty`, plus a feature-checked `document.fonts`. 0.14.0 moved the neutral defaults into a `<style>` element and started clearing stale keys, which silently added four more requirements — `getElementById`, `createElement`, `head.prepend` and `removeProperty`. A caller whose `document` supplied the old envelope and not the new one began throwing.
 
-  The throw is not contained. Each of these runs before or during the handshake, so the app never finishes connecting and the symptom is a dead session with nothing pointing at theming:
+  The throw is not contained: it unwinds through `applyTheme` into the handshake, so the app never finishes connecting and the symptom is a dead session with nothing pointing at theming. `removeProperty` is the quieter half — `appliedInlineKeys` is empty on the first apply, so that pass is skipped entirely and the throw waits for a theme toggle.
 
-  - `createSynapse` → `applyTheme` → the stylesheet install.
-  - `connectUI` → `applyHostTheme` → `documentElement.setAttribute("data-theme", …)`, one line ahead of the same install.
-  - `connect` → `createResizer(...).measureAndSend()` → `document.body.scrollWidth`, at step 2 before `ui/initialize` is sent. `connect` is async, so this one arrives as an unhandled rejection.
-
-  Each capability is now feature-checked at the point of use, the way `applyThemeFontFaces` has always checked `document.fonts`. A document that cannot carry a stylesheet gets no default layer; one that cannot take an attribute still gets its tokens; one with no body reports no size. In every case the session survives, because a decoration is not worth a connection.
-
-  `removeProperty` is checked alongside `setProperty` for the same reason, and is the quietest of the set: `appliedInlineKeys` is empty on the first apply, so the clear pass is skipped entirely and the throw waits for a theme toggle rather than firing at connect.
+  Both new capabilities are now feature-checked at the point of use, the way `applyThemeFontFaces` has always checked `document.fonts`. A document that cannot carry a stylesheet gets no default layer and keeps its session; the host's variables are still written inline, which is the part that carries its brand. This restores 0.13.0's capability envelope exactly — it does not widen it.
 
 ## [0.14.0] - 2026-07-27
 

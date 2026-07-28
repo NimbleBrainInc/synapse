@@ -13,16 +13,9 @@ export function createResizer(send: SendFn, autoResize: boolean): Resizer {
 
   function measureAndSend(): void {
     if (destroyed) return;
-    // A document with no `body` has nothing to measure, and a size nobody can
-    // observe is not worth a throw: `connect()` calls this at step 2, before
-    // `ui/initialize` is sent, and `connect` is async — so the failure arrives as
-    // an unhandled rejection with the session already dead.
-    const body = typeof document !== "undefined" ? document.body : undefined;
-    if (!body) return;
-    send("ui/notifications/size-changed", {
-      width: body.scrollWidth,
-      height: body.scrollHeight,
-    });
+    const width = document.body.scrollWidth;
+    const height = document.body.scrollHeight;
+    send("ui/notifications/size-changed", { width, height });
   }
 
   function resize(width?: number, height?: number): void {

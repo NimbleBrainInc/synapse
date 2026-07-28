@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.15.0] - 2026-07-27
+
+### Breaking
+
+- **The `warm` tone and the `warm` / `warmLight` tokens are removed.** `--nb-color-warm` was a second accent channel that no host injects — the NimbleBrain runtime's projection covers ten colour vars and this was never among them — so every app rendering `<Badge tone="warm">` painted the SDK's own fallback, `#d4620a`, a hex from a retired brand generation. A library cannot ship a channel it has no unbranded value for: the neutral answer to "a second accent" is that there isn't one.
+
+  **Migration.** `tone="warm"` → `tone="accent"` where the badge is informational, `tone="warning"` where it is a caution. `tokens.warm` / `tokens.warmLight` → `tokens.accent` / `tokens.infoLight`, or the `warning` pair. Apps pinned to `^0.11.0`–`^0.14.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
+
+### Fixed
+
+- **Headings fall back to the body stack, not a serif.** `tokens.fontHeading` fell back to `Georgia, 'Times New Roman', serif`, so any host that injects no `--nb-font-heading` rendered headings in a display serif — the same brand-by-default problem the removal of `@nimblebrain/synapse/ui/fonts` addressed in 0.13.0, one token over. The fallback is now the sans stack: one family, hierarchy from weight and size.
+- **The vendored Python IIFE tracks the build.** `python/nimblebrain_synapse/_assets/synapse-ui.iife.js` is a second shipping path, and it carried the old values independently of `dist/`.
+
+### Added
+
+- **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` *and* in the `tokens` `var()` fallbacks must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Both maps, because both are the unbranded-default claim and the brand orange sat in both: one is the block the SDK injects, the other is what each component resolves against when a host declares nothing. Typography got a guard in 0.13.0; colour had none, which is how that orange survived two releases under docblocks claiming the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
 ## [0.14.1] - 2026-07-27
 
 ### Fixed

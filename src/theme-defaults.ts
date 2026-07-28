@@ -16,8 +16,10 @@
  *   - any var nobody declares still resolves to a theme-correct neutral value.
  *
  * It's the `var()` fallback, but able to branch on theme. The values stay
- * deliberately NEUTRAL (grays + a generic blue), never NimbleBrain brand —
- * brand arrives only by host injection, mirroring `ui/tokens.ts`. This keeps
+ * neutral grays, a generic blue, and generic semantic hues for danger, success,
+ * warning and processing — never a *brand* value. Brand arrives only by host
+ * injection, mirroring `ui/tokens.ts`. `__tests__/ui/tokens.test.ts` holds the
+ * line: every hex here must be in the sanctioned set. This keeps
  * the library host-agnostic while guaranteeing every token resolves correctly
  * in both themes even against an incomplete host, a standalone `connect()`
  * widget, or a third-party host.
@@ -70,8 +72,6 @@ const LIGHT: Record<string, string> = {
   "--nb-color-danger": "#dc2626",
   "--nb-color-success": "#059669",
   "--nb-color-warning": "#f59e0b",
-  "--nb-color-warm": "#d4620a",
-  "--nb-color-warm-light": "#fef5ee",
   "--nb-color-processing": "#7c3aed",
   "--nb-color-processing-light": "#f3eeff",
   "--nb-color-info-light": "#eef4ff",
@@ -103,8 +103,6 @@ const DARK: Record<string, string> = {
   "--nb-color-danger": "#f87171",
   "--nb-color-success": "#34d399",
   "--nb-color-warning": "#fbbf24",
-  "--nb-color-warm": "#fb923c",
-  "--nb-color-warm-light": "#3a2a1e",
   "--nb-color-processing": "#a78bfa",
   "--nb-color-processing-light": "#2a2440",
   "--nb-color-info-light": "#1e2a44",

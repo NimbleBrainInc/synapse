@@ -95,7 +95,7 @@ describe("web-safe defaults — the no-host guarantee", () => {
     // with no host, no network and no font files still renders correctly.
     expect(tokens.fontSans).toContain("system-ui");
     expect(tokens.fontMono).toContain("ui-monospace");
-    expect(tokens.fontHeading).toContain("Georgia");
+    expect(tokens.fontHeading).toContain("system-ui");
 
     // ...and carries no brand, current or historical.
     for (const value of [tokens.fontSans, tokens.fontMono, tokens.fontHeading]) {

@@ -8,10 +8,13 @@
  * with no React re-render: the host swaps the `:root` vars and every `var()`
  * re-resolves.
  *
- * The fallbacks are deliberately **neutral** (system fonts, neutral grays, a
- * generic blue) — NOT NimbleBrain brand. Brand arrives by injection when the
- * app runs inside the NimbleBrain host; standalone/static renders get a sane
+ * The fallbacks are deliberately **unbranded** — system fonts, neutral grays, a
+ * generic blue, and generic semantic hues for the status channels. NOT
+ * NimbleBrain brand. Brand arrives by injection when the app runs inside the
+ * NimbleBrain host; standalone/static renders get a sane
  * unbranded default. This keeps the library host-agnostic.
+ * `__tests__/ui/tokens.test.ts` holds the line: every hex in these fallbacks
+ * must be in the sanctioned set, same as `theme-defaults.ts`.
  *
  * Components import the static `tokens` object and style with CSS `var()`, so
  * theming (incl. light/dark) resolves in CSS with no re-render.
@@ -42,8 +45,6 @@ export const tokens = {
   danger: "var(--nb-color-danger, #dc2626)",
   success: "var(--nb-color-success, #059669)",
   warning: "var(--nb-color-warning, #f59e0b)",
-  warm: "var(--nb-color-warm, #d4620a)",
-  warmLight: "var(--nb-color-warm-light, #fef5ee)",
   processing: "var(--nb-color-processing, #7c3aed)",
   processingLight: "var(--nb-color-processing-light, #f3eeff)",
   infoLight: "var(--nb-color-info-light, #eef4ff)",
@@ -51,7 +52,7 @@ export const tokens = {
   // ── Typography ──
   fontSans: "var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
   fontMono: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-  fontHeading: "var(--nb-font-heading, Georgia, 'Times New Roman', serif)",
+  fontHeading: "var(--nb-font-heading, system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
   weightNormal: "var(--font-weight-normal, 400)",
   weightMedium: "var(--font-weight-medium, 500)",
   weightSemibold: "var(--font-weight-semibold, 600)",

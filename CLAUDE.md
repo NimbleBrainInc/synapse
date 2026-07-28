@@ -17,6 +17,11 @@ npm run ci    # lint → typecheck → build → test
 To cut a release:
 
 1. Bump `version` in `package.json` and add a CHANGELOG entry on the release branch.
+   **A `### Breaking` entry means the minor moves.** Nothing enforces this: the workflow
+   checks the tag matches `package.json` and that a `## [<version>]` heading exists, and
+   neither tells a minor from a patch. Consumers pin caret on `0.x`, which does not cross a
+   minor — so cutting a breaking change as a patch carries it to every pinned consumer
+   silently, which is the opposite of what the CHANGELOG's migration note promises.
 2. Merge the PR.
 3. Tag the merge commit on `main` and push the tag:
    ```bash

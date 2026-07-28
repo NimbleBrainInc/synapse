@@ -24,8 +24,103 @@ describe("token contract", () => {
     expect(tokens.fg).toBe("var(--color-text-primary, #111827)");
     expect(tokens.fontSans).toContain("system-ui"); // not 'Satoshi'
     expect(tokens.fontSans).not.toContain("Satoshi");
-    expect(tokens.fontHeading).toContain("Georgia"); // serif fallback, not 'Erode'
+    // Headings fall back to the same sans stack as body: one family, with
+    // hierarchy from weight and size. A serif heading fallback would reproduce
+    // the display-serif signature on any host that injects nothing.
+    expect(tokens.fontHeading).toContain("system-ui");
     expect(tokens.fontHeading).not.toContain("Erode");
+  });
+
+  it("backs every default with an unbranded value, never a brand hex", () => {
+    // The font side got a guard in 0.13.0 when a brand stylesheet import was
+    // removed; the colour side got none, which is how #d4620a — the warm accent
+    // from a NimbleBrain brand generation — sat across two releases in *both*
+    // unbranded-default maps, each under a docblock claiming otherwise.
+    //
+    // Both are checked here, because both are that claim: DEFAULT_THEME_VARS is
+    // the block the SDK injects, and `tokens` holds the `var()` fallback each
+    // component resolves against when a host declares nothing. A guard on one
+    // leaves the other free to reintroduce exactly what this test exists to
+    // catch.
+    //
+    // An allowlist rather than a denylist: the map is small and hand-authored,
+    // so the sanctioned set can be stated outright. A denylist only catches the
+    // brand values someone thought to name, which is how the last one got in.
+    //
+    // ADMISSION RULE, so this stays a guard and does not decay into a list to
+    // append to: a hex qualifies when it was not *chosen for a brand*. In
+    // practice every hue below is a stock Tailwind ramp step — blue-600,
+    // red-600/400, emerald-600/400, amber-500/400, violet-600/400, indigo-400 —
+    // and every `*-light` ground is a neutral tint of one of them. The test is
+    // not "no brand uses this hue", which nothing could pass: #7c3aed is
+    // violet-600 off the shelf and a brand happens to use it too. #d4620a fails
+    // because it is bespoke and brand-tuned, picked to be one product's warm
+    // accent and nothing else's. If a candidate is not a stock ramp step or a
+    // tint of one, it does not belong here — take it to the host instead.
+    const SANCTIONED = new Set(
+      [
+        // Neutral ladder — surfaces, text, borders.
+        "#ffffff",
+        "#fafafa",
+        "#f3f4f6",
+        "#111827",
+        "#6b7280",
+        "#9ca3af",
+        "#e5e7eb",
+        "#d1d5db",
+        "#18181b",
+        "#27272a",
+        "#2f2f34",
+        "#a1a1aa",
+        "#71717a",
+        "#3f3f46",
+        "#52525b",
+        // A generic blue, and the generic semantic hues.
+        "#2563eb",
+        "#818cf8",
+        "#dc2626",
+        "#f87171",
+        "#059669",
+        "#34d399",
+        "#f59e0b",
+        "#fbbf24",
+        "#7c3aed",
+        "#a78bfa",
+        // Tints those hues are laid on.
+        "#f3eeff",
+        "#2a2440",
+        "#eef4ff",
+        "#1e2a44",
+      ].map((h) => h.toLowerCase()),
+    );
+
+    for (const mode of ["light", "dark"] as const) {
+      for (const [name, value] of Object.entries(DEFAULT_THEME_VARS[mode])) {
+        // Notation first, membership second. Scanning a value for hexes and
+        // checking only what turns up leaves every other CSS colour syntax
+        // unguarded — `rgb(212, 98, 10)` is byte-for-byte #d4620a and passed
+        // this whole file. Requiring a hex literal is what makes the
+        // membership check below total.
+        expect(value, `${mode} ${name}: expected a hex literal`).toMatch(/^#[0-9a-f]{3,8}$/i);
+        for (const hex of value.toLowerCase().match(/#[0-9a-f]{3,8}/g) ?? []) {
+          expect(SANCTIONED.has(hex), `${mode} ${name}: ${hex} is not a sanctioned neutral`).toBe(
+            true,
+          );
+        }
+      }
+    }
+
+    // No anchor here, and the extracting loop is load-bearing for it: these
+    // values are `var(--token, <fallback>)` strings, not bare hexes, and the
+    // non-colour ones (font stacks, radii, weights) carry no hex at all and
+    // simply contribute nothing to check.
+    for (const [name, value] of Object.entries(tokens)) {
+      for (const hex of value.toLowerCase().match(/#[0-9a-f]{3,8}/g) ?? []) {
+        expect(SANCTIONED.has(hex), `tokens.${name}: ${hex} is not a sanctioned neutral`).toBe(
+          true,
+        );
+      }
+    }
   });
 
   it("maps the type scale to the matching size + line-height vars", () => {

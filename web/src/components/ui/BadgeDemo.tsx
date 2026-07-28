@@ -11,7 +11,6 @@ export default function BadgeDemo() {
         <Badge tone="warning">Warning</Badge>
         <Badge tone="danger">Danger</Badge>
         <Badge tone="processing">Processing</Badge>
-        <Badge tone="warm">Warm</Badge>
       </Inline>
     </Preview>
   );

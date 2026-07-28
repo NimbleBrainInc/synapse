@@ -6,14 +6,7 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import { tokens } from "../tokens.js";
 
-export type BadgeTone =
-  | "neutral"
-  | "accent"
-  | "success"
-  | "warning"
-  | "danger"
-  | "processing"
-  | "warm";
+export type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger" | "processing";
 
 /** `{ bg, fg }` per tone. Soft tinted background, same-hue label. The status
  * tones have no `*Light` token so their tint is derived from the fg color. */
@@ -24,7 +17,6 @@ const TONE: Record<BadgeTone, { bg: string; fg: string }> = {
   warning: { bg: `color-mix(in oklab, ${tokens.warning} 14%, transparent)`, fg: tokens.warning },
   danger: { bg: `color-mix(in oklab, ${tokens.danger} 14%, transparent)`, fg: tokens.danger },
   processing: { bg: tokens.processingLight, fg: tokens.processing },
-  warm: { bg: tokens.warmLight, fg: tokens.warm },
 };
 
 interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

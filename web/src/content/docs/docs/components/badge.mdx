@@ -1,6 +1,6 @@
 ---
 title: Badge
-description: A small uppercase pill for status and priority labels, in seven token-driven tones.
+description: A small uppercase pill for status and priority labels, in six token-driven tones.
 ---
 
 import BadgeDemo from "../../../../components/ui/BadgeDemo.tsx";
@@ -20,9 +20,9 @@ import { Badge } from "@nimblebrain/synapse/ui";
 
 ## Tones
 
-Seven tones map to the recurring label meanings. `neutral` is the default;
+Six tones map to the recurring label meanings. `neutral` is the default;
 `accent` for informational, `success` / `warning` / `danger` for state, and
-`processing` / `warm` for the two extended hues.
+`processing` for in-flight work.
 
 ```tsx
 <Badge>Neutral</Badge>
@@ -31,7 +31,6 @@ Seven tones map to the recurring label meanings. `neutral` is the default;
 <Badge tone="warning">Warning</Badge>
 <Badge tone="danger">Danger</Badge>
 <Badge tone="processing">Processing</Badge>
-<Badge tone="warm">Warm</Badge>
 ```
 
 ## Props
@@ -41,7 +40,7 @@ Seven tones map to the recurring label meanings. `neutral` is the default;
 
 | Prop | Type | Default |
 | --- | --- | --- |
-| `tone` | `"neutral"` \| `"accent"` \| `"success"` \| `"warning"` \| `"danger"` \| `"processing"` \| `"warm"` | `"neutral"` |
+| `tone` | `"neutral"` \| `"accent"` \| `"success"` \| `"warning"` \| `"danger"` \| `"processing"` | `"neutral"` |
 | `children` | `ReactNode` | None |
 | `…rest` | `HTMLAttributes<HTMLSpanElement>` | None |
 

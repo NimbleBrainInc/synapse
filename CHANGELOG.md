@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The `warm` tone and the `warm` / `warmLight` tokens are removed.** `--nb-color-warm` was a second accent channel that no host injects — the NimbleBrain runtime's projection covers ten colour vars and this was never among them — so every app rendering `<Badge tone="warm">` painted the SDK's own fallback, `#d4620a`, a hex from a retired brand generation. A library cannot ship a channel it has no unbranded value for: the neutral answer to "a second accent" is that there isn't one.
 
-  **Migration.** `tone="warm"` → `tone="accent"` where the badge is informational, `tone="warning"` where it is a caution. `tokens.warm` / `tokens.warmLight` → `tokens.accent` / `tokens.infoLight`, or the `warning` pair. Apps pinned to `^0.11.0`–`^0.13.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
+  **Migration.** `tone="warm"` → `tone="accent"` where the badge is informational, `tone="warning"` where it is a caution. `tokens.warm` / `tokens.warmLight` → `tokens.accent` / `tokens.infoLight`, or the `warning` pair. Apps pinned to `^0.11.0`–`^0.14.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
 
 ### Fixed
 
@@ -20,6 +20,30 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Typography got a guard in 0.13.0; colour had none, which is how a brand orange sat in the map across two releases while the docblock above it claimed the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
+
+## [0.14.0] - 2026-07-27
+
+Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.
+
+### Requires: a host channel that can be updated
+
+The SDK no longer overrides what a host declares for a token, so a host is now responsible for keeping its own token values current. **Anything that varies with light/dark must reach the app on a channel the host can update.** A host that bakes its tokens into the app document once, at mount, and cannot rewrite them afterwards will hold those tokens at their mount-time values across a theme toggle.
+
+This is a pre-existing condition that 0.14.0 stops masking, not one it introduces. Since 0.10.2 the SDK's inline defaults overrode such tokens outright, which hid the staleness by discarding the host's values — the bug this release fixes. Bumping from 0.10.2–0.13.x will surface it; bumping from 0.9.x or earlier, which shipped no default map, changes nothing about it either way.
+
+Against the NimbleBrain runtime that condition holds today: `--color-text-accent` and the `--nb-color-*` family are delivered in a `srcdoc` block fixed at mount, so they keep their mount-mode values when the user flips the theme, four of them landing under WCAG AA on a dark background. Tracked as [nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817). Worth fixing on its own schedule — it is not a reason to hold this bump.
+
+### Fixed
+
+- **A default no longer overrides the host.** `applyThemeVariables` now installs `DEFAULT_THEME_VARS` as a `@layer synapse-defaults` stylesheet instead of writing it to `documentElement.style`. An unlayered rule outranks a layered one, so a host's or app's own `:root` declaration wins, while a var nobody declares still resolves to a theme-correct neutral default — which is what the map was always documented to do.
+
+  This mattered because `hostContext.styles.variables` is a closed enum: a host whose design system is larger than that enum has to deliver the remainder as a stylesheet injected into the app document, and that is the only channel available to it. Every such var that the SDK also defaulted was silently replaced by the SDK's value, permanently, with no self-heal path. A host sending its brand accent that way rendered in the SDK's neutral blue instead.
+
+  The host's protocol-delivered variables still go inline, so they continue to win over both the layer and any app rule. Overriding a default from an app now needs no `!important` — a plain `:root` rule is enough. The defaults arrive as an injected `<style>`, the same channel `base-reset` and the interactive components already require.
+
+- **A narrowed variable set no longer leaves the previous one pinned inline.** An ext-apps `host-context-changed` carries only the fields that changed, so a notification that flips mode while omitting `styles` reaches `applyThemeVariables` as an empty var set. Applying the defaults inline used to mask that by rewriting every defaulted key on each call; a layer cannot, because it cannot outrank an inline property. A key the SDK wrote inline on a previous call and the incoming set does not carry is now removed, letting the cascade resolve it against the host's stylesheet, the app's rule, or the layer — rather than pinning the previous theme's values while the layer flips.
+
+  Removal is keyed off what the SDK last wrote, not off `DEFAULT_THEME_VARS`. Those are different sets: a host may send any spec-enum var, and roughly 25 theme-sensitive ones (`--color-text-danger`, `--color-background-inverse`, …) have no neutral default, so keying off the default map would leave exactly those pinned at the previous mode's value. It also means the SDK never clears an inline property it did not set, so an app writing `documentElement.style` itself is left alone.
 
 ## [0.13.0] - 2026-07-26
 
@@ -117,6 +141,8 @@ Makes the `Drawer` header affordances first-class so consumers stop re-rolling t
 
 
 
+## [0.9.0] - 2026-06-07
+
 Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so embedded Synapse apps share one system with per-host personality. Components hold no brand; the host injects the theme via CSS variables (`hostContext.styles.variables`), so the same app adopts any host's look with no re-render. Purely additive — no changes to existing exports. See [PR #12](https://github.com/NimbleBrainInc/synapse/pull/12).
 
 ### Added
@@ -128,6 +154,8 @@ Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so
 - `@nimblebrain/synapse/ui/fonts` subpath for font wiring.
 
 
+
+## [0.8.0] - 2026-04-27
 
 Fixes the file picker, which was effectively dead in NimbleBrain hosts and inflated bytes through tool-call JSON. `pickFile` / `pickFiles` now resolve to a stable workspace file ID; the host persists the bytes server-side over multipart.
 

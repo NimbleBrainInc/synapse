@@ -9,10 +9,11 @@
  * and only breaks when the theme is toggled.
  *
  * This module closes that gap with a default layer the SDK controls and that
- * CAN branch on theme. {@link applyThemeVariables} writes the neutral defaults
- * for the active `mode` first, then the host's variables on top — so:
- *   - the host's (brand) values always win for the keys it provides, and
- *   - any var the host omits still resolves to a theme-correct neutral value.
+ * CAN branch on theme. {@link applyThemeVariables} puts the neutral defaults for
+ * the active `mode` in a cascade layer and the host's variables inline — so:
+ *   - the host's (brand) values always win for the keys it provides, through
+ *     either the protocol or a stylesheet it injects, and
+ *   - any var nobody declares still resolves to a theme-correct neutral value.
  *
  * It's the `var()` fallback, but able to branch on theme. The values stay
  * neutral grays, a generic blue, and generic semantic hues for danger, success,
@@ -116,15 +117,105 @@ export const DEFAULT_THEME_VARS: Record<"light" | "dark", Record<string, string>
   dark: DARK,
 };
 
+/** Cascade layer holding the neutral defaults. Named so an app can order it. */
+export const DEFAULTS_LAYER_NAME = "synapse-defaults";
+
+/** `id` of the single `<style>` element this module owns. */
+export const DEFAULTS_STYLE_ID = "synapse-theme-defaults";
+
+/** Custom properties this module last wrote inline, so a later apply clears only
+ *  what it owns and never an inline property the app set itself. */
+let appliedInlineKeys = new Set<string>();
+
+/** Test seam — forget what was written inline so a fresh apply is observable. */
+export function resetAppliedInlineKeys(): void {
+  appliedInlineKeys = new Set();
+}
+
 /**
- * Apply theme CSS custom properties onto `document.documentElement`.
+ * Install the neutral defaults for `mode` as a cascade layer.
  *
- * Writes the neutral defaults for `mode` FIRST, then the host's variables on
- * top — so the host's values win for the keys it provides, and any var it omits
- * still resolves to a theme-correct neutral default.
+ * A layer, not inline properties on `documentElement`, and that distinction is
+ * the whole point: **a default has to lose.** An inline style outranks every
+ * author stylesheet, so writing defaults there made them beat any rule a host or
+ * app had written for the same var — the opposite of a fallback.
  *
- * SSR-safe (no-ops when `document` is unavailable). Idempotent — `setProperty`
- * overwrites, so re-applying on every theme change is correct and cheap.
+ * A host cannot always deliver a var through the protocol.
+ * `hostContext.styles.variables` is a closed enum, so a host whose design system
+ * is larger than that enum has to put the remainder in a stylesheet it injects
+ * into the app document. Those declarations are ordinary unlayered author rules.
+ * Unlayered beats layered, so they now win — while a var nobody declares still
+ * resolves to a neutral default, which is what this map is for.
+ *
+ * An app's own `:root` rule wins for the same reason, so overriding a default
+ * needs no `!important` and no knowledge of this module.
+ *
+ * One element, replaced in place, so a mode flip swaps the whole map atomically
+ * and repeat calls are cheap. SSR-safe.
+ */
+function applyDefaultThemeLayer(mode: "light" | "dark"): void {
+  // Safe to concatenate ONLY because every key and value here is module-local
+  // (`DEFAULT_THEME_VARS`). `applyThemeFontFaces` below deliberately avoids
+  // building CSS text for exactly this reason — a host-supplied value containing
+  // `}` would escape the rule. Never fold host or app input into this template;
+  // host variables go through `setProperty`, which cannot escape.
+  const declarations = Object.entries(DEFAULT_THEME_VARS[mode])
+    .map(([k, v]) => `    ${k}: ${v};`)
+    .join("\n");
+  const css = `@layer ${DEFAULTS_LAYER_NAME} {\n  :root {\n${declarations}\n  }\n}`;
+
+  const existing = document.getElementById(DEFAULTS_STYLE_ID);
+  if (existing) {
+    // Avoid a needless style invalidation when the mode hasn't changed.
+    if (existing.textContent !== css) existing.textContent = css;
+    return;
+  }
+  const el = document.createElement("style");
+  el.id = DEFAULTS_STYLE_ID;
+  el.textContent = css;
+  // Prepended so this is the first layer the document declares, which puts it
+  // first in layer order — an app that declares its own layers sorts after, and
+  // therefore wins. Unlayered app rules win regardless of DOM order.
+  document.head.prepend(el);
+}
+
+/**
+ * Apply theme CSS custom properties to the app document.
+ *
+ * The host's variables go inline on `documentElement`, where they outrank
+ * everything; the neutral defaults for `mode` go into a cascade layer, where
+ * they lose to any rule that actually declares the var. So a host value beats
+ * this module's default through *either* channel — the protocol or a stylesheet
+ * it injects — and a var nobody declares still resolves to a theme-correct
+ * default. Only the protocol channel also outranks the app: a host's injected
+ * stylesheet and the app's own `:root` are both unlayered rules of equal
+ * specificity, so document order decides between them, not this module.
+ *
+ * A key this module wrote on a previous call and the incoming set does NOT carry
+ * is *removed* inline rather than left behind, because a host may legitimately
+ * narrow its key set: stop sending a var and it must stop applying, or it stays
+ * pinned inline forever where the layer, the host's own stylesheet and the app's
+ * own rules all cannot reach it. Removing lets the cascade resolve it against
+ * those instead, which is the property this module exists to establish, and is
+ * strictly less destructive than overwriting the key with our own default.
+ *
+ * Tracked as the set of keys last written, not as `DEFAULT_THEME_VARS`'s keys.
+ * Those are two different sets: a host can send any spec-enum var, and ~25
+ * theme-sensitive ones (`--color-text-danger`, `--color-background-inverse`, …)
+ * have no neutral default, so keying the removal off the default map would pin
+ * exactly those at the previous mode's value. Tracking what we wrote also means
+ * this module never clears an inline property it did not set — an app writing its
+ * own `documentElement.style` is left alone.
+ *
+ * Today an empty var set also arrives for a reason that is a bug rather than a
+ * narrowing — `core.ts` replaces the host context wholesale, so a partial
+ * `host-context-changed` that omits `styles` reads as "no tokens" (#46;
+ * `connect.ts` already carries them forward). Fixing #46 is the better outcome —
+ * it keeps the host's brand across a mode flip instead of collapsing to our
+ * neutral — and does not make this loop unnecessary.
+ *
+ * SSR-safe (no-ops when `document` is unavailable). Idempotent — re-applying on
+ * every theme change is correct and cheap.
  *
  * Prefer {@link applyTheme}: it applies variables *and* font faces together, so
  * a caller cannot wire up half a theme.
@@ -134,17 +225,29 @@ export function applyThemeVariables(
   hostVars: Record<string, string> | undefined | null,
 ): void {
   if (typeof document === "undefined") return;
-  const root = document.documentElement.style;
-  for (const [k, v] of Object.entries(DEFAULT_THEME_VARS[mode])) {
-    root.setProperty(k, v);
-  }
+  applyDefaultThemeLayer(mode);
+
+  // ONE definition of "the host provided this key", read by both loops below.
+  // Wire data is untyped, so a key can arrive with a non-string value; that is
+  // not a provided value, so the clear loop must reach it. Two predicates —
+  // `k in hostVars` to clear, `typeof v === "string"` to write — leave such a key
+  // in the gap: neither removed nor written, so the previous theme's value stays
+  // pinned inline where the layer, the host's stylesheet and the app's `:root`
+  // all cannot reach it. That is the un-self-healing pin this module exists to
+  // eliminate, re-entered by a different door.
+  const incoming: Record<string, string> = {};
   if (hostVars && typeof hostVars === "object") {
     for (const [k, v] of Object.entries(hostVars)) {
-      if (typeof k === "string" && typeof v === "string") {
-        root.setProperty(k, v);
-      }
+      if (typeof k === "string" && typeof v === "string") incoming[k] = v;
     }
   }
+
+  const root = document.documentElement.style;
+  for (const k of appliedInlineKeys) {
+    if (!(k in incoming)) root.removeProperty(k);
+  }
+  for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
+  appliedInlineKeys = new Set(Object.keys(incoming));
 }
 
 /** The faces this module has added, so a re-apply replaces rather than accumulates. */

@@ -110,9 +110,11 @@ export async function connect(options: ConnectOptions): Promise<App> {
         containerDimensions = ctx.containerDimensions as Dimensions;
       }
 
-      // Inject the theme into the DOM: neutral defaults for the mode back any
-      // var the host omits, then host values win. Any host-supplied font faces
-      // load alongside — a token names a family, it cannot load one.
+      // Inject the theme into the DOM: the host's values go inline, and the
+      // neutral defaults for the mode go in a cascade layer, where they back any
+      // var nobody declares and lose to every var that is declared. Any
+      // host-supplied font faces load alongside — a token names a family, it
+      // cannot load one.
       applyTheme(currentTheme.mode, currentTheme.tokens, currentTheme.fontFaces);
     }
   }

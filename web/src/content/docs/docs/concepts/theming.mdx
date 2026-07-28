@@ -28,6 +28,52 @@ handshake, and the host re-sends it whenever the theme changes (the
 re-resolves against that block, so filling the variables is all it takes to brand
 the whole component.
 
+## Who wins: the resolution order
+
+A `var()` fallback is a static literal, so it cannot branch on light versus dark. A
+token the host never fills would otherwise resolve to its single hardcoded light
+fallback in *both* themes — white-on-white the moment the theme flips. So the SDK
+also ships a neutral default for every color token, in both modes, as a cascade
+layer named `synapse-defaults`.
+
+Because it is a layer, it loses to everything that actually declares the variable.
+For any token, the winner is:
+
+1. **The host, over the protocol** — `hostContext.styles.variables`, applied as an
+   inline style on `:root`. Inline outranks every stylesheet, so this always wins.
+2. **Any ordinary `:root` rule** — both the stylesheet a host injects into your app
+   document and your app's own CSS land here. Hosts need that channel because
+   `styles.variables` is a closed enum, so a design system larger than the enum
+   delivers the remainder as a stylesheet.
+3. **`@layer synapse-defaults`** — the SDK's neutral value for the active mode,
+   when nothing above declares the token.
+
+Tier 2 is one tier, not two: both are unlayered `:root` rules of identical
+specificity with no `!important`, so nothing in the cascade separates them and
+**whichever comes later in the document wins**. The NimbleBrain host injects its
+block at the top of `<head>`, ahead of your app's bundled styles — so against that
+host, your app's rule wins. A host token delivered by stylesheet is yours to
+override; a host token delivered over the protocol is not.
+
+**If you are integrating a new host:** tier 2 is only as current as the stylesheet
+behind it. A host that bakes its tokens into the app document once, at mount, and
+cannot rewrite them afterwards will hold every mode-varying token at its mount-time
+value — the SDK's defaults no longer mask that by overriding them, which is the
+point of this change. Deliver anything that varies with light/dark on a channel you
+can update, and the app tracks the theme for free.
+
+Overriding an SDK default from your app therefore needs nothing special:
+
+```css
+/* Wins over the SDK default. No !important, no layer of your own. */
+:root {
+  --color-text-accent: #ff6600;
+}
+```
+
+If you declare your own cascade layers, they sort *after* `synapse-defaults` and so
+win over it too.
+
 ## Theming resolves in CSS, not React
 
 Components style with token-driven inline-style objects whose values are those
@@ -40,13 +86,24 @@ Keyframes and pseudo-state rules (hover, focus) are injected once, up front, rat
 than recomputed per theme. Brand values are never captured into component state, so
 there is nothing to invalidate. A theme change is a repaint, not a render pass.
 
-## Standalone, the fallbacks win
+## Standalone, the library still renders
 
-With no host to inject anything (a static render, a Storybook page, a unit test),
-each token falls back to its second argument: system fonts, neutral grays, a
-generic accent. The component renders unbranded but complete, never blank. That is
-also what the standalone `inline` adapter relies on when a component runs with no
-host at all.
+With no host to inject anything, the component renders unbranded but complete, never
+blank. What backs the color tokens depends on whether a connection ran:
+
+- **Connected, but hostless** — the standalone `inline` adapter still applies a theme,
+  so color tokens resolve through the `synapse-defaults` layer above and stay
+  theme-correct in dark as well as light. Same for `connect()`, `createSynapse()` and
+  `SynapseProvider` against a host that ships no tokens.
+- **Never connected** — a Storybook story or a unit test that renders a component
+  directly installs no layer, because nothing applied a theme. Color tokens fall back
+  to their `var()` second argument, which is a static literal and therefore
+  light-flavoured in both modes. Rendering such a story in dark mode needs a host
+  that says so: with no host context the mode resolves to `light`, so wrapping in a
+  `SynapseProvider` installs the layer but installs the *light* one.
+
+Everything the layer never covers — fonts, radii, shadows — falls back to its `var()`
+second argument in both cases: system fonts and neutral geometry.
 
 ## What this buys you
 

@@ -166,11 +166,8 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
     .join("\n");
   const css = `@layer ${DEFAULTS_LAYER_NAME} {\n  :root {\n${declarations}\n  }\n}`;
 
-  // Type-checked, not just id-matched: an app that happens to own this id would
-  // otherwise have its element's text content clobbered, and — because a non-style
-  // element carries no rules — the defaults would silently never apply.
   const existing = document.getElementById(DEFAULTS_STYLE_ID);
-  if (existing instanceof HTMLStyleElement) {
+  if (existing) {
     // Avoid a needless style invalidation when the mode hasn't changed.
     if (existing.textContent !== css) existing.textContent = css;
     return;

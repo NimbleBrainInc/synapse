@@ -152,8 +152,9 @@ export function createSynapse(options: SynapseOptions): Synapse {
           : undefined;
 
       // Inject the theme into :root so plain-CSS styles consume it via
-      // `var(--…)` without reading theme.tokens imperatively. Neutral defaults
-      // back any var the host omits (theme-correct), then host values win.
+      // `var(--…)` without reading theme.tokens imperatively. The host's values
+      // go inline; the neutral defaults go in a cascade layer, so they back any
+      // var nobody declares and lose to every var that is declared.
       {
         const theme = extractTheme(currentHostContext);
         applyTheme(theme.mode, theme.tokens, syncFontFaces(currentHostContext));

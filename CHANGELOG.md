@@ -8,6 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.
 
+### Requires: a host channel that can be updated
+
+The SDK no longer overrides what a host declares for a token, so a host is now responsible for keeping its own token values current. **Anything that varies with light/dark must reach the app on a channel the host can update.** A host that bakes its tokens into the app document once, at mount, and cannot rewrite them afterwards will hold those tokens at their mount-time values across a theme toggle — previously masked, because the SDK's inline defaults overrode them entirely.
+
+Against the NimbleBrain runtime this needs the release carrying [nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817). Before it, `--color-text-accent` and the `--nb-color-*` family are delivered in a `srcdoc` block fixed at mount, so they hold their mount-mode values when the user flips the theme — four of them landing under WCAG AA on a dark background. Bump to 0.14.0 together with that release, not ahead of it.
+
 ### Fixed
 
 - **A default no longer overrides the host.** `applyThemeVariables` now installs `DEFAULT_THEME_VARS` as a `@layer synapse-defaults` stylesheet instead of writing it to `documentElement.style`. An unlayered rule outranks a layered one, so a host's or app's own `:root` declaration wins, while a var nobody declares still resolves to a theme-correct neutral default — which is what the map was always documented to do.

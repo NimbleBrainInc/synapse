@@ -55,6 +55,13 @@ block at the top of `<head>`, ahead of your app's bundled styles — so against 
 host, your app's rule wins. A host token delivered by stylesheet is yours to
 override; a host token delivered over the protocol is not.
 
+**If you are integrating a new host:** tier 2 is only as current as the stylesheet
+behind it. A host that bakes its tokens into the app document once, at mount, and
+cannot rewrite them afterwards will hold every mode-varying token at its mount-time
+value — the SDK's defaults no longer mask that by overriding them, which is the
+point of this change. Deliver anything that varies with light/dark on a channel you
+can update, and the app tracks the theme for free.
+
 Overriding an SDK default from your app therefore needs nothing special:
 
 ```css
@@ -79,7 +86,7 @@ Keyframes and pseudo-state rules (hover, focus) are injected once, up front, rat
 than recomputed per theme. Brand values are never captured into component state, so
 there is nothing to invalidate. A theme change is a repaint, not a render pass.
 
-## Standalone, the fallbacks win
+## Standalone, the library still renders
 
 With no host to inject anything (a static render, a Storybook page, a unit test),
 color tokens resolve through the `synapse-defaults` layer above, so they stay

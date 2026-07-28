@@ -200,3 +200,26 @@ describe("createResizer", () => {
     expect(mockDisconnect).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("a document with no body is not a reason to fail", () => {
+  // `connect()` calls `measureAndSend` at step 2, before `ui/initialize` goes
+  // out, and `connect` is async — so reading `document.body.scrollWidth` off a
+  // partial document surfaces as an unhandled rejection with the session already
+  // dead, rather than as a size that failed to send.
+  const REAL_DOCUMENT = globalThis.document;
+
+  afterEach(() => {
+    (globalThis as { document?: unknown }).document = REAL_DOCUMENT;
+  });
+
+  it("sends nothing and does not throw when there is no body to measure", () => {
+    (globalThis as { document?: unknown }).document = { documentElement: { style: {} } };
+    const send = vi.fn();
+
+    const resizer = createResizer(send, false);
+    expect(() => resizer.measureAndSend()).not.toThrow();
+    // Not merely "did not throw": a size nobody can measure must not be reported
+    // as if it were measured.
+    expect(send).not.toHaveBeenCalled();
+  });
+});

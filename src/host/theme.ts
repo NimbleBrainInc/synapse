@@ -21,7 +21,11 @@ import type { SynapseUITheme } from "./types.js";
  * leaves the web-safe fallbacks in force.
  */
 export function applyHostTheme(theme: SynapseUITheme): void {
-  if (typeof document !== "undefined") {
+  // Feature-checked rather than existence-checked, for the reason spelled out on
+  // `canInstallStylesheet` in `theme-defaults.ts`: a partial `document` can carry
+  // `documentElement.style` and no `setAttribute`. This runs before `applyTheme`
+  // on the `connectUI` path, so a throw here loses the session, not an attribute.
+  if (typeof document?.documentElement?.setAttribute === "function") {
     document.documentElement.setAttribute("data-theme", theme.mode);
   }
   applyTheme(theme.mode, theme.tokens, theme.fontFaces);

@@ -70,3 +70,30 @@ describe("connectUI — inline / standalone adapter", () => {
     await expect(synapse.callTool("x")).rejects.toThrow(/not supported/);
   });
 });
+
+describe("applyHostTheme on a partial document", () => {
+  // `applyHostTheme` sets `data-theme` before delegating to `applyTheme`, so it
+  // is the first DOM write on the `connectUI` path — one line ahead of the
+  // stylesheet install that the same class of document already cannot support.
+  const REAL_DOCUMENT = globalThis.document;
+
+  afterEach(() => {
+    (globalThis as { document?: unknown }).document = REAL_DOCUMENT;
+  });
+
+  it("still applies the theme when documentElement has no setAttribute", async () => {
+    const written: Record<string, string> = {};
+    (globalThis as { document?: unknown }).document = {
+      documentElement: { style: { setProperty: (k: string, v: string) => (written[k] = v) } },
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+    const { applyHostTheme } = await import("../host/theme.js");
+
+    expect(() =>
+      applyHostTheme({ mode: "dark", tokens: { "--color-text-primary": "#fafafa" } }),
+    ).not.toThrow();
+    // The attribute is the part that cannot be delivered; the tokens still must be.
+    expect(written["--color-text-primary"]).toBe("#fafafa");
+  });
+});

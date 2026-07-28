@@ -1,7 +1,7 @@
 /**
  * Typography components bound to the type scale and the sans/heading font
  * slots. `Text` for body copy, `Heading` for display type (uses the heading
- * font — Erode in the NimbleBrain host, a serif fallback elsewhere).
+ * font — Hanken Grotesk in the NimbleBrain host, `system-ui` elsewhere).
  */
 
 import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from "react";

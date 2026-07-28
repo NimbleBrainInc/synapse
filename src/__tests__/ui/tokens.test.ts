@@ -90,6 +90,12 @@ describe("token contract", () => {
 
     for (const mode of ["light", "dark"] as const) {
       for (const [name, value] of Object.entries(DEFAULT_THEME_VARS[mode])) {
+        // Notation first, membership second. Scanning a value for hexes and
+        // checking only what turns up leaves every other CSS colour syntax
+        // unguarded — `rgb(212, 98, 10)` is byte-for-byte #d4620a and passed
+        // this whole file. Requiring a hex literal is what makes the
+        // membership check below total.
+        expect(value, `${mode} ${name}: expected a hex literal`).toMatch(/^#[0-9a-f]{3,8}$/i);
         for (const hex of value.toLowerCase().match(/#[0-9a-f]{3,8}/g) ?? []) {
           expect(SANCTIONED.has(hex), `${mode} ${name}: ${hex} is not a sanctioned neutral`).toBe(
             true,

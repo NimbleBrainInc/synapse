@@ -10,8 +10,8 @@
  *
  * The fallbacks are deliberately **unbranded** — system fonts, neutral grays, a
  * generic blue, and generic semantic hues for the status channels. NOT
- * NimbleBrain brand. Brand arrives by injection when the
- * app runs inside the NimbleBrain host; standalone/static renders get a sane
+ * NimbleBrain brand. Brand arrives by injection when the app runs inside the
+ * NimbleBrain host; standalone/static renders get a sane
  * unbranded default. This keeps the library host-agnostic.
  *
  * Components import the static `tokens` object and style with CSS `var()`, so

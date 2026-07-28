@@ -121,8 +121,8 @@ tokens, and the SDK loads them into the app document.
 Three things worth knowing:
 
 - **Sending no fonts is a supported configuration, not a degraded one.** Omit
-  `fontFaces` and the app renders in the web-safe fallbacks (`system-ui`,
-  `ui-monospace`, `Georgia`).
+  `fontFaces` and the app renders in the web-safe fallbacks (`system-ui` for
+  both body and headings, `ui-monospace` for code).
 - **Give every `--font-*` token value a web-safe tail.** A bare family name with
   no matching face falls through to the browser default, not to your intended
   stack. `"'Your Sans', system-ui, sans-serif"`, never `"'Your Sans'"`.

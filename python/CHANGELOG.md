@@ -6,6 +6,36 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0]
+
+The Python API is unchanged. This release exists to ship the vendored UI client,
+which had fallen two npm minors behind: `__client_version__` moves `0.12.0` →
+`0.14.0`, carrying four `@nimblebrain/synapse` releases (`0.12.1`, `0.12.2`,
+`0.13.0`, `0.14.0`) into `_assets/synapse-ui.iife.js`.
+
+A minor rather than a patch, because component CSS that declares one of the
+SDK's backed color tokens changes behaviour — see the theming note below.
+
+### Changed
+
+- **The client's neutral color defaults no longer outrank your component's own
+  CSS.** They ship in a `@layer synapse-defaults` stylesheet instead of as inline
+  properties on `documentElement`, so a plain `:root` rule in your component now
+  wins — previously that needed `!important`, or was impossible. A token nothing
+  declares still resolves to a theme-correct neutral in both modes. If your
+  component declares any of these tokens and relied on the client overriding it,
+  that override stops.
+
+  A host that delivers mode-varying tokens through a channel it cannot update
+  after mount will now hold them at their mount-time values, where the client's
+  inline defaults used to mask that by discarding them. See the
+  `@nimblebrain/synapse` 0.14.0 entry in the root `CHANGELOG.md`.
+
+- **Host typography reaches the component.** The client accepts `@font-face`
+  descriptors over the `synapse/fontFaces` host-context extension, so a host that
+  sends its faces alongside its tokens renders your component in its own
+  typeface. Hosts that omit it are unaffected. The client ships no font data.
+
 ## [0.3.0]
 
 ### Changed

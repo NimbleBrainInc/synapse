@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.14.1] - 2026-07-27
+
+### Fixed
+
+- **A partial `document` no longer takes down the connection.** `applyThemeVariables` guarded only `typeof document === "undefined"`, which is a different question from "can this document carry a stylesheet." An embedder or test harness may install a `document` with `documentElement.style` and listeners and nothing else — everything this module needed while the defaults were inline properties. 0.14.0 moved them into a `<style>` element, adding `getElementById`, `createElement` and `head.prepend` as requirements, and reaching for those on such a document throws.
+
+  The throw was not contained: it unwound through `applyTheme` into the handshake, so an app in that environment never finished connecting — surfacing as a dead session rather than a missing default. A document that cannot carry a stylesheet now gets no default layer and keeps its session. The host's own variables are still written inline, which is the part that carries its brand.
+
+  `removeProperty` is feature-checked alongside `setProperty` for the same reason. It is only reached on the *second* apply, once a previous key set exists, so this failed on a theme toggle rather than at connect — the later and quieter of the two.
+
 ## [0.14.0] - 2026-07-27
 
 Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.

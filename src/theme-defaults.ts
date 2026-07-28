@@ -135,6 +135,30 @@ export function resetAppliedInlineKeys(): void {
 }
 
 /**
+ * Whether this document can host the defaults stylesheet.
+ *
+ * Not the same question as `typeof document !== "undefined"`. An embedder or a
+ * test harness may install a *partial* `document` — `documentElement.style` plus
+ * listeners and nothing else — which is everything this module needed while the
+ * defaults were inline properties. Moving them into a stylesheet added three new
+ * requirements (`getElementById`, `createElement`, `head.prepend`), and reaching
+ * for them on such a document throws.
+ *
+ * A throw here is not contained: it unwinds through `applyTheme` into the
+ * handshake, so an app in that environment never finishes connecting. The
+ * default layer is a rendering nicety and the connection is not, so a document
+ * that cannot carry a stylesheet gets no layer rather than no session.
+ */
+function canInstallStylesheet(): boolean {
+  return (
+    typeof document !== "undefined" &&
+    typeof document.getElementById === "function" &&
+    typeof document.createElement === "function" &&
+    typeof document.head?.prepend === "function"
+  );
+}
+
+/**
  * Install the neutral defaults for `mode` as a cascade layer.
  *
  * A layer, not inline properties on `documentElement`, and that distinction is
@@ -156,6 +180,8 @@ export function resetAppliedInlineKeys(): void {
  * and repeat calls are cheap. SSR-safe.
  */
 function applyDefaultThemeLayer(mode: "light" | "dark"): void {
+  if (!canInstallStylesheet()) return;
+
   // Safe to concatenate ONLY because every key and value here is module-local
   // (`DEFAULT_THEME_VARS`). `applyThemeFontFaces` below deliberately avoids
   // building CSS text for exactly this reason — a host-supplied value containing
@@ -244,9 +270,15 @@ export function applyThemeVariables(
     }
   }
 
-  const root = document.documentElement.style;
-  for (const k of appliedInlineKeys) {
-    if (!(k in incoming)) root.removeProperty(k);
+  const root = document.documentElement?.style;
+  if (typeof root?.setProperty !== "function") return;
+  // `removeProperty` is checked separately: a partial `style` may carry only the
+  // setter, and dropping the clear pass is far better than throwing out of it and
+  // leaving the host's variables unwritten entirely.
+  if (typeof root.removeProperty === "function") {
+    for (const k of appliedInlineKeys) {
+      if (!(k in incoming)) root.removeProperty(k);
+    }
   }
   for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
   appliedInlineKeys = new Set(Object.keys(incoming));

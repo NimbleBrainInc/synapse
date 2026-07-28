@@ -88,13 +88,22 @@ there is nothing to invalidate. A theme change is a repaint, not a render pass.
 
 ## Standalone, the library still renders
 
-With no host to inject anything (a static render, a Storybook page, a unit test),
-color tokens resolve through the `synapse-defaults` layer above, so they stay
-theme-correct in dark as well as light. Everything the layer does not cover — fonts,
-radii, shadows — falls back to its `var()` second argument: system fonts and neutral
-geometry. The component renders unbranded but complete, never blank. That is also
-what the standalone `inline` adapter relies on when a component runs with no host at
-all.
+With no host to inject anything, the component renders unbranded but complete, never
+blank. What backs the color tokens depends on whether a connection ran:
+
+- **Connected, but hostless** — the standalone `inline` adapter still applies a theme,
+  so color tokens resolve through the `synapse-defaults` layer above and stay
+  theme-correct in dark as well as light. Same for `connect()`, `createSynapse()` and
+  `SynapseProvider` against a host that ships no tokens.
+- **Never connected** — a Storybook story or a unit test that renders a component
+  directly installs no layer, because nothing applied a theme. Color tokens fall back
+  to their `var()` second argument, which is a static literal and therefore
+  light-flavoured in both modes. Rendering such a story in dark mode needs a host
+  that says so: with no host context the mode resolves to `light`, so wrapping in a
+  `SynapseProvider` installs the layer but installs the *light* one.
+
+Everything the layer never covers — fonts, radii, shadows — falls back to its `var()`
+second argument in both cases: system fonts and neutral geometry.
 
 ## What this buys you
 

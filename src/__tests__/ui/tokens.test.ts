@@ -24,7 +24,11 @@ describe("token contract", () => {
     expect(tokens.fg).toBe("var(--color-text-primary, #111827)");
     expect(tokens.fontSans).toContain("system-ui"); // not 'Satoshi'
     expect(tokens.fontSans).not.toContain("Satoshi");
-    expect(tokens.fontHeading).toContain("Georgia"); // serif fallback, not 'Erode'
+    // Headings fall back to the same sans stack as body: one family, with
+    // hierarchy from weight and size. A serif heading fallback would reproduce
+    // the display-serif signature on any host that injects nothing.
+    expect(tokens.fontHeading).toContain("system-ui");
+    expect(tokens.fontHeading).not.toContain("serif,");
     expect(tokens.fontHeading).not.toContain("Erode");
   });
 

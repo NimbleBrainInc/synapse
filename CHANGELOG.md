@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **The unbacked defaults carry no brand.** `--nb-color-warm` fell back to `#d4620a` / `#fb923c` — an orange from a superseded brand generation, on a token map whose own docblock promises "grays + a generic blue". No host injects `--nb-color-warm`, so every app rendering `<Badge tone="warm">` painted that orange in every host, including one whose palette has a single blue accent and no warm channel at all. It now resolves to the generic accent the rest of the map already uses, so an unbacked emphasis badge reads as emphasis without introducing a second hue. A host that wants a distinct warm still injects one.
+- **Headings fall back to the body stack, not a serif.** `tokens.fontHeading` fell back to `Georgia, 'Times New Roman', serif`, so any host that injects no `--nb-font-heading` rendered headings in a display serif — the same brand-by-default problem the removal of `@nimblebrain/synapse/ui/fonts` addressed in 0.13.0, one token over. The fallback is now the sans stack: one family, hierarchy from weight and size.
+
 ## [0.13.0] - 2026-07-26
 
 Moves typography onto the same host-wins footing as colour. The token contract could always *name* a font family (`--font-sans`), but a CSS custom property cannot carry the `@font-face` rule that loads one — and an app iframe is its own document, inheriting no faces from the host page. So a host sending only tokens was naming a typeface the app had no way to render. Hosts now send the faces alongside the tokens, and the SDK ships no font data at all.

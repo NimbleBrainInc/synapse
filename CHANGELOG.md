@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.14.0] - 2026-07-27
+
+Makes the neutral default theme behave like a default. It was applied as inline properties on `documentElement`, which outranks every author stylesheet — so it beat the very declarations it was meant to back up.
+
+### Requires: a host channel that can be updated
+
+The SDK no longer overrides what a host declares for a token, so a host is now responsible for keeping its own token values current. **Anything that varies with light/dark must reach the app on a channel the host can update.** A host that bakes its tokens into the app document once, at mount, and cannot rewrite them afterwards will hold those tokens at their mount-time values across a theme toggle — previously masked, because the SDK's inline defaults overrode them entirely.
+
+Against the NimbleBrain runtime this needs the release carrying [nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817). Before it, `--color-text-accent` and the `--nb-color-*` family are delivered in a `srcdoc` block fixed at mount, so they hold their mount-mode values when the user flips the theme — four of them landing under WCAG AA on a dark background. Bump to 0.14.0 together with that release, not ahead of it.
+
+### Fixed
+
+- **A default no longer overrides the host.** `applyThemeVariables` now installs `DEFAULT_THEME_VARS` as a `@layer synapse-defaults` stylesheet instead of writing it to `documentElement.style`. An unlayered rule outranks a layered one, so a host's or app's own `:root` declaration wins, while a var nobody declares still resolves to a theme-correct neutral default — which is what the map was always documented to do.
+
+  This mattered because `hostContext.styles.variables` is a closed enum: a host whose design system is larger than that enum has to deliver the remainder as a stylesheet injected into the app document, and that is the only channel available to it. Every such var that the SDK also defaulted was silently replaced by the SDK's value, permanently, with no self-heal path. A host sending its brand accent that way rendered in the SDK's neutral blue instead.
+
+  The host's protocol-delivered variables still go inline, so they continue to win over both the layer and any app rule. Overriding a default from an app now needs no `!important` — a plain `:root` rule is enough. The defaults arrive as an injected `<style>`, the same channel `base-reset` and the interactive components already require.
+
+- **A narrowed variable set no longer leaves the previous one pinned inline.** An ext-apps `host-context-changed` carries only the fields that changed, so a notification that flips mode while omitting `styles` reaches `applyThemeVariables` as an empty var set. Applying the defaults inline used to mask that by rewriting every defaulted key on each call; a layer cannot, because it cannot outrank an inline property. A key the SDK wrote inline on a previous call and the incoming set does not carry is now removed, letting the cascade resolve it against the host's stylesheet, the app's rule, or the layer — rather than pinning the previous theme's values while the layer flips.
+
+  Removal is keyed off what the SDK last wrote, not off `DEFAULT_THEME_VARS`. Those are different sets: a host may send any spec-enum var, and roughly 25 theme-sensitive ones (`--color-text-danger`, `--color-background-inverse`, …) have no neutral default, so keying off the default map would leave exactly those pinned at the previous mode's value. It also means the SDK never clears an inline property it did not set, so an app writing `documentElement.style` itself is left alone.
+
 ## [0.13.0] - 2026-07-26
 
 Moves typography onto the same host-wins footing as colour. The token contract could always *name* a font family (`--font-sans`), but a CSS custom property cannot carry the `@font-face` rule that loads one — and an app iframe is its own document, inheriting no faces from the host page. So a host sending only tokens was naming a typeface the app had no way to render. Hosts now send the faces alongside the tokens, and the SDK ships no font data at all.
@@ -100,6 +122,8 @@ Makes the `Drawer` header affordances first-class so consumers stop re-rolling t
 
 
 
+## [0.9.0] - 2026-06-07
+
 Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so embedded Synapse apps share one system with per-host personality. Components hold no brand; the host injects the theme via CSS variables (`hostContext.styles.variables`), so the same app adopts any host's look with no re-render. Purely additive — no changes to existing exports. See [PR #12](https://github.com/NimbleBrainInc/synapse/pull/12).
 
 ### Added
@@ -111,6 +135,8 @@ Adds `@nimblebrain/synapse/ui` — a token-driven, brand-free component layer so
 - `@nimblebrain/synapse/ui/fonts` subpath for font wiring.
 
 
+
+## [0.8.0] - 2026-04-27
 
 Fixes the file picker, which was effectively dead in NimbleBrain hosts and inflated bytes through tool-call JSON. `pickFile` / `pickFiles` now resolve to a stable workspace file ID; the host persists the bytes server-side over multipart.
 

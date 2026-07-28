@@ -38,8 +38,9 @@ function ThemeInjector({ synapse }: { synapse: Synapse }) {
   }, [synapse]);
 
   useEffect(() => {
-    // Neutral defaults for the mode back any var the host omits, then host
-    // values win — the same single path used by the handshake in core.ts.
+    // The host's values go inline; the neutral defaults for the mode go in a
+    // cascade layer, where they back any var nobody declares and lose to every
+    // var that is declared — the same single path the handshake uses in core.ts.
     applyTheme(theme.mode, theme.tokens, theme.fontFaces);
   }, [theme]);
 

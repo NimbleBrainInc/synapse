@@ -6,6 +6,37 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0]
+
+The Python API is unchanged. This release ships the vendored UI client at
+`@nimblebrain/synapse` 0.15.0, up from 0.14.0.
+
+A minor, and read the first entry before bumping: the client **removes** two
+tokens, so this is not a drop-in for every component.
+
+### Changed
+
+- **The `warm` tone and the `warm` / `warmLight` tokens are gone from the client.**
+  `--nb-color-warm` was a second accent channel no host injects, so a component
+  using it painted the SDK's own fallback — an orange from a retired brand
+  generation — in every host. If your component markup or CSS references
+  `tone="warm"`, `tokens.warm` or `tokens.warmLight`, move to `accent` /
+  `infoLight` where it is informational, or the `warning` pair where it is a
+  caution. A component that never used them is unaffected.
+
+- **Heading tokens fall back to the body sans stack, not a display serif.** A host
+  that injects no `--nb-font-heading` previously got `Georgia`; it now gets the
+  same sans as body text, with hierarchy from weight and size.
+
+### Fixed
+
+- **A partial `document` no longer kills the connection.** Client 0.14.0 moved the
+  neutral colour defaults into a `<style>` element, which silently required
+  `getElementById`, `createElement`, `head.prepend` and `removeProperty`. A caller
+  whose document supplied the previous envelope began throwing, and the throw
+  unwound into the handshake — so the symptom was an app that never connected,
+  with nothing pointing at theming. Those four are now feature-checked.
+
 ## [0.4.0]
 
 The Python API is unchanged. This release exists to ship the vendored UI client,

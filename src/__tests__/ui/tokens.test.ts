@@ -40,6 +40,17 @@ describe("token contract", () => {
     // An allowlist rather than a denylist: the map is small and hand-authored,
     // so the sanctioned set can be stated outright. A denylist only catches the
     // brand values someone thought to name, which is how the last one got in.
+    //
+    // ADMISSION RULE, so this stays a guard and does not decay into a list to
+    // append to: a hex qualifies when it was not *chosen for a brand*. In
+    // practice every hue below is a stock Tailwind ramp step — blue-600,
+    // red-600/400, emerald-600/400, amber-500/400, violet-600/400, indigo-400 —
+    // and every `*-light` ground is a neutral tint of one of them. The test is
+    // not "no brand uses this hue", which nothing could pass: #7c3aed is
+    // violet-600 off the shelf and a brand happens to use it too. #d4620a fails
+    // because it is bespoke and brand-tuned, picked to be one product's warm
+    // accent and nothing else's. If a candidate is not a stock ramp step or a
+    // tint of one, it does not belong here — take it to the host instead.
     const SANCTIONED = new Set(
       [
         // Neutral ladder — surfaces, text, borders.

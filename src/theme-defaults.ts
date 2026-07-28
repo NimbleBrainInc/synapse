@@ -17,8 +17,8 @@
  * It's the `var()` fallback, but able to branch on theme. The values stay
  * neutral grays, a generic blue, and generic semantic hues for danger, success,
  * warning and processing — never a *brand* value. Brand arrives only by host
- * injection, mirroring `ui/tokens.ts`. The test in `theme-defaults.test.ts`
- * holds the line: every hex here must be in the sanctioned set. This keeps
+ * injection, mirroring `ui/tokens.ts`. `__tests__/ui/tokens.test.ts` holds the
+ * line: every hex here must be in the sanctioned set. This keeps
  * the library host-agnostic while guaranteeing every token resolves correctly
  * in both themes even against an incomplete host, a standalone `connect()`
  * widget, or a third-party host.

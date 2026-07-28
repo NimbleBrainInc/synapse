@@ -26,7 +26,7 @@
  * outcome changes everywhere at once.
  */
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   applyThemeVariables,
   DEFAULT_THEME_VARS,
@@ -164,5 +164,52 @@ describe("a narrowed var set does not leave the previous one pinned inline", () 
     applyThemeVariables("dark", { "--color-text-primary": 42 as unknown as string });
 
     expect(document.documentElement.style.getPropertyValue("--color-text-primary")).toBe("");
+  });
+});
+
+describe("a partial document degrades instead of throwing", () => {
+  // An embedder or test harness may install a `document` carrying only what the
+  // defaults needed while they were inline properties — `documentElement.style`
+  // plus listeners. Moving them into a stylesheet added `getElementById`,
+  // `createElement` and `head.prepend`, none of which such a document has. A
+  // throw there does not stay local: it unwinds through `applyTheme` into the
+  // handshake, so the app never finishes connecting and the failure reads as a
+  // dead session rather than a missing default. Shape mirrors the stub in the
+  // NimbleBrain host's own SDK-parity suite, which is where this first surfaced.
+  const REAL_DOCUMENT = globalThis.document;
+
+  afterEach(() => {
+    (globalThis as { document?: unknown }).document = REAL_DOCUMENT;
+    resetAppliedInlineKeys();
+  });
+
+  function installPartialDocument(): { written: Record<string, string> } {
+    const written: Record<string, string> = {};
+    (globalThis as { document?: unknown }).document = {
+      documentElement: { style: { setProperty: (k: string, v: string) => (written[k] = v) } },
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    };
+    return { written };
+  }
+
+  it("still writes the host's variables when no stylesheet can be installed", () => {
+    const { written } = installPartialDocument();
+
+    expect(() => applyThemeVariables("dark", { "--color-text-primary": "#fafafa" })).not.toThrow();
+    // The host's values are the part that must survive: they are the only channel
+    // by which its brand reaches the app at all.
+    expect(written["--color-text-primary"]).toBe("#fafafa");
+  });
+
+  it("survives a second apply, where the clear pass runs", () => {
+    // `appliedInlineKeys` is empty on the first call, so the clear loop is not
+    // even entered — a single-apply test would pass against a `style` that has
+    // `setProperty` and no `removeProperty`, and the throw would land on the
+    // theme toggle instead.
+    installPartialDocument();
+    applyThemeVariables("light", { "--color-text-primary": "#111827" });
+
+    expect(() => applyThemeVariables("dark", {})).not.toThrow();
   });
 });

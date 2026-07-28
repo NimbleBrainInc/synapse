@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.15.0] - 2026-07-27
 
 ### Breaking
 
@@ -20,6 +20,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` *and* in the `tokens` `var()` fallbacks must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Both maps, because both are the unbranded-default claim and the brand orange sat in both: one is the block the SDK injects, the other is what each component resolves against when a host declares nothing. Typography got a guard in 0.13.0; colour had none, which is how that orange survived two releases under docblocks claiming the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
+## [0.14.1] - 2026-07-27
+
+### Fixed
+
+- **The defaults no longer add DOM requirements that break an existing caller.** Through 0.13.0 this module needed exactly `document.documentElement.style.setProperty`, plus a feature-checked `document.fonts`. 0.14.0 moved the neutral defaults into a `<style>` element and started clearing stale keys, which silently added four more requirements — `getElementById`, `createElement`, `head.prepend` and `removeProperty`. A caller whose `document` supplied the old envelope and not the new one began throwing.
+
+  The throw is not contained: it unwinds through `applyTheme` into the handshake, so the app never finishes connecting and the symptom is a dead session with nothing pointing at theming. `removeProperty` is the quieter half — `appliedInlineKeys` is empty on the first apply, so that pass is skipped entirely and the throw waits for a theme toggle.
+
+  Both new capabilities are now feature-checked at the point of use, the way `applyThemeFontFaces` has always checked `document.fonts`. A document that cannot carry a stylesheet gets no default layer and keeps its session; the host's variables are still written inline, which is the part that carries its brand. This restores 0.13.0's capability envelope exactly — it does not widen it.
 
 ## [0.14.0] - 2026-07-27
 

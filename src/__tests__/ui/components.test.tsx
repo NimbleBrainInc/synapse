@@ -73,7 +73,7 @@ describe("Badge + Card", () => {
   it("renders a badge label and card content", () => {
     render(
       <Card>
-        <Badge tone="warm">HIGH</Badge>
+        <Badge tone="warning">HIGH</Badge>
       </Card>,
     );
     expect(screen.getByText("HIGH")).toBeDefined();

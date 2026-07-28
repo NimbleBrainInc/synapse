@@ -6,10 +6,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **The `warm` tone and the `warm` / `warmLight` tokens are removed.** `--nb-color-warm` was a second accent channel that no host injects — the NimbleBrain runtime's projection covers ten colour vars and this was never among them — so every app rendering `<Badge tone="warm">` painted the SDK's own fallback, `#d4620a`, a hex from a retired brand generation. A library cannot ship a channel it has no unbranded value for: the neutral answer to "a second accent" is that there isn't one.
+
+  **Migration.** `tone="warm"` → `tone="accent"` where the badge is informational, `tone="warning"` where it is a caution. `tokens.warm` / `tokens.warmLight` → `tokens.accent` / `tokens.infoLight`, or the `warning` pair. Apps pinned to `^0.11.0`–`^0.13.0` are unaffected until they bump, since caret on `0.x` will not cross a minor.
+
 ### Fixed
 
-- **The unbacked defaults carry no brand.** `--nb-color-warm` fell back to `#d4620a` / `#fb923c` — an orange from a superseded brand generation, on a token map whose own docblock promises "grays + a generic blue". No host injects `--nb-color-warm`, so every app rendering `<Badge tone="warm">` painted that orange in every host, including one whose palette has a single blue accent and no warm channel at all. It now resolves to the generic accent the rest of the map already uses, so an unbacked emphasis badge reads as emphasis without introducing a second hue. A host that wants a distinct warm still injects one.
 - **Headings fall back to the body stack, not a serif.** `tokens.fontHeading` fell back to `Georgia, 'Times New Roman', serif`, so any host that injects no `--nb-font-heading` rendered headings in a display serif — the same brand-by-default problem the removal of `@nimblebrain/synapse/ui/fonts` addressed in 0.13.0, one token over. The fallback is now the sans stack: one family, hierarchy from weight and size.
+- **The vendored Python IIFE tracks the build.** `python/nimblebrain_synapse/_assets/synapse-ui.iife.js` is a second shipping path, and it carried the old values independently of `dist/`.
+
+### Added
+
+- **A neutrality guard on the colour defaults.** Every hex in `DEFAULT_THEME_VARS` must appear in a declared sanctioned set — neutral ladder, a generic blue, and the generic semantic hues. Typography got a guard in 0.13.0; colour had none, which is how a brand orange sat in the map across two releases while the docblock above it claimed the values were unbranded. An allowlist rather than a denylist: a denylist only catches the brand values someone thought to name, which is how the last one got in.
 
 ## [0.13.0] - 2026-07-26
 

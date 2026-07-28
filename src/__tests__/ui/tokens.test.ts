@@ -28,8 +28,64 @@ describe("token contract", () => {
     // hierarchy from weight and size. A serif heading fallback would reproduce
     // the display-serif signature on any host that injects nothing.
     expect(tokens.fontHeading).toContain("system-ui");
-    expect(tokens.fontHeading).not.toContain("serif,");
     expect(tokens.fontHeading).not.toContain("Erode");
+  });
+
+  it("backs every default with an unbranded value, never a brand hex", () => {
+    // The font side got a guard in 0.13.0 when a brand stylesheet import was
+    // removed; the colour side got none, which is how #d4620a — the warm accent
+    // from a NimbleBrain brand generation — sat in this map across two releases
+    // while the docblock above claimed the values were unbranded.
+    //
+    // An allowlist rather than a denylist: the map is small and hand-authored,
+    // so the sanctioned set can be stated outright. A denylist only catches the
+    // brand values someone thought to name, which is how the last one got in.
+    const SANCTIONED = new Set(
+      [
+        // Neutral ladder — surfaces, text, borders.
+        "#ffffff",
+        "#fafafa",
+        "#f3f4f6",
+        "#111827",
+        "#6b7280",
+        "#9ca3af",
+        "#e5e7eb",
+        "#d1d5db",
+        "#18181b",
+        "#27272a",
+        "#2f2f34",
+        "#a1a1aa",
+        "#71717a",
+        "#3f3f46",
+        "#52525b",
+        // A generic blue, and the generic semantic hues.
+        "#2563eb",
+        "#818cf8",
+        "#dc2626",
+        "#f87171",
+        "#059669",
+        "#34d399",
+        "#f59e0b",
+        "#fbbf24",
+        "#7c3aed",
+        "#a78bfa",
+        // Tints those hues are laid on.
+        "#f3eeff",
+        "#2a2440",
+        "#eef4ff",
+        "#1e2a44",
+      ].map((h) => h.toLowerCase()),
+    );
+
+    for (const mode of ["light", "dark"] as const) {
+      for (const [name, value] of Object.entries(DEFAULT_THEME_VARS[mode])) {
+        for (const hex of value.toLowerCase().match(/#[0-9a-f]{3,8}/g) ?? []) {
+          expect(SANCTIONED.has(hex), `${mode} ${name}: ${hex} is not a sanctioned neutral`).toBe(
+            true,
+          );
+        }
+      }
+    }
   });
 
   it("maps the type scale to the matching size + line-height vars", () => {

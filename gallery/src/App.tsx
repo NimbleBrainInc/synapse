@@ -94,7 +94,6 @@ const BADGE_TONES: BadgeTone[] = [
   "warning",
   "danger",
   "processing",
-  "warm",
 ];
 const STATUSES: Status[] = ["working", "completed", "failed", "idle"];
 
@@ -241,7 +240,6 @@ export function App() {
             <Swatch name="danger" value={tokens.danger} />
             <Swatch name="success" value={tokens.success} />
             <Swatch name="warning" value={tokens.warning} />
-            <Swatch name="warm" value={tokens.warm} />
             <Swatch name="processing" value={tokens.processing} />
             <Swatch name="infoLight" value={tokens.infoLight} />
           </Grid>
@@ -317,7 +315,7 @@ export function App() {
               <Inline gap="0.5rem">
                 <Badge tone="accent">Inline</Badge>
                 <Badge tone="neutral">with</Badge>
-                <Badge tone="warm">gap</Badge>
+                <Badge tone="warning">gap</Badge>
                 <Spacer />
                 <Text size="xs" tone="faint">
                   ← Spacer pushes →

@@ -8,8 +8,9 @@
  * with no React re-render: the host swaps the `:root` vars and every `var()`
  * re-resolves.
  *
- * The fallbacks are deliberately **neutral** (system fonts, neutral grays, a
- * generic blue) — NOT NimbleBrain brand. Brand arrives by injection when the
+ * The fallbacks are deliberately **unbranded** — system fonts, neutral grays, a
+ * generic blue, and generic semantic hues for the status channels. NOT
+ * NimbleBrain brand. Brand arrives by injection when the
  * app runs inside the NimbleBrain host; standalone/static renders get a sane
  * unbranded default. This keeps the library host-agnostic.
  *
@@ -42,8 +43,6 @@ export const tokens = {
   danger: "var(--nb-color-danger, #dc2626)",
   success: "var(--nb-color-success, #059669)",
   warning: "var(--nb-color-warning, #f59e0b)",
-  warm: "var(--nb-color-warm, #2563eb)",
-  warmLight: "var(--nb-color-warm-light, #eef4ff)",
   processing: "var(--nb-color-processing, #7c3aed)",
   processingLight: "var(--nb-color-processing-light, #f3eeff)",
   infoLight: "var(--nb-color-info-light, #eef4ff)",

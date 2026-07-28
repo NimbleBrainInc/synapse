@@ -270,11 +270,14 @@ export function applyThemeVariables(
     }
   }
 
-  const root = document.documentElement?.style;
-  if (typeof root?.setProperty !== "function") return;
-  // `removeProperty` is checked separately: a partial `style` may carry only the
-  // setter, and dropping the clear pass is far better than throwing out of it and
-  // leaving the host's variables unwritten entirely.
+  const root = document.documentElement.style;
+  // `removeProperty` is feature-checked and `setProperty` deliberately is not.
+  // The setter is the one capability this module has always required, so a
+  // document lacking it was never supported and gets no new promise here; the
+  // clear pass arrived with the defaults layer, so a `style` carrying only the
+  // setter is a shape that used to work. Dropping the clear pass for it is far
+  // better than throwing out of the loop and leaving the host's variables
+  // unwritten entirely.
   if (typeof root.removeProperty === "function") {
     for (const k of appliedInlineKeys) {
       if (!(k in incoming)) root.removeProperty(k);

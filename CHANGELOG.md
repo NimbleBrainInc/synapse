@@ -10,9 +10,11 @@ Makes the neutral default theme behave like a default. It was applied as inline 
 
 ### Requires: a host channel that can be updated
 
-The SDK no longer overrides what a host declares for a token, so a host is now responsible for keeping its own token values current. **Anything that varies with light/dark must reach the app on a channel the host can update.** A host that bakes its tokens into the app document once, at mount, and cannot rewrite them afterwards will hold those tokens at their mount-time values across a theme toggle — previously masked, because the SDK's inline defaults overrode them entirely.
+The SDK no longer overrides what a host declares for a token, so a host is now responsible for keeping its own token values current. **Anything that varies with light/dark must reach the app on a channel the host can update.** A host that bakes its tokens into the app document once, at mount, and cannot rewrite them afterwards will hold those tokens at their mount-time values across a theme toggle.
 
-Against the NimbleBrain runtime this needs the release carrying [nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817). Before it, `--color-text-accent` and the `--nb-color-*` family are delivered in a `srcdoc` block fixed at mount, so they hold their mount-mode values when the user flips the theme — four of them landing under WCAG AA on a dark background. Bump to 0.14.0 together with that release, not ahead of it.
+This is a pre-existing condition that 0.14.0 stops masking, not one it introduces. Since 0.10.2 the SDK's inline defaults overrode such tokens outright, which hid the staleness by discarding the host's values — the bug this release fixes. Bumping from 0.10.2–0.13.x will surface it; bumping from 0.9.x or earlier, which shipped no default map, changes nothing about it either way.
+
+Against the NimbleBrain runtime that condition holds today: `--color-text-accent` and the `--nb-color-*` family are delivered in a `srcdoc` block fixed at mount, so they keep their mount-mode values when the user flips the theme, four of them landing under WCAG AA on a dark background. Tracked as [nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817). Worth fixing on its own schedule — it is not a reason to hold this bump.
 
 ### Fixed
 

@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-09-07
+
+### Added
+
+- **`Breadcrumb`, `PageHeader`, `Tabs`, and `AppFrame.Nav` — the page/navigation layer.** A hierarchy deeper than two levels cannot be navigated by a back button, and every app that grew one has been assembling the same four pieces itself. `PageHeader` fixes their order (trail → title + status + actions → description) because a multi-screen app only reads as one app if the top of every screen has one rhythm.
+
+  `Tabs` exists beside `SegmentedControl` rather than instead of it, and the split is the point. They are mechanically the same control and different jobs: **tabs change which FACET of one chosen entity is shown** (they add no selection, so they add no level), **a segmented control narrows or reshapes a SET**. An app using one component for both stacks two or three identical pill rows down the page — app nav, entity facets, list filter, all in one costume — and the reader cannot tell which row changes what. The distinction is carried in the form: an underlined bar that belongs to the thing above it, versus a raised track that belongs to the thing below it. `Tabs` ships the full tablist contract (roving tabindex, arrow keys, wrap) because half of the pattern is worse than none of it.
+
+  `AppFrame.Nav` is app chrome with its own surface, and it is the only element in the frame entitled to a rule that runs edge to edge. An app that puts its nav in `Header` and reaches for a `borderBottom` gets a full-bleed hairline between two things that are both the page, which reads as a seam rather than as structure.
+
+- **`Table` gains `scrollable` and `minWidth`.** A table wider than its container can now scroll itself instead of its page. Off by default, because an `overflow-x` container captures the stickiness `position: sticky` currently resolves against the page scroller and CSS offers no way to scroll one axis while leaving the other visible — a real cost, and only the caller knows whether their table is worth it.
+
+### Fixed
+
+- **`Text truncate` truncates.** It set `overflow`/`text-overflow`/`white-space` on a `<span>`, and the first two do not apply to a non-replaced INLINE box — so the only declaration that survived was `white-space: nowrap`, and the prop did the exact opposite of its name: text became unwrappable instead of clipped. Inside an auto-layout `<table>` that widened the column to the full string and carried every later column off the pane, which is how a campaign list rendered as one enormous column with six invisible ones. Now sets `display: block` and `min-width: 0` alongside, so the box can both clip and shrink as a flex item.
+
+  **This changes layout for existing callers.** A `Text truncate` that was participating in an inline flow now forms a block. The prop never worked, so nothing can have depended on its intended behaviour — but a layout tuned around its *broken* behaviour will move.
+
+- **`Table` honours a declared column `width`.** Declaring `width` on any column now switches the table to `table-layout: fixed`; columns without one divide the remainder equally. Under auto layout — the CSS default — a declared width is advisory and content wins, so `Column.width` was a knob that silently did nothing and a truncating cell had no width to be clipped against. **A column that truncates must declare a width**; nothing fails loudly when you forget, because the table renders and the columns you cannot see are simply past the right edge.
+
 ## [0.15.0] - 2026-07-27
 
 ### Breaking

@@ -31,7 +31,24 @@ interface TextProps extends Omit<HTMLAttributes<HTMLElement>, "color"> {
   weight?: Weight;
   tone?: Tone;
   mono?: boolean;
-  /** Single-line ellipsis truncation. */
+  /**
+   * Single-line ellipsis truncation.
+   *
+   * Sets `display: block` alongside the ellipsis rules, and that is load-bearing rather
+   * than incidental: `overflow` and `text-overflow` do not apply to a non-replaced INLINE
+   * box, so on the default `<span>` the only declaration that survived was
+   * `white-space: nowrap` — and the prop did the exact opposite of its name, making text
+   * unwrappable instead of clipping it. Inside an auto-layout `<table>` that widened the
+   * column to the full string and pushed every later column off the pane.
+   *
+   * `min-width: 0` comes with it so the box can actually shrink as a flex item; without it
+   * a truncating `Text` inside `Inline`/`Stack` refuses to go below its content width and
+   * pushes its container instead, which is the same bug one layer out.
+   *
+   * A truncating cell in a `Table` also needs its column to declare a `width` — see
+   * `Column.width`. Auto table layout sizes to content, so the ellipsis has nothing to
+   * clip against until some column is pinned.
+   */
   truncate?: boolean;
   as?: ElementType;
   children?: ReactNode;
@@ -50,7 +67,13 @@ export function Text({
   ...rest
 }: TextProps) {
   const truncation: CSSProperties = truncate
-    ? { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }
+    ? {
+        display: "block",
+        minWidth: 0,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }
     : {};
   return (
     <As

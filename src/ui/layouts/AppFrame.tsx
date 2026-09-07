@@ -12,8 +12,12 @@
  *
  * The `contentWidth` knob is a personality lever: `reading` centers header,
  * body, and footer in a ~760px column (Conversations, Research), while `full`
- * uses the whole pane (CRM, dashboards). Header/body/footer share the same
+ * uses the whole pane (CRM, dashboards). Nav/header/body/footer share the same
  * column so the composition reads as one page.
+ *
+ * `Nav` is app chrome and `Header` is page content; an app with more than one
+ * top-level destination wants both, in that order. See `Nav` for why the two are
+ * not one slot with a border prop.
  */
 
 import {
@@ -109,6 +113,62 @@ function Body({ bleed = false, style, children, ...rest }: BodyProps) {
   );
 }
 
+interface NavProps extends HTMLAttributes<HTMLElement> {
+  /** The app's own identity — its name, a mark. Sits at the start of the bar. */
+  brand?: ReactNode;
+}
+
+/**
+ * Nav — the app's CHROME bar: who this app is, and its top-level destinations.
+ *
+ * Distinct from `Header`, and the distinction is the point. `Header` is page content that
+ * happens to be at the top; `Nav` is the frame around the page, and it is the only element
+ * here entitled to a rule that runs edge to edge.
+ *
+ * That entitlement is the whole reason this exists as its own slot. An app that puts its
+ * nav in `Header` and reaches for a `borderBottom` gets a full-bleed hairline underneath
+ * inset content, with inset content below it — a line that separates two things which are
+ * both the page, so it reads as a seam rather than as structure. Giving the bar a surface
+ * of its own makes the same line describe a real boundary: chrome above, page below.
+ *
+ * `brand` sits at the start and `children` at the end, because an app's identity is a
+ * constant and its destinations are the part a reader is aiming at — and a reader aims at
+ * the end of a bar they have already learned the start of.
+ */
+function Nav({ brand, style, children, ...rest }: NavProps) {
+  const width = useContext(ContentWidthCtx);
+  return (
+    <nav
+      style={{
+        flexShrink: 0,
+        background: tokens.bgRaised,
+        borderBottom: `${tokens.borderWidth} solid ${tokens.border}`,
+        padding: "0.6rem 1.5rem",
+        ...style,
+      }}
+      {...rest}
+    >
+      <div
+        style={{
+          ...columnStyle(width),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem",
+          minWidth: 0,
+        }}
+      >
+        {brand ? <div style={{ minWidth: 0 }}>{brand}</div> : <span />}
+        {children ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+            {children}
+          </div>
+        ) : null}
+      </div>
+    </nav>
+  );
+}
+
 function Footer({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
   const width = useContext(ContentWidthCtx);
   return (
@@ -126,5 +186,5 @@ function Footer({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
   );
 }
 
-/** `AppFrame` with `.Header`, `.Body`, `.Footer` slots. */
-export const AppFrame = Object.assign(AppFrameRoot, { Header, Body, Footer });
+/** `AppFrame` with `.Nav`, `.Header`, `.Body`, `.Footer` slots. */
+export const AppFrame = Object.assign(AppFrameRoot, { Nav, Header, Body, Footer });

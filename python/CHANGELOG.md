@@ -6,6 +6,26 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.1]
+
+### Fixed
+
+- **`mcp` is capped below 2, so the package imports again.** The dependency was
+  `mcp>=1.26.0` with no upper bound, so a fresh install resolved mcp 2.x — where
+  `FastMCP` was renamed to `MCPServer` and `mcp.server.fastmcp` raises
+  `ModuleNotFoundError` on import. `nimblebrain_synapse.server` imports that module, so
+  the package did not load at all for anyone installing it after mcp 2.0 shipped. The
+  same release stopped `types.ServerResult` being a RootModel, so `_attach` also reads a
+  `.root` that no longer exists.
+
+  This was invisible for weeks because it is a RESOLUTION failure rather than a code
+  change: nothing in this repo moved, the newest matching `mcp` did. CI would have caught
+  it on the first run after mcp 2.0, and CI had not run since 2026-07-28.
+
+  The cap states what this code supports; it is not a decision to stay on v1. Adopting
+  2.x is a migration with its own breaking change for consumers still on 1.x, and it
+  raises this line rather than removing the bound.
+
 ## [0.5.0]
 
 The Python API is unchanged. This release ships the vendored UI client at

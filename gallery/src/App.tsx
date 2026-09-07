@@ -3,6 +3,7 @@ import {
   Avatar,
   Badge,
   type BadgeTone,
+  Breadcrumb,
   Button,
   Card,
   type Column,
@@ -13,6 +14,7 @@ import {
   Inline,
   ListDetailLayout,
   ListRow,
+  PageHeader,
   Pagination,
   Prose,
   SearchField,
@@ -24,6 +26,7 @@ import {
   type Status,
   StatusDot,
   Table,
+  Tabs,
   Text,
   TextLink,
   tokens,
@@ -106,6 +109,33 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 <blockquote>One system, per-app personality.</blockquote>
 `;
 
+// A record description long enough to need clipping. The gallery's other fixtures are short
+// strings, and a short string cannot demonstrate a truncating column at all — the point of
+// the width is only visible against content that would otherwise win.
+const LONG_SUMMARY =
+  "Migrating the intake flow off the legacy portal, with a staged cutover per clinic and a rollback window on each stage. Two owners, weekly review, and no data migration until the read path is verified.";
+
+const RECORDS = [
+  {
+    id: "r1",
+    name: "Blue Ridge — Patient Portal",
+    summary: LONG_SUMMARY,
+    open: 2,
+    total: 40,
+    done: 12,
+    failed: 1,
+  },
+  {
+    id: "r2",
+    name: "Monaco / Petros",
+    summary: "Discovery only. One call booked, notes attached, no commitments made yet.",
+    open: 0,
+    total: 18,
+    done: 18,
+    failed: 0,
+  },
+];
+
 const RUNS = [
   { id: 0, title: "Red Night Consulting context", meta: "21h ago", status: "completed" as const },
   { id: 1, title: "Jordan Ratner re-engagement hook", meta: "22h ago", status: "working" as const },
@@ -184,6 +214,8 @@ export function App() {
   const [layoutMode, setLayoutMode] = useState("reflow");
   const [paneWidth, setPaneWidth] = useState(760);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [navDemo, setNavDemo] = useState("records");
+  const [tabDemo, setTabDemo] = useState("details");
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
   const [ldWidth, setLdWidth] = useState(760);
 
@@ -740,6 +772,176 @@ export function App() {
               />
             </div>
           </Stack>
+        </Section>
+
+        <Section
+          title="Page layer — Breadcrumb, PageHeader, Tabs, AppFrame.Nav"
+          subtitle="What an app deeper than one level needs. Nav is chrome; PageHeader is the page; tabs are facets of the one entity the header names."
+        >
+          <Stack gap="1.5rem">
+            <div
+              style={{
+                border: `1px solid ${tokens.border}`,
+                borderRadius: tokens.radiusMd,
+                overflow: "hidden",
+              }}
+            >
+              {/* Nav carries its own surface, and that is what entitles it to a rule running
+                  edge to edge: it separates chrome from page. The same line drawn under a
+                  page-level header would sit between two things that are both the page. */}
+              <AppFrame.Nav brand={<Heading size="sm">Brand Book</Heading>}>
+                <SegmentedControl
+                  options={[
+                    { label: "Records", value: "records" },
+                    { label: "Inbox", value: "inbox" },
+                    { label: "Settings", value: "settings" },
+                  ]}
+                  value={navDemo}
+                  onChange={setNavDemo}
+                />
+              </AppFrame.Nav>
+
+              <div style={{ padding: "1.25rem" }}>
+                <Stack gap="1.1rem">
+                  <PageHeader
+                    crumbs={[
+                      { label: "Records", onClick: () => {} },
+                      { label: "Blue Ridge — Patient Portal" },
+                    ]}
+                    title="Blue Ridge — Patient Portal"
+                    status={<Badge tone="success">active</Badge>}
+                    actions={
+                      <>
+                        <Button size="sm" variant="ghost">
+                          Export
+                        </Button>
+                        <Button size="sm">New entry</Button>
+                      </>
+                    }
+                    description={LONG_SUMMARY}
+                  />
+
+                  {/* Tabs, not a second SegmentedControl. The bar above narrows a SET; this
+                      one changes which FACET of the chosen record is shown — no new
+                      selection, so no new level and no second pane. */}
+                  <Tabs
+                    tabs={[
+                      { label: "Details", value: "details" },
+                      { label: "Activity", value: "activity", count: 12 },
+                      { label: "Files", value: "files" },
+                    ]}
+                    value={tabDemo}
+                    onChange={setTabDemo}
+                    label="Record"
+                  />
+
+                  <Text size="sm" tone="muted">
+                    {tabDemo === "details"
+                      ? "The description above is clamped to two lines. Copy of unbounded length at the top of every screen pushes the content a reader came for below the fold; two lines identifies the record without becoming the page."
+                      : "Switching a tab changes which facet is shown and nothing about which record is chosen."}
+                  </Text>
+                </Stack>
+              </div>
+            </div>
+
+            <Stack gap="0.5rem">
+              <Text size="xs" tone="faint">
+                Breadcrumb on its own. Every step above the current one is a control; the
+                current one is text, because a control that looks clickable and does nothing is
+                worse than no control.
+              </Text>
+              <Breadcrumb
+                crumbs={[
+                  { label: "Records", onClick: () => {} },
+                  { label: "Blue Ridge — Patient Portal", onClick: () => {} },
+                  { label: "Contacts" },
+                ]}
+              />
+            </Stack>
+          </Stack>
+        </Section>
+
+        <Section
+          title="A truncating column declares a width"
+          subtitle="Auto table layout sizes columns to their content, so a cell that asks to truncate has nothing to clip against and widens the table instead. Declaring a width on any column switches the table to fixed layout — which is what makes the ellipsis possible."
+        >
+          <div
+            style={{
+              border: `1px solid ${tokens.border}`,
+              borderRadius: tokens.radiusMd,
+              overflow: "hidden",
+            }}
+          >
+            <Table
+              data={RECORDS}
+              rowKey={(r) => r.id}
+              columns={
+                [
+                  {
+                    key: "name",
+                    header: "Record",
+                    width: "38%",
+                    render: (r) => (
+                      <Stack gap="0.15rem">
+                        <Text size="sm" weight="medium" truncate>
+                          {r.name}
+                        </Text>
+                        <Text size="xs" tone="muted" truncate>
+                          {r.summary}
+                        </Text>
+                      </Stack>
+                    ),
+                  },
+                  {
+                    key: "open",
+                    header: "Open",
+                    align: "right",
+                    render: (r) => (
+                      <Text size="sm" tone={r.open > 0 ? "default" : "muted"}>
+                        {r.open}
+                      </Text>
+                    ),
+                  },
+                  {
+                    key: "total",
+                    header: "Total",
+                    align: "right",
+                    render: (r) => <Text size="sm">{r.total}</Text>,
+                  },
+                  {
+                    key: "done",
+                    header: "Done",
+                    align: "right",
+                    render: (r) => <Text size="sm">{r.done}</Text>,
+                  },
+                  {
+                    key: "failed",
+                    header: "Failed",
+                    align: "right",
+                    render: (r) => (
+                      <Text size="sm" tone={r.failed > 0 ? "danger" : "muted"}>
+                        {r.failed}
+                      </Text>
+                    ),
+                  },
+                  {
+                    key: "state",
+                    header: "State",
+                    render: () => <Badge tone="success">ready</Badge>,
+                  },
+                  {
+                    key: "updated",
+                    header: "Updated",
+                    render: () => (
+                      <Text size="sm" tone="muted">
+                        4 Sep, 7:40 PM
+                      </Text>
+                    ),
+                  },
+                ] satisfies Column<(typeof RECORDS)[number]>[]
+              }
+            />
+          </div>
         </Section>
       </div>
     </div>

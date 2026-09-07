@@ -122,7 +122,11 @@ jobs:
         # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
         # a newer mcp API without raising the floor fails here, not for a consumer.
         run: |
-          FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)".*/\1/p' pyproject.toml)
+          # Stops at a comma OR the closing quote, because the range carries an upper
+          # bound now ("mcp>=1.26.0,<2"). Anchored on the quote alone this matched nothing,
+          # FLOOR came out empty, and the step ran `--with "mcp=="` — a resolution error
+          # that reads nothing like "the floor test lost its floor".
+          FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)[,"].*/\1/p' pyproject.toml)
           uv run --isolated --no-project --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
             --with-editable . pytest -q
       - name: Tests pass on the minimum supported Python

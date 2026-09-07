@@ -122,11 +122,18 @@ jobs:
         # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
         # a newer mcp API without raising the floor fails here, not for a consumer.
         run: |
-          # Stops at a comma OR the closing quote, because the range carries an upper
-          # bound now ("mcp>=1.26.0,<2"). Anchored on the quote alone this matched nothing,
-          # FLOOR came out empty, and the step ran `--with "mcp=="` — a resolution error
-          # that reads nothing like "the floor test lost its floor".
-          FLOOR=$(sed -n 's/.*"mcp>=\([0-9.]*\)[,"].*/\1/p' pyproject.toml)
+          # The floor comes out of the parsed metadata, not a text match on the file.
+          # A pattern over the raw text can find nothing (a spacing or ordering it did
+          # not anticipate) or two floors (the same range quoted in a nearby comment),
+          # and either one reaches uv as a malformed specifier — an error that reads
+          # like a bad dependency rather than like a broken extraction. Parsing fails
+          # loudly instead, naming pyproject.toml. Same idiom as publish-python.yml's
+          # tag/version gate.
+          FLOOR=$(python3 -c \
+            "import tomllib,pathlib,re; \
+             deps=tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['dependencies']; \
+             spec=next(d for d in deps if re.match(r'mcp[^\w-]', d)); \
+             print(re.search(r'>=\s*([0-9][0-9.a-z]*)', spec).group(1))")
           uv run --isolated --no-project --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
             --with-editable . pytest -q
       - name: Tests pass on the minimum supported Python

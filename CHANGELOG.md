@@ -16,6 +16,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`Table` gains `scrollable` and `minWidth`.** A table wider than its container can now scroll itself instead of its page. Off by default, because an `overflow-x` container captures the stickiness `position: sticky` currently resolves against the page scroller and CSS offers no way to scroll one axis while leaving the other visible — a real cost, and only the caller knows whether their table is worth it.
 
+  **`minWidth` turns scrolling on by itself.** A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane become seven clipped headers and a badge overflowing its cell; `minWidth` is where a caller says how narrow is too narrow. Setting that floor without a scroller would widen the table past its container and push the PAGE sideways — the exact failure the floor was set to prevent — so the floor implies the wrapper rather than the pair being two props that misbehave unless both are set.
+
 ### Fixed
 
 - **`Text truncate` truncates.** It set `overflow`/`text-overflow`/`white-space` on a `<span>`, and the first two do not apply to a non-replaced INLINE box — so the only declaration that survived was `white-space: nowrap`, and the prop did the exact opposite of its name: text became unwrappable instead of clipped. Inside an auto-layout `<table>` that widened the column to the full string and carried every later column off the pane, which is how a campaign list rendered as one enormous column with six invisible ones. Now sets `display: block` and `min-width: 0` alongside, so the box can both clip and shrink as a flex item.

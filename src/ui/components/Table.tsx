@@ -59,9 +59,21 @@ interface TableProps<T> extends Omit<HTMLAttributes<HTMLTableElement>, "children
    * Off by default because it trades the sticky header away (see the module note).
    * Reach for it when the columns genuinely cannot fit — not to paper over a missing
    * `width`, which is the cause worth fixing rather than scrolling past.
+   *
+   * Implied by `minWidth`; setting both is harmless and says the same thing twice.
    */
   scrollable?: boolean;
-  /** Floor for the table's own width when `scrollable`, below which it scrolls instead of crushing. */
+  /**
+   * The narrowest this table stays readable. Below it the table scrolls instead of
+   * crushing — a fixed-layout table has no lower bound of its own, so seven columns in a
+   * 400px pane become seven clipped headers and a badge overflowing its cell rather than
+   * anything a reader can use.
+   *
+   * **Turns scrolling on by itself**, and that coupling is the point: a floor with nothing
+   * to scroll inside is a table that widens past its container and pushes the PAGE
+   * sideways, which is the failure the floor was set to prevent. Two props that misbehave
+   * unless both are set is a worse contract than one prop that implies the other.
+   */
   minWidth?: number | string;
 }
 
@@ -176,7 +188,9 @@ export function Table<T>({
     </table>
   );
 
-  if (!scrollable) return table;
+  // A declared floor implies the scroller. See `minWidth` — the pair only ever makes sense
+  // together, so the component closes the bad combination rather than documenting it.
+  if (!scrollable && minWidth === undefined) return table;
   // `max-width: 100%` as well as `overflow-x`, because a flex or grid item's default
   // `min-width: auto` lets it grow to its content and the scroller never engages — the
   // container would widen instead, which is the failure this exists to stop.

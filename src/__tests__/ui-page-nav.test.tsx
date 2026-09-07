@@ -105,6 +105,24 @@ describe("Table gives a truncating cell something to clip against", () => {
     // Without a max-width the wrapper grows to its content and the scroller never engages.
     expect(wrapper.style.maxWidth).toBe("100%");
   });
+
+  it("treats a declared floor as a request to scroll", () => {
+    // `minWidth` without a scroller widens the table past its container and pushes the PAGE
+    // sideways — the exact failure a floor is set to prevent. So the floor implies the
+    // wrapper, and the bad combination is closed rather than documented.
+    const { container } = render(
+      <Table
+        data={rows}
+        rowKey={(r) => r.id}
+        columns={[{ key: "name", header: "Name", render: (r) => r.name }]}
+        minWidth={720}
+      />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.tagName).toBe("DIV");
+    expect(wrapper.style.overflowX).toBe("auto");
+    expect(container.querySelector("table")?.style.minWidth).toBe("720px");
+  });
 });
 
 describe("Breadcrumb", () => {

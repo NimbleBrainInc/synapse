@@ -779,16 +779,11 @@ export function App() {
           subtitle="What an app deeper than one level needs. Nav is chrome; PageHeader is the page; tabs are facets of the one entity the header names."
         >
           <Stack gap="1.5rem">
-            <div
-              style={{
-                border: `1px solid ${tokens.border}`,
-                borderRadius: tokens.radiusMd,
-                overflow: "hidden",
-              }}
-            >
-              {/* Nav carries its own surface, and that is what entitles it to a rule running
-                  edge to edge: it separates chrome from page. The same line drawn under a
-                  page-level header would sit between two things that are both the page. */}
+            {/* Rendered as a PAGE, not framed as a card. The section around it is already the
+                separation; boxing it again would make a page look like a widget, and the
+                edge-to-edge rule under Nav — the whole reason Nav is its own slot — cannot
+                read as edge-to-edge inside a rounded border. */}
+            <div>
               <AppFrame.Nav brand={<Heading size="sm">Brand Book</Heading>}>
                 <SegmentedControl
                   options={[
@@ -801,7 +796,7 @@ export function App() {
                 />
               </AppFrame.Nav>
 
-              <div style={{ padding: "1.25rem" }}>
+              <div style={{ padding: "1.25rem 0 0" }}>
                 <Stack gap="1.1rem">
                   <PageHeader
                     crumbs={[
@@ -863,7 +858,7 @@ export function App() {
 
         <Section
           title="A truncating column declares a width"
-          subtitle="Auto table layout sizes columns to their content, so a cell that asks to truncate has nothing to clip against and widens the table instead. Declaring a width on any column switches the table to fixed layout — which is what makes the ellipsis possible."
+          subtitle="Auto table layout sizes columns to their content, so a cell that asks to truncate has nothing to clip against and widens the table instead. Declaring a width on any column switches the table to fixed layout — which is what makes the ellipsis possible. Pair it with minWidth: fixed columns have no lower bound, so a narrow pane crushes them unless the table is told where to start scrolling. Narrow this window to watch it."
         >
           <div
             style={{
@@ -875,6 +870,10 @@ export function App() {
             <Table
               data={RECORDS}
               rowKey={(r) => r.id}
+              // The floor, and the reason to set one: seven fixed columns in a narrow pane
+              // have no lower bound of their own, so without this they crush to clipped
+              // headers rather than scrolling. Setting it turns the scroller on.
+              minWidth={720}
               columns={
                 [
                   {

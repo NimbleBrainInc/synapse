@@ -1,21 +1,30 @@
 """SynapseUI — the server (Python) half of the Synapse cross-host UI framework.
 
 One declaration wires a self-contained HTML component into every host bridge a
-Synapse app can render in, replacing the hand-rolled per-app shim:
+Synapse app can render in, replacing the hand-rolled per-app shim. `SynapseUI` is
+an MCP **extension** (SEP-2133): hand the instance to
+``MCPServer(..., extensions=[ui])`` and it contributes everything below.
 
-- **register** the component as two data-free ``ui://`` resources (SDK inlined):
-  the ChatGPT skybridge MIME (``text/html+skybridge``) and the MCP Apps standard
-  MIME (``text/html;profile=mcp-app``, Claude Desktop et al.) — so each host reads
-  the template and feeds it the tool's ``structuredContent``.
+- Two data-free ``ui://`` **resources** (SDK inlined): the ChatGPT skybridge MIME
+  (``text/html+skybridge``) and the MCP Apps standard MIME
+  (``text/html;profile=mcp-app``, Claude Desktop et al.) — so each host reads the
+  template and feeds it the tool's ``structuredContent``.
 - **tool_meta / result_meta** emit the `_meta` a host binds an output template
   with (``openai/outputTemplate`` etc.).
-- **bind** installs the ``CallToolResult`` post-process that, for one tool, mirrors
-  the ChatGPT ``openai/outputTemplate`` pointer into each result ``_meta`` (the
-  SEP-1865 ``ui.resourceUri`` binding rides the descriptor ``_meta`` from
-  ``tool_meta``). Opt into ``embed_resource=True`` to also bake the component HTML
-  into the result ``content`` (the legacy mcp-ui no-round-trip copy) — off by
-  default so that ``audience: ["user"]`` HTML can't leak into a client that won't
-  render it.
+- **bind** names the tools whose results carry the binding. For each, the
+  extension's ``tools/call`` interceptor mirrors the ChatGPT
+  ``openai/outputTemplate`` pointer into the result ``_meta`` (the SEP-1865
+  ``ui.resourceUri`` binding rides the descriptor ``_meta`` from ``tool_meta``).
+  Opt into ``embed_resource=True`` to also bake the component HTML into the result
+  ``content`` (the legacy mcp-ui no-round-trip copy) — off by default so that
+  ``audience: ["user"]`` HTML can't leak into a client that won't render it.
+
+The extension is advertised under the spec's MCP Apps identifier
+(``io.modelcontextprotocol/ui``), because that is the extension this implements:
+the ChatGPT dialect rides alongside in `_meta` keys the spec does not claim. A
+server therefore uses `SynapseUI` *instead of* the SDK's own ``mcp.server.apps.Apps``
+— two extensions cannot share an identifier, and ``Apps`` serves only the
+``text/html;profile=mcp-app`` MIME, so it cannot carry the skybridge resource.
 
 The client SDK (`window.SynapseUI`) is inlined into the served + embedded HTML so
 the component is fully self-contained (no CDN, CSP-safe). Plain MCP clients ignore
@@ -28,14 +37,19 @@ here, framework-owned and on by default.
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+from dataclasses import dataclass
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 
 from mcp import types
+from mcp.server.apps import APP_MIME_TYPE, EXTENSION_ID
+from mcp.server.extension import Extension, ResourceBinding
+from mcp.server.mcpserver.resources import TextResource
 
 if TYPE_CHECKING:
-    from mcp.server.fastmcp import FastMCP
+    from collections.abc import Callable, Sequence
+
+    from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
 
 __all__ = ["SynapseUI"]
 
@@ -45,8 +59,9 @@ SKYBRIDGE_MIME = "text/html+skybridge"
 MCPUI_MIME = "text/html"
 # MCP Apps standard (SEP-1865): a host mounts the component in an iframe only when
 # the resource is served under this exact MIME (Claude Desktop and other MCP Apps
-# hosts). No space after the semicolon — the string is matched verbatim.
-MCPAPP_MIME = "text/html;profile=mcp-app"
+# hosts). Taken from the SDK rather than spelled again here, so it cannot drift
+# from the MIME the SDK's own resource validation enforces.
+MCPAPP_MIME = APP_MIME_TYPE
 
 # The client reads pushed data from this element by id (mcp-ui / SSR path). Keep
 # in lockstep with the SDK's SYNAPSE_DATA_ELEMENT_ID.
@@ -71,8 +86,21 @@ def _load_bundled_sdk() -> str:
     )
 
 
-class SynapseUI:
+@dataclass(frozen=True)
+class _Binding:
+    """The per-tool render decision `bind` records, read by the interceptor."""
+
+    should_render: Callable[[Any], bool]
+    embed_resource: bool
+
+
+class SynapseUI(Extension):
     """A cross-host `ui://` component declared once and wired into every bridge.
+
+    Pass the instance to ``MCPServer(..., extensions=[ui])``. The component's two
+    resources are built here, at construction, and contributed from
+    :meth:`resources`; :meth:`bind` names the tools whose results carry the
+    binding and may be called before or after the server is constructed.
 
     Args:
         uri: The single ``ui://`` resource URI both hosts point at.
@@ -104,7 +132,13 @@ class SynapseUI:
             ``connect_domains``). Empty for a self-contained component.
         resource_domains: Origins the component may load static assets from (widget
             CSP ``resource_domains``). Empty for a self-contained component.
+        resource_meta: Extra ``_meta`` keys merged onto the ChatGPT (skybridge)
+            resource, for host keys this class does not model.
     """
+
+    #: The MCP Apps extension this implements, advertised under
+    #: ``ServerCapabilities.extensions``. Taken from the SDK so it cannot drift.
+    identifier = EXTENSION_ID
 
     def __init__(
         self,
@@ -119,6 +153,7 @@ class SynapseUI:
         mcp_app_domain: str | None = None,
         connect_domains: list[str] | None = None,
         resource_domains: list[str] | None = None,
+        resource_meta: dict[str, Any] | None = None,
     ) -> None:
         self.uri = uri
         # The MCP Apps standard resource is a sibling URI: a resource carries a
@@ -137,8 +172,9 @@ class SynapseUI:
         self.mcp_app_domain = mcp_app_domain
         self.connect_domains = connect_domains or []
         self.resource_domains = resource_domains or []
-        self._bound: set[str] = set()
+        self._bound: dict[str, _Binding] = {}
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
+        self._resources = self._build_resources(resource_meta)
 
     # -- HTML -------------------------------------------------------------
 
@@ -188,7 +224,7 @@ class SynapseUI:
             type="resource",
             resource=types.TextResourceContents(
                 uri=self.uri,
-                mimeType=MCPUI_MIME,
+                mime_type=MCPUI_MIME,
                 text=self.render_html(data),
             ),
             annotations=types.Annotations(audience=["user"]),
@@ -224,8 +260,10 @@ class SynapseUI:
         """`_meta` for the tool *result* — mirrors the template pointer per call."""
         return {"openai/outputTemplate": self.uri}
 
-    def register(self, mcp: FastMCP, *, meta: dict[str, Any] | None = None) -> None:
-        """Register both host-facing ``ui://`` resources (data-free, SDK inlined).
+    # -- Extension contributions ------------------------------------------
+
+    def _build_resources(self, resource_meta: dict[str, Any] | None) -> list[ResourceBinding]:
+        """Both host-facing ``ui://`` resources (data-free, SDK inlined).
 
         The same component is served twice because a resource carries one MIME and
         the hosts disagree: ``self.uri`` under ``text/html+skybridge`` for ChatGPT,
@@ -237,7 +275,7 @@ class SynapseUI:
         # ChatGPT (skybridge): the flat `openai/*` dialect. CSP + the widget domain
         # are required to submit the app; without them ChatGPT's dev view flags the
         # template as submission-incomplete.
-        resource_meta: dict[str, Any] = {
+        sky_meta: dict[str, Any] = {
             "openai/widgetPrefersBorder": True,
             "openai/widgetCSP": {
                 "connect_domains": self.connect_domains,
@@ -245,12 +283,8 @@ class SynapseUI:
             },
         }
         if self.widget_domain is not None:
-            resource_meta["openai/widgetDomain"] = self.widget_domain
-        resource_meta.update(meta or {})
-
-        @mcp.resource(self.uri, mime_type=SKYBRIDGE_MIME, meta=resource_meta)
-        def _synapse_ui_resource() -> str:
-            return html
+            sky_meta["openai/widgetDomain"] = self.widget_domain
+        sky_meta.update(resource_meta or {})
 
         # MCP Apps standard (Claude et al.): the nested `ui.*` dialect, camelCase.
         # `ui.domain` is omitted unless a stable origin was supplied — the host
@@ -266,32 +300,49 @@ class SynapseUI:
         if self.mcp_app_domain is not None:
             ui_meta["domain"] = self.mcp_app_domain
 
-        @mcp.resource(
-            self.mcp_app_uri,
-            mime_type=MCPAPP_MIME,
-            meta={"ui": ui_meta},
-        )
-        def _synapse_ui_mcp_app_resource() -> str:
-            return html
+        return [
+            ResourceBinding(
+                resource=TextResource(
+                    uri=self.uri,
+                    name=self.uri,
+                    mime_type=SKYBRIDGE_MIME,
+                    meta=sky_meta,
+                    text=html,
+                )
+            ),
+            ResourceBinding(
+                resource=TextResource(
+                    uri=self.mcp_app_uri,
+                    name=self.mcp_app_uri,
+                    mime_type=MCPAPP_MIME,
+                    meta={"ui": ui_meta},
+                    text=html,
+                )
+            ),
+        ]
+
+    def resources(self) -> Sequence[ResourceBinding]:
+        """The two host-facing ``ui://`` resources, consumed at server construction."""
+        return self._resources
 
     def bind(
         self,
-        mcp: FastMCP,
-        *,
         tool: str,
+        *,
         should_render: Callable[[Any], bool] | None = None,
         embed_resource: bool = False,
     ) -> None:
-        """Install the ``CallToolResult`` post-process that renders `tool`'s output.
+        """Render `tool`'s output through this component.
 
         For a successful, non-error result of ``tool`` that carries
-        ``structuredContent`` (and passes ``should_render``), mirrors the ChatGPT
-        ``openai/outputTemplate`` pointer into the result ``_meta`` per call. That,
-        the descriptor ``_meta`` from ``tool_meta`` (which also carries the SEP-1865
-        ``ui.resourceUri`` for Claude and other MCP Apps hosts), and the registered
-        ``ui://`` resource are what let a standard host bind the component and
-        render it with the ``structuredContent``. A plain client ignores the
-        ``_meta`` and still reads the structured JSON.
+        ``structuredContent`` (and passes ``should_render``), the extension's
+        ``tools/call`` interceptor mirrors the ChatGPT ``openai/outputTemplate``
+        pointer into the result ``_meta`` per call. That, the descriptor ``_meta``
+        from ``tool_meta`` (which also carries the SEP-1865 ``ui.resourceUri`` for
+        Claude and other MCP Apps hosts), and the contributed ``ui://`` resource are
+        what let a standard host bind the component and render it with the
+        ``structuredContent``. A plain client ignores the ``_meta`` and still reads
+        the structured JSON.
 
         ``embed_resource`` (default ``False``) additionally bakes the fully rendered
         component HTML into the result ``content`` as an mcp-ui ``EmbeddedResource``
@@ -304,43 +355,41 @@ class SynapseUI:
         every standard host, so enable this only for a host that renders *solely*
         from the embedded copy and not the ``ui.resourceUri`` pointer.
 
-        Quarantine note: this wraps FastMCP's ``CallToolRequest`` handler — a leak
-        into FastMCP internals kept in this one place so no app pokes them.
-
-        # TODO: upstream a real FastMCP result-transform hook and drop this patch.
+        Order does not matter: the interceptor is installed because this class
+        overrides :meth:`intercept_tool_call`, not because a tool is bound, so this
+        may be called before or after the server is constructed. Binding the same
+        tool again replaces its options.
         """
-        if tool in self._bound:  # idempotent: don't chain a second wrapper for the same tool
-            return
-        self._bound.add(tool)
-        predicate = should_render if should_render is not None else (lambda data: bool(data))
-        prev = mcp._mcp_server.request_handlers[types.CallToolRequest]
+        self._bound[tool] = _Binding(
+            should_render=should_render if should_render is not None else (lambda data: bool(data)),
+            embed_resource=embed_resource,
+        )
 
-        async def _handler(req: types.CallToolRequest) -> types.ServerResult:
-            result = await prev(req)
-            if req.params.name == tool:
-                return self._attach(result, predicate, embed_resource)
-            return result
-
-        mcp._mcp_server.request_handlers[types.CallToolRequest] = _handler
-
-    def _attach(
+    async def intercept_tool_call(
         self,
-        result: types.ServerResult,
-        predicate: Callable[[Any], bool],
-        embed: bool = False,
-    ) -> types.ServerResult:
-        root = result.root
-        if not isinstance(root, types.CallToolResult) or root.isError:
+        params: types.CallToolRequestParams,
+        ctx: ServerRequestContext[Any, Any],
+        call_next: CallNext,
+    ) -> HandlerResult:
+        """Attach the component binding to a bound tool's result (SEP-2133 hook)."""
+        result = await call_next(ctx)
+        binding = self._bound.get(params.name)
+        if binding is None or not isinstance(result, types.CallToolResult):
             return result
-        data = root.structuredContent
-        if not data or not predicate(data):
+        return self._attach(result, binding)
+
+    def _attach(self, result: types.CallToolResult, binding: _Binding) -> types.CallToolResult:
+        if result.is_error:
+            return result
+        data = result.structured_content
+        if not data or not binding.should_render(data):
             return result
         # The `_meta` pointer alone is enough for a standard host: it fetches the
-        # registered ui:// component and renders it with the structuredContent, so
-        # no UI HTML rides in the model-facing content. `embed` adds the legacy
-        # mcp-ui copy (see bind) — off by default so it can't leak into a client
-        # that won't render it.
-        if embed:
-            root.content.append(self.embedded_resource(data))
-        root.meta = {**(root.meta or {}), **self.result_meta()}
+        # contributed ui:// component and renders it with the structuredContent, so
+        # no UI HTML rides in the model-facing content. `embed_resource` adds the
+        # legacy mcp-ui copy (see bind) — off by default so it can't leak into a
+        # client that won't render it.
+        if binding.embed_resource:
+            result.content.append(self.embedded_resource(data))
+        result.meta = {**(result.meta or {}), **self.result_meta()}
         return result

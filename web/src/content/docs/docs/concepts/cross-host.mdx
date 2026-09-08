@@ -81,8 +81,8 @@ hidden until it gets `ui/initialize` and a size report, so call `resize()`.
 
 The component's server side is the Python
 [`nimblebrain-synapse`](/docs/quickstart-python) package. From one `SynapseUI`
-declaration it registers the component as two `ui://` resources so each host gets
-the MIME it expects: `text/html+skybridge` for ChatGPT and
+declaration — handed to the server as an MCP extension — it contributes the
+component as two `ui://` resources so each host gets the MIME it expects: `text/html+skybridge` for ChatGPT and
 `text/html;profile=mcp-app` for Claude and MCP Apps. Plain MCP clients that render
 neither still read the tool's `structuredContent`.
 
@@ -90,4 +90,4 @@ neither still read the tool's `structuredContent`.
 
 - [Render one component across hosts](/docs/guides/cross-host): the how-to for `connectUI`.
 - [Standalone and non-NimbleBrain hosts](/docs/concepts/degradation): what degrades off NimbleBrain, and what stays.
-- [Quickstart: Python server](/docs/quickstart-python): declaring the `ui://` component on a FastMCP server.
+- [Quickstart: Python server](/docs/quickstart-python): declaring the `ui://` component on a Python MCP server.

@@ -1,13 +1,13 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.5.1"
-description = "Server half of the Synapse cross-host UI framework: register one self-contained ui:// component from a FastMCP server and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
+version = "0.6.0"
+description = "Server half of the Synapse cross-host UI framework: declare one self-contained ui:// component as an MCP extension and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "NimbleBrain Inc." }]
-keywords = ["mcp", "fastmcp", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
+keywords = ["mcp", "mcpserver", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -19,18 +19,16 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Application Frameworks",
 ]
 dependencies = [
-    # register() passes meta= to @mcp.resource(); that kwarg landed in mcp 1.26.0.
+    # mcp 2.x only. SynapseUI is an `mcp.server.extension.Extension` (SEP-2133) and
+    # takes its identifier and the MCP Apps MIME from `mcp.server.apps`; neither
+    # module exists in 1.x, where `FastMCP` (now `MCPServer`) also had no
+    # result-transform hook and this package patched `_mcp_server.request_handlers`
+    # to get one. There is no 1.x-compatible shape for the current code, so the
+    # floor is the first 2.x release rather than a range spanning both.
     #
-    # Capped BELOW 2 because this is v1 code, and the range has to say so. mcp 2.x renamed
-    # `FastMCP` to `MCPServer` and `mcp.server.fastmcp` now raises ModuleNotFoundError on
-    # import, so an unbounded floor resolved to 2.x and the package did not import at all —
-    # for a fresh consumer install, not just in CI. `ServerResult` also stopped being a
-    # RootModel, so `_attach` reads a `.root` that no longer exists.
-    #
-    # The cap is the honest statement of what this code supports, not a decision to stay on
-    # v1: adopting 2.x is a migration with its own breaking change for consumers still on
-    # 1.x, and it moves this line rather than removing the bound.
-    "mcp>=1.26.0,<2",
+    # Capped below 3 so the next major cannot reach a fresh install ahead of the
+    # migration that supports it. That is what the missing cap cost at 2.0.
+    "mcp>=2.0.0,<3",
 ]
 
 [project.urls]

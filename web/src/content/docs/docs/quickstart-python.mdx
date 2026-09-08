@@ -1,19 +1,20 @@
 ---
 title: "Quickstart: Python server"
-description: "Add one ui:// component to a FastMCP server with nimblebrain-synapse, and render it across ChatGPT, Claude, and NimbleBrain from a single declaration."
+description: "Add one ui:// component to an MCP server with nimblebrain-synapse, and render it across ChatGPT, Claude, and NimbleBrain from a single declaration."
 ---
 
 import { Steps } from "@astrojs/starlight/components";
 
 Synapse has two halves. The [React quickstart](/docs/quickstart-react) covers the
 client. This one covers the server: `nimblebrain-synapse`, the PyPI package that
-attaches a self-contained `ui://` component to a [FastMCP](https://github.com/modelcontextprotocol/python-sdk)
+attaches a self-contained `ui://` component to an [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
 server. From one declaration the component renders across ChatGPT (OpenAI Apps
 SDK), Claude (MCP Apps), and the NimbleBrain runtime, with the client SDK inlined
 so the component ships as one asset.
 
 This walks you from an empty server to a tool whose result renders in a UI. It
-assumes you already have a FastMCP server, or can start one.
+assumes you already have an `MCPServer`, or can start one. The package requires
+**mcp 2.x**; on mcp 1.x, use `nimblebrain-synapse` 0.5.x instead.
 
 <Steps>
 
@@ -23,7 +24,7 @@ assumes you already have a FastMCP server, or can start one.
    pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
    ```
 
-   It pairs with FastMCP (the `mcp` Python package), which you use to define the
+   It pairs with the `mcp` Python package (2.x), which you use to define the
    server and its tools.
 
 2. **Write a data-free template.**
@@ -45,46 +46,49 @@ assumes you already have a FastMCP server, or can start one.
    place, so the client reads `null` and falls back to the host's push, and a
    per-result copy substitutes the escaped payload there.
 
-3. **Declare the component and register it.**
+3. **Declare the component, and name the tool it renders.**
 
    ```python
-   from mcp.server.fastmcp import FastMCP
    from nimblebrain_synapse import SynapseUI
-
-   mcp = FastMCP("weather")
 
    forecast_ui = SynapseUI(
        uri="ui://weather/forecast",
        template=TEMPLATE,
        preferred_size=("100%", "auto"),
    )
-   forecast_ui.register(mcp)
+   forecast_ui.bind("get_forecast", should_render=lambda d: "city" in d)
    ```
 
-   `register` serves the `ui://` resource with the client SDK inlined. `uri` is the
-   resource id the host loads; `preferred_size` is the size hint the component asks
-   for.
+   `uri` is the resource id the host loads; `preferred_size` is the size hint the
+   component asks for. `bind` names the tool whose results carry this component;
+   `should_render` receives the tool's output and decides whether to render the UI
+   for that call.
 
-4. **Add a tool and bind the UI to it.**
+4. **Hand the component to the server as an extension.**
 
    ```python
+   from mcp.server.mcpserver import MCPServer
+
+   mcp = MCPServer("weather", extensions=[forecast_ui])
+
    @mcp.tool(
        meta=forecast_ui.tool_meta(invoking="Checking the forecast", invoked="Forecast ready"),
    )
    async def get_forecast(city: str) -> dict:
        return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
-
-   forecast_ui.bind(mcp, tool="get_forecast", should_render=lambda d: "city" in d)
    ```
 
-   `tool_meta` attaches the status strings the host shows while the tool runs and
-   after it finishes, plus the metadata that points the tool at this component.
-   `bind` post-processes the tool's `CallToolResult`: it appends the embedded
-   `ui://` resource (the data baked into a `<script>`) and mirrors the ChatGPT
-   `_meta`. `should_render` receives the tool's output and decides whether to render
-   the UI for that call.
+   `extensions=[forecast_ui]` serves the `ui://` resources with the client SDK
+   inlined, and installs the `tools/call` interceptor that attaches the binding to
+   `get_forecast`'s results. `tool_meta` attaches the status strings the host shows
+   while the tool runs and after it finishes, plus the metadata that points the tool
+   at this component.
 
-5. **Run the server.** Start it however you normally run FastMCP (stdio or HTTP).
+   By default the result carries only the `_meta` pointer, so the host fetches the
+   `ui://` component itself and no UI HTML rides in the model-facing content. Pass
+   `embed_resource=True` to `bind` if a host renders solely from an embedded copy.
+
+5. **Run the server.** Start it however you normally run an `MCPServer` (stdio or HTTP).
    In a host that supports embedded UIs, calling `get_forecast` now renders your
    component. A plain MCP client that renders no UI ignores the extra resource and
    still reads the tool's `structuredContent`, so the same server works everywhere.
@@ -95,8 +99,8 @@ assumes you already have a FastMCP server, or can start one.
 
 - `SynapseUI` described one component once: a URI, a data-free template, and a size
   hint.
-- `register` published it as a `ui://` resource with the client SDK inlined, so the
-  component is fully self-contained.
+- `extensions=[forecast_ui]` published it as a `ui://` resource with the client SDK
+  inlined, so the component is fully self-contained.
 - `tool_meta` and `bind` wired the component to a tool, so its result is delivered
   both as `structuredContent` (for any MCP client) and as a rendered UI (for hosts
   that support it).

@@ -3,7 +3,6 @@ import {
   Avatar,
   Badge,
   type BadgeTone,
-  Breadcrumb,
   Button,
   Card,
   type Column,
@@ -15,7 +14,6 @@ import {
   ListDetailLayout,
   PageLayout,
   ListRow,
-  PageHeader,
   Pagination,
   Prose,
   SearchField,
@@ -116,11 +114,6 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 const LONG_SUMMARY =
   "Migrating the intake flow off the legacy portal, with a staged cutover per clinic and a rollback window on each stage. Two owners, weekly review, and no data migration until the read path is verified.";
 
-const NAV_DESTINATIONS = [
-  { label: "Records", value: "records" },
-  { label: "Inbox", value: "inbox" },
-  { label: "Settings", value: "settings" },
-];
 
 // Shared by the page-layer demos and the truncation section, so the three render one table
 // rather than three that happen to look alike.

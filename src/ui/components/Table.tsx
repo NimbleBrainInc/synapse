@@ -54,6 +54,21 @@ interface TableProps<T> extends Omit<HTMLAttributes<HTMLTableElement>, "children
   onRowClick?: (row: T, index: number) => void;
   /** Shown when `data` is empty. */
   empty?: ReactNode;
+  /**
+   * The narrowest this table stays readable, and the switch that turns scrolling on.
+   *
+   * A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane
+   * become seven clipped headers and a badge overflowing its cell. Below this width the
+   * table scrolls inside its own container instead of crushing — and setting the floor is
+   * the only way to ask for that, because a scroller with no floor has no defined moment to
+   * engage: under fixed layout the table always fits its container, and under auto layout it
+   * engages at whatever width the content happens to reach.
+   *
+   * The cost is the sticky header. An `overflow-x` container captures the stickiness
+   * `position: sticky` resolves against the page's own scroller, and CSS gives no way to
+   * scroll one axis while leaving the other visible — so a table without a floor keeps its
+   * sticky header, and one with a floor trades it.
+   */
   minWidth?: number | string;
 }
 
@@ -168,8 +183,32 @@ export function Table<T>({
   );
 
   if (minWidth === undefined) return table;
-  // `max-width: 100%` as well as `overflow-x`, because a flex or grid item's default
-  // `min-width: auto` lets it grow to its content and the scroller never engages — the
-  // container would widen instead, which is the failure this exists to stop.
-  return <div style={{ overflowX: "auto", maxWidth: "100%" }}>{table}</div>;
+  // `tabIndex={0}` is not decoration. A scroll container that is neither focusable nor holds
+  // a focusable descendant cannot be scrolled by keyboard at all (WCAG 2.1.1; axe's
+  // `scrollable-region-focusable`), and a read-only table has no focusable descendants —
+  // rows take a tabIndex only when `onRowClick` is set. Without this, every column past the
+  // right edge is reachable with a pointer and by nothing else.
+  //
+  // `role="region"` only when the caller named the table, because a region without an
+  // accessible name is its own violation. The name is mirrored from the caller's own
+  // `aria-label` rather than taken as a new prop: the label already reaches the table
+  // through `rest`, and inventing a second way to say the same thing under review is how a
+  // kit grows two spellings of one idea.
+  const label = (rest as { "aria-label"?: string })["aria-label"];
+  // Role and name travel together or not at all — an `aria-label` on a roleless element names
+  // nothing, and a `region` without a name is its own violation.
+  const named = label ? ({ role: "region", "aria-label": label } as const) : {};
+  return (
+    <div
+      // biome-ignore lint/a11y/noNoninteractiveTabindex: the two requirements point opposite ways here, and a scroll container is the case this rule does not model. axe's `scrollable-region-focusable` REQUIRES the tabIndex, because a container that is neither focusable nor holds a focusable descendant cannot be scrolled by keyboard at all (WCAG 2.1.1) — and a read-only table has no focusable descendants, since rows take a tabIndex only when `onRowClick` is set. Removing this makes every column past the right edge pointer-only.
+      tabIndex={0}
+      {...named}
+      // `max-width: 100%` as well as `overflow-x`, because a flex or grid item's default
+      // `min-width: auto` lets it grow to its content and the scroller never engages — the
+      // container would widen instead, which is the failure this exists to stop.
+      style={{ overflowX: "auto", maxWidth: "100%" }}
+    >
+      {table}
+    </div>
+  );
 }

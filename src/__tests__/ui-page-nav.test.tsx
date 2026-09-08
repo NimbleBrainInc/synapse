@@ -119,6 +119,10 @@ describe("Table gives a truncating cell something to clip against", () => {
     // Without a max-width the wrapper grows to its content and the scroller never engages.
     expect(wrapper.style.maxWidth).toBe("100%");
     expect(container.querySelector("table")?.style.minWidth).toBe("720px");
+    // A scroll container with neither focus nor a focusable descendant cannot be scrolled by
+    // keyboard at all, and a read-only table has no focusable descendants — so every column
+    // past the right edge would be pointer-only.
+    expect(wrapper.tabIndex).toBe(0);
   });
 });
 
@@ -212,6 +216,46 @@ describe("Tabs are a tablist, not a row of buttons", () => {
     expect(onChange).toHaveBeenCalledWith("activity");
   });
 
+  it("moves DOM focus, not just selection", () => {
+    // The assertion the old test was missing, and the whole of the bug it missed: selection
+    // advanced while focus stayed put, so the focus ring sat on an unselected tab and AT —
+    // which announces focus, not aria-selected — said nothing. onChange firing is not
+    // evidence that focus moved; only activeElement is.
+    render(<Tabs tabs={tabs} value="recipients" onChange={() => {}} />);
+    const selected = screen.getByRole("tab", { name: "Recipients" });
+    selected.focus();
+    expect(document.activeElement).toBe(selected);
+
+    selected.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(document.activeElement).toBe(screen.getByRole("tab", { name: "Activity" }));
+  });
+
+  it("jumps to the first and last tab on Home and End", () => {
+    const onChange = vi.fn();
+    render(<Tabs tabs={tabs} value="activity" onChange={onChange} />);
+    const bar = screen.getByRole("tablist");
+    bar.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(onChange).toHaveBeenLastCalledWith("recipients");
+    bar.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+    expect(onChange).toHaveBeenLastCalledWith("activity");
+  });
+
+  it("lets a caller add a key handler without silently replacing arrow navigation", () => {
+    // `rest` is spread before the internal handler. Spread after, a caller's onKeyDown
+    // replaced it outright while role="tablist" kept advertising the contract.
+    const onChange = vi.fn();
+    render(<Tabs tabs={tabs} value="recipients" onChange={onChange} onKeyDown={() => {}} />);
+    screen
+      .getByRole("tab", { name: "Recipients" })
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(onChange).toHaveBeenCalledWith("activity");
+  });
+
+  it("emits no global id, so two bars sharing a value cannot collide", () => {
+    render(<Tabs tabs={tabs} value="recipients" onChange={() => {}} />);
+    expect(screen.getByRole("tab", { name: "Recipients" }).id).toBe("");
+  });
+
   it("wraps at the end, so no tab is two directions away", () => {
     const onChange = vi.fn();
     render(<Tabs tabs={tabs} value="activity" onChange={onChange} />);
@@ -290,5 +334,35 @@ describe("PageLayout owns the order, which is the whole reason it is a component
     const kids = [...(container.firstElementChild as HTMLElement).children];
     expect(kids).toHaveLength(1);
     expect(kids[0].tagName).toBe("HEADER");
+  });
+});
+
+describe("the scroll wrapper is reachable, and named only when there is a name", () => {
+  const rows = [{ id: "1", name: "x" }];
+  const columns = [{ key: "name", header: "Name", render: (r: (typeof rows)[0]) => r.name }];
+
+  it("takes the caller's own label rather than a second way of saying it", () => {
+    const { container } = render(
+      <Table
+        data={rows}
+        rowKey={(r) => r.id}
+        columns={columns}
+        minWidth={720}
+        aria-label="Records"
+      />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.getAttribute("role")).toBe("region");
+    expect(wrapper.getAttribute("aria-label")).toBe("Records");
+  });
+
+  it("stays roleless when unnamed, because a region without a name is its own violation", () => {
+    const { container } = render(
+      <Table data={rows} rowKey={(r) => r.id} columns={columns} minWidth={720} />,
+    );
+    const wrapper = container.firstElementChild as HTMLElement;
+    expect(wrapper.getAttribute("role")).toBeNull();
+    // Still focusable — reachability does not depend on having been named.
+    expect(wrapper.tabIndex).toBe(0);
   });
 });

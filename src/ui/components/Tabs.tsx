@@ -22,7 +22,7 @@
  * promise a structure that is not there.
  */
 
-import type { HTMLAttributes, KeyboardEvent } from "react";
+import { type HTMLAttributes, type KeyboardEvent, useRef } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
@@ -54,7 +54,10 @@ const RULES = `
 .nb-tabs__tab::after {
   content: "";
   position: absolute;
-  left: 0; right: 0; bottom: -1px;
+  /* bottom 0, not -1px. overflow-x auto makes the computed overflow-y auto as well, and
+     clipping happens at the PADDING box - so a negative offset put 1px of the 2px accent
+     outside it: the underline rendered half-height and left 1px of phantom overflow. */
+  left: 0; right: 0; bottom: 0;
   height: 2px;
   border-radius: 2px 2px 0 0;
   background: transparent;
@@ -98,6 +101,7 @@ export function Tabs<T extends string>({
   ...rest
 }: TabsProps<T>) {
   ensureStyle(STYLE_ID, RULES);
+  const barRef = useRef<HTMLDivElement>(null);
 
   const barStyle: StyleWithVars = {
     "--nb-tabs-gap": "1.25rem",
@@ -115,29 +119,47 @@ export function Tabs<T extends string>({
     ...style,
   };
 
-  // Arrow keys move between tabs, which is the half of the tablist contract that is actually
-  // load-bearing: a reader who knows the pattern expects to arrow along the bar, and buttons
-  // that only respond to Tab make them walk the whole page to reach the next facet.
+  // Arrow keys move FOCUS, and selection follows it.
+  //
+  // Moving selection alone was the bug this replaces: the roving tabindex handed tabIndex=0
+  // to the newly selected tab while the browser's focus stayed on the previous one, so the
+  // focus ring sat on an unselected tab, a screen reader announced nothing (AT announces
+  // focus, not aria-selected), and tabbing out and back landed somewhere else. The APG tabs
+  // pattern specifies that arrows move focus with activation following it, and half of a
+  // pattern a reader already knows is worse than none of it.
+  //
+  // Focused imperatively off the bar's own DOM rather than through an effect keyed on value:
+  // the buttons are already rendered so the target exists now, and an effect would also
+  // steal focus when a PARENT changed the value - a tab bar grabbing focus because something
+  // else navigated.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-    if (step === 0) return;
-    e.preventDefault();
     const at = tabs.findIndex((t) => t.value === value);
     if (at < 0) return;
-    // Wraps, because a bar with a dead end makes the reader reverse direction to reach the
-    // tab one step past the one they are on.
-    const next = tabs[(at + step + tabs.length) % tabs.length];
-    onChange(next.value);
+    let to: number;
+    if (e.key === "ArrowRight") to = (at + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") to = (at - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") to = 0;
+    else if (e.key === "End") to = tabs.length - 1;
+    else return;
+    e.preventDefault();
+    // Arrows wrap, because a bar with a dead end makes the reader reverse direction to reach
+    // the tab one step past the one they are on. Home and End are absolute and do not.
+    onChange(tabs[to].value);
+    barRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[to]?.focus();
   };
 
   return (
     <div
+      // `rest` FIRST. Spread after these, a caller passing `onKeyDown` silently replaced
+      // arrow-key navigation while `role="tablist"` kept advertising it — a control
+      // announcing a contract it no longer honours.
+      {...rest}
+      ref={barRef}
       role="tablist"
       aria-label={label}
       className={`nb-tabs ${className ?? ""}`.trim()}
       style={barStyle}
       onKeyDown={onKeyDown}
-      {...rest}
     >
       {tabs.map((tab) => {
         const selected = tab.value === value;
@@ -146,7 +168,6 @@ export function Tabs<T extends string>({
             key={tab.value}
             type="button"
             role="tab"
-            id={`nb-tab-${tab.value}`}
             aria-selected={selected}
             // Roving tabindex: one stop for the whole bar, then arrows within it.
             tabIndex={selected ? 0 : -1}

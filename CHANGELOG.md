@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.16.0] - 2026-09-07
 
+### Breaking
+
+- **`Text truncate` now forms a block box.** It set `overflow`, `text-overflow` and `white-space` on a `<span>`, and the first two do not apply to a non-replaced INLINE box — so the only declaration that survived was `white-space: nowrap`, and the prop did the opposite of its name: text became unwrappable instead of clipped. Inside an auto-layout `<table>` that widened the column to the full string and carried every later column off the pane. It now sets `display: block` and `min-width: 0` alongside, so the box can both clip and shrink as a flex item.
+
+  Nothing can have depended on the intended behaviour, because it never had any — but **a layout tuned around the broken behaviour will move**. Filed here rather than under Fixed because it is the one change in this release that reaches an existing consumer's rendering. Caret ranges on `0.x` do not cross a minor, so it arrives only on a deliberate bump.
+
 ### Added
 
 - **`PageLayout` — one screen of an app, assembled in the one order that works.** A header naming what you are looking at, a tab bar of that thing's facets, an optional toolbar over the content, then the content. Every level of an app is this shape, and descending changes only whose facets the bar holds: at the root the header names the app and the tabs are its sections; a level down a trail appears, the header names the record, and the tabs are the record's own.
@@ -22,15 +28,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`Table` gains `minWidth`** — the width below which the table scrolls inside its own container rather than crushing. A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane become seven clipped headers and a badge overflowing its cell; this is where a caller says how narrow is too narrow.
 
-  It is the whole of the scrolling API on purpose. A separate `scrollable` flag existed briefly and was removed: without a floor it has no well-defined behaviour, because under fixed layout the table always fits its container and the flag never engages, while under auto layout it engages at whatever width the content happens to reach — which is not a decision anyone made. You cannot scroll meaningfully without saying where scrolling starts.
+  It is the whole of the scrolling API on purpose. A flag that merely turned scrolling on would have no well-defined moment to engage: under fixed layout the table always fits its container, and under auto layout it engages at whatever width the content happens to reach — which is not a decision anyone made. You cannot scroll meaningfully without saying where scrolling starts.
 
   Opt-in rather than a default because it costs the sticky header: an `overflow-x` container captures the stickiness `position: sticky` resolves against the page's own scroller, and CSS offers no way to scroll one axis while leaving the other visible.
 
 ### Fixed
-
-- **`Text truncate` truncates.** It set `overflow`/`text-overflow`/`white-space` on a `<span>`, and the first two do not apply to a non-replaced INLINE box — so the only declaration that survived was `white-space: nowrap`, and the prop did the exact opposite of its name: text became unwrappable instead of clipped. Inside an auto-layout `<table>` that widened the column to the full string and carried every later column off the pane, which is how a campaign list rendered as one enormous column with six invisible ones. Now sets `display: block` and `min-width: 0` alongside, so the box can both clip and shrink as a flex item.
-
-  **This changes layout for existing callers.** A `Text truncate` that was participating in an inline flow now forms a block. The prop never worked, so nothing can have depended on its intended behaviour — but a layout tuned around its *broken* behaviour will move.
 
 - **`Table` honours a declared column `width`.** Declaring `width` on any column now switches the table to `table-layout: fixed`; columns without one divide the remainder equally. Under auto layout — the CSS default — a declared width is advisory and content wins, so `Column.width` was a knob that silently did nothing and a truncating cell had no width to be clipped against. **A column that truncates must declare a width**; nothing fails loudly when you forget, because the table renders and the columns you cannot see are simply past the right edge.
 

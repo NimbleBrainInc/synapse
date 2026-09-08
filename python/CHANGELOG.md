@@ -6,25 +6,91 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0]
+
+Requires **mcp 2.x**. The Python API changed shape; the wire protocol and the
+template contract did not, so a component's HTML and its client code are untouched.
+
+### Breaking
+
+- **`mcp>=2.0.0,<3`. mcp 1.x is no longer supported.** There is no compatibility
+  layer: `SynapseUI` is now an `mcp.server.extension.Extension` and takes the MCP
+  Apps identifier and MIME from `mcp.server.apps`, and neither module exists in 1.x.
+
+- **`register(mcp)` is gone. Pass the instance to `MCPServer(extensions=[...])`.**
+  The SDK fixes extensions at construction, so the resources are contributed from
+  the extension rather than registered onto a live server.
+
+- **`bind(mcp, tool="x", ...)` → `bind("x", ...)`.** The server argument is gone; the
+  binding is recorded on the extension and applied by its `tools/call` interceptor.
+  `should_render` and `embed_resource` are unchanged. Order no longer matters — the
+  interceptor installs because the class overrides `intercept_tool_call`, not because
+  a tool is bound — and binding the same tool twice now replaces its options instead
+  of being ignored.
+
+  Migrating a server is three lines:
+
+  ```diff
+  -from mcp.server.fastmcp import FastMCP
+  +from mcp.server.mcpserver import MCPServer
+
+  -mcp = FastMCP("bassethound")
+   ui = SynapseUI(uri="ui://bassethound/report", template=TEMPLATE)
+  -ui.register(mcp)
+  +ui.bind("analyze_domain", should_render=lambda d: "domain" in d)
+  +mcp = MCPServer("bassethound", extensions=[ui])
+
+   @mcp.tool(meta=ui.tool_meta())
+   async def analyze_domain(domain: str) -> Dossier: ...
+  -ui.bind(mcp, tool="analyze_domain", should_render=lambda d: "domain" in d)
+  ```
+
+- **One `SynapseUI` per server.** It advertises the spec's MCP Apps identifier
+  (`io.modelcontextprotocol/ui`), because that is the extension it implements, so a
+  second instance — or the SDK's own `mcp.server.apps.Apps` alongside it — fails at
+  construction with `Extension 'io.modelcontextprotocol/ui' is already registered`.
+  Use `SynapseUI` instead of `Apps`: `Apps` serves only
+  `text/html;profile=mcp-app` and cannot carry the ChatGPT skybridge resource.
+
+### Removed
+
+- **The FastMCP internals patch.** `bind` used to write into
+  `mcp._mcp_server.request_handlers` to wrap the call-tool handler, quarantined
+  behind a TODO to upstream a real result-transform hook. mcp 2.x ships that hook —
+  `Extension.intercept_tool_call` (SEP-2133) — so the patch is deleted rather than
+  ported, and this package no longer touches a private attribute of the SDK.
+
+### Added
+
+- **The extension is advertised** under `ServerCapabilities.extensions`, so a host
+  that gates rendering on negotiating `io.modelcontextprotocol/ui` now sees it.
+
+- **`resource_meta=`** on the constructor, carrying the extra `_meta` keys that
+  `register(mcp, meta=...)` used to take.
+
 ## [0.5.1]
 
 ### Fixed
 
-- **`mcp` is capped below 2, so the package imports again.** The dependency was
-  `mcp>=1.26.0` with no upper bound, so a fresh install resolved mcp 2.x — where
-  `FastMCP` was renamed to `MCPServer` and `mcp.server.fastmcp` raises
-  `ModuleNotFoundError` on import. `nimblebrain_synapse.server` imports that module, so
-  the package did not load at all for anyone installing it after mcp 2.0 shipped. The
-  same release stopped `types.ServerResult` being a RootModel, so `_attach` also reads a
-  `.root` that no longer exists.
+- **`mcp` is capped below 2, so a fresh install resolves an SDK this code runs on.**
+  The dependency was `mcp>=1.26.0` with no upper bound, so a fresh install resolved
+  mcp 2.x — where `FastMCP` is `mcp.server.mcpserver.MCPServer` and
+  `mcp.server.fastmcp` raises `ModuleNotFoundError` on import.
+
+  What that reaches, precisely: `SynapseUI`, `register()`, `tool_meta()` and the
+  HTML/escaping surface all still work on mcp 2.x, because this package's `FastMCP`
+  import is `TYPE_CHECKING`-only. **`bind()` is what breaks.** It writes into
+  `mcp._mcp_server.request_handlers`, an attribute `MCPServer` does not have, so a
+  server wired the documented way raises `AttributeError` while it is being built.
+  `_attach` also reads `ServerResult.root`, and on 2.x `ServerResult` is a plain union
+  rather than a `RootModel`.
 
   This was invisible for weeks because it is a RESOLUTION failure rather than a code
-  change: nothing in this repo moved, the newest matching `mcp` did. CI would have caught
-  it on the first run after mcp 2.0, and CI had not run since 2026-07-28.
+  change: nothing in this repo moved, the newest matching `mcp` did. CI would have
+  caught it on the first run after mcp 2.0, and CI had not run since 2026-07-28.
 
-  The cap states what this code supports; it is not a decision to stay on v1. Adopting
-  2.x is a migration with its own breaking change for consumers still on 1.x, and it
-  raises this line rather than removing the bound.
+  Superseded by 0.6.0, which moves to mcp 2.x rather than pinning away from it. The
+  cap survives as the `<3` bound.
 
 ## [0.5.0]
 

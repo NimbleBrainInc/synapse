@@ -8,21 +8,31 @@ export interface AppProviderProps extends ConnectOptions {
   children: ReactNode;
 }
 
-export function AppProvider({ children, name, version, autoResize }: AppProviderProps) {
+/**
+ * Connect on mount and provide the {@link App} to everything below.
+ *
+ * Renders nothing until the handshake completes, so no hook below can observe
+ * a half-connected app and no tool call can be fired into a host that has not
+ * answered `ui/initialize` yet.
+ */
+export function AppProvider({ children, ...options }: AppProviderProps) {
   const [app, setApp] = useState<App | null>(null);
   const connectingRef = useRef(false);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: connect once on mount
   useEffect(() => {
+    // A ref, not cleanup-on-unmount: StrictMode unmounts and immediately
+    // remounts, and the transport must survive that. The app is GC'd when the
+    // provider is truly gone.
     if (connectingRef.current) return;
     connectingRef.current = true;
 
-    connect({ name, version, autoResize }).then((a) => {
+    connect(options).then((a) => {
       setApp(a);
     });
   }, []);
 
-  if (!app) return null; // Don't render children until connected
+  if (!app) return null;
 
   return <AppContext.Provider value={app}>{children}</AppContext.Provider>;
 }

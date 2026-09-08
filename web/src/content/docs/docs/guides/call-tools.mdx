@@ -12,9 +12,7 @@ it once, then again for the next tool, untyped every time.
 
 `useCallTool<TOutput>(name)` returns everything you need: a `call` function, the
 last `data`, an `isPending` flag, and an `error`. Pass the tool's output type as
-the generic and `data` is typed for you. It is a `SynapseProvider` hook, so wrap
-your tree in `<SynapseProvider>`. On the `AppProvider` / `connect()` path, call
-the tool on the instance instead (shown below).
+the generic and `data` is typed for you. Wrap your tree in `<AppProvider>`.
 
 ```tsx
 import { useCallTool } from "@nimblebrain/synapse/react";
@@ -41,8 +39,7 @@ function DocumentList() {
 }
 ```
 
-Outside React, or on the `AppProvider` / `connect()` path, call the tool on the
-`App` (or `Synapse`) instance and read `result.data`:
+Outside React, call the tool on the `App` and read `result.data`:
 
 ```typescript
 const result = await app.callTool("list_documents", { limit: 10 });

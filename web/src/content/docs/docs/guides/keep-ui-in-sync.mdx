@@ -23,17 +23,17 @@ useEffect(() => {
 
 `useDataSync(callback)` subscribes to the host's data-change signal. The host
 fires it after the agent completes any tool call on this server, so you re-fetch
-exactly when state moved and stay idle otherwise. It is a `SynapseProvider` hook,
-so wrap your tree in `SynapseProvider`.
+exactly when state moved and stay idle otherwise. Wrap your tree in
+`<AppProvider>`.
 
 ```tsx
-import { SynapseProvider, useDataSync, useCallTool } from "@nimblebrain/synapse/react";
+import { AppProvider, useDataSync, useCallTool } from "@nimblebrain/synapse/react";
 
 function Root() {
   return (
-    <SynapseProvider name="my-app" version="1.0.0">
+    <AppProvider name="my-app" version="1.0.0">
       <Workspace />
-    </SynapseProvider>
+    </AppProvider>
   );
 }
 

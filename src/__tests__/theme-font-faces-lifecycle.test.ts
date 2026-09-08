@@ -1,5 +1,5 @@
 /**
- * Font-face survival across a host-context change, on BOTH connection paths.
+ * Font-face survival across a host-context change.
  *
  * The ext-apps spec types `ui/notifications/host-context-changed` params as a
  * "Partial context update containing only changed fields", so a host toggling
@@ -12,10 +12,9 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
-import { createSynapse } from "../core.js";
 import { FONT_FACES_CONTEXT_KEY } from "../detection.js";
 import { applyTheme, resetAppliedFontFaces } from "../theme-defaults.js";
-import type { Synapse } from "../types.js";
+import type { App } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 let loaded: Set<FakeFontFace>;
@@ -82,6 +81,16 @@ function dispatchNotification(method: string, params?: Record<string, unknown>) 
 
 const families = () => [...loaded].map((f) => f.family);
 
+/** Open a connection and answer its handshake. */
+async function connectAndHandshake(): Promise<App> {
+  const pending = connect({ name: "t", version: "1.0.0" });
+  await vi.waitFor(() => {
+    if (!postMessageSpy.mock.calls.length) throw new Error("no init yet");
+  });
+  completeHandshake();
+  return pending;
+}
+
 beforeEach(() => {
   resetAppliedFontFaces();
   vi.unstubAllGlobals();
@@ -94,13 +103,9 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("createSynapse — host fonts survive a partial context change", () => {
-  let synapse: Synapse;
-
+describe("host fonts survive a partial context change", () => {
   it("keeps faces when host-context-changed omits the key", async () => {
-    synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+    await connectAndHandshake();
     expect(families()).toEqual(["Brand"]);
 
     // A dark-mode toggle carrying only the changed field.
@@ -110,9 +115,7 @@ describe("createSynapse — host fonts survive a partial context change", () => 
   });
 
   it("replaces faces when the host sends a new set", async () => {
-    synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+    await connectAndHandshake();
 
     dispatchNotification("ui/notifications/host-context-changed", {
       theme: "dark",
@@ -123,40 +126,7 @@ describe("createSynapse — host fonts survive a partial context change", () => 
   });
 
   it("clears faces when the host sends an explicit empty list", async () => {
-    synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
-
-    dispatchNotification("ui/notifications/host-context-changed", {
-      [FONT_FACES_CONTEXT_KEY]: [],
-    });
-
-    expect(families()).toEqual([]);
-  });
-});
-
-describe("connect — host fonts survive a partial context change", () => {
-  it("keeps faces when host-context-changed omits the key", async () => {
-    const app = connect({ name: "t", version: "1.0.0" });
-    await vi.waitFor(() => {
-      if (!postMessageSpy.mock.calls.length) throw new Error("no init yet");
-    });
-    completeHandshake();
-    await app;
-    expect(families()).toEqual(["Brand"]);
-
-    dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
-
-    expect(families()).toEqual(["Brand"]);
-  });
-
-  it("clears faces when the host sends an explicit empty list", async () => {
-    const app = connect({ name: "t", version: "1.0.0" });
-    await vi.waitFor(() => {
-      if (!postMessageSpy.mock.calls.length) throw new Error("no init yet");
-    });
-    completeHandshake();
-    await app;
+    await connectAndHandshake();
 
     dispatchNotification("ui/notifications/host-context-changed", {
       [FONT_FACES_CONTEXT_KEY]: [],
@@ -167,28 +137,24 @@ describe("connect — host fonts survive a partial context change", () => {
 });
 
 describe("theme subscribers agree with what is loaded", () => {
-  it("onThemeChanged payload carries the sticky faces, matching getTheme()", async () => {
-    const synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+  it("the theme-changed payload carries the sticky faces, matching app.theme", async () => {
+    const app = await connectAndHandshake();
 
     const seen: (string[] | undefined)[] = [];
-    synapse.onThemeChanged((t) => seen.push(t.fontFaces?.map((f) => f.family)));
+    app.on("theme-changed", (t) => seen.push(t.fontFaces?.map((f) => f.family)));
 
     dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
 
     // The two public accessors must not disagree: both report the loaded set.
     expect(seen).toEqual([["Brand"]]);
-    expect(synapse.getTheme().fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
+    expect(app.theme.fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
   });
 
   it("notifies subscribers on a fonts-only change", async () => {
-    const synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+    const app = await connectAndHandshake();
 
     const seen: (string[] | undefined)[] = [];
-    synapse.onThemeChanged((t) => seen.push(t.fontFaces?.map((f) => f.family)));
+    app.on("theme-changed", (t) => seen.push(t.fontFaces?.map((f) => f.family)));
 
     // Same mode, same tokens — only the typeface moves. The equality filter
     // must not swallow it, or every useTheme() consumer reports stale faces.
@@ -203,13 +169,10 @@ describe("theme subscribers agree with what is loaded", () => {
   });
 
   it("a theme re-applied without fontFaces leaves loaded faces alone", async () => {
-    const synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+    await connectAndHandshake();
     expect(families()).toEqual(["Brand"]);
 
-    // What <SynapseProvider>'s ThemeInjector does on every theme change. A
-    // vars-only re-apply must never strip the host's typeface.
+    // A vars-only re-apply must never strip the host's typeface.
     applyTheme("dark", { "--color-text-primary": "#fff" });
 
     expect(families()).toEqual(["Brand"]);
@@ -218,9 +181,7 @@ describe("theme subscribers agree with what is loaded", () => {
 
 describe("an all-malformed batch never unloads the typeface", () => {
   it("keeps loaded faces when every incoming entry is the wrong shape", async () => {
-    const synapse = createSynapse({ name: "t", version: "1.0.0" });
-    completeHandshake();
-    await synapse.ready;
+    const app = await connectAndHandshake();
     expect(families()).toEqual(["Brand"]);
 
     dispatchNotification("ui/notifications/host-context-changed", {
@@ -229,6 +190,6 @@ describe("an all-malformed batch never unloads the typeface", () => {
     });
 
     expect(families()).toEqual(["Brand"]);
-    expect(synapse.getTheme().fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
+    expect(app.theme.fontFaces?.map((f) => f.family)).toEqual(["Brand"]);
   });
 });

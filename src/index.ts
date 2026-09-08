@@ -3,10 +3,12 @@ export type {
   ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
-export { createSynapse } from "./core.js";
 export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
-// Cross-host UI client (push-first; ChatGPT / Claude / standalone). Additive —
-// the ext-apps `connect`/`createSynapse` paths above are unchanged.
+// NimbleBrain host extensions — composable over `App`, no-ops or throws off a
+// NimbleBrain host. Not ext-apps spec surface.
+export { action, downloadFile, pickFile, pickFiles } from "./extensions.js";
+// Cross-host UI client (push-first; ChatGPT / Claude / standalone). A
+// different axis from `connect()`, and unaffected by it.
 export { connectUI } from "./host/connect.js";
 export { detectHostKind } from "./host/detect.js";
 export {
@@ -18,14 +20,16 @@ export {
   type SynapseUIClient,
   type SynapseUITheme,
 } from "./host/types.js";
-export { createStore } from "./store.js";
+// MCP 2025-11-25 tasks utility, composable over `App`.
+export { callToolAsTask } from "./task-handle.js";
 export type {
-  ActionReducer,
   AgentAction,
   App,
   AppEventName,
+  AppInternals,
   BuiltinActionType,
   CallToolAsTaskOptions,
+  CallToolOptions,
   ConnectOptions,
   CreateTaskResult,
   DataChangedEvent,
@@ -35,16 +39,10 @@ export type {
   FontFaceDescriptor,
   HostInfo,
   KeyForwardConfig,
+  McpUiHostContext,
   NavigatePayload,
   NotifyPayload,
   RequestFileOptions,
-  StateAcknowledgement,
-  Store,
-  StoreConfig,
-  StoreDispatch,
-  Synapse,
-  SynapseOptions,
-  SynapseTheme,
   Task,
   TaskHandle,
   TaskStatus,

@@ -55,7 +55,6 @@ export default defineConfig({
               { slug: "docs/guides/keep-ui-in-sync" },
               { slug: "docs/guides/agent-context" },
               { slug: "docs/guides/theming" },
-              { slug: "docs/guides/state-store" },
               { slug: "docs/guides/long-running-tools" },
               { slug: "docs/guides/local-dev" },
               { slug: "docs/guides/codegen" },
@@ -133,8 +132,6 @@ export default defineConfig({
             icon: "seti:json",
             items: [
               { slug: "docs/api/connect" },
-              { slug: "docs/api/createsynapse" },
-              { slug: "docs/api/store" },
               { slug: "docs/api/hooks" },
               { slug: "docs/api/events" },
               { slug: "docs/api/cross-host-client" },

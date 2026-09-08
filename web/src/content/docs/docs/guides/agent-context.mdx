@@ -1,6 +1,6 @@
 ---
 title: "Give the agent context about the UI"
-description: "The user filters a view and asks the agent about this, but the agent cannot see the screen. Push an LLM-visible summary of what the user is looking at with useVisibleState or updateModelContext."
+description: "The user filters a view and asks the agent about this, but the agent cannot see the screen. Push an LLM-visible summary of what the user is looking at with useModelContext or updateModelContext."
 ---
 
 The user narrows a dashboard to "West Coast, Q2 revenue" and asks the agent "how
@@ -14,23 +14,22 @@ LLM-visible summary of the current view into the agent's context.
 
 ## The recipe
 
-`useVisibleState()` returns a push function. Call it whenever the view changes,
-with a structured state object and a one-line natural-language summary. It is a
-`SynapseProvider` hook.
+`useModelContext()` returns a push function. Call it whenever the view changes,
+with a structured state object and a one-line natural-language summary.
 
 ```tsx
-import { SynapseProvider, useVisibleState } from "@nimblebrain/synapse/react";
+import { AppProvider, useModelContext } from "@nimblebrain/synapse/react";
 
 function Root() {
   return (
-    <SynapseProvider name="my-app" version="1.0.0">
+    <AppProvider name="my-app" version="1.0.0">
       <RevenueView />
-    </SynapseProvider>
+    </AppProvider>
   );
 }
 
 function RevenueView() {
-  const pushVisible = useVisibleState();
+  const pushVisible = useModelContext();
 
   // Whenever the filter changes, tell the agent what the user sees.
   function applyFilter(region: string, period: string) {
@@ -44,8 +43,8 @@ function RevenueView() {
 }
 ```
 
-Not using React, or working from the `connect()` path? Use the `App` method
-directly. It takes the same state and summary:
+Not using React? Use the `App` method directly. It takes the same state and
+summary, and sends immediately — the hook is where the debounce lives:
 
 ```typescript
 app.updateModelContext(

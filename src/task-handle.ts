@@ -15,7 +15,16 @@ import type {
 
 import { parseToolResult } from "./result-parser.js";
 import type { SynapseTransport } from "./transport.js";
-import type { CallToolAsTaskOptions, TaskHandle, ToolCallResult } from "./types.js";
+import type {
+  App,
+  CallToolAsTaskOptions,
+  TaskHandle,
+  TaskStatusRouter,
+  TaskStatusUpdate,
+  ToolCallResult,
+} from "./types.js";
+
+export type { TaskStatusRouter, TaskStatusUpdate };
 
 // -----------------------------------------------------------------------------
 // Spec method constants
@@ -40,31 +49,6 @@ export const TASKS_STATUS_NOTIFICATION_METHOD: TaskStatusNotification["method"] 
 // -----------------------------------------------------------------------------
 // Status router
 // -----------------------------------------------------------------------------
-
-/**
- * Notification fields the spec guarantees on `notifications/tasks/status`.
- * Deliberately narrower than `Task` — the wire notification omits
- * `createdAt`, `lastUpdatedAt`, `ttl`, `pollInterval`. Consumers receive
- * a merged full `Task` via `TaskHandle.onStatus`; the handle is the only
- * party with access to the initial `CreateTaskResult.task` needed to fill
- * the missing fields.
- */
-export interface TaskStatusUpdate {
-  taskId: string;
-  status: TaskStatus;
-  statusMessage?: string;
-}
-
-/**
- * Per-taskId callback registry. One registry is shared across all
- * `TaskHandle` instances on a given transport so the transport-level
- * `notifications/tasks/status` handler registers exactly once — multiple
- * handles route in-memory by taskId, not by wire subscription.
- */
-export interface TaskStatusRouter {
-  subscribe(taskId: string, cb: (update: TaskStatusUpdate) => void): () => void;
-  dispose(): void;
-}
 
 export function createTaskStatusRouter(transport: SynapseTransport): TaskStatusRouter {
   const listeners = new Map<string, Set<(update: TaskStatusUpdate) => void>>();
@@ -120,42 +104,36 @@ export function createTaskStatusRouter(transport: SynapseTransport): TaskStatusR
 // -----------------------------------------------------------------------------
 
 /**
- * Dependencies injected into `callToolAsTask`. The call site (in
- * `core.ts`) provides the transport, the shared status router, a factory
- * for the `tools/call` params (so `internal` / `name` handling stays in
- * one place), and the current `_hostTasksCapability` value.
+ * Task-augment a `tools/call` per the MCP 2025-11-25 tasks utility.
+ *
+ * A composable helper over {@link App} rather than a method on it: the object
+ * `connect()` returns carries the ext-apps surface, and tasks ride alongside.
+ * The receiver answers a task-augmented call with a `CreateTaskResult`
+ * promptly; the actual `CallToolResult` arrives later via `tasks/result`.
+ *
+ * ```ts
+ * const handle = await callToolAsTask(app, "deep_research", { topic });
+ * handle.onStatus((t) => setStatus(t.status));
+ * const result = await handle.result();
+ * ```
+ *
+ * Throws if the host did not advertise `tasks.requests.tools.call` — per spec
+ * a requestor MUST NOT task-augment without matching receiver capability.
+ * Fall back to `app.callTool`.
  */
-export interface CallToolAsTaskDeps {
-  transport: SynapseTransport;
-  router: TaskStatusRouter;
-  /**
-   * `null` before the `ui/initialize` handshake resolves, `undefined`
-   * afterward if the host did not advertise `tasks`, or the captured
-   * capability shape if it did. `callToolAsTask` throws when the nested
-   * `requests.tools.call` is not present.
-   */
-  getHostTasksCapability: () =>
-    | { requests?: { tools?: { call?: Record<string, never> } } }
-    | undefined
-    | null;
-  /** App name for `params.server` when `internal: true`. */
-  appName: string;
-  /** Whether the enclosing Synapse is running in internal-apps mode. */
-  internalApp: boolean;
-}
-
 export async function callToolAsTask<TOutput = unknown>(
-  deps: CallToolAsTaskDeps,
+  app: App,
   toolName: string,
   args?: unknown,
   options?: CallToolAsTaskOptions,
 ): Promise<TaskHandle<TOutput>> {
-  const hostTasks = deps.getHostTasksCapability();
+  const deps = app._internals;
+  const hostTasks = deps.hostTasksCapability;
   if (!hostTasks?.requests?.tools?.call) {
     throw new Error(
       "callToolAsTask: host did not advertise tasks.requests.tools.call in its capabilities. " +
         "Per MCP 2025-11-25 §, requestors MUST NOT task-augment a tools/call without " +
-        "matching receiver capability. Fall back to `synapse.callTool`.",
+        "matching receiver capability. Fall back to `app.callTool`.",
     );
   }
 
@@ -185,7 +163,7 @@ export async function callToolAsTask<TOutput = unknown>(
     ...(crossServer ? { server: deps.appName } : {}),
   } satisfies CallToolRequest["params"] & { server?: string };
 
-  const raw = await deps.transport.request(
+  const raw = await deps.request(
     TOOLS_CALL_METHOD,
     callParams as unknown as Record<string, unknown>,
   );
@@ -217,7 +195,7 @@ export async function callToolAsTask<TOutput = unknown>(
 
     async result(): Promise<ToolCallResult<TOutput>> {
       const params = { taskId } satisfies GetTaskPayloadRequest["params"];
-      const rawResult = await deps.transport.request(
+      const rawResult = await deps.request(
         TASKS_RESULT_METHOD,
         params as unknown as Record<string, unknown>,
       );
@@ -236,7 +214,7 @@ export async function callToolAsTask<TOutput = unknown>(
 
     async refresh(): Promise<Task> {
       const params = { taskId } satisfies GetTaskRequest["params"];
-      const raw = await deps.transport.request(
+      const raw = await deps.request(
         TASKS_GET_METHOD,
         params as unknown as Record<string, unknown>,
       );
@@ -248,7 +226,7 @@ export async function callToolAsTask<TOutput = unknown>(
 
     async cancel(): Promise<Task> {
       const params = { taskId } satisfies CancelTaskRequest["params"];
-      const raw = await deps.transport.request(
+      const raw = await deps.request(
         TASKS_CANCEL_METHOD,
         params as unknown as Record<string, unknown>,
       );
@@ -270,7 +248,7 @@ export async function callToolAsTask<TOutput = unknown>(
       // the notification, so this is the closest signal we have).
       // `createdAt`, `ttl`, `pollInterval` come from the initial task
       // because they don't change over a task's lifetime.
-      const wireUnsub = deps.router.subscribe(taskId, (update) => {
+      const wireUnsub = deps.taskRouter.subscribe(taskId, (update) => {
         const merged: Task = {
           taskId: update.taskId,
           status: update.status,

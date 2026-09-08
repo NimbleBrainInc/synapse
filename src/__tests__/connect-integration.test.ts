@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
-import { createSynapse } from "../core.js";
 import type { App } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -110,10 +109,23 @@ describe("connect() integration", () => {
   });
 
   // --- Helper ---
-  async function connectApp(opts?: Partial<Parameters<typeof connect>[0]>): Promise<App> {
+  async function connectApp(
+    opts?: Partial<Parameters<typeof connect>[0]>,
+    initResult?: Record<string, unknown>,
+  ): Promise<App> {
     const promise = connect({ name: "test-app", version: "1.0.0", ...opts });
-    host.respondToInitialize();
+    host.respondToInitialize(initResult);
     return promise;
+  }
+
+  /** A NimbleBrain host — the `synapse/*` extensions only run against one. */
+  function nimblebrainInitResult() {
+    return {
+      protocolVersion: "2026-01-26",
+      hostInfo: { name: "nimblebrain", version: "2.0.0" },
+      hostCapabilities: {},
+      hostContext: { theme: "dark", styles: { variables: {} } },
+    };
   }
 
   // -----------------------------------------------------------------------
@@ -224,7 +236,8 @@ describe("connect() integration", () => {
   // -----------------------------------------------------------------------
   describe("sendMessage format", () => {
     it("sends ui/message with context as _meta", async () => {
-      app = await connectApp();
+      // `context` is a NimbleBrain convention, so it rides only on that host.
+      app = await connectApp({}, nimblebrainInitResult());
       host.clearSpy();
 
       app.sendMessage("Summarize the board", { action: "summarize", entity: "board" });
@@ -434,70 +447,6 @@ describe("connect() integration", () => {
         method: "ui/notifications/size-changed",
         params: { width: 320, height: 480 },
       });
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // 10. Backwards compatibility: createSynapse still works
-  // -----------------------------------------------------------------------
-  describe("backwards compat: createSynapse", () => {
-    it("createSynapse handshake + callTool still works", async () => {
-      const synapse = createSynapse({ name: "legacy-app", version: "1.0.0" });
-
-      // Complete the legacy handshake
-      const initCall = (window.parent.postMessage as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) =>
-          c[0] &&
-          typeof c[0] === "object" &&
-          (c[0] as Record<string, unknown>).method === "ui/initialize",
-      );
-      expect(initCall).toBeDefined();
-
-      const id = (initCall?.[0] as Record<string, unknown>).id as string;
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          data: {
-            jsonrpc: "2.0",
-            id,
-            result: {
-              protocolVersion: "2026-01-26",
-              hostInfo: { name: "nimblebrain", version: "1.0.0" },
-              hostCapabilities: {},
-              hostContext: { theme: "dark", styles: { variables: {} } },
-            },
-          },
-        }),
-      );
-
-      await synapse.ready;
-      expect(synapse.isNimbleBrainHost).toBe(true);
-
-      // callTool through legacy API
-      host.clearSpy();
-      const resultPromise = synapse.callTool("echo", { text: "legacy" });
-
-      // Find the tools/call request and respond
-      const toolCall = (window.parent.postMessage as ReturnType<typeof vi.fn>).mock.calls.find(
-        (c: unknown[]) =>
-          c[0] &&
-          typeof c[0] === "object" &&
-          (c[0] as Record<string, unknown>).method === "tools/call",
-      );
-      const toolId = (toolCall?.[0] as Record<string, unknown>).id as string;
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          data: {
-            jsonrpc: "2.0",
-            id: toolId,
-            result: { content: [{ type: "text", text: '{"ok":true}' }] },
-          },
-        }),
-      );
-
-      const result = await resultPromise;
-      expect(result.data).toEqual({ ok: true });
-
-      synapse.destroy();
     });
   });
 

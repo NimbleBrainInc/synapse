@@ -9,7 +9,7 @@ standard ([SEP-1865](https://modelcontextprotocol.io/)). A standalone page has n
 host at all. Synapse lets you write one component that runs in all of them, without
 branching on the host in your app code.
 
-This is a distinct path from the ext-apps `connect()` and `createSynapse()` clients.
+This is a distinct path from the ext-apps `connect()` client.
 It is **push-first** and deliberately small, meant for a self-contained `ui://`
 component that inlines its own client. The entry point is `connectUI`, and it is
 additive: the ext-apps paths are unchanged by it.

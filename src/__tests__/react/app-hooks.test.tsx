@@ -2,13 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
-import {
-  useApp,
-  useConnectTheme,
-  useResize,
-  useToolInput,
-  useToolResult,
-} from "../../react/connect-hooks.js";
+import { useApp, useResize, useTheme, useToolInput, useToolResult } from "../../react/hooks.js";
 
 // --- Helpers ---
 
@@ -70,7 +64,7 @@ function createWrapper() {
 
 // --- Tests ---
 
-describe("connect-hooks", () => {
+describe("app hooks", () => {
   beforeEach(() => {
     postMessageSpy = vi.fn();
     window.parent.postMessage = postMessageSpy;
@@ -162,9 +156,9 @@ describe("connect-hooks", () => {
     });
   });
 
-  describe("useConnectTheme", () => {
+  describe("useTheme", () => {
     it("returns initial theme from host context", async () => {
-      const { result, rerender } = renderHook(() => useConnectTheme(), {
+      const { result, rerender } = renderHook(() => useTheme(), {
         wrapper: createWrapper(),
       });
 
@@ -179,7 +173,7 @@ describe("connect-hooks", () => {
     });
 
     it("updates when theme-changed event fires", async () => {
-      const { result, rerender } = renderHook(() => useConnectTheme(), {
+      const { result, rerender } = renderHook(() => useTheme(), {
         wrapper: createWrapper(),
       });
 
@@ -254,9 +248,9 @@ describe("connect-hooks", () => {
       }).toThrow("useApp must be used within an <AppProvider>");
     });
 
-    it("useConnectTheme throws when used outside AppProvider", () => {
+    it("useTheme throws when used outside AppProvider", () => {
       expect(() => {
-        renderHook(() => useConnectTheme());
+        renderHook(() => useTheme());
       }).toThrow("useApp must be used within an <AppProvider>");
     });
   });

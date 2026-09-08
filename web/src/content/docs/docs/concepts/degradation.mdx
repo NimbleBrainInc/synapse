@@ -68,7 +68,7 @@ extension that no-ops.
 ## Detecting the host when you need to
 
 Most of the time you should just call the method and let it no-op. When you want to
-branch, read the host identity: `Synapse` exposes `isNimbleBrainHost`, and the
+branch, read the host identity: `App` exposes `isNimbleBrainHost`, and the
 `connect()` `App` exposes `hostInfo` with the host name and version. Use it to hide
 a NimbleBrain-only affordance (a download button, say) on hosts that cannot fulfill
 it, rather than to guard against a crash, because there is no crash to guard
@@ -78,4 +78,3 @@ against.
 
 - [Cross-host architecture](/docs/concepts/cross-host): the adapter model behind one component, many hosts.
 - [The MCP ext-apps protocol](/docs/concepts/ext-apps): the baseline that is preserved everywhere.
-- [Persist state across reloads](/docs/guides/state-store): the store, including its persistence behavior.

@@ -1,5 +1,5 @@
 /**
- * TaskHandle tests — behaviors of `synapse.callToolAsTask` and the
+ * TaskHandle tests — behaviors of `callToolAsTask(app, …)` and the
  * returned `TaskHandle`. Drives the public API end-to-end through a
  * mocked `postMessage` transport; verifies wire shape, lifecycle,
  * and status notification routing.
@@ -26,8 +26,9 @@ import type {
 import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createSynapse } from "../core.js";
-import type { CallToolAsTaskOptions, Synapse, TaskHandle, TasksCapability } from "../types.js";
+import { connect } from "../connect.js";
+import { callToolAsTask } from "../task-handle.js";
+import type { App, CallToolAsTaskOptions, TaskHandle, TasksCapability } from "../types.js";
 
 // -----------------------------------------------------------------------------
 // SDK-type-derived wire constants (fail compile on upstream rename)
@@ -142,13 +143,13 @@ function makeCreateTaskResult(taskId: string, overrides?: Partial<Task>): Create
 
 /** Start a task and drive the handshake + `tools/call` response flow. */
 async function startTask(
-  synapse: Synapse,
+  app: App,
   toolName = "do_research",
   args: Record<string, unknown> = { query: "foo" },
   taskId = "tsk_01",
   options?: CallToolAsTaskOptions,
 ): Promise<TaskHandle> {
-  const pending = synapse.callToolAsTask(toolName, args, options);
+  const pending = callToolAsTask(app, toolName, args, options);
   respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult(taskId));
   return pending;
 }
@@ -157,18 +158,22 @@ async function startTask(
 // Setup
 // -----------------------------------------------------------------------------
 
-let synapse: Synapse;
+let appPromise: Promise<App>;
+let app: App;
 
 beforeEach(() => {
   postMessageSpy = vi.fn();
   window.parent.postMessage = postMessageSpy;
   answeredIds.clear();
-  synapse = createSynapse({ name: "test-app", version: "1.0.0" });
-  synapse.ready.catch(() => {});
+  app = undefined as unknown as App;
+  // `connect()` resolves only once the host answers `ui/initialize`, so every
+  // test opens the connection here and completes the handshake itself.
+  appPromise = connect({ name: "test-app", version: "1.0.0" });
+  appPromise.catch(() => {});
 });
 
 afterEach(() => {
-  synapse?.destroy();
+  app?.destroy();
 });
 
 // -----------------------------------------------------------------------------
@@ -178,9 +183,9 @@ afterEach(() => {
 describe("callToolAsTask — tools/call wire shape", () => {
   it("sends tools/call with task.ttl when ttl is provided", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_research", { query: "mcp" }, { ttl: 300_000 });
+    const pending = callToolAsTask(app, "do_research", { query: "mcp" }, { ttl: 300_000 });
 
     const call = findCall(TOOLS_CALL_METHOD);
     expect(call).toBeDefined();
@@ -197,9 +202,9 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
   it("sends tools/call with task: {} when ttl is omitted (still augmented)", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_research", { query: "mcp" });
+    const pending = callToolAsTask(app, "do_research", { query: "mcp" });
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"];
@@ -216,9 +221,9 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
   it("sends params.server when options.internal === true", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_research", { query: "mcp" }, { internal: true });
+    const pending = callToolAsTask(app, "do_research", { query: "mcp" }, { internal: true });
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
@@ -230,9 +235,9 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
   it("omits params.server by default (external app, internal flag not set)", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_research", { query: "mcp" });
+    const pending = callToolAsTask(app, "do_research", { query: "mcp" });
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
@@ -244,15 +249,14 @@ describe("callToolAsTask — tools/call wire shape", () => {
   });
 
   it("inherits params.server from app-level internal flag when options.internal is omitted", async () => {
-    synapse.destroy();
     postMessageSpy = vi.fn();
     window.parent.postMessage = postMessageSpy;
-    synapse = createSynapse({ name: "internal-app", version: "1.0.0", internal: true });
-    synapse.ready.catch(() => {});
+    appPromise = connect({ name: "internal-app", version: "1.0.0", internal: true });
+    appPromise.catch(() => {});
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_thing");
+    const pending = callToolAsTask(app, "do_thing");
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
@@ -264,9 +268,9 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
   it("sends empty arguments when none provided", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("ping");
+    const pending = callToolAsTask(app, "ping");
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"];
@@ -284,9 +288,9 @@ describe("callToolAsTask — tools/call wire shape", () => {
 describe("callToolAsTask — capability negotiation", () => {
   it("throws when host did not advertise tasks at all", async () => {
     completeHandshake(makeInitResult({ hostTasks: null }));
-    await synapse.ready;
+    app = await appPromise;
 
-    await expect(synapse.callToolAsTask("do_thing", {})).rejects.toThrow(
+    await expect(callToolAsTask(app, "do_thing", {})).rejects.toThrow(
       /did not advertise tasks\.requests\.tools\.call/,
     );
     // And nothing should have been sent on the wire.
@@ -304,18 +308,18 @@ describe("callToolAsTask — capability negotiation", () => {
         },
       }),
     );
-    await synapse.ready;
+    app = await appPromise;
 
-    await expect(synapse.callToolAsTask("do_thing", {})).rejects.toThrow(
+    await expect(callToolAsTask(app, "do_thing", {})).rejects.toThrow(
       /tasks\.requests\.tools\.call/,
     );
   });
 
   it("succeeds when host advertises tasks.requests.tools.call", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_ok");
+    const handle = await startTask(app, "do_thing", {}, "tsk_ok");
     expect(handle.task.taskId).toBe("tsk_ok");
   });
 });
@@ -327,9 +331,9 @@ describe("callToolAsTask — capability negotiation", () => {
 describe("TaskHandle — initial state from CreateTaskResult", () => {
   it("populates handle.task with the CreateTaskResult.task fields", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_thing", {});
+    const pending = callToolAsTask(app, "do_thing", {});
     const createResult: CreateTaskResult = {
       task: {
         taskId: "tsk_full",
@@ -350,9 +354,9 @@ describe("TaskHandle — initial state from CreateTaskResult", () => {
 
   it("throws when receiver returns a response without task (protocol violation)", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const pending = synapse.callToolAsTask("do_thing", {});
+    const pending = callToolAsTask(app, "do_thing", {});
     // Simulate a broken receiver that advertises the capability but
     // returns a bare CallToolResult instead of a CreateTaskResult.
     respondToRequest(TOOLS_CALL_METHOD, {
@@ -370,9 +374,9 @@ describe("TaskHandle — initial state from CreateTaskResult", () => {
 describe("TaskHandle.result()", () => {
   it("sends tasks/result { taskId } and resolves with parsed CallToolResult", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", { q: 1 }, "tsk_a");
+    const handle = await startTask(app, "do_thing", { q: 1 }, "tsk_a");
 
     const resultPromise = handle.result();
 
@@ -393,9 +397,9 @@ describe("TaskHandle.result()", () => {
 
   it("preserves _meta['io.modelcontextprotocol/related-task'] from the response", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_meta");
+    const handle = await startTask(app, "do_thing", {}, "tsk_meta");
 
     const resultPromise = handle.result();
     const terminal = {
@@ -416,9 +420,9 @@ describe("TaskHandle.result()", () => {
 
   it("surfaces isError: true from terminal CallToolResult", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_err");
+    const handle = await startTask(app, "do_thing", {}, "tsk_err");
 
     const resultPromise = handle.result();
     respondToRequest(TASKS_RESULT_METHOD, {
@@ -433,9 +437,9 @@ describe("TaskHandle.result()", () => {
 
   it("does not depend on notifications/tasks/status for correctness", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_noevents");
+    const handle = await startTask(app, "do_thing", {}, "tsk_noevents");
 
     // Zero notifications emitted — result() must still resolve purely
     // off the tasks/result response. Spec: status notifications are
@@ -457,9 +461,9 @@ describe("TaskHandle.result()", () => {
 describe("TaskHandle.refresh()", () => {
   it("sends tasks/get { taskId } and resolves with the current Task", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_refresh");
+    const handle = await startTask(app, "do_thing", {}, "tsk_refresh");
 
     const refreshPromise = handle.refresh();
 
@@ -493,9 +497,9 @@ describe("TaskHandle.refresh()", () => {
 describe("TaskHandle.cancel()", () => {
   it("sends tasks/cancel { taskId } and resolves with cancelled Task", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_cancel");
+    const handle = await startTask(app, "do_thing", {}, "tsk_cancel");
 
     const cancelPromise = handle.cancel();
 
@@ -520,9 +524,9 @@ describe("TaskHandle.cancel()", () => {
 
   it("propagates -32602 error when cancelling a terminal task", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_term");
+    const handle = await startTask(app, "do_thing", {}, "tsk_term");
 
     const cancelPromise = handle.cancel();
     const call = findCall(TASKS_CANCEL_METHOD);
@@ -547,9 +551,9 @@ describe("TaskHandle.cancel()", () => {
 describe("TaskHandle.onStatus()", () => {
   it("receives notifications/tasks/status events for matching taskId", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_match");
+    const handle = await startTask(app, "do_thing", {}, "tsk_match");
     const cb = vi.fn();
     handle.onStatus(cb);
 
@@ -566,9 +570,9 @@ describe("TaskHandle.onStatus()", () => {
 
   it("does NOT receive events for other taskIds", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_a");
+    const handle = await startTask(app, "do_thing", {}, "tsk_a");
     const cb = vi.fn();
     handle.onStatus(cb);
 
@@ -582,9 +586,9 @@ describe("TaskHandle.onStatus()", () => {
 
   it("returns an unsubscribe that stops further delivery", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_unsub");
+    const handle = await startTask(app, "do_thing", {}, "tsk_unsub");
     const cb = vi.fn();
     const unsub = handle.onStatus(cb);
 
@@ -606,10 +610,10 @@ describe("TaskHandle.onStatus()", () => {
 
   it("two handles with different taskIds each receive their own notifications", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handleA = await startTask(synapse, "do_a", {}, "tsk_A");
-    const handleB = await startTask(synapse, "do_b", {}, "tsk_B");
+    const handleA = await startTask(app, "do_a", {}, "tsk_A");
+    const handleB = await startTask(app, "do_b", {}, "tsk_B");
 
     const cbA = vi.fn();
     const cbB = vi.fn();
@@ -638,9 +642,9 @@ describe("TaskHandle.onStatus()", () => {
 
   it("multiple subscribers on the same handle all fire", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_multi");
+    const handle = await startTask(app, "do_thing", {}, "tsk_multi");
     const cb1 = vi.fn();
     const cb2 = vi.fn();
     handle.onStatus(cb1);
@@ -657,9 +661,9 @@ describe("TaskHandle.onStatus()", () => {
 
   it("ignores status notifications with no params or non-string taskId", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_defensive");
+    const handle = await startTask(app, "do_thing", {}, "tsk_defensive");
     const cb = vi.fn();
     handle.onStatus(cb);
 
@@ -687,11 +691,11 @@ describe("transport-level status subscription", () => {
     // verify the single shared subscription is cleaned up in one shot.
     // (Internals aren't exposed; behavior is what we assert.)
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handleA = await startTask(synapse, "do_a", {}, "tsk_x1");
-    const handleB = await startTask(synapse, "do_b", {}, "tsk_x2");
-    const handleC = await startTask(synapse, "do_c", {}, "tsk_x3");
+    const handleA = await startTask(app, "do_a", {}, "tsk_x1");
+    const handleB = await startTask(app, "do_b", {}, "tsk_x2");
+    const handleC = await startTask(app, "do_c", {}, "tsk_x3");
 
     const cbA = vi.fn();
     const cbB = vi.fn();
@@ -703,7 +707,7 @@ describe("transport-level status subscription", () => {
     // After destroy(), ALL subscribers should stop hearing events —
     // regardless of how many were registered — because they share a
     // single transport-level subscription.
-    synapse.destroy();
+    app.destroy();
 
     dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_x1",
@@ -730,9 +734,9 @@ describe("transport-level status subscription", () => {
     // per-subscribe and accidentally call each wire subscriber more
     // than once per notification.
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    const handle = await startTask(synapse, "do_thing", {}, "tsk_dedup");
+    const handle = await startTask(app, "do_thing", {}, "tsk_dedup");
     const cb = vi.fn();
     const unsub1 = handle.onStatus(cb);
     const unsub2 = handle.onStatus(cb); // same fn, two registrations
@@ -752,10 +756,10 @@ describe("transport-level status subscription", () => {
 
   it("sends at most one subscription-worthy tools/call per startTask — sanity", async () => {
     completeHandshake();
-    await synapse.ready;
+    app = await appPromise;
 
-    await startTask(synapse, "do_thing", {}, "tsk_once");
-    await startTask(synapse, "do_thing", {}, "tsk_twice");
+    await startTask(app, "do_thing", {}, "tsk_once");
+    await startTask(app, "do_thing", {}, "tsk_twice");
 
     // Two task starts, two tools/call messages on the wire. Not three,
     // not one. This guards against double-send regressions.

@@ -1,8 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AppProvider } from "../../react/app-provider.js";
 import { useHostContext, useTheme } from "../../react/hooks.js";
-import { SynapseProvider } from "../../react/provider.js";
 
 // --- Helpers ---
 
@@ -17,7 +17,11 @@ function makeInitResult(hostContext?: Record<string, unknown>) {
   };
 }
 
-function completeHandshake(hostContext?: Record<string, unknown>) {
+/**
+ * Answer `ui/initialize`, then let the `connect()` promise and the provider's
+ * setState settle — `<AppProvider>` renders nothing until it has an `App`.
+ */
+async function completeHandshake(hostContext?: Record<string, unknown>) {
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
       c[0] &&
@@ -31,6 +35,7 @@ function completeHandshake(hostContext?: Record<string, unknown>) {
       data: { jsonrpc: "2.0", id, result: makeInitResult(hostContext) },
     }),
   );
+  await new Promise((r) => setTimeout(r, 0));
 }
 
 function dispatchHostContextChanged(params: Record<string, unknown>) {
@@ -47,9 +52,9 @@ function dispatchHostContextChanged(params: Record<string, unknown>) {
 
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <SynapseProvider name="test-app" version="1.0.0">
+    <AppProvider name="test-app" version="1.0.0">
       {children}
-    </SynapseProvider>
+    </AppProvider>
   );
 }
 
@@ -69,7 +74,7 @@ describe("useHostContext / useTheme React hooks", () => {
     it("returns the handshake host context after ready", async () => {
       const { result } = renderHook(() => useHostContext(), { wrapper });
       await act(async () => {
-        completeHandshake({
+        await completeHandshake({
           theme: "dark",
           styles: { variables: {} },
           workspace: { id: "ws_a", name: "Alpha" },
@@ -91,7 +96,7 @@ describe("useHostContext / useTheme React hooks", () => {
         { wrapper },
       );
       await act(async () => {
-        completeHandshake({ theme: "dark", styles: { variables: {} } });
+        await completeHandshake({ theme: "dark", styles: { variables: {} } });
       });
 
       const before = renderCount.mock.calls.length;
@@ -112,7 +117,7 @@ describe("useHostContext / useTheme React hooks", () => {
     it("returns the derived theme after handshake", async () => {
       const { result } = renderHook(() => useTheme(), { wrapper });
       await act(async () => {
-        completeHandshake({
+        await completeHandshake({
           theme: "dark",
           styles: { variables: { "--color-bg": "#000" } },
         });
@@ -134,7 +139,7 @@ describe("useHostContext / useTheme React hooks", () => {
         { wrapper },
       );
       await act(async () => {
-        completeHandshake({ theme: "dark", styles: { variables: {} } });
+        await completeHandshake({ theme: "dark", styles: { variables: {} } });
       });
 
       const before = renderCount.mock.calls.length;
@@ -167,7 +172,7 @@ describe("useHostContext / useTheme React hooks", () => {
         { wrapper },
       );
       await act(async () => {
-        completeHandshake({ theme: "dark", styles: { variables: {} } });
+        await completeHandshake({ theme: "dark", styles: { variables: {} } });
       });
 
       const before = renderCount.mock.calls.length;

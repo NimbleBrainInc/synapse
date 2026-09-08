@@ -93,14 +93,14 @@ blank. What backs the color tokens depends on whether a connection ran:
 
 - **Connected, but hostless** — the standalone `inline` adapter still applies a theme,
   so color tokens resolve through the `synapse-defaults` layer above and stay
-  theme-correct in dark as well as light. Same for `connect()`, `createSynapse()` and
-  `SynapseProvider` against a host that ships no tokens.
+  theme-correct in dark as well as light. Same for `connect()` and `AppProvider`
+  against a host that ships no tokens.
 - **Never connected** — a Storybook story or a unit test that renders a component
   directly installs no layer, because nothing applied a theme. Color tokens fall back
   to their `var()` second argument, which is a static literal and therefore
   light-flavoured in both modes. Rendering such a story in dark mode needs a host
-  that says so: with no host context the mode resolves to `light`, so wrapping in a
-  `SynapseProvider` installs the layer but installs the *light* one.
+  that says so: with no host context the mode resolves to `light`, so wrapping in an
+  `AppProvider` installs the layer but installs the *light* one.
 
 Everything the layer never covers — fonts, radii, shadows — falls back to its `var()`
 second argument in both cases: system fonts and neutral geometry.

@@ -1,11 +1,10 @@
 /**
- * `<SynapseProvider>` must not unload the host's typeface.
+ * `<AppProvider>` must not unload the host's typeface.
  *
- * `ThemeInjector` re-applies the theme on every change, one React tick after
- * the transport handler has already applied it. If the theme it receives omits
- * the faces — or if a vars-only re-apply is read as "clear" — React clobbers
- * correct DOM state a moment later, and the app silently loses its typeface on
- * an unrelated dark-mode toggle.
+ * The provider mounts an app that applies the host's theme on the handshake
+ * and again on every `host-context-changed`. If the theme it re-applies omits
+ * the faces — or if a vars-only re-apply is read as "clear" — the app silently
+ * loses its typeface on an unrelated dark-mode toggle.
  *
  * This is the end-to-end version of the guarantees pinned in
  * `theme-font-faces-lifecycle.test.ts`: the payload carries the sticky faces
@@ -16,7 +15,7 @@ import { render } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FONT_FACES_CONTEXT_KEY } from "../../detection.js";
-import { SynapseProvider } from "../../react/hooks.js";
+import { AppProvider } from "../../react/app-provider.js";
 import { resetAppliedFontFaces } from "../../theme-defaults.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
@@ -81,9 +80,9 @@ function dispatchHostContext(params: Record<string, unknown>) {
 }
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <SynapseProvider name="t" version="1.0.0">
+  <AppProvider name="t" version="1.0.0">
     {children}
-  </SynapseProvider>
+  </AppProvider>
 );
 
 const families = () => [...loaded].map((f) => f.family);
@@ -107,7 +106,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("SynapseProvider + host fonts", () => {
+describe("AppProvider + host fonts", () => {
   it("keeps the host typeface across a dark-mode toggle", async () => {
     render(<div />, { wrapper });
     respondToInitialize();
@@ -116,7 +115,7 @@ describe("SynapseProvider + host fonts", () => {
 
     dispatchHostContext({ theme: "dark" });
 
-    // ThemeInjector re-applies a tick later; it must not clobber the faces.
+    // The theme re-applies a tick later; it must not clobber the faces.
     await new Promise((r) => setTimeout(r, 0));
     expect(families()).toEqual(["Brand"]);
   });

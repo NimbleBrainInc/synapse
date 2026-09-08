@@ -114,8 +114,7 @@ standard**, SEP-1865), and standalone — behind `synapse.data()/onData()/theme(
 resize()/openLink()/sendPrompt()/callTool()`. It is deliberately **decoupled from
 `@modelcontextprotocol/*`** (pure `window.openai` + JSON-RPC over `postMessage`), so
 the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays small
-(no Zod). This is additive — the ext-apps `connect`/`createSynapse` paths below are
-unchanged.
+(no Zod). This is additive — the ext-apps `connect` path below is unchanged.
 
 - Adapters live in `src/host/adapters/` (`chatgpt`, `mcpapps`, `inline`); detection
   in `src/host/detect.ts`; the façade in `src/host/connect.ts`. Add a host by
@@ -152,18 +151,26 @@ unchanged.
   updating `python/nimblebrain_synapse/__init__.py` `__client_version__` to the new
   version — CI fails until it equals `package.json`.
 
-## Two connection paths
+## The connection
 
-- **`connect(options)`** — Async, returns `App`. Standalone widgets (mcp-dev-summit). Supports `options.on` for pre-registering handlers before `initialized`.
-- **`createSynapse(options)`** — Sync, returns `Synapse` with `.ready`. NimbleBrain platform apps. Richer API (actions, file ops, visible state).
+`await connect(options)` returns an `App`. It is the only entry point, and it
+follows: size → `ui/initialize` request → await response → register handlers →
+`ui/notifications/initialized`. `options.on` pre-registers handlers before
+`initialized` goes out, so no early message is lost.
 
-Both follow: size → `ui/initialize` request → await response → register handlers → `ui/notifications/initialized`.
+`App` carries the ext-apps surface plus the handshake state, and nothing else.
+The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`, `downloadFile`)
+and the MCP tasks utility (`callToolAsTask`) are **functions over an `App`** in
+`src/extensions.ts` and `src/task-handle.ts`, reaching the transport through
+`app._internals`. Adding a capability means adding a function there, not a
+method on the object — the whole point of collapsing the old two-API fork was a
+smaller object, and it grows back one convenience method at a time.
 
 ## NimbleBrain extensions (`synapse/` prefix)
 
 No spec equivalent — degrade to no-ops in other hosts:
 
-`synapse/action`, `synapse/data-changed`, `synapse/persist-state`, `synapse/state-loaded`, `synapse/download-file`, `synapse/keydown`, `synapse/request-file`
+`synapse/action`, `synapse/data-changed`, `synapse/download-file`, `synapse/keydown`, `synapse/request-file`
 
 ## IIFE build for MCP server widgets
 
@@ -173,9 +180,11 @@ MCP servers embed synapse as a `<script>` in widget HTML. Build with esbuild + s
 # Create entry
 cat > src/_iife-entry.ts << 'EOF'
 import { connect } from "./connect.ts";
-import { createSynapse } from "./core.ts";
-import { createStore } from "./store.ts";
-(globalThis as any).Synapse = { connect, createSynapse, createStore };
+import { action, downloadFile, pickFile, pickFiles } from "./extensions.ts";
+import { callToolAsTask } from "./task-handle.ts";
+(globalThis as any).Synapse = {
+  connect, callToolAsTask, action, downloadFile, pickFile, pickFiles,
+};
 EOF
 
 # Create lightweight shim (string constants only, no Zod)

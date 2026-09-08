@@ -61,6 +61,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { resolveEventMethod } from "../event-map.js";
 import { parseToolResult } from "../result-parser.js";
+import { callToolAsTask } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -396,8 +397,15 @@ describe("outbound message shapes", () => {
     expect(params.content[0]).toMatchObject({ type: "text", text: "hello world" });
   });
 
-  it("sendMessage with context puts it in _meta", async () => {
-    app = await connectAndHandshake();
+  // `context` is a NimbleBrain convention carried in the spec's open `_meta`,
+  // so it is encoded on a NimbleBrain host and absent everywhere else. Both
+  // halves are asserted: the placement is what a host reads, and the absence
+  // is what keeps a private field off a foreign host's wire.
+  it("sendMessage with context puts it in _meta on a NimbleBrain host", async () => {
+    app = await connectAndHandshake(
+      {},
+      makeSpecInitResult({ hostInfo: { name: "nimblebrain", version: "1.0.0" } }),
+    );
     app.sendMessage("test", { action: "search" });
 
     const call = postMessageSpy.mock.calls.find(
@@ -406,6 +414,17 @@ describe("outbound message shapes", () => {
     const params = (call![0] as Record<string, unknown>).params as McpUiMessageRequest["params"];
     const block = params.content[0] as TextContent;
     expect(block._meta).toEqual({ context: { action: "search" } });
+  });
+
+  it("sendMessage omits _meta entirely on a non-NimbleBrain host", async () => {
+    app = await connectAndHandshake();
+    app.sendMessage("test", { action: "search" });
+
+    const call = postMessageSpy.mock.calls.find(
+      (c: unknown[]) => (c[0] as Record<string, unknown>).method === MESSAGE_METHOD,
+    );
+    const params = (call![0] as Record<string, unknown>).params as McpUiMessageRequest["params"];
+    expect(Object.hasOwn(params.content[0], "_meta")).toBe(false);
   });
 
   it("updateModelContext sends ui/update-model-context with structuredContent", async () => {
@@ -582,13 +601,15 @@ describe("compile-time type assertions", () => {
 // 8. MCP 2025-11-25 tasks utility — capability advertisement
 // ---------------------------------------------------------------------------
 
-describe("tasks capability advertisement (connect path)", () => {
-  // `connect()` returns an `App` with no task-augmented call surface.
-  // Per MCP 2025-11-25, requestors MUST NOT advertise capabilities they
-  // can't use — doing so creates a false contract with hosts that may
-  // allocate state on the strength of the advertisement. Positive
-  // capability tests for the `createSynapse` path live in `core.test.ts`.
-  it("connect() does NOT advertise appCapabilities.tasks", async () => {
+describe("tasks capability advertisement", () => {
+  // Per MCP 2025-11-25 a requestor advertises exactly what it can use: no
+  // more (a host may allocate state on the strength of it) and no less (a
+  // receiver may refuse to augment a call from an app that never asked).
+  // `App` reaches `callToolAsTask`, so `connect()` advertises `tasks`.
+  //
+  // The nested values are empty objects — presence flags, NOT booleans. A
+  // `true` here would be a wire-format break that no type catches.
+  it("connect() advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
     app = await connectAndHandshake();
 
     const initCall = postMessageSpy.mock.calls.find(
@@ -597,9 +618,9 @@ describe("tasks capability advertisement (connect path)", () => {
     expect(initCall).toBeDefined();
 
     const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
-    const caps = params.appCapabilities as Record<string, unknown>;
-
-    expect(caps).not.toHaveProperty("tasks");
+    expect(params.appCapabilities).toEqual({
+      tasks: { cancel: {}, requests: { tools: { call: {} } } },
+    });
   });
 });
 
@@ -723,10 +744,8 @@ describe("RELATED_TASK_META_KEY constant matches spec", () => {
 // 10. Task-augmented tools/call wire shape (MCP 2025-11-25 §)
 // ---------------------------------------------------------------------------
 //
-// These tests drive through the `createSynapse` API (where
-// `callToolAsTask` lives) rather than `connect()`. They assert the
-// ENCODED wire bytes match the spec — this is the layer where silent
-// drift is most costly.
+// These assert the ENCODED wire bytes match the spec — the layer where
+// silent drift is most costly.
 
 describe("task-augmented tools/call wire shape", () => {
   const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
@@ -756,17 +775,10 @@ describe("task-augmented tools/call wire shape", () => {
     };
   }
 
-  async function makeReadySynapse(): Promise<{
-    synapse: import("../types.js").Synapse;
-    cleanup: () => void;
-  }> {
-    // Dynamic import keeps this describe block self-contained and
-    // avoids top-level coupling with the App-based setup above.
-    const { createSynapse } = await import("../core.js");
-    const s = createSynapse({ name: "test-app", version: "1.0.0" });
-    s.ready.catch(() => {});
+  async function makeReadyApp(): Promise<{ app: App; cleanup: () => void }> {
+    const pending = connect({ name: "test-app", version: "1.0.0" });
 
-    // Answer ui/initialize
+    // Answer ui/initialize with a host that advertises the tasks capability.
     const initCall = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
     );
@@ -780,8 +792,8 @@ describe("task-augmented tools/call wire shape", () => {
         },
       }),
     );
-    await s.ready;
-    return { synapse: s, cleanup: () => s.destroy() };
+    const ready = await pending;
+    return { app: ready, cleanup: () => ready.destroy() };
   }
 
   function respondTo(method: string, result: unknown): void {
@@ -798,9 +810,9 @@ describe("task-augmented tools/call wire shape", () => {
   }
 
   it("tools/call with task param has the spec wire shape", async () => {
-    const { synapse, cleanup } = await makeReadySynapse();
+    const { app: taskApp, cleanup } = await makeReadyApp();
 
-    const pending = synapse.callToolAsTask("do_research", { query: "mcp" }, { ttl: 60_000 });
+    const pending = callToolAsTask(taskApp, "do_research", { query: "mcp" }, { ttl: 60_000 });
 
     // Find the tools/call message on the wire.
     const call = postMessageSpy.mock.calls.find(
@@ -837,9 +849,9 @@ describe("task-augmented tools/call wire shape", () => {
   });
 
   it("tasks/result response preserves _meta through parseToolResult", async () => {
-    const { synapse, cleanup } = await makeReadySynapse();
+    const { app: taskApp, cleanup } = await makeReadyApp();
 
-    const pending = synapse.callToolAsTask("do_thing", {});
+    const pending = callToolAsTask(taskApp, "do_thing", {});
     respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_meta_spec",
@@ -871,10 +883,10 @@ describe("task-augmented tools/call wire shape", () => {
   });
 
   it("lifecycle: start → refresh (working) → result (completed) records spec wire traffic", async () => {
-    const { synapse, cleanup } = await makeReadySynapse();
+    const { app: taskApp, cleanup } = await makeReadyApp();
 
     // 1. Start task
-    const pending = synapse.callToolAsTask("do_thing", { q: 1 }, { ttl: 90_000 });
+    const pending = callToolAsTask(taskApp, "do_thing", { q: 1 }, { ttl: 90_000 });
     const startMsg = postMessageSpy.mock.calls
       .map((c) => c[0] as Record<string, unknown>)
       .find((m) => m.method === TOOLS_CALL_METHOD);
@@ -937,9 +949,9 @@ describe("task-augmented tools/call wire shape", () => {
   });
 
   it("tasks/cancel wire shape: params.taskId only, no _meta related-task", async () => {
-    const { synapse, cleanup } = await makeReadySynapse();
+    const { app: taskApp, cleanup } = await makeReadyApp();
 
-    const pending = synapse.callToolAsTask("do_thing", {});
+    const pending = callToolAsTask(taskApp, "do_thing", {});
     respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_cancel",

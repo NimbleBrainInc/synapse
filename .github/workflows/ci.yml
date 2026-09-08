@@ -141,6 +141,22 @@ jobs:
         # default resolution runs one interpreter — exercise the floor too.
         run: uv run --python 3.11 --isolated --no-project --with-editable . --with pytest --with pytest-asyncio pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
+      - name: Built artifacts pass a publisher-grade check
+        # `uv build` produces a wheel; it does not say whether the publisher will
+        # accept it. twine validates the core metadata and the long-description
+        # render, and the publish action runs `twine check` (non-strict) as its
+        # last gate before uploading — so a malformed artifact caught here is one
+        # that would otherwise surface at the tag, where the only way forward is
+        # to move a tag that already fired. `--strict` is deliberately tighter
+        # than that gate: a render warning should cost a red PR, not a bad page
+        # on PyPI.
+        #
+        # What this cannot catch: the action bundles its own twine, while `uvx`
+        # resolves the newest. Core metadata the bundled twine predates passes
+        # here and fails there — which is exactly how 0.6.0 broke. Nothing pins
+        # the two together; keep the action's SHA current (see
+        # publish-python.yml).
+        run: uvx twine check --strict dist/*
       - name: Built wheel ships and loads the client asset
         # Import from the installed wheel (python -P keeps the source tree off
         # sys.path) so a missing _assets/ fails here, not after an irreversible

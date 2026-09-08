@@ -26,6 +26,7 @@ import { Breadcrumb } from "../ui/components/Breadcrumb.js";
 import { PageHeader } from "../ui/components/PageHeader.js";
 import { Table } from "../ui/components/Table.js";
 import { Tabs } from "../ui/components/Tabs.js";
+import { PageLayout } from "../ui/layouts/PageLayout.js";
 import { Text } from "../ui/typography.js";
 
 describe("Text truncate actually truncates", () => {
@@ -248,5 +249,49 @@ describe("the header carries no destination slot, by design", () => {
     const first = container.querySelector("header > *") as HTMLElement;
     expect(first.getAttribute("aria-label")).not.toBe("Breadcrumb");
     expect(first.textContent).toContain("Precision Outbound");
+  });
+});
+
+describe("PageLayout owns the order, which is the whole reason it is a component", () => {
+  const parts = {
+    title: "Precision Outbound",
+    tabs: <div data-testid="tabs">tabs</div>,
+    toolbar: <div data-testid="toolbar">toolbar</div>,
+    children: <div data-testid="content">content</div>,
+  };
+
+  it("puts header, tabs, toolbar and content in that order regardless of prop order", () => {
+    // The invariant. An app that assembles these by hand can put the tab bar under the
+    // toolbar, or the trail under the title, and nothing stops it — which is exactly what a
+    // shipped app did. Passing them as props makes the wrong order unavailable.
+    const { container } = render(
+      <PageLayout crumbs={[{ label: "Up", onClick: () => {} }, { label: "Here" }]} {...parts} />,
+    );
+    const order = [...(container.firstElementChild as HTMLElement).children].map((el) =>
+      el.tagName === "HEADER"
+        ? "header"
+        : ((el.querySelector("[data-testid]") ?? el).getAttribute("data-testid") ??
+          el.getAttribute("data-testid")),
+    );
+    expect(order).toEqual(["header", "tabs", "toolbar", "content"]);
+  });
+
+  it("keeps the trail above the title inside the header it delegates to", () => {
+    render(
+      <PageLayout crumbs={[{ label: "Up", onClick: () => {} }, { label: "Here" }]} {...parts} />,
+    );
+    const trail = screen.getByRole("navigation", { name: "Breadcrumb" });
+    const heading = screen.getByText("Precision Outbound");
+    // DOCUMENT_POSITION_FOLLOWING: the heading comes after the trail.
+    expect(trail.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders nothing for the slots an app does not fill", () => {
+    // A top-level screen with no trail, no tabs and no toolbar is still a valid page, and
+    // must not leave empty rows shifting the content down.
+    const { container } = render(<PageLayout title="Precision Outbound" />);
+    const kids = [...(container.firstElementChild as HTMLElement).children];
+    expect(kids).toHaveLength(1);
+    expect(kids[0].tagName).toBe("HEADER");
   });
 });

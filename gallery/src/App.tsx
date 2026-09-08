@@ -13,6 +13,7 @@ import {
   Heading,
   Inline,
   ListDetailLayout,
+  PageLayout,
   ListRow,
   PageHeader,
   Pagination,
@@ -698,7 +699,7 @@ export function App() {
 
         <Section
           title="Layouts — recipes (not components)"
-          subtitle="Board and List aren't scaffolds — they're thin compositions of primitives + components, so they stay recipes. Only genuinely complex layouts (SidebarLayout, ListDetailLayout) are components."
+          subtitle="Board and List aren't scaffolds — they're thin compositions, so they stay recipes. A layout becomes a component when it is complex to build (SidebarLayout, ListDetailLayout) OR when getting its arrangement wrong is a bug rather than a preference (PageLayout)."
         >
           <Grid min={300}>
             <Stack gap="0.5rem">
@@ -847,8 +848,8 @@ export function App() {
         </Section>
 
         <Section
-          title="Page layer — PageHeader, Tabs, Breadcrumb"
-          subtitle="One shape at every level: a header that names what you are looking at, a tab bar of that thing's facets, then the content. What fills the tab bar is the only thing depth changes."
+          title="PageLayout — one screen, at any depth"
+          subtitle="PageLayout is that shape, owned rather than described: a header naming what you are looking at, a tab bar of its facets, a toolbar over the content, then the content. Both screens below are the same component — only the tab bar changes hands."
         >
           <Stack gap="2.25rem">
             {/* ROOT. The app is the entity, and its sections are the facets — which is the
@@ -858,7 +859,7 @@ export function App() {
               <Text size="xs" tone="faint">
                 At the top level — the app names itself, its sections are the tab bar
               </Text>
-              <PageHeader
+              <PageLayout
                 title="Precision Outbound"
                 actions={
                   <>
@@ -868,38 +869,47 @@ export function App() {
                     <Button size="sm">New campaign</Button>
                   </>
                 }
-              />
-              <Tabs
-                tabs={[
-                  { label: "Campaigns", value: "records" },
-                  { label: "Needs you", value: "inbox", count: 3 },
-                  { label: "Domains", value: "domains" },
-                  { label: "Mailboxes", value: "settings" },
-                ]}
-                value={navDemo}
-                onChange={setNavDemo}
-                label="Sections"
-              />
-              <Inline gap="0.5rem" wrap>
-                <SearchField variant="boxed" placeholder="Search campaigns…" style={{ maxWidth: 260 }} />
-                <SegmentedControl
-                  options={[
-                    { label: "All", value: "details" },
-                    { label: "Active", value: "activity" },
-                    { label: "Draft", value: "files" },
-                  ]}
-                  value={tabDemo}
-                  onChange={setTabDemo}
-                />
-              </Inline>
-              <div style={{ border: `1px solid ${tokens.border}`, borderRadius: tokens.radiusMd, overflow: "hidden" }}>
-                <Table
-                  data={RECORDS}
-                  rowKey={(r) => r.id}
-                  minWidth={720}
-                  columns={RECORD_COLUMNS}
-                />
-              </div>
+                tabs={
+                  <Tabs
+                    tabs={[
+                      { label: "Campaigns", value: "records" },
+                      { label: "Needs you", value: "inbox", count: 3 },
+                      { label: "Domains", value: "domains" },
+                      { label: "Mailboxes", value: "settings" },
+                    ]}
+                    value={navDemo}
+                    onChange={setNavDemo}
+                    label="Sections"
+                  />
+                }
+                toolbar={
+                  <>
+                    <SearchField
+                      variant="boxed"
+                      placeholder="Search campaigns…"
+                      style={{ maxWidth: 260 }}
+                    />
+                    <SegmentedControl
+                      options={[
+                        { label: "All", value: "details" },
+                        { label: "Active", value: "activity" },
+                        { label: "Draft", value: "files" },
+                      ]}
+                      value={tabDemo}
+                      onChange={setTabDemo}
+                    />
+                  </>
+                }
+              >
+                <div style={{ border: `1px solid ${tokens.border}`, borderRadius: tokens.radiusMd, overflow: "hidden" }}>
+                  <Table
+                    data={RECORDS}
+                    rowKey={(r) => r.id}
+                    minWidth={720}
+                    columns={RECORD_COLUMNS}
+                  />
+                </div>
+              </PageLayout>
             </Stack>
 
             <Divider />
@@ -913,7 +923,7 @@ export function App() {
               <Text size="xs" tone="faint">
                 One level down — same shape, and the tab bar changes hands
               </Text>
-              <PageHeader
+              <PageLayout
                 crumbs={[
                   { label: "Campaigns", onClick: () => {} },
                   { label: "Blue Ridge — Patient Portal" },
@@ -929,21 +939,24 @@ export function App() {
                   </>
                 }
                 description={LONG_SUMMARY}
-              />
-              <Tabs
-                tabs={[
-                  { label: "Details", value: "details" },
-                  { label: "Activity", value: "activity", count: 12 },
-                  { label: "Files", value: "files" },
-                ]}
-                value={tabDemo}
-                onChange={setTabDemo}
-                label="Record"
-              />
-              <Text size="sm" tone="muted">
-                The description is clamped to two lines. Copy of unbounded length at the top of
-                every screen pushes the content a reader came for below the fold.
-              </Text>
+                tabs={
+                  <Tabs
+                    tabs={[
+                      { label: "Details", value: "details" },
+                      { label: "Activity", value: "activity", count: 12 },
+                      { label: "Files", value: "files" },
+                    ]}
+                    value={tabDemo}
+                    onChange={setTabDemo}
+                    label="Record"
+                  />
+                }
+              >
+                <Text size="sm" tone="muted">
+                  The description is clamped to two lines. Copy of unbounded length at the top
+                  of every screen pushes the content a reader came for below the fold.
+                </Text>
+              </PageLayout>
             </Stack>
           </Stack>
         </Section>

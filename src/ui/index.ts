@@ -34,6 +34,7 @@ export { Tabs } from "./components/Tabs.js";
 // Tier B — layout scaffolds + responsive hooks
 export { AppFrame } from "./layouts/AppFrame.js";
 export { ListDetailLayout, useListDetail } from "./layouts/ListDetailLayout.js";
+export { PageLayout } from "./layouts/PageLayout.js";
 export { SidebarLayout, useSidebar } from "./layouts/SidebarLayout.js";
 export { useBreakpoint } from "./layouts/use-container-width.js";
 // Tier A — layout primitives

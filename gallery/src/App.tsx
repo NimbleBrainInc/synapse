@@ -121,6 +121,72 @@ const NAV_DESTINATIONS = [
   { label: "Settings", value: "settings" },
 ];
 
+// Shared by the page-layer demos and the truncation section, so the three render one table
+// rather than three that happen to look alike.
+const RECORD_COLUMNS: Column<(typeof RECORDS)[number]>[] = [
+  {
+    key: "name",
+    header: "Record",
+    width: "38%",
+    render: (r) => (
+      <Stack gap="0.15rem">
+        <Text size="sm" weight="medium" truncate>
+          {r.name}
+        </Text>
+        <Text size="xs" tone="muted" truncate>
+          {r.summary}
+        </Text>
+      </Stack>
+    ),
+  },
+  {
+    key: "open",
+    header: "Open",
+    align: "right",
+    render: (r) => (
+      <Text size="sm" tone={r.open > 0 ? "default" : "muted"}>
+        {r.open}
+      </Text>
+    ),
+  },
+  {
+    key: "total",
+    header: "Total",
+    align: "right",
+    render: (r) => <Text size="sm">{r.total}</Text>,
+  },
+  {
+    key: "done",
+    header: "Done",
+    align: "right",
+    render: (r) => <Text size="sm">{r.done}</Text>,
+  },
+  {
+    key: "failed",
+    header: "Failed",
+    align: "right",
+    render: (r) => (
+      <Text size="sm" tone={r.failed > 0 ? "danger" : "muted"}>
+        {r.failed}
+      </Text>
+    ),
+  },
+  {
+    key: "state",
+    header: "State",
+    render: () => <Badge tone="success">ready</Badge>,
+  },
+  {
+    key: "updated",
+    header: "Updated",
+    render: () => (
+      <Text size="sm" tone="muted">
+        4 Sep, 7:40 PM
+      </Text>
+    ),
+  },
+];
+
 const RECORDS = [
   {
     id: "r1",
@@ -781,88 +847,103 @@ export function App() {
         </Section>
 
         <Section
-          title="Page layer — Breadcrumb, PageHeader, Tabs"
-          subtitle="An embedded app does not own its window, so it draws no chrome of its own. Destinations share the trail's row; tabs are facets of the one entity the header names."
+          title="Page layer — PageHeader, Tabs, Breadcrumb"
+          subtitle="One shape at every level: a header that names what you are looking at, a tab bar of that thing's facets, then the content. What fills the tab bar is the only thing depth changes."
         >
-          <Stack gap="1.5rem">
-            {/* No app-level bar, deliberately. A host that spends the left edge on a rail and
-                the right on a chat panel already has chrome; a bar here would put a third
-                rule a few pixels off the chat panel's, and two near-parallel lines read as a
-                mistake. Everything below is page content, which is the only thing on screen
-                the app unambiguously owns. */}
-            <PageHeader
-              crumbs={[
-                { label: "Records", onClick: () => {} },
-                { label: "Blue Ridge — Patient Portal" },
-              ]}
-              // Quiet text links, not a pill track. A raised control here would stack a
-              // second cluster of buttons above the page's own actions and read as chrome by
-              // weight even though it draws no bar — which is the thing this variant exists
-              // to avoid. The current destination is text; the rest are links.
-              nav={
-                <>
-                  {NAV_DESTINATIONS.map((d) =>
-                    d.value === navDemo ? (
-                      <Text key={d.value} size="sm" weight="semibold">
-                        {d.label}
-                      </Text>
-                    ) : (
-                      <TextLink key={d.value} onClick={() => setNavDemo(d.value)}>
-                        {d.label}
-                      </TextLink>
-                    ),
-                  )}
-                </>
-              }
-              title="Blue Ridge — Patient Portal"
-              status={<Badge tone="success">active</Badge>}
-              actions={
-                <>
-                  <Button size="sm" variant="ghost">
-                    Export
-                  </Button>
-                  <Button size="sm">New entry</Button>
-                </>
-              }
-              description={LONG_SUMMARY}
-            />
-
-            {/* Tabs, not a second SegmentedControl. The control above narrows a SET of
-                destinations; this one changes which FACET of the chosen record is shown — no
-                new selection, so no new level and no second pane. Same choice mechanically,
-                different jobs, and the form is what says which. */}
-            <Tabs
-              tabs={[
-                { label: "Details", value: "details" },
-                { label: "Activity", value: "activity", count: 12 },
-                { label: "Files", value: "files" },
-              ]}
-              value={tabDemo}
-              onChange={setTabDemo}
-              label="Record"
-            />
-
-            <Text size="sm" tone="muted">
-              {tabDemo === "details"
-                ? "The description above is clamped to two lines. Copy of unbounded length at the top of every screen pushes the content a reader came for below the fold; two lines identifies the record without becoming the page."
-                : "Switching a tab changes which facet is shown and nothing about which record is chosen."}
-            </Text>
+          <Stack gap="2.25rem">
+            {/* ROOT. The app is the entity, and its sections are the facets — which is the
+                same relationship a record has to its own tabs, so it gets the same shape.
+                No breadcrumb, because there is nothing above this to name. */}
+            <Stack gap="1rem">
+              <Text size="xs" tone="faint">
+                At the top level — the app names itself, its sections are the tab bar
+              </Text>
+              <PageHeader
+                title="Precision Outbound"
+                actions={
+                  <>
+                    <Button size="sm" variant="ghost">
+                      Import
+                    </Button>
+                    <Button size="sm">New campaign</Button>
+                  </>
+                }
+              />
+              <Tabs
+                tabs={[
+                  { label: "Campaigns", value: "records" },
+                  { label: "Needs you", value: "inbox", count: 3 },
+                  { label: "Domains", value: "domains" },
+                  { label: "Mailboxes", value: "settings" },
+                ]}
+                value={navDemo}
+                onChange={setNavDemo}
+                label="Sections"
+              />
+              <Inline gap="0.5rem" wrap>
+                <SearchField variant="boxed" placeholder="Search campaigns…" style={{ maxWidth: 260 }} />
+                <SegmentedControl
+                  options={[
+                    { label: "All", value: "details" },
+                    { label: "Active", value: "activity" },
+                    { label: "Draft", value: "files" },
+                  ]}
+                  value={tabDemo}
+                  onChange={setTabDemo}
+                />
+              </Inline>
+              <div style={{ border: `1px solid ${tokens.border}`, borderRadius: tokens.radiusMd, overflow: "hidden" }}>
+                <Table
+                  data={RECORDS}
+                  rowKey={(r) => r.id}
+                  minWidth={720}
+                  columns={RECORD_COLUMNS}
+                />
+              </div>
+            </Stack>
 
             <Divider />
 
-            <Stack gap="0.5rem">
+            {/* ONE LEVEL DOWN. Identical composition — the header names the record instead of
+                the app, a trail appears above it because now there IS something above, and
+                the tab bar holds the record's facets instead of the app's sections. The
+                sections are not repeated here: two tab bars stacked is the thing that made
+                the old screen unreadable, and the trail is how you get back to them. */}
+            <Stack gap="1rem">
               <Text size="xs" tone="faint">
-                Breadcrumb on its own. Every step above the current one is a control; the
-                current one is text, because a control that looks clickable and does nothing is
-                worse than no control.
+                One level down — same shape, and the tab bar changes hands
               </Text>
-              <Breadcrumb
+              <PageHeader
                 crumbs={[
-                  { label: "Records", onClick: () => {} },
-                  { label: "Blue Ridge — Patient Portal", onClick: () => {} },
-                  { label: "Contacts" },
+                  { label: "Campaigns", onClick: () => {} },
+                  { label: "Blue Ridge — Patient Portal" },
                 ]}
+                title="Blue Ridge — Patient Portal"
+                status={<Badge tone="success">active</Badge>}
+                actions={
+                  <>
+                    <Button size="sm" variant="ghost">
+                      Export
+                    </Button>
+                    <Button size="sm">New entry</Button>
+                  </>
+                }
+                description={LONG_SUMMARY}
               />
+              <Tabs
+                tabs={[
+                  { label: "Details", value: "details" },
+                  { label: "Activity", value: "activity", count: 12 },
+                  { label: "Files", value: "files" },
+                ]}
+                value={tabDemo}
+                onChange={setTabDemo}
+                label="Record"
+              />
+              <Text size="sm" tone="muted">
+                The description is clamped to two lines. Copy of unbounded length at the top of
+                every screen pushes the content a reader came for below the fold.
+              </Text>
             </Stack>
           </Stack>
         </Section>
@@ -885,71 +966,7 @@ export function App() {
               // have no lower bound of their own, so without this they crush to clipped
               // headers rather than scrolling. Setting it turns the scroller on.
               minWidth={720}
-              columns={
-                [
-                  {
-                    key: "name",
-                    header: "Record",
-                    width: "38%",
-                    render: (r) => (
-                      <Stack gap="0.15rem">
-                        <Text size="sm" weight="medium" truncate>
-                          {r.name}
-                        </Text>
-                        <Text size="xs" tone="muted" truncate>
-                          {r.summary}
-                        </Text>
-                      </Stack>
-                    ),
-                  },
-                  {
-                    key: "open",
-                    header: "Open",
-                    align: "right",
-                    render: (r) => (
-                      <Text size="sm" tone={r.open > 0 ? "default" : "muted"}>
-                        {r.open}
-                      </Text>
-                    ),
-                  },
-                  {
-                    key: "total",
-                    header: "Total",
-                    align: "right",
-                    render: (r) => <Text size="sm">{r.total}</Text>,
-                  },
-                  {
-                    key: "done",
-                    header: "Done",
-                    align: "right",
-                    render: (r) => <Text size="sm">{r.done}</Text>,
-                  },
-                  {
-                    key: "failed",
-                    header: "Failed",
-                    align: "right",
-                    render: (r) => (
-                      <Text size="sm" tone={r.failed > 0 ? "danger" : "muted"}>
-                        {r.failed}
-                      </Text>
-                    ),
-                  },
-                  {
-                    key: "state",
-                    header: "State",
-                    render: () => <Badge tone="success">ready</Badge>,
-                  },
-                  {
-                    key: "updated",
-                    header: "Updated",
-                    render: () => (
-                      <Text size="sm" tone="muted">
-                        4 Sep, 7:40 PM
-                      </Text>
-                    ),
-                  },
-                ] satisfies Column<(typeof RECORDS)[number]>[]
-              }
+              columns={RECORD_COLUMNS}
             />
           </div>
         </Section>

@@ -17,18 +17,17 @@
  * identify the thing and not enough to become the page. Callers with genuinely short,
  * curated copy can raise it; the default protects the common case rather than the tidy one.
  *
- * `status`, `actions` and `nav` are ReactNode slots, not typed vocabularies. A page header has
- * no business knowing what states a caller's entity can be in, which of its verbs are primary,
- * or where an app's sections live — that knowledge belongs to the app, and a kit that encoded
- * it would need extending for every app that arrived with a different one.
+ * `status` and `actions` are ReactNode slots, not typed vocabularies. A page header has no
+ * business knowing what states a caller's entity can be in or which of its verbs are primary —
+ * that knowledge belongs to the app, and a kit that encoded it would need extending for every
+ * app that arrived with a different one.
  *
- * **`nav` is where an embedded app's top-level destinations go, and the reason is the frame.**
- * A Synapse app does not own its window: the host spends the left edge on a rail and the right
- * on chat, so a chrome bar of the app's own is a third layer whose rule lands a few pixels off
- * the chat panel's — two near-parallel lines that read as a mistake rather than as structure,
- * and styling does not reconcile them. Sharing the trail's row costs no rule, no tint, and no
- * second row: destinations read as part of the page, which is the only thing on screen that is
- * unambiguously the app's to draw.
+ * **There is no slot for an app's top-level destinations, and that is the design.** They are
+ * facets of the app exactly as a record's tabs are facets of the record, so they go in a `Tabs`
+ * bar under this header — the same shape at every level, with only the tab bar's contents
+ * changing as you descend. Giving them a slot up here put two right-aligned clusters on top of
+ * each other, destinations above actions, and made the quieter of the two the more important
+ * one. An embedded app has one column and cannot afford a corner that dense.
  */
 
 import type { HTMLAttributes, ReactNode } from "react";
@@ -56,14 +55,6 @@ const RULES = `
 interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** The trail. Omit on a top-level page, which has nothing above it to name. */
   crumbs?: Crumb[];
-  /**
-   * Top-level destinations, rendered at the far end of the trail's row.
-   *
-   * Shares that row rather than getting one of its own — see the note above. The row appears
-   * for either `crumbs` or `nav`, so a top-level page with no trail still shows its
-   * destinations, and a deep page shows both with the trail taking the space it needs.
-   */
-  nav?: ReactNode;
   title: ReactNode;
   /** Sits beside the title — typically a `Badge`. */
   status?: ReactNode;
@@ -76,7 +67,6 @@ interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
 
 export function PageHeader({
   crumbs,
-  nav,
   title,
   status,
   actions,
@@ -93,28 +83,7 @@ export function PageHeader({
       style={{ display: "flex", flexDirection: "column", gap: "0.5rem", minWidth: 0, ...style }}
       {...rest}
     >
-      {(crumbs && crumbs.length > 0) || nav ? (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "1rem",
-            flexWrap: "wrap",
-            minWidth: 0,
-          }}
-        >
-          {/* An empty span rather than nothing when there is no trail: `space-between` with a
-              single child pushes it to the START, so a top-level page's destinations would
-              jump to the left edge and the row's geometry would change with depth. */}
-          {crumbs && crumbs.length > 0 ? <Breadcrumb crumbs={crumbs} /> : <span />}
-          {nav ? (
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", minWidth: 0 }}>
-              {nav}
-            </div>
-          ) : null}
-        </div>
-      ) : null}
+      {crumbs && crumbs.length > 0 ? <Breadcrumb crumbs={crumbs} /> : null}
 
       <div
         style={{

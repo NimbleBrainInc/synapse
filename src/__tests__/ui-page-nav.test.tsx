@@ -224,42 +224,29 @@ describe("Tabs are a tablist, not a row of buttons", () => {
   });
 });
 
-describe("PageHeader.nav — top-level destinations without a chrome bar", () => {
-  it("shares the trail's row instead of taking one of its own", () => {
-    // The whole point: an embedded app that draws its own chrome bar puts a rule a few pixels
-    // off the host chat panel's. Sharing the trail's row costs no rule and no second row.
+describe("the header carries no destination slot, by design", () => {
+  it("renders the trail alone above the title", () => {
+    // Destinations are facets of the app and belong in a Tabs bar under this header, not in
+    // a slot beside the trail. A slot there stacked two right-aligned clusters — destinations
+    // directly above actions — and made orientation the quieter of the two.
     const { container } = render(
       <PageHeader
-        crumbs={[{ label: "Records", onClick: () => {} }, { label: "Blue Ridge" }]}
-        nav={<span>Records</span>}
+        crumbs={[{ label: "Campaigns", onClick: () => {} }, { label: "Blue Ridge" }]}
         title="Blue Ridge"
+        actions={<button type="button">Export</button>}
       />,
     );
-    const row = container.querySelector("header > div") as HTMLElement;
-    expect(row.contains(screen.getByRole("navigation", { name: "Breadcrumb" }))).toBe(true);
-    expect(row.contains(screen.getByText("Records", { selector: "span" }))).toBe(true);
+    const rows = container.querySelectorAll(":scope > header > *");
+    // Trail, then the title row. Nothing between them competing for the same corner.
+    expect(rows[0].getAttribute("aria-label")).toBe("Breadcrumb");
+    expect(rows[1].textContent).toContain("Blue Ridge");
+    expect(rows[1].textContent).toContain("Export");
   });
 
-  it("renders the row for nav alone, so a top-level page still shows its destinations", () => {
-    render(<PageHeader nav={<span>Inbox</span>} title="Records" />);
-    expect(screen.getByText("Inbox")).toBeTruthy();
-    // No trail at the top level — there is nothing above it to name.
-    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
-  });
-
-  it("holds the trail's place when there is none, so the row does not reflow with depth", () => {
-    // `space-between` with one child pushes it to the START. Without the spacer, a top-level
-    // page's destinations sit left and a deep page's sit right — the row moving as you
-    // navigate, which is the kind of thing a reader feels and cannot name.
-    const { container } = render(<PageHeader nav={<span>Inbox</span>} title="Records" />);
-    const row = container.querySelector("header > div") as HTMLElement;
-    expect(row.children).toHaveLength(2);
-  });
-
-  it("draws no row at all when there is neither", () => {
-    const { container } = render(<PageHeader title="Records" />);
-    const firstRow = container.querySelector("header > div") as HTMLElement;
-    // The title row is then the first child, not an empty trail row above it.
-    expect(firstRow.textContent).toContain("Records");
+  it("puts the title first when there is nothing above it", () => {
+    const { container } = render(<PageHeader title="Precision Outbound" />);
+    const first = container.querySelector("header > *") as HTMLElement;
+    expect(first.getAttribute("aria-label")).not.toBe("Breadcrumb");
+    expect(first.textContent).toContain("Precision Outbound");
   });
 });

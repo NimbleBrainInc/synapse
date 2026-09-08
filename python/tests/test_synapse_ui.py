@@ -302,10 +302,14 @@ async def test_against_a_real_server_over_a_real_client():
 
     Covers both the shipped default (pointer only) and the embed_resource opt-in on
     the same server, so the production path is anchored end-to-end — not just the
-    opt-in — and the per-tool flag is proven to survive the composed chain."""
+    opt-in — and the per-tool flag is proven to survive the composed chain.
+
+    The two binds straddle `MCPServer(...)` on purpose: `bind` is documented to work
+    on either side of construction, and only `resources()` is read at construction,
+    so nothing but this test stops a later refactor from snapshotting `_bound` too
+    and silently dropping the after case."""
     ui = _ui()
-    ui.bind("analyze")  # shipped default: pointer only
-    ui.bind("analyze_embed", embed_resource=True)  # opt-in legacy embed
+    ui.bind("analyze")  # shipped default: pointer only — bound BEFORE construction
     mcp = MCPServer("test", extensions=[ui])
 
     @mcp.tool(meta=ui.tool_meta())
@@ -319,6 +323,9 @@ async def test_against_a_real_server_over_a_real_client():
     @mcp.tool()
     def plain(domain: str) -> _IntegrationReport:
         return _IntegrationReport(domain=domain, company={})
+
+    # Opt-in legacy embed — bound AFTER construction, and after the tools exist.
+    ui.bind("analyze_embed", embed_resource=True)
 
     async with Client(mcp) as client:
         # The extension's resources reached the server through `extensions=[...]`.

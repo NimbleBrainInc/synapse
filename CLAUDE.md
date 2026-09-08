@@ -139,16 +139,18 @@ unchanged.
   and rejects any other value), so pass that exact value or omit it (the host then
   defaults the origin). Reproduce locally by loading the embedded resource top-level
   (`host=generic`) and in a sandboxed iframe (`host=claude`), reading the console.
-- The server half is the Python `nimblebrain-synapse` package (`python/`). It registers
-  the component as **two `ui://` resources** — `text/html+skybridge` (ChatGPT) and
-  `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
+- The server half is the Python `nimblebrain-synapse` package (`python/`). `SynapseUI`
+  is an MCP extension (SEP-2133): handed to `MCPServer(extensions=[...])`, it
+  contributes the component as **two `ui://` resources** — `text/html+skybridge`
+  (ChatGPT) and `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
   (`openai/outputTemplate` + nested `ui.resourceUri`), the `<script>`-safe embed (XSS
-  defense), and the quarantined `CallToolResult` injection. Its vendored client IIFE
+  defense), and the `tools/call` interceptor that mirrors the template pointer into a
+  bound tool's result `_meta`. Its vendored client IIFE
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
-  `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the
-  CI freshness gate enforces the copy). A **version bump** to `package.json` also
-  requires updating `python/nimblebrain_synapse/__init__.py` `__client_version__` to
-  the new version — CI fails until it equals `package.json`.
+  `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the CI
+  freshness gate enforces the copy). A **version bump** to `package.json` also requires
+  updating `python/nimblebrain_synapse/__init__.py` `__client_version__` to the new
+  version — CI fails until it equals `package.json`.
 
 ## Two connection paths
 

@@ -469,17 +469,20 @@ function ResearchPanel() {
 }
 ```
 
-**Authoring task-aware tools.** The server side declares `execution.taskSupport: "optional"` (or `"required"`) on the tool's `tools/list` entry. With FastMCP (Python):
+**Authoring task-aware tools.** The server side declares `execution.taskSupport: "optional"` (or `"required"`) on the tool's `tools/list` entry. With FastMCP (Python, 4.x):
 
 ```python
-from fastmcp.server.tasks import TaskConfig
+from fastmcp.utilities.tasks import TaskConfig
+from fastmcp_tasks import TasksExtension  # pip install 'fastmcp[tasks]'
+
+mcp.add_extension(TasksExtension())
 
 @mcp.tool(task=TaskConfig(mode="optional"))
 async def start_research(query: str, ctx: Context) -> dict:
     ...
 ```
 
-`mode="optional"` lets the same tool run inline (`callTool`) or as a task (`callToolAsTask`) — the client decides. `mode="required"` rejects non-task calls with JSON-RPC `-32601`.
+`TasksExtension` is what serves the task methods; a task-enabled tool with no extension registered aborts the server at connect time. `mode="optional"` lets the same tool run inline (`callTool`) or as a task (`callToolAsTask`) — the client decides. `mode="required"` rejects non-task calls with JSON-RPC `-32601`.
 
 **Dual-channel pattern.** When a task creates a domain entity (a research run, an import job), the entity ID is delivered via `synapse/data-changed` / `useDataSync`, **not** the task result. The task channel signals "started / running / done / cancelled"; the entity channel carries the durable record. UIs that need to navigate to the new entity should listen on `useDataSync` rather than awaiting `result()`.
 

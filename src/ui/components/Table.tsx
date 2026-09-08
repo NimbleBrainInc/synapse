@@ -15,12 +15,13 @@
  * table renders, the text is there, and the columns you cannot see are simply
  * past the right edge.
  *
- * Horizontal scrolling is opt-in via `scrollable`, and it is not the default
- * because it costs the sticky header: an `overflow-x` container captures the
- * stickiness that `position: sticky` currently resolves against the page's own
- * scroller, and CSS gives no way to scroll one axis while leaving the other
- * visible. A table that fits does not need it; a genuinely wide one is worth
- * the trade, and the caller is the one who knows which it is.
+ * Horizontal scrolling is opt-in via `minWidth` — the width below which the
+ * table scrolls rather than crushing. It is not the default because it costs
+ * the sticky header: an `overflow-x` container captures the stickiness that
+ * `position: sticky` resolves against the page's own scroller, and CSS gives no
+ * way to scroll one axis while leaving the other visible. A table that fits does
+ * not need it; a genuinely wide one is worth the trade, and the caller is the
+ * one who knows which it is.
  */
 
 import type { HTMLAttributes, ReactNode } from "react";
@@ -53,27 +54,6 @@ interface TableProps<T> extends Omit<HTMLAttributes<HTMLTableElement>, "children
   onRowClick?: (row: T, index: number) => void;
   /** Shown when `data` is empty. */
   empty?: ReactNode;
-  /**
-   * Let a table wider than its container scroll ITSELF rather than its page.
-   *
-   * Off by default because it trades the sticky header away (see the module note).
-   * Reach for it when the columns genuinely cannot fit — not to paper over a missing
-   * `width`, which is the cause worth fixing rather than scrolling past.
-   *
-   * Implied by `minWidth`; setting both is harmless and says the same thing twice.
-   */
-  scrollable?: boolean;
-  /**
-   * The narrowest this table stays readable. Below it the table scrolls instead of
-   * crushing — a fixed-layout table has no lower bound of its own, so seven columns in a
-   * 400px pane become seven clipped headers and a badge overflowing its cell rather than
-   * anything a reader can use.
-   *
-   * **Turns scrolling on by itself**, and that coupling is the point: a floor with nothing
-   * to scroll inside is a table that widens past its container and pushes the PAGE
-   * sideways, which is the failure the floor was set to prevent. Two props that misbehave
-   * unless both are set is a worse contract than one prop that implies the other.
-   */
   minWidth?: number | string;
 }
 
@@ -104,7 +84,6 @@ export function Table<T>({
   rowKey,
   onRowClick,
   empty,
-  scrollable = false,
   minWidth,
   style,
   className,
@@ -188,9 +167,7 @@ export function Table<T>({
     </table>
   );
 
-  // A declared floor implies the scroller. See `minWidth` — the pair only ever makes sense
-  // together, so the component closes the bad combination rather than documenting it.
-  if (!scrollable && minWidth === undefined) return table;
+  if (minWidth === undefined) return table;
   // `max-width: 100%` as well as `overflow-x`, because a flex or grid item's default
   // `min-width: auto` lets it grow to its content and the scroller never engages — the
   // container would widen instead, which is the failure this exists to stop.

@@ -31,9 +31,27 @@ export { Spinner } from "./components/Spinner.js";
 export { type Status, StatusDot } from "./components/StatusDot.js";
 export { type Column, Table } from "./components/Table.js";
 export { Tabs } from "./components/Tabs.js";
-// Tier B — layout scaffolds + responsive hooks
+// Tier B1 — layout scaffolds: they DIVIDE the pane into regions, and own the scroll and
+// responsive behaviour of each. One per screen, outermost.
 export { AppFrame } from "./layouts/AppFrame.js";
 export { ListDetailLayout, useListDetail } from "./layouts/ListDetailLayout.js";
+// Tier B2 — page templates: they ARRANGE content inside one region a scaffold produced.
+//
+// A different category from the scaffolds above, and the distinction is what keeps the next
+// one from being invented ad hoc. A page template:
+//
+//   * fills a region (in practice `AppFrame.Body`) and never creates one — no panes, no
+//     scroll ownership, no responsive pane behaviour;
+//   * owns the ORDER and vertical rhythm of the parts it takes, which is the whole reason it
+//     is a component rather than a documented recipe;
+//   * draws no chrome. An embedded app does not own its window: the host spends the left edge
+//     on a rail and the right on a chat panel, so a bar of the app's own is a third layer
+//     whose rule cannot agree with the host's.
+//
+// `PageLayout` is the standard one and, for now, the only one. Siblings are expected — a
+// full-bleed reading page for a single artefact is the obvious next — but a taxonomy built
+// for a family of one is a guess about the second member. The contract above is what the
+// second one has to satisfy; write it when there is a second screen that needs it.
 export { PageLayout } from "./layouts/PageLayout.js";
 export { SidebarLayout, useSidebar } from "./layouts/SidebarLayout.js";
 export { useBreakpoint } from "./layouts/use-container-width.js";

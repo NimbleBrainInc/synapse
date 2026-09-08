@@ -860,22 +860,22 @@ export function App() {
                 At the top level — the app names itself, its sections are the tab bar
               </Text>
               <PageLayout
-                title="Precision Outbound"
+                title="Brand Book"
                 actions={
                   <>
                     <Button size="sm" variant="ghost">
                       Import
                     </Button>
-                    <Button size="sm">New campaign</Button>
+                    <Button size="sm">New record</Button>
                   </>
                 }
                 tabs={
                   <Tabs
                     tabs={[
-                      { label: "Campaigns", value: "records" },
-                      { label: "Needs you", value: "inbox", count: 3 },
+                      { label: "Records", value: "records" },
+                      { label: "Inbox", value: "inbox", count: 3 },
                       { label: "Domains", value: "domains" },
-                      { label: "Mailboxes", value: "settings" },
+                      { label: "Settings", value: "settings" },
                     ]}
                     value={navDemo}
                     onChange={setNavDemo}
@@ -886,7 +886,7 @@ export function App() {
                   <>
                     <SearchField
                       variant="boxed"
-                      placeholder="Search campaigns…"
+                      placeholder="Search records…"
                       style={{ maxWidth: 260 }}
                     />
                     <SegmentedControl
@@ -925,7 +925,7 @@ export function App() {
               </Text>
               <PageLayout
                 crumbs={[
-                  { label: "Campaigns", onClick: () => {} },
+                  { label: "Records", onClick: () => {} },
                   { label: "Blue Ridge — Patient Portal" },
                 ]}
                 title="Blue Ridge — Patient Portal"

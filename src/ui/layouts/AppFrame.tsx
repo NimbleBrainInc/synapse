@@ -20,7 +20,7 @@
  * app-level bar is a third chrome layer whose rule lands a few pixels off the
  * chat panel's — two near-parallel lines that read as a mistake and that no
  * amount of styling reconciles. Top-level destinations go on the page's own
- * header row instead; see `PageHeader`'s `nav` slot.
+ * own tab bar under the page header instead; see `PageLayout`.
  */
 
 import {

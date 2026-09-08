@@ -20,9 +20,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   An app's sections are facets of the app exactly as a record's tabs are facets of the record, so they go in a `Tabs` bar under the header — **one shape at every level, and only the tab bar's contents change as you descend.** At the root the header names the app and the tabs are its sections; a level down the header names the record, a trail appears above it, and the tabs are the record's own. The sections are not repeated at depth: two tab bars stacked is what made the screen unreadable in the first place, and the trail is how you get back to them.
 
-- **`Table` gains `scrollable` and `minWidth`.** A table wider than its container can now scroll itself instead of its page. Off by default, because an `overflow-x` container captures the stickiness `position: sticky` currently resolves against the page scroller and CSS offers no way to scroll one axis while leaving the other visible — a real cost, and only the caller knows whether their table is worth it.
+- **`Table` gains `minWidth`** — the width below which the table scrolls inside its own container rather than crushing. A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane become seven clipped headers and a badge overflowing its cell; this is where a caller says how narrow is too narrow.
 
-  **`minWidth` turns scrolling on by itself.** A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane become seven clipped headers and a badge overflowing its cell; `minWidth` is where a caller says how narrow is too narrow. Setting that floor without a scroller would widen the table past its container and push the PAGE sideways — the exact failure the floor was set to prevent — so the floor implies the wrapper rather than the pair being two props that misbehave unless both are set.
+  It is the whole of the scrolling API on purpose. A separate `scrollable` flag existed briefly and was removed: without a floor it has no well-defined behaviour, because under fixed layout the table always fits its container and the flag never engages, while under auto layout it engages at whatever width the content happens to reach — which is not a decision anyone made. You cannot scroll meaningfully without saying where scrolling starts.
+
+  Opt-in rather than a default because it costs the sticky header: an `overflow-x` container captures the stickiness `position: sticky` resolves against the page's own scroller, and CSS offers no way to scroll one axis while leaving the other visible.
 
 ### Fixed
 

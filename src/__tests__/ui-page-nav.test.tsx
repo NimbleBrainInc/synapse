@@ -89,27 +89,22 @@ describe("Table gives a truncating cell something to clip against", () => {
     expect(container.querySelector("table")?.style.tableLayout).toBe("");
   });
 
-  it("scrolls itself rather than its page, but only when asked", () => {
-    // Opt-in because an overflow container captures the stickiness the header resolves
-    // against the page scroller — a real cost, paid only by a table that needs it.
-    const columns = [{ key: "name", header: "Name", render: (r: (typeof rows)[0]) => r.name }];
-    const plain = render(<Table data={rows} rowKey={(r) => r.id} columns={columns} />);
-    expect(plain.container.firstElementChild?.tagName).toBe("TABLE");
-
-    const scrolling = render(
-      <Table data={rows} rowKey={(r) => r.id} columns={columns} scrollable />,
+  it("does not wrap a table that declared no floor", () => {
+    // No floor means no scroller, and the sticky header survives. The pair is one decision.
+    const { container } = render(
+      <Table
+        data={rows}
+        rowKey={(r) => r.id}
+        columns={[{ key: "name", header: "Name", render: (r) => r.name }]}
+      />,
     );
-    const wrapper = scrolling.container.firstElementChild as HTMLElement;
-    expect(wrapper.tagName).toBe("DIV");
-    expect(wrapper.style.overflowX).toBe("auto");
-    // Without a max-width the wrapper grows to its content and the scroller never engages.
-    expect(wrapper.style.maxWidth).toBe("100%");
+    expect(container.firstElementChild?.tagName).toBe("TABLE");
   });
 
-  it("treats a declared floor as a request to scroll", () => {
-    // `minWidth` without a scroller widens the table past its container and pushes the PAGE
-    // sideways — the exact failure a floor is set to prevent. So the floor implies the
-    // wrapper, and the bad combination is closed rather than documented.
+  it("wraps a table that declared a floor, so the page never scrolls sideways", () => {
+    // A floor with nothing to scroll inside widens the table past its container and pushes
+    // the PAGE sideways — the exact failure the floor is set to prevent. One prop, one
+    // behaviour: there is no way to ask for a floor and not get the scroller.
     const { container } = render(
       <Table
         data={rows}
@@ -121,6 +116,8 @@ describe("Table gives a truncating cell something to clip against", () => {
     const wrapper = container.firstElementChild as HTMLElement;
     expect(wrapper.tagName).toBe("DIV");
     expect(wrapper.style.overflowX).toBe("auto");
+    // Without a max-width the wrapper grows to its content and the scroller never engages.
+    expect(wrapper.style.maxWidth).toBe("100%");
     expect(container.querySelector("table")?.style.minWidth).toBe("720px");
   });
 });

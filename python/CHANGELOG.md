@@ -10,21 +10,33 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- **`mcp` is capped below 2, so the package imports again.** The dependency was
-  `mcp>=1.26.0` with no upper bound, so a fresh install resolved mcp 2.x — where
-  `FastMCP` was renamed to `MCPServer` and `mcp.server.fastmcp` raises
-  `ModuleNotFoundError` on import. `nimblebrain_synapse.server` imports that module, so
-  the package did not load at all for anyone installing it after mcp 2.0 shipped. The
-  same release stopped `types.ServerResult` being a RootModel, so `_attach` also reads a
-  `.root` that no longer exists.
+- **`mcp` is capped below 2, so a fresh install resolves an SDK this code runs on.**
+  The dependency was `mcp>=1.26.0` with no upper bound, so a fresh install resolved
+  mcp 2.x — where `FastMCP` is `mcp.server.mcpserver.MCPServer` and
+  `mcp.server.fastmcp` raises `ModuleNotFoundError` on import.
+
+  What that reaches, precisely: `SynapseUI`, `register()`, `tool_meta()` and the
+  HTML/escaping surface all still work on mcp 2.x, because this package's `FastMCP`
+  import is `TYPE_CHECKING`-only. **`bind()` is what breaks.** It writes into
+  `mcp._mcp_server.request_handlers`, an attribute `MCPServer` does not have, so a
+  server wired the documented way raises `AttributeError` while it is being built.
+  `_attach` also reads `ServerResult.root`, and on 2.x `ServerResult` is a plain union
+  rather than a `RootModel`. The test suite fails earlier still — it imports
+  `mcp.server.fastmcp` directly.
 
   This was invisible for weeks because it is a RESOLUTION failure rather than a code
-  change: nothing in this repo moved, the newest matching `mcp` did. CI would have caught
-  it on the first run after mcp 2.0, and CI had not run since 2026-07-28.
+  change: nothing in this repo moved, the newest matching `mcp` did. CI would have
+  caught it on the first run after mcp 2.0, and CI had not run since 2026-07-28.
 
-  The cap states what this code supports; it is not a decision to stay on v1. Adopting
-  2.x is a migration with its own breaking change for consumers still on 1.x, and it
-  raises this line rather than removing the bound.
+### Documentation
+
+- **The README states that the package targets mcp 1.x**, so the cap is legible before
+  a resolver or an `AttributeError` teaches it. Adopting mcp 2.x is a migration, not a
+  bump, and it is breaking for every consumer still on 1.x — which today is all of
+  them, because a server using `SynapseUI` carries its own `mcp.server.fastmcp` import
+  and its own `mcp<2` pin. The shape that migration takes, including the SEP-2133
+  `Extension.intercept_tool_call` hook that replaces `bind()`'s handler patch, is
+  recorded there and tracked in the issue it links.
 
 ## [0.5.0]
 

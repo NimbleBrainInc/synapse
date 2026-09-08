@@ -58,9 +58,12 @@ defense) — framework-owned and on by default.
 
 ## Interface debt
 
-`bind` wraps FastMCP's `CallToolRequest` handler — a leak into FastMCP internals,
-quarantined in this one place. See the `# TODO: upstream a real FastMCP
-result-transform hook` note in `server.py`.
+`bind` wraps FastMCP's `CallToolRequest` handler by writing into
+`mcp._mcp_server.request_handlers` — a leak into FastMCP internals, quarantined in
+this one place so no app pokes them. mcp 1.x offers no result-transform hook to use
+instead; mcp 2.x does (`Extension.intercept_tool_call`, SEP-2133), so this patch is
+deleted rather than ported whenever the package moves. See MCP SDK compatibility
+below.
 
 ## Client SDK asset
 
@@ -87,5 +90,24 @@ What both halves share is the **wire protocol** — the `ui://` resource MIMEs, 
 - ext-apps `2026-01-26`
 - MCP Apps (SEP-1865)
 - OpenAI Apps SDK
+
+### MCP SDK compatibility
+
+**This package targets mcp 1.x** (`mcp>=1.26.0,<2`). The cap is a statement of what
+the code supports, not lag: `bind` writes into `mcp._mcp_server.request_handlers` and
+`_attach` reads `ServerResult.root`, and mcp 2.x has neither — `MCPServer` keeps its
+lowlevel server elsewhere, and `ServerResult` there is a plain union rather than a
+`RootModel`. `mcp.server.fastmcp` itself raises `ModuleNotFoundError` on 2.x
+(`FastMCP` is now `mcp.server.mcpserver.MCPServer`).
+
+On 2.x the failure is late rather than loud: `SynapseUI`, `register`, `tool_meta` and
+the HTML surface all still work, and a server breaks with an `AttributeError` at the
+`bind` call while it is being wired.
+
+Adopting 2.x is a migration, and it is breaking for every consumer on 1.x — which is
+all of them, because a server using `SynapseUI` is a FastMCP server and carries its own
+`mcp.server.fastmcp` import and its own `mcp<2` pin. So the cap moves when a consumer's
+own server moves. What that migration costs, measured against 2.x rather than inferred,
+is recorded in [#59](https://github.com/NimbleBrainInc/synapse/issues/59).
 
 Releases publish on a `nimblebrain-synapse-v*` tag (distinct from the npm `v*` tags).

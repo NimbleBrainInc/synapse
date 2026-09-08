@@ -21,15 +21,13 @@ classifiers = [
 dependencies = [
     # register() passes meta= to @mcp.resource(); that kwarg landed in mcp 1.26.0.
     #
-    # Capped BELOW 2 because this is v1 code, and the range has to say so. mcp 2.x renamed
-    # `FastMCP` to `MCPServer` and `mcp.server.fastmcp` now raises ModuleNotFoundError on
-    # import, so an unbounded floor resolved to 2.x and the package did not import at all —
-    # for a fresh consumer install, not just in CI. `ServerResult` also stopped being a
-    # RootModel, so `_attach` reads a `.root` that no longer exists.
+    # Capped below 2 because this is v1 code. On mcp 2.x `mcp.server.fastmcp` raises
+    # ModuleNotFoundError (FastMCP is now `mcp.server.mcpserver.MCPServer`), `bind()`
+    # patches an `mcp._mcp_server` that MCPServer does not have, and `_attach` reads a
+    # `ServerResult.root` on a type that is no longer a RootModel.
     #
-    # The cap is the honest statement of what this code supports, not a decision to stay on
-    # v1: adopting 2.x is a migration with its own breaking change for consumers still on
-    # 1.x, and it moves this line rather than removing the bound.
+    # The cap states what this code supports, and lifting it is a migration rather than
+    # a bump — see "MCP SDK compatibility" in README.md for why it is still here.
     "mcp>=1.26.0,<2",
 ]
 

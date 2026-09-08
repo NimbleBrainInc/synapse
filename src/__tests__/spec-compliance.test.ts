@@ -206,8 +206,28 @@ describe("event map uses spec constants", () => {
     expect(resolveEventMethod("tool-cancelled")).toBe(TOOL_CANCELLED_METHOD);
   });
 
-  it("theme-changed resolves to HOST_CONTEXT_CHANGED_METHOD", () => {
-    expect(resolveEventMethod("theme-changed")).toBe(HOST_CONTEXT_CHANGED_METHOD);
+  // `theme-changed` and `host-context-changed` are routed by `connect()` rather
+  // than through the map, so the binding to the spec constant is asserted where
+  // it actually lives: dispatch the spec method, and both views must fire.
+  it("theme-changed and host-context-changed both ride HOST_CONTEXT_CHANGED_METHOD", async () => {
+    app = await connectAndHandshake();
+    const themed = vi.fn();
+    const ctx = vi.fn();
+    app.on("theme-changed", themed);
+    app.on("host-context-changed", ctx);
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          method: HOST_CONTEXT_CHANGED_METHOD,
+          params: { theme: "light", styles: { variables: {} } },
+        },
+      }),
+    );
+
+    expect(themed).toHaveBeenCalledTimes(1);
+    expect(ctx).toHaveBeenCalledTimes(1);
   });
 
   it("teardown resolves to RESOURCE_TEARDOWN_METHOD", () => {

@@ -43,6 +43,7 @@ Available synchronously once the promise resolves.
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus whatever the host publishes alongside |
 | `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
 | `destroyed` | `boolean` | True after `destroy()` |
+| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call`. `callToolAsTask` throws when this is false. |
 
 ## `App` methods
 

@@ -9,12 +9,12 @@ import type {
   CallToolOptions,
   DataChangedEvent,
   FileResult,
+  ModelContext,
   RequestFileOptions,
   TaskHandle,
   Theme,
   ToolCallResult,
   ToolResultData,
-  VisibleState,
 } from "../types.js";
 import { useAppContext } from "./app-provider.js";
 
@@ -197,9 +197,9 @@ const MODEL_CONTEXT_DEBOUNCE_MS = 250;
  * method should do what it says.
  */
 export function useModelContext(): (state: Record<string, unknown>, summary?: string) => void;
-export function useModelContext(factory: () => VisibleState, deps: unknown[]): void;
+export function useModelContext(factory: () => ModelContext, deps: unknown[]): void;
 export function useModelContext(
-  factory?: () => VisibleState,
+  factory?: () => ModelContext,
   deps?: unknown[],
 ): ((state: Record<string, unknown>, summary?: string) => void) | undefined {
   const app = useAppContext();

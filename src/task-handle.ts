@@ -13,6 +13,7 @@ import type {
   TaskStatusNotificationParams,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
 import type { SynapseTransport } from "./transport.js";
 import type {
@@ -127,7 +128,7 @@ export async function callToolAsTask<TOutput = unknown>(
   args?: unknown,
   options?: CallToolAsTaskOptions,
 ): Promise<TaskHandle<TOutput>> {
-  const deps = app._internals;
+  const deps = internalsFor(app);
   const hostTasks = deps.hostTasksCapability;
   if (!hostTasks?.requests?.tools?.call) {
     throw new Error(

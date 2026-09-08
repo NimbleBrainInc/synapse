@@ -326,6 +326,7 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus host extensions |
 | `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
 | `destroyed` | `boolean` | True after `destroy()` |
+| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call` |
 
 ### `App` Methods
 
@@ -362,9 +363,10 @@ action(app, "navigate", { entity: "board", id: "b1" });
 | `pickFiles(app, options?)` | Native file picker, multiple files. Throws off a NimbleBrain host. |
 | `downloadFile(app, name, content, mime?)` | Hand the user a file to save. |
 
-`app._internals.hostTasksCapability` is the host's declared `tasks` capability
-from `ui/initialize` — `undefined` if it advertised none. Read it to
-feature-detect before calling `callToolAsTask`, which throws without it.
+`app.supportsTasks` says whether the host negotiated the tasks utility for
+`tools/call`. `callToolAsTask` throws when it is false, so read it to decide
+whether to offer a long-running action at all rather than to discover the answer
+from an exception.
 
 ## React Hooks
 

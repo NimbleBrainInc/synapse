@@ -13,6 +13,7 @@
  * `null` forever is worse than one that says it isn't there.
  */
 import { ACTION_METHOD, DOWNLOAD_FILE_METHOD, REQUEST_FILE_METHOD } from "./event-map.js";
+import { internalsFor } from "./internals.js";
 import type { App, FileResult, RequestFileOptions } from "./types.js";
 
 /** 25 MB — the host's default cap on a single picked file. */
@@ -29,7 +30,7 @@ export function action(app: App, name: string, params?: Record<string, unknown>)
   if (!app.isNimbleBrainHost) return;
   // The outbound frame reuses the inbound method name; the host distinguishes
   // direction, not method.
-  app._internals.send(ACTION_METHOD, { action: name, ...params });
+  internalsFor(app).send(ACTION_METHOD, { action: name, ...params });
 }
 
 /**
@@ -48,7 +49,7 @@ export function downloadFile(
   const resolvedMime =
     mimeType || (content instanceof Blob ? content.type : "") || "application/octet-stream";
   const blob = content instanceof Blob ? content : new Blob([content], { type: resolvedMime });
-  app._internals.send(DOWNLOAD_FILE_METHOD, {
+  internalsFor(app).send(DOWNLOAD_FILE_METHOD, {
     data: blob,
     filename,
     mimeType: resolvedMime,
@@ -102,7 +103,7 @@ async function requestFile(
   options: RequestFileOptions | undefined,
   multiple: boolean,
 ): Promise<FileResult | FileResult[] | null> {
-  const result = await app._internals.request(REQUEST_FILE_METHOD, {
+  const result = await internalsFor(app).request(REQUEST_FILE_METHOD, {
     accept: options?.accept,
     maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
     multiple,

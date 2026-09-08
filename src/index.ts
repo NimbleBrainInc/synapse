@@ -26,7 +26,6 @@ export type {
   AgentAction,
   App,
   AppEventName,
-  AppInternals,
   BuiltinActionType,
   CallToolAsTaskOptions,
   CallToolOptions,
@@ -40,6 +39,7 @@ export type {
   HostInfo,
   KeyForwardConfig,
   McpUiHostContext,
+  ModelContext,
   NavigatePayload,
   NotifyPayload,
   RequestFileOptions,
@@ -51,5 +51,4 @@ export type {
   ToolCallResult,
   ToolDefinition,
   ToolResultData,
-  VisibleState,
 } from "./types.js";

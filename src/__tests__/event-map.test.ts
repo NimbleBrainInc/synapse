@@ -18,8 +18,17 @@ describe("resolveEventMethod", () => {
     expect(resolveEventMethod("tool-cancelled")).toBe("ui/notifications/tool-cancelled");
   });
 
-  it("maps theme-changed to host-context-changed", () => {
-    expect(resolveEventMethod("theme-changed")).toBe("ui/notifications/host-context-changed");
+  // `connect()` intercepts these four before it consults the map, so a mapping
+  // here would be a second table claiming the same names — and the one nothing
+  // reads is the one that goes wrong quietly. Passing through unchanged is the
+  // evidence that only one table owns them.
+  it.each([
+    "theme-changed",
+    "host-context-changed",
+    "data-changed",
+    "action",
+  ])("does not claim %s — connect() routes it", (name) => {
+    expect(resolveEventMethod(name)).toBe(name);
   });
 
   it("maps teardown to ui/resource-teardown", () => {

@@ -25,6 +25,7 @@ import type {
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
 import { ACTION_METHOD, DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
+import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
@@ -359,6 +360,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
     get destroyed() {
       return destroyed;
     },
+    get supportsTasks() {
+      return hostTasksCapability?.requests?.tools?.call !== undefined;
+    },
 
     on(event: string, handler: (params: any) => void): () => void {
       return subscribe(event, handler);
@@ -446,26 +450,26 @@ export async function connect(options: ConnectOptions): Promise<App> {
       actionCallbacks.clear();
       transport.destroy();
     },
-
-    _internals: {
-      send(method, params) {
-        if (destroyed) return;
-        transport.send(method, params);
-      },
-      request(method, params) {
-        return transport.request(method, params);
-      },
-      onMessage(method, handler) {
-        return transport.onMessage(method, handler);
-      },
-      taskRouter,
-      get hostTasksCapability() {
-        return hostTasksCapability;
-      },
-      appName: name,
-      internalApp: internal,
-    },
   };
+
+  registerInternals(app, {
+    send(method, params) {
+      if (destroyed) return;
+      transport.send(method, params);
+    },
+    request(method, params) {
+      return transport.request(method, params);
+    },
+    onMessage(method, handler) {
+      return transport.onMessage(method, handler);
+    },
+    taskRouter,
+    get hostTasksCapability() {
+      return hostTasksCapability;
+    },
+    appName: name,
+    internalApp: internal,
+  });
 
   return app;
 }

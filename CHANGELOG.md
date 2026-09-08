@@ -40,7 +40,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   | `synapse.downloadFile(f, c, m)` | `downloadFile(app, f, c, m)` |
   | `synapse.callToolAsTask(n, a, o)` | `callToolAsTask(app, n, a, o)` |
   | `synapse.ready` | the `connect()` promise itself |
-  | `synapse._request` / `_onMessage` | `app._internals` (internal; prefer `callTool`'s `server` option) |
+  | `synapse._request` / `_onMessage` | no replacement — `callTool`'s `server` option covers the one real use, and the plumbing is now module-private |
+| `synapse._hostTasksCapability` | `app.supportsTasks` |
+| `VisibleState` (type) | `ModelContext` |
   | `Synapse.createSynapse` (IIFE global) | `Synapse.connect` |
 
 - **`createStore` / `useStore` / `Store` / `StoreConfig` removed.** Zero consumers anywhere, and it was built on two NimbleBrain-private methods with no spec equivalent. Re-addable in ~110 lines against `App` if a real one appears.
@@ -61,6 +63,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **`app.hostContext`, `app.isNimbleBrainHost`, `app.destroyed`** — handshake state that previously existed only on `Synapse`.
 - **`useCallTool`, `useDataSync`, `useHostContext`, `useModelContext`, `useFileUpload`, `useAction`, `useSendMessage`, `useCallToolAsTask`** now work under `<AppProvider>`. This is the parity that was missing; every one of them was previously reachable only from the provider being removed.
 - **`connect()` advertises `appCapabilities.tasks`.** It did not before, correctly, because `App` could not task-augment a call. It can now, so it says so — per MCP 2025-11-25 a requestor advertises exactly what it can use.
+- **`app.supportsTasks`** — whether the host negotiated the tasks utility, as a plain answer to a plain question. The old form of this was reading `_hostTasksCapability`, an `@internal` member consumers were told to feature-detect against; a capability question deserves a public name, not a documented peek into plumbing.
+
+### Internal
+
+- **The helpers' plumbing is module-private.** `action`, `pickFile`, `pickFiles`, `downloadFile` and `callToolAsTask` reach the transport through a `WeakMap` keyed by the app, not through a member on it. An `_internals` (or `_request`) member is still a member — it type-checks, autocompletes, and hands every consumer a transport the SDK does not model a use for. Underscore and an `@internal` tag are a request, not a boundary, and treating one as a boundary is how a bridge script came to hand-roll its own `tools/call`.
 
 ### Changed
 

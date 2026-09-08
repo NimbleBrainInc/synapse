@@ -90,7 +90,7 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
             protocolVersion: "2026-01-26",
             serverInfo: { name: "nimblebrain", version: "preview" },
             capabilities: { openLinks: {}, serverTools: {} },
-            hostContext: { theme: darkMode ? "dark" : "light", primaryColor: "#6366f1", styles: { variables: tokens } }
+            hostContext: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } }
           }
         });
         return;

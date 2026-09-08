@@ -25,20 +25,17 @@ export const DOWNLOAD_FILE_METHOD = "synapse/download-file";
  * at compile time, not silently at runtime.
  *
  * `theme-changed`, `host-context-changed`, `data-changed` and `action` are
- * mapped here for the record, but `connect()` intercepts those event names
- * before consulting this map: each is a typed *view* over a notification
- * rather than the notification's raw params, and the first two are two views
- * over the same one.
+ * deliberately absent: `connect()` routes each of those itself, because each is
+ * a typed *view* over a notification rather than the notification's raw params
+ * (and the first two are two views over the same one). Listing them here would
+ * be a second table nothing consults — the kind of copy that goes wrong quietly
+ * because nothing reads it to notice.
  */
 const EVENT_MAP: Record<string, string> = {
   "tool-result": TOOL_RESULT_METHOD,
   "tool-input": TOOL_INPUT_METHOD,
   "tool-input-partial": TOOL_INPUT_PARTIAL_METHOD,
   "tool-cancelled": TOOL_CANCELLED_METHOD,
-  "theme-changed": HOST_CONTEXT_CHANGED_METHOD,
-  "host-context-changed": HOST_CONTEXT_CHANGED_METHOD,
-  "data-changed": DATA_CHANGED_METHOD,
-  action: ACTION_METHOD,
   teardown: RESOURCE_TEARDOWN_METHOD,
 };
 

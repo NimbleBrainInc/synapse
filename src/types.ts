@@ -272,10 +272,13 @@ export interface RequestFileOptions {
   multiple?: boolean;
 }
 
-// ---------- LLM-Aware State ----------
+// ---------- Agent-facing state ----------
 
-export interface VisibleState {
+/** What `useModelContext`'s declarative factory returns. */
+export interface ModelContext {
+  /** Structured state the agent's tools can read ids and values out of. */
   state: Record<string, unknown>;
+  /** The one line the model actually reads. */
   summary?: string;
 }
 
@@ -401,13 +404,16 @@ export type AppEventName =
 
 /**
  * The plumbing the SDK's own composable helpers reach through — the file
- * picker, `action`, `downloadFile`, `callToolAsTask`. Exposed so those can
- * live *beside* `App` instead of on it: every one of them would otherwise be
- * another method on the object, and the point of this API is that the object
- * stays small.
+ * picker, `action`, `downloadFile`, `callToolAsTask`. It lets those live
+ * *beside* `App` instead of on it: every one would otherwise be another method
+ * on the object, and the point of this API is that the object stays small.
  *
- * @internal Not a supported surface. It is the transport, not the protocol —
- * anything here can change in a patch release.
+ * Not reachable from an `App`. It is held in a module-private `WeakMap` (see
+ * `internals.ts`) so the public type stays the protocol surface — this
+ * interface is exported only because the helpers are in sibling modules.
+ *
+ * @internal The transport, not the protocol. Anything here can change in a
+ * patch release.
  */
 export interface AppInternals {
   /** Send a JSON-RPC notification. */
@@ -475,6 +481,15 @@ export interface App {
   readonly isNimbleBrainHost: boolean;
   /** True after `destroy()` has been called. */
   readonly destroyed: boolean;
+  /**
+   * Whether the host negotiated the MCP tasks utility for `tools/call`.
+   *
+   * `callToolAsTask` throws when this is false — per MCP 2025-11-25 a
+   * requestor MUST NOT task-augment a call the receiver did not advertise. Read
+   * it to decide whether to offer a long-running action at all, rather than to
+   * discover the answer from an exception.
+   */
+  readonly supportsTasks: boolean;
 
   on(event: "tool-input", handler: (args: Record<string, unknown>) => void): () => void;
   on(event: "tool-result", handler: (data: ToolResultData) => void): () => void;
@@ -510,7 +525,4 @@ export interface App {
   /** Send a user message into the agent conversation (ext-apps `ui/message`). */
   sendMessage(text: string, context?: { action?: string; entity?: string }): void;
   destroy(): void;
-
-  /** @internal See {@link AppInternals}. */
-  readonly _internals: AppInternals;
 }

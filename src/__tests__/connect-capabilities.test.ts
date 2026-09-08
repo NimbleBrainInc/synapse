@@ -561,18 +561,26 @@ describe("connect() capabilities", () => {
       });
     });
 
-    it("captures hostCapabilities.tasks when the host advertises it", async () => {
+    it("supportsTasks is true when the host advertised tasks.requests.tools.call", async () => {
       const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
       app = await connectAndHandshake(
         {},
         makeInitResult("nimblebrain", { hostCapabilities: { tasks } }),
       );
-      expect(app._internals.hostTasksCapability).toEqual(tasks);
+      expect(app.supportsTasks).toBe(true);
     });
 
-    it("hostTasksCapability is undefined when the host advertises none", async () => {
+    it("supportsTasks is false when the host advertised none", async () => {
       app = await connectAndHandshake();
-      expect(app._internals.hostTasksCapability).toBeUndefined();
+      expect(app.supportsTasks).toBe(false);
+    });
+
+    it("supportsTasks is false when the host advertised tasks but not tools/call", async () => {
+      app = await connectAndHandshake(
+        {},
+        makeInitResult("nimblebrain", { hostCapabilities: { tasks: { cancel: {} } } }),
+      );
+      expect(app.supportsTasks).toBe(false);
     });
   });
 

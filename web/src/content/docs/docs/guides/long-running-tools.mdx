@@ -33,19 +33,26 @@ function ResearchPanel() {
 ## Declare the tool task-aware on the server
 
 The tool has to opt in. Its `tools/list` entry declares
-`execution.taskSupport: "optional"` (or `"required"`). With FastMCP (Python):
+`execution.taskSupport: "optional"` (or `"required"`). With FastMCP (Python, 4.x):
 
 ```python
-from fastmcp.server.tasks import TaskConfig
+from fastmcp.utilities.tasks import TaskConfig
+from fastmcp_tasks import TasksExtension  # pip install 'fastmcp[tasks]'
+
+mcp.add_extension(TasksExtension())
 
 @mcp.tool(task=TaskConfig(mode="optional"))
 async def start_research(query: str, ctx: Context) -> dict:
     ...
 ```
 
+`TasksExtension` is what serves the task methods; a task-enabled tool with no
+extension registered aborts the server at startup, before it binds.
 `mode="optional"` lets the same tool run inline (`callTool`) or as a task
-(`callToolAsTask`), so the client decides per call. `mode="required"` rejects
-non-task calls with JSON-RPC `-32601`.
+(`callToolAsTask`), so the client decides per call. `mode="required"` rejects a
+call from a client that has not negotiated the extension with JSON-RPC `-32021`
+(`MISSING_REQUIRED_CLIENT_CAPABILITY`), whose `data.requiredCapabilities` names
+the extension the client is missing.
 
 ## Detect the capability and degrade
 

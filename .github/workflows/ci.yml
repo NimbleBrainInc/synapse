@@ -141,6 +141,17 @@ jobs:
         # default resolution runs one interpreter — exercise the floor too.
         run: uv run --python 3.11 --isolated --no-project --with-editable . --with pytest --with pytest-asyncio pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
+      - name: Built artifacts pass the publisher's own check
+        # `uv build` produces a wheel; it does not say whether the publisher will
+        # accept it. twine validates the core metadata and the long-description
+        # render, and the publish workflow runs exactly this before uploading — so
+        # without it here, a rejection surfaces at the tag, where the only way
+        # forward is to move a tag that already fired.
+        #
+        # This tracks the twine the publish action bundles, which is the thing that
+        # actually decides. Nothing pins the two together: keep the action's SHA
+        # current (see publish-python.yml) and they stay aligned.
+        run: uvx twine check --strict dist/*
       - name: Built wheel ships and loads the client asset
         # Import from the installed wheel (python -P keeps the source tree off
         # sys.path) so a missing _assets/ fails here, not after an irreversible

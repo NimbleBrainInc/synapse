@@ -61,7 +61,14 @@ jobs:
       - name: Publish to PyPI
         # SHA-pinned (not the mutable @release/v1 branch): this job holds
         # id-token: write and the publish is irreversible on PyPI.
-        uses: pypa/gh-action-pypi-publish@ba38be9e461d3875417946c167d0b5f3d385a247 # v1.14.1
+        #
+        # Keep this current. The action bundles its own twine, and twine rejects a
+        # core-metadata version it predates — v1.14.1 carried twine 6, which fails
+        # `Metadata-Version: 2.5` before uploading anything. The build backend moves
+        # on its own (hatchling emits the newest metadata it knows), so an old pin
+        # here does not hold still, it goes stale under a build that changed with no
+        # commit in this repo.
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
           packages-dir: python/dist
           # Idempotent reruns: if a later step (the GitHub Release) fails after a

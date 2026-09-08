@@ -98,6 +98,7 @@ export function Tabs<T extends string>({
   label,
   style,
   className,
+  onKeyDown: callerKeyDown,
   ...rest
 }: TabsProps<T>) {
   ensureStyle(STYLE_ID, RULES);
@@ -132,7 +133,15 @@ export function Tabs<T extends string>({
   // the buttons are already rendered so the target exists now, and an effect would also
   // steal focus when a PARENT changed the value - a tab bar grabbing focus because something
   // else navigated.
+  //
+  // The caller's own handler runs FIRST and can suppress navigation with preventDefault().
+  // `onKeyDown` is part of this component's public prop type, so accepting one and never
+  // calling it is the same silent lie as letting it replace the contract outright - the two
+  // failures a caller cannot tell apart from the type. Opting out is now something they do
+  // on purpose, in one visible line.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    callerKeyDown?.(e);
+    if (e.defaultPrevented) return;
     const at = tabs.findIndex((t) => t.value === value);
     if (at < 0) return;
     let to: number;
@@ -143,16 +152,19 @@ export function Tabs<T extends string>({
     else return;
     e.preventDefault();
     // Arrows wrap, because a bar with a dead end makes the reader reverse direction to reach
-    // the tab one step past the one they are on. Home and End are absolute and do not.
-    onChange(tabs[to].value);
+    // the tab one step past the one they are on. Home and End are absolute and do not - so
+    // they are the two keys that can land on the tab already held, and a change event for a
+    // value that did not change is one a caller has to defend against (a refetch, a route
+    // push, an analytics event). Focus still moves, because the key was still pressed.
+    if (to !== at) onChange(tabs[to].value);
     barRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[to]?.focus();
   };
 
   return (
     <div
-      // `rest` FIRST. Spread after these, a caller passing `onKeyDown` silently replaced
-      // arrow-key navigation while `role="tablist"` kept advertising it — a control
-      // announcing a contract it no longer honours.
+      // `rest` FIRST, so nothing a caller passes can overwrite what makes this a tablist.
+      // `role` and `aria-label` are the contract the pattern rests on; a caller who could
+      // replace them would have a bar announcing something it does not implement.
       {...rest}
       ref={barRef}
       role="tablist"

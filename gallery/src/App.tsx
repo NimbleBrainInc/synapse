@@ -114,7 +114,6 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 const LONG_SUMMARY =
   "Migrating the intake flow off the legacy portal, with a staged cutover per clinic and a rollback window on each stage. Two owners, weekly review, and no data migration until the read path is verified.";
 
-
 // Shared by the page-layer demos and the truncation section, so the three render one table
 // rather than three that happen to look alike.
 const RECORD_COLUMNS: Column<(typeof RECORDS)[number]>[] = [

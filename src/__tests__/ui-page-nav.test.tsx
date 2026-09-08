@@ -231,24 +231,63 @@ describe("Tabs are a tablist, not a row of buttons", () => {
   });
 
   it("jumps to the first and last tab on Home and End", () => {
+    // Three tabs, and the middle one held, so both keys have somewhere to go. With two, End
+    // from the last tab targets the tab already selected and the assertion cannot fail.
+    const three = [...tabs, { label: "Settings", value: "settings" as const }];
     const onChange = vi.fn();
-    render(<Tabs tabs={tabs} value="activity" onChange={onChange} />);
+    render(<Tabs tabs={three} value="activity" onChange={onChange} />);
     const bar = screen.getByRole("tablist");
     bar.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
     expect(onChange).toHaveBeenLastCalledWith("recipients");
     bar.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
-    expect(onChange).toHaveBeenLastCalledWith("activity");
+    expect(onChange).toHaveBeenLastCalledWith("settings");
   });
 
-  it("lets a caller add a key handler without silently replacing arrow navigation", () => {
-    // `rest` is spread before the internal handler. Spread after, a caller's onKeyDown
-    // replaced it outright while role="tablist" kept advertising the contract.
+  it("announces no change when Home or End lands on the tab already held", () => {
+    // Arrows cannot do this, because they wrap and always move. Home and End are absolute,
+    // so pressed at the ends they used to emit a change event for a value that did not
+    // change — which a caller whose onChange refetches or pushes a route has to defend
+    // against. Focus still moves, because the key was still pressed.
     const onChange = vi.fn();
-    render(<Tabs tabs={tabs} value="recipients" onChange={onChange} onKeyDown={() => {}} />);
+    render(<Tabs tabs={tabs} value="recipients" onChange={onChange} />);
+    const first = screen.getByRole("tab", { name: "Recipients" });
+    first.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+    expect(onChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(first);
+  });
+
+  it("runs a caller's key handler AND keeps arrow navigation", () => {
+    // Both halves, because there are two ways to get this wrong and they look identical from
+    // the caller's side: spreading `rest` after the internal handler replaced navigation
+    // outright, and pulling `onKeyDown` out of `rest` without composing it dropped the
+    // caller's handler instead. `onKeyDown` is in this component's public prop type, so
+    // either one is a prop accepted and silently ignored.
+    const onChange = vi.fn();
+    const callerKeyDown = vi.fn();
+    render(<Tabs tabs={tabs} value="recipients" onChange={onChange} onKeyDown={callerKeyDown} />);
     screen
       .getByRole("tab", { name: "Recipients" })
       .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(callerKeyDown).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith("activity");
+  });
+
+  it("lets a caller opt out of navigation on purpose, with preventDefault", () => {
+    // The escape hatch the old ordering gave by accident, now deliberate and visible at the
+    // call site rather than a side effect of prop order.
+    const onChange = vi.fn();
+    render(
+      <Tabs
+        tabs={tabs}
+        value="recipients"
+        onChange={onChange}
+        onKeyDown={(e) => e.preventDefault()}
+      />,
+    );
+    screen
+      .getByRole("tab", { name: "Recipients" })
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("emits no global id, so two bars sharing a value cannot collide", () => {

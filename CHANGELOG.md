@@ -4,6 +4,38 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.16.0] - 2026-09-07
+
+### Breaking
+
+- **`Text truncate` now forms a block box.** It set `overflow`, `text-overflow` and `white-space` on a `<span>`, and the first two do not apply to a non-replaced INLINE box — so the only declaration that survived was `white-space: nowrap`, and the prop did the opposite of its name: text became unwrappable instead of clipped. Inside an auto-layout `<table>` that widened the column to the full string and carried every later column off the pane. It now sets `display: block` and `min-width: 0` alongside, so the box can both clip and shrink as a flex item.
+
+  Nothing can have depended on the intended behaviour, because it never had any — but **a layout tuned around the broken behaviour will move**. Filed here rather than under Fixed because it is the one change in this release that reaches an existing consumer's rendering. Caret ranges on `0.x` do not cross a minor, so it arrives only on a deliberate bump.
+
+### Added
+
+- **`PageLayout` — one screen of an app, assembled in the one order that works.** A header naming what you are looking at, a tab bar of that thing's facets, an optional toolbar over the content, then the content. Every level of an app is this shape, and descending changes only whose facets the bar holds: at the root the header names the app and the tabs are its sections; a level down a trail appears, the header names the record, and the tabs are the record's own.
+
+  **It is a component even though the kit's rule says thin compositions stay recipes**, because that rule measures mechanical complexity and this is not a complexity problem. Assembling these DIFFERENTLY is a defect rather than a preference, and prose does not stop it: two tab bars stacked until nobody could tell which row changed what, a chrome bar whose rule missed the host's by a few pixels, an unbounded description pushing content below the fold — all shipped, all ordering mistakes a component makes unavailable. The amended rule: a layout becomes a component when it is complex to build **or** when getting its arrangement wrong is a bug.
+
+- **`Breadcrumb`, `PageHeader`, `Tabs` — the pieces it is built from**, exported for apps that need one without the whole shape. A hierarchy deeper than two levels cannot be navigated by a back button, and every app that grew one has been assembling the same four pieces itself. `PageHeader` fixes their order (trail → title + status + actions → description) because a multi-screen app only reads as one app if the top of every screen has one rhythm.
+
+  `Tabs` exists beside `SegmentedControl` rather than instead of it, and the split is the point. They are mechanically the same control and different jobs: **tabs change which FACET of one chosen entity is shown** (they add no selection, so they add no level), **a segmented control narrows or reshapes a SET**. An app using one component for both stacks two or three identical pill rows down the page — app nav, entity facets, list filter, all in one costume — and the reader cannot tell which row changes what. The distinction is carried in the form: an underlined bar that belongs to the thing above it, versus a raised track that belongs to the thing below it. `Tabs` ships the full tablist contract (roving tabindex, arrow keys, wrap) because half of the pattern is worse than none of it.
+
+  **There is deliberately no app-chrome bar, and no slot for an app's sections.** A Synapse app does not own its window: the host spends the left edge on a rail and the right on a chat panel, so a bar of the app's own is a third chrome layer whose rule lands a few pixels off the chat panel's — two near-parallel lines that read as a mistake rather than as structure, and no amount of styling reconciles them. The measured column is ~1000px on a laptop with chat open, so a row spent on chrome is a row taken from the thing someone opened the app to see.
+
+  An app's sections are facets of the app exactly as a record's tabs are facets of the record, so they go in a `Tabs` bar under the header — **one shape at every level, and only the tab bar's contents change as you descend.** At the root the header names the app and the tabs are its sections; a level down the header names the record, a trail appears above it, and the tabs are the record's own. The sections are not repeated at depth: two tab bars stacked is what made the screen unreadable in the first place, and the trail is how you get back to them.
+
+- **`Table` gains `minWidth`** — the width below which the table scrolls inside its own container rather than crushing. A fixed-layout table has no lower bound of its own, so seven columns in a 400px pane become seven clipped headers and a badge overflowing its cell; this is where a caller says how narrow is too narrow.
+
+  It is the whole of the scrolling API on purpose. A flag that merely turned scrolling on would have no well-defined moment to engage: under fixed layout the table always fits its container, and under auto layout it engages at whatever width the content happens to reach — which is not a decision anyone made. You cannot scroll meaningfully without saying where scrolling starts.
+
+  Opt-in rather than a default because it costs the sticky header: an `overflow-x` container captures the stickiness `position: sticky` resolves against the page's own scroller, and CSS offers no way to scroll one axis while leaving the other visible.
+
+### Fixed
+
+- **`Table` honours a declared column `width`.** Declaring `width` on any column now switches the table to `table-layout: fixed`; columns without one divide the remainder equally. Under auto layout — the CSS default — a declared width is advisory and content wins, so `Column.width` was a knob that silently did nothing and a truncating cell had no width to be clipped against. **A column that truncates must declare a width**; nothing fails loudly when you forget, because the table renders and the columns you cannot see are simply past the right edge.
+
 ## [0.15.0] - 2026-07-27
 
 ### Breaking

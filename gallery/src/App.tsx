@@ -12,6 +12,7 @@ import {
   Heading,
   Inline,
   ListDetailLayout,
+  PageLayout,
   ListRow,
   Pagination,
   Prose,
@@ -24,6 +25,7 @@ import {
   type Status,
   StatusDot,
   Table,
+  Tabs,
   Text,
   TextLink,
   tokens,
@@ -106,6 +108,99 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 <blockquote>One system, per-app personality.</blockquote>
 `;
 
+// A record description long enough to need clipping. The gallery's other fixtures are short
+// strings, and a short string cannot demonstrate a truncating column at all — the point of
+// the width is only visible against content that would otherwise win.
+const LONG_SUMMARY =
+  "Migrating the intake flow off the legacy portal, with a staged cutover per clinic and a rollback window on each stage. Two owners, weekly review, and no data migration until the read path is verified.";
+
+// Shared by the page-layer demos and the truncation section, so the three render one table
+// rather than three that happen to look alike.
+const RECORD_COLUMNS: Column<(typeof RECORDS)[number]>[] = [
+  {
+    key: "name",
+    header: "Record",
+    width: "38%",
+    render: (r) => (
+      <Stack gap="0.15rem">
+        <Text size="sm" weight="medium" truncate>
+          {r.name}
+        </Text>
+        <Text size="xs" tone="muted" truncate>
+          {r.summary}
+        </Text>
+      </Stack>
+    ),
+  },
+  {
+    key: "open",
+    header: "Open",
+    align: "right",
+    render: (r) => (
+      <Text size="sm" tone={r.open > 0 ? "default" : "muted"}>
+        {r.open}
+      </Text>
+    ),
+  },
+  {
+    key: "total",
+    header: "Total",
+    align: "right",
+    render: (r) => <Text size="sm">{r.total}</Text>,
+  },
+  {
+    key: "done",
+    header: "Done",
+    align: "right",
+    render: (r) => <Text size="sm">{r.done}</Text>,
+  },
+  {
+    key: "failed",
+    header: "Failed",
+    align: "right",
+    render: (r) => (
+      <Text size="sm" tone={r.failed > 0 ? "danger" : "muted"}>
+        {r.failed}
+      </Text>
+    ),
+  },
+  {
+    key: "state",
+    header: "State",
+    render: () => <Badge tone="success">ready</Badge>,
+  },
+  {
+    key: "updated",
+    header: "Updated",
+    render: () => (
+      <Text size="sm" tone="muted">
+        4 Sep, 7:40 PM
+      </Text>
+    ),
+  },
+];
+
+const RECORDS = [
+  {
+    id: "r1",
+    name: "Blue Ridge — Patient Portal",
+    summary: LONG_SUMMARY,
+    open: 2,
+    total: 40,
+    done: 12,
+    failed: 1,
+  },
+  {
+    id: "r2",
+    name: "Monaco / Petros",
+    summary: "Discovery only. One call booked, notes attached, no commitments made yet.",
+    open: 0,
+    total: 18,
+    done: 18,
+    failed: 0,
+  },
+];
+
 const RUNS = [
   { id: 0, title: "Red Night Consulting context", meta: "21h ago", status: "completed" as const },
   { id: 1, title: "Jordan Ratner re-engagement hook", meta: "22h ago", status: "working" as const },
@@ -184,6 +279,8 @@ export function App() {
   const [layoutMode, setLayoutMode] = useState("reflow");
   const [paneWidth, setPaneWidth] = useState(760);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [navDemo, setNavDemo] = useState("records");
+  const [tabDemo, setTabDemo] = useState("details");
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
   const [ldWidth, setLdWidth] = useState(760);
 
@@ -594,7 +691,7 @@ export function App() {
 
         <Section
           title="Layouts — recipes (not components)"
-          subtitle="Board and List aren't scaffolds — they're thin compositions of primitives + components, so they stay recipes. Only genuinely complex layouts (SidebarLayout, ListDetailLayout) are components."
+          subtitle="Board and List aren't scaffolds — they're thin compositions, so they stay recipes. A layout becomes a component when it is complex to build (SidebarLayout, ListDetailLayout) OR when getting its arrangement wrong is a bug rather than a preference (PageLayout)."
         >
           <Grid min={300}>
             <Stack gap="0.5rem">
@@ -740,6 +837,143 @@ export function App() {
               />
             </div>
           </Stack>
+        </Section>
+
+        <Section
+          title="PageLayout — one screen, at any depth"
+          subtitle="PageLayout is that shape, owned rather than described: a header naming what you are looking at, a tab bar of its facets, a toolbar over the content, then the content. Both screens below are the same component — only the tab bar changes hands."
+        >
+          <Stack gap="2.25rem">
+            {/* ROOT. The app is the entity, and its sections are the facets — which is the
+                same relationship a record has to its own tabs, so it gets the same shape.
+                No breadcrumb, because there is nothing above this to name. */}
+            <Stack gap="1rem">
+              <Text size="xs" tone="faint">
+                At the top level — the app names itself, its sections are the tab bar
+              </Text>
+              <PageLayout
+                title="Brand Book"
+                actions={
+                  <>
+                    <Button size="sm" variant="ghost">
+                      Import
+                    </Button>
+                    <Button size="sm">New record</Button>
+                  </>
+                }
+                tabs={
+                  <Tabs
+                    tabs={[
+                      { label: "Records", value: "records" },
+                      { label: "Inbox", value: "inbox", count: 3 },
+                      { label: "Domains", value: "domains" },
+                      { label: "Settings", value: "settings" },
+                    ]}
+                    value={navDemo}
+                    onChange={setNavDemo}
+                    label="Sections"
+                  />
+                }
+                toolbar={
+                  <>
+                    <SearchField
+                      variant="boxed"
+                      placeholder="Search records…"
+                      style={{ maxWidth: 260 }}
+                    />
+                    <SegmentedControl
+                      options={[
+                        { label: "All", value: "details" },
+                        { label: "Active", value: "activity" },
+                        { label: "Draft", value: "files" },
+                      ]}
+                      value={tabDemo}
+                      onChange={setTabDemo}
+                    />
+                  </>
+                }
+              >
+                <div style={{ border: `1px solid ${tokens.border}`, borderRadius: tokens.radiusMd, overflow: "hidden" }}>
+                  <Table
+                    data={RECORDS}
+                    rowKey={(r) => r.id}
+                    minWidth={720}
+                    columns={RECORD_COLUMNS}
+                  />
+                </div>
+              </PageLayout>
+            </Stack>
+
+            <Divider />
+
+            {/* ONE LEVEL DOWN. Identical composition — the header names the record instead of
+                the app, a trail appears above it because now there IS something above, and
+                the tab bar holds the record's facets instead of the app's sections. The
+                sections are not repeated here: two tab bars stacked is the thing that made
+                the old screen unreadable, and the trail is how you get back to them. */}
+            <Stack gap="1rem">
+              <Text size="xs" tone="faint">
+                One level down — same shape, and the tab bar changes hands
+              </Text>
+              <PageLayout
+                crumbs={[
+                  { label: "Records", onClick: () => {} },
+                  { label: "Blue Ridge — Patient Portal" },
+                ]}
+                title="Blue Ridge — Patient Portal"
+                status={<Badge tone="success">active</Badge>}
+                actions={
+                  <>
+                    <Button size="sm" variant="ghost">
+                      Export
+                    </Button>
+                    <Button size="sm">New entry</Button>
+                  </>
+                }
+                description={LONG_SUMMARY}
+                tabs={
+                  <Tabs
+                    tabs={[
+                      { label: "Details", value: "details" },
+                      { label: "Activity", value: "activity", count: 12 },
+                      { label: "Files", value: "files" },
+                    ]}
+                    value={tabDemo}
+                    onChange={setTabDemo}
+                    label="Record"
+                  />
+                }
+              >
+                <Text size="sm" tone="muted">
+                  The description is clamped to two lines. Copy of unbounded length at the top
+                  of every screen pushes the content a reader came for below the fold.
+                </Text>
+              </PageLayout>
+            </Stack>
+          </Stack>
+        </Section>
+
+        <Section
+          title="A truncating column declares a width"
+          subtitle="Auto table layout sizes columns to their content, so a cell that asks to truncate has nothing to clip against and widens the table instead. Declaring a width on any column switches the table to fixed layout — which is what makes the ellipsis possible. Pair it with minWidth: fixed columns have no lower bound, so a narrow pane crushes them unless the table is told where to start scrolling. Narrow this window to watch it."
+        >
+          <div
+            style={{
+              border: `1px solid ${tokens.border}`,
+              borderRadius: tokens.radiusMd,
+              overflow: "hidden",
+            }}
+          >
+            <Table
+              data={RECORDS}
+              rowKey={(r) => r.id}
+              // The floor, and the reason to set one: seven fixed columns in a narrow pane
+              // have no lower bound of their own, so without this they crush to clipped
+              // headers rather than scrolling. Setting it turns the scroller on.
+              minWidth={720}
+              columns={RECORD_COLUMNS}
+            />
+          </div>
         </Section>
       </div>
     </div>

@@ -10,6 +10,33 @@ npm run ci    # lint → typecheck → build → test
 
 **Run `npm run ci` before declaring any change complete. No exceptions.**
 
+### Testing UI components — what the test DOM cannot see
+
+`happy-dom` **drops every CSS declaration whose value contains `var(...)`**, shorthand and
+longhand alike. `background: var(--color-background-secondary, #fafafa)` leaves the element
+with no background in the rendered `style` attribute, and so does
+`border-bottom-color: var(--c, #eee)`. Vendor-prefixed properties (`-webkit-line-clamp`) are
+dropped too, as are values it does not model (`display: -webkit-box`).
+
+Every token in this kit is a `var()` reference. **So no token-driven style is observable in a
+test** — an assertion that appears to check a colour, a radius, or a font is checking an empty
+string against an empty string and passes whatever the component does.
+
+What this leaves, in order of preference:
+
+1. **Assert the injected stylesheet.** Rules that go through `ensureStyle` are readable as
+   text: `document.getElementById("<STYLE_ID>")?.textContent`. This is the reason to prefer a
+   rule over an inline style for anything vendor-prefixed or paired (`display: -webkit-box`
+   with `-webkit-line-clamp` only works together, and a rule keeps them together).
+2. **Assert CSS literals.** `display: block`, `overflow: hidden`, `table-layout: fixed` carry
+   no token and survive intact — which is why the layout fixes in 0.16.0 are testable at all.
+3. **Assert structure and ARIA.** Landmarks, roles, `tabIndex`, which element contains which.
+4. **Assert custom properties the component sets** (`--nb-ph-desc-lines: 4`), which is how a
+   caller's number is shown to actually reach the rule.
+
+Anything left over is a review concern, and a test that pretends otherwise is worse than no
+test — say so in the test rather than writing an assertion that cannot fail.
+
 ## Releasing
 
 `@nimblebrain/synapse` publishes to npm via **GitHub Actions trusted publishing** on `v*` tag push. There is no static npm token; auth is OIDC (`id-token: write`) under the `npm` environment. The workflow is `.github/workflows/publish.yml`.

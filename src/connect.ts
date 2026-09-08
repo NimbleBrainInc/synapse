@@ -188,7 +188,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // consumes `synapse/keydown`. Forwarding elsewhere would `preventDefault` a
   // key for a host that does nothing with it, so the gate is on identity, not
   // just on the option.
-  if (forwardKeys !== false && forwardKeys !== undefined && isNimbleBrainHost) {
+  if (forwardKeys && isNimbleBrainHost) {
     keyboard = new KeyboardForwarder(transport, forwardKeys === true ? undefined : forwardKeys);
   }
 
@@ -213,14 +213,34 @@ export async function connect(options: ConnectOptions): Promise<App> {
     if (destroyed) return;
     const ctx = (params ?? {}) as Partial<McpUiHostContextChangedNotification["params"]>;
     const prevTheme = resolveTheme();
-    hostContext = ctx as McpUiHostContext;
-    // A host-context-changed carries only the fields that changed;
-    // `foldFontFaces` owns what an absent or unusable list means (see its doc).
+
+    // The spec types these params as "a partial context update containing only
+    // changed fields", so the notification is a delta and `hostContext` is the
+    // state it updates. Replacing wholesale would make a host that toggles dark
+    // mode with a bare `{ theme: "dark" }` lose its entire palette and every
+    // extension it published — `styles.variables` re-derived as `{}` strips the
+    // host's CSS variables from the DOM, and `workspace` reads `undefined`.
+    //
+    // The merge is SHALLOW on purpose. `styles.variables` is a complete map
+    // when the host sends one, so deep-merging it would leave a host no way to
+    // remove a variable.
+    hostContext = { ...hostContext, ...ctx };
+
+    // Fonts keep their own fold even so, because it encodes a rule the merge
+    // cannot: a batch whose entries are ALL malformed reads as `undefined` and
+    // must leave the loaded faces alone. Deriving from the merged context would
+    // instead see the key present, find nothing usable in it, and unload the
+    // host's typeface — a far more visible break than the colour equivalent.
     fontFaces = foldFontFaces(fontFaces, ctx);
     const nextTheme = resolveTheme();
 
     applyTheme(nextTheme.mode, nextTheme.tokens, nextTheme.fontFaces);
 
+    // Subscribers to the short event get the merged snapshot, because that is
+    // what `app.hostContext` means and a delta cannot distinguish an omitted
+    // field from a cleared one. A caller who genuinely wants the notification
+    // as sent subscribes to the wire method instead, which `fanOutRaw` passes
+    // through untouched.
     for (const cb of hostContextCallbacks) cb(hostContext);
     fanOutRaw(HOST_CONTEXT_CHANGED_METHOD, params);
     // Theme subscribers see only real theme movement: a host-context change

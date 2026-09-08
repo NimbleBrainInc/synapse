@@ -471,7 +471,8 @@ export interface App {
   readonly toolInfo: { tool: Record<string, unknown> } | null;
   readonly containerDimensions: Dimensions | null;
   /**
-   * The full ext-apps host context as last received. Spec fields (`theme`,
+   * The current host context: the handshake's, with every
+   * `host-context-changed` delta merged into it. Spec fields (`theme`,
    * `styles`, `displayMode`, `toolInfo`) are typed; the open index signature
    * carries host extensions — NimbleBrain publishes `workspace` here. Read
    * host-specific fields as optional; another host will not send them.
@@ -494,6 +495,9 @@ export interface App {
   on(event: "tool-input", handler: (args: Record<string, unknown>) => void): () => void;
   on(event: "tool-result", handler: (data: ToolResultData) => void): () => void;
   on(event: "theme-changed", handler: (theme: Theme) => void): () => void;
+  /** Fires with the merged snapshot — the same value as `hostContext`. For the
+   *  notification exactly as sent, subscribe to the wire method instead:
+   *  `on("ui/notifications/host-context-changed", …)`. */
   on(event: "host-context-changed", handler: (ctx: McpUiHostContext) => void): () => void;
   on(event: "data-changed", handler: (event: DataChangedEvent) => void): () => void;
   on(event: "action", handler: (action: AgentAction) => void): () => void;

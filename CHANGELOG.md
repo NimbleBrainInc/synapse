@@ -69,9 +69,19 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The helpers' plumbing is module-private.** `action`, `pickFile`, `pickFiles`, `downloadFile` and `callToolAsTask` reach the transport through a `WeakMap` keyed by the app, not through a member on it. An `_internals` (or `_request`) member is still a member — it type-checks, autocompletes, and hands every consumer a transport the SDK does not model a use for. Underscore and an `@internal` tag are a request, not a boundary, and treating one as a boundary is how a bridge script came to hand-roll its own `tools/call`.
 
+### Fixed
+
+- **A partial `host-context-changed` no longer wipes the fields it omits** (#46). The spec types the notification as "a partial context update containing only changed fields", so it is a delta and `hostContext` is the state it updates. It was being applied as a replacement, which meant a host toggling dark mode with a bare `{ theme: "dark" }` lost its whole palette mid-session — `styles.variables` re-derived as `{}` and `applyTheme` stripped every host CSS variable from the DOM — and lost every extension it had published, so `useHostContext().workspace` read `undefined` after any toggle.
+
+  The merge is shallow. `styles.variables` is a complete map when a host sends one, so deep-merging it would leave no way to remove a variable. Fonts keep their own fold on top, because it encodes a rule a merge cannot: a batch whose entries are all malformed must leave the loaded faces alone rather than unload the host's typeface.
+
+  `on("host-context-changed", …)` delivers the **merged snapshot**, because that is what `hostContext` means and a delta cannot distinguish an omitted field from a cleared one. The notification exactly as sent is still available by subscribing to the wire method, `on("ui/notifications/host-context-changed", …)`.
+
+- **A host that errors `ui/initialize` no longer leaves the app blank.** `AppProvider` gates children on the handshake and had no rejection path, so a refused handshake rendered nothing forever with only an unhandled rejection to show for it. The rejection now re-throws during render, which makes it an ordinary React error: it reaches the nearest error boundary and is loud in development.
+
 ### Changed
 
-- Smaller published package: unpacked 2,125,422 → 2,062,828 bytes. The runtime JS that a bundler actually pulls in drops ~15 KB (316,987 → 301,104 bytes across ESM+CJS), and `react/index.js` drops 13% (13,267 → 11,499 raw, 2,956 → 2,638 gzipped). The `connect.iife` global barely moves, because Zod dominates it — a separate problem, untouched here.
+- Smaller published package: unpacked 2,125,422 → 2,062,828 bytes. The runtime JS that a bundler actually pulls in drops ~15 KB (315,987 → 301,104 bytes across ESM+CJS), and `react/index.js` drops 13% (13,267 → 11,499 raw, 2,956 → 2,638 gzipped). The `connect.iife` global barely moves, because Zod dominates it — a separate problem, untouched here.
 - `./host` (`connectUI` / `window.SynapseUI`), `./ui`, `./vite` and `./codegen` are unchanged, and so is every wire frame. Only the TypeScript surface moved.
 
 ## [0.16.0] - 2026-09-07

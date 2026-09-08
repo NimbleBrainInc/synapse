@@ -471,15 +471,70 @@ describe("connect() capabilities", () => {
       expect(app.hostContext).toMatchObject({ theme: "light" });
     });
 
-    it("host-context-changed has replace semantics — omitted fields are dropped", async () => {
+    // The spec types the notification as "a partial context update containing
+    // only changed fields", so a bare `{ theme }` toggle must not cost the host
+    // its palette or its extensions.
+    it("a partial host-context-changed preserves the fields it omits", async () => {
+      app = await connectAndHandshake(
+        {},
+        makeInitResult("nimblebrain", {
+          hostContext: {
+            theme: "dark",
+            styles: { variables: { "--nb-color-primary": "#315EDB" } },
+            toolInfo: { tool: { name: "search" } },
+            containerDimensions: { width: 400 },
+            workspace: { id: "ws_1" },
+          },
+        }),
+      );
+
+      dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+
+      expect(app.theme).toEqual({ mode: "light", tokens: { "--nb-color-primary": "#315EDB" } });
+      expect(app.hostContext).toMatchObject({
+        theme: "light",
+        toolInfo: { tool: { name: "search" } },
+        containerDimensions: { width: 400 },
+        workspace: { id: "ws_1" },
+      });
+    });
+
+    it("an explicit value still replaces", async () => {
+      app = await connectAndHandshake(
+        {},
+        makeInitResult("nimblebrain", {
+          hostContext: { theme: "dark", styles: { variables: { "--a": "1", "--b": "2" } } },
+        }),
+      );
+
+      // `styles.variables` is a complete map when the host sends one, so the
+      // merge is shallow: this drops `--b` rather than keeping it around
+      // forever with no way for a host to remove a variable.
+      dispatchNotification("ui/notifications/host-context-changed", {
+        styles: { variables: { "--a": "9" } },
+      });
+
+      expect(app.theme.tokens).toEqual({ "--a": "9" });
+    });
+
+    it("the short event delivers the merged snapshot; the wire method delivers the delta", async () => {
       app = await connectAndHandshake(
         {},
         makeInitResult("nimblebrain", {
           hostContext: { theme: "dark", styles: { variables: {} }, workspace: { id: "ws_1" } },
         }),
       );
+      const merged = vi.fn();
+      const delta = vi.fn();
+      app.on("host-context-changed", merged);
+      app.on("ui/notifications/host-context-changed", delta);
+
       dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
-      expect(app.hostContext).not.toHaveProperty("workspace");
+
+      expect(merged).toHaveBeenCalledWith(
+        expect.objectContaining({ theme: "light", workspace: { id: "ws_1" } }),
+      );
+      expect(delta).toHaveBeenCalledWith({ theme: "light" });
     });
 
     it("unsubscribe stops further fires", async () => {
@@ -597,6 +652,19 @@ describe("connect() capabilities", () => {
 
     it("forwards the default set when enabled on a NimbleBrain host", async () => {
       app = await connectAndHandshake({ forwardKeys: true });
+      pressEscape();
+      expect(sentNotifications("synapse/keydown")).toHaveLength(1);
+    });
+
+    it("forwards exactly the listed combos when given an array", async () => {
+      app = await connectAndHandshake({ forwardKeys: [{ key: "k", meta: true }] });
+
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
+      );
+      expect(sentNotifications("synapse/keydown")).toHaveLength(1);
+
+      // Escape is in the default set but not in this one.
       pressEscape();
       expect(sentNotifications("synapse/keydown")).toHaveLength(1);
     });

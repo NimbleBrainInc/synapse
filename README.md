@@ -96,7 +96,7 @@ These are the durable decisions behind the library; they rarely change.
 A CSS custom property can *name* a font family but cannot *load* one, and an app
 iframe is its own document — it inherits no `@font-face` from the host page. So a
 host that sends only tokens is naming a typeface the app has no way to render.
-`SynapseTheme.fontFaces` closes that gap: the host sends the faces alongside the
+`Theme.fontFaces` closes that gap: the host sends the faces alongside the
 tokens, and the SDK loads them into the app document.
 
 ```ts

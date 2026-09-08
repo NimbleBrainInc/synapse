@@ -1,5 +1,5 @@
-import { act, renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { act, render, renderHook } from "@testing-library/react";
+import { Component, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
 import { useApp, useResize, useTheme, useToolInput, useToolResult } from "../../react/hooks.js";
@@ -220,6 +220,56 @@ describe("app hooks", () => {
         }),
         "*",
       );
+    });
+  });
+
+  describe("a host that refuses the handshake", () => {
+    it("surfaces the rejection to an error boundary instead of rendering nothing forever", async () => {
+      const seen: Error[] = [];
+
+      class Boundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+        state = { error: null as Error | null };
+        static getDerivedStateFromError(error: Error) {
+          return { error };
+        }
+        componentDidCatch(error: Error) {
+          seen.push(error);
+        }
+        render() {
+          return this.state.error ? <p>caught: {this.state.error.message}</p> : this.props.children;
+        }
+      }
+
+      // React logs the caught error; the assertion is the boundary, not the noise.
+      const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { container } = render(
+        <Boundary>
+          <AppProvider name="test-app" version="1.0.0">
+            <p>app content</p>
+          </AppProvider>
+        </Boundary>,
+      );
+
+      const initCall = postMessageSpy.mock.calls.find(
+        (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",
+      );
+      await act(async () => {
+        window.dispatchEvent(
+          new MessageEvent("message", {
+            data: {
+              jsonrpc: "2.0",
+              id: (initCall?.[0] as Record<string, unknown>).id,
+              error: { code: -32601, message: "method not found" },
+            },
+          }),
+        );
+        await new Promise((r) => setTimeout(r, 0));
+      });
+
+      expect(seen).toHaveLength(1);
+      expect(seen[0].message).toContain("method not found");
+      expect(container.innerHTML).toContain("caught:");
+      errorLog.mockRestore();
     });
   });
 

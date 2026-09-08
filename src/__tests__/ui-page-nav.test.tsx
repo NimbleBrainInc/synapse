@@ -26,7 +26,6 @@ import { Breadcrumb } from "../ui/components/Breadcrumb.js";
 import { PageHeader } from "../ui/components/PageHeader.js";
 import { Table } from "../ui/components/Table.js";
 import { Tabs } from "../ui/components/Tabs.js";
-import { AppFrame } from "../ui/layouts/AppFrame.js";
 import { Text } from "../ui/typography.js";
 
 describe("Text truncate actually truncates", () => {
@@ -225,47 +224,42 @@ describe("Tabs are a tablist, not a row of buttons", () => {
   });
 });
 
-describe("AppFrame.Nav is chrome, which is what entitles it to an edge-to-edge rule", () => {
-  it("is its own landmark, so chrome and page content are separable at all", () => {
-    // The failure this replaces: an app putting nav in `Header` and adding a borderBottom
-    // gets a full-bleed hairline between two things that are both the page. A tinted bar of
-    // its own makes the same line mean chrome above, page below.
-    //
-    // The tint and the rule are token-valued and therefore invisible here (see the module
-    // note), so what is asserted is the part that carries the meaning structurally: Nav is a
-    // distinct `<nav>` landmark rather than more content inside the page header, and it
-    // places brand and destinations at opposite ends. The visual half is a review concern.
+describe("PageHeader.nav — top-level destinations without a chrome bar", () => {
+  it("shares the trail's row instead of taking one of its own", () => {
+    // The whole point: an embedded app that draws its own chrome bar puts a rule a few pixels
+    // off the host chat panel's. Sharing the trail's row costs no rule and no second row.
     const { container } = render(
-      <AppFrame>
-        <AppFrame.Nav brand={<span>Precision Outbound</span>}>
-          <span>Campaigns</span>
-        </AppFrame.Nav>
-        <AppFrame.Header>
-          <span>page header</span>
-        </AppFrame.Header>
-      </AppFrame>,
+      <PageHeader
+        crumbs={[{ label: "Records", onClick: () => {} }, { label: "Blue Ridge" }]}
+        nav={<span>Records</span>}
+        title="Blue Ridge"
+      />,
     );
-    const nav = container.querySelector("nav");
-    const header = container.querySelector("header");
-    expect(nav).toBeTruthy();
-    expect(header).toBeTruthy();
-    expect(nav?.contains(header as Node)).toBe(false);
-    expect(screen.getByText("Precision Outbound")).toBeTruthy();
-    expect(screen.getByText("Campaigns")).toBeTruthy();
+    const row = container.querySelector("header > div") as HTMLElement;
+    expect(row.contains(screen.getByRole("navigation", { name: "Breadcrumb" }))).toBe(true);
+    expect(row.contains(screen.getByText("Records", { selector: "span" }))).toBe(true);
   });
 
-  it("holds the brand slot open so the destinations stay at the end when there is no brand", () => {
-    // `justify-content: space-between` with one child pushes it to the START, so an app with
-    // no brand would find its nav jumping to the left edge. The empty spacer is what keeps
-    // one bar's geometry stable across apps that differ only in whether they have a mark.
-    const { container } = render(
-      <AppFrame>
-        <AppFrame.Nav>
-          <span>Campaigns</span>
-        </AppFrame.Nav>
-      </AppFrame>,
-    );
-    const row = container.querySelector("nav > div") as HTMLElement;
+  it("renders the row for nav alone, so a top-level page still shows its destinations", () => {
+    render(<PageHeader nav={<span>Inbox</span>} title="Records" />);
+    expect(screen.getByText("Inbox")).toBeTruthy();
+    // No trail at the top level — there is nothing above it to name.
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
+  });
+
+  it("holds the trail's place when there is none, so the row does not reflow with depth", () => {
+    // `space-between` with one child pushes it to the START. Without the spacer, a top-level
+    // page's destinations sit left and a deep page's sit right — the row moving as you
+    // navigate, which is the kind of thing a reader feels and cannot name.
+    const { container } = render(<PageHeader nav={<span>Inbox</span>} title="Records" />);
+    const row = container.querySelector("header > div") as HTMLElement;
     expect(row.children).toHaveLength(2);
+  });
+
+  it("draws no row at all when there is neither", () => {
+    const { container } = render(<PageHeader title="Records" />);
+    const firstRow = container.querySelector("header > div") as HTMLElement;
+    // The title row is then the first child, not an empty trail row above it.
+    expect(firstRow.textContent).toContain("Records");
   });
 });

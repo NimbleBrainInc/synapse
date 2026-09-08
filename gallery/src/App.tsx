@@ -115,6 +115,12 @@ Bring your own parser; <code>Prose</code> owns the styling.</p>
 const LONG_SUMMARY =
   "Migrating the intake flow off the legacy portal, with a staged cutover per clinic and a rollback window on each stage. Two owners, weekly review, and no data migration until the read path is verified.";
 
+const NAV_DESTINATIONS = [
+  { label: "Records", value: "records" },
+  { label: "Inbox", value: "inbox" },
+  { label: "Settings", value: "settings" },
+];
+
 const RECORDS = [
   {
     id: "r1",
@@ -775,69 +781,74 @@ export function App() {
         </Section>
 
         <Section
-          title="Page layer — Breadcrumb, PageHeader, Tabs, AppFrame.Nav"
-          subtitle="What an app deeper than one level needs. Nav is chrome; PageHeader is the page; tabs are facets of the one entity the header names."
+          title="Page layer — Breadcrumb, PageHeader, Tabs"
+          subtitle="An embedded app does not own its window, so it draws no chrome of its own. Destinations share the trail's row; tabs are facets of the one entity the header names."
         >
           <Stack gap="1.5rem">
-            {/* Rendered as a PAGE, not framed as a card. The section around it is already the
-                separation; boxing it again would make a page look like a widget, and the
-                edge-to-edge rule under Nav — the whole reason Nav is its own slot — cannot
-                read as edge-to-edge inside a rounded border. */}
-            <div>
-              <AppFrame.Nav brand={<Heading size="sm">Brand Book</Heading>}>
-                <SegmentedControl
-                  options={[
-                    { label: "Records", value: "records" },
-                    { label: "Inbox", value: "inbox" },
-                    { label: "Settings", value: "settings" },
-                  ]}
-                  value={navDemo}
-                  onChange={setNavDemo}
-                />
-              </AppFrame.Nav>
+            {/* No app-level bar, deliberately. A host that spends the left edge on a rail and
+                the right on a chat panel already has chrome; a bar here would put a third
+                rule a few pixels off the chat panel's, and two near-parallel lines read as a
+                mistake. Everything below is page content, which is the only thing on screen
+                the app unambiguously owns. */}
+            <PageHeader
+              crumbs={[
+                { label: "Records", onClick: () => {} },
+                { label: "Blue Ridge — Patient Portal" },
+              ]}
+              // Quiet text links, not a pill track. A raised control here would stack a
+              // second cluster of buttons above the page's own actions and read as chrome by
+              // weight even though it draws no bar — which is the thing this variant exists
+              // to avoid. The current destination is text; the rest are links.
+              nav={
+                <>
+                  {NAV_DESTINATIONS.map((d) =>
+                    d.value === navDemo ? (
+                      <Text key={d.value} size="sm" weight="semibold">
+                        {d.label}
+                      </Text>
+                    ) : (
+                      <TextLink key={d.value} onClick={() => setNavDemo(d.value)}>
+                        {d.label}
+                      </TextLink>
+                    ),
+                  )}
+                </>
+              }
+              title="Blue Ridge — Patient Portal"
+              status={<Badge tone="success">active</Badge>}
+              actions={
+                <>
+                  <Button size="sm" variant="ghost">
+                    Export
+                  </Button>
+                  <Button size="sm">New entry</Button>
+                </>
+              }
+              description={LONG_SUMMARY}
+            />
 
-              <div style={{ padding: "1.25rem 0 0" }}>
-                <Stack gap="1.1rem">
-                  <PageHeader
-                    crumbs={[
-                      { label: "Records", onClick: () => {} },
-                      { label: "Blue Ridge — Patient Portal" },
-                    ]}
-                    title="Blue Ridge — Patient Portal"
-                    status={<Badge tone="success">active</Badge>}
-                    actions={
-                      <>
-                        <Button size="sm" variant="ghost">
-                          Export
-                        </Button>
-                        <Button size="sm">New entry</Button>
-                      </>
-                    }
-                    description={LONG_SUMMARY}
-                  />
+            {/* Tabs, not a second SegmentedControl. The control above narrows a SET of
+                destinations; this one changes which FACET of the chosen record is shown — no
+                new selection, so no new level and no second pane. Same choice mechanically,
+                different jobs, and the form is what says which. */}
+            <Tabs
+              tabs={[
+                { label: "Details", value: "details" },
+                { label: "Activity", value: "activity", count: 12 },
+                { label: "Files", value: "files" },
+              ]}
+              value={tabDemo}
+              onChange={setTabDemo}
+              label="Record"
+            />
 
-                  {/* Tabs, not a second SegmentedControl. The bar above narrows a SET; this
-                      one changes which FACET of the chosen record is shown — no new
-                      selection, so no new level and no second pane. */}
-                  <Tabs
-                    tabs={[
-                      { label: "Details", value: "details" },
-                      { label: "Activity", value: "activity", count: 12 },
-                      { label: "Files", value: "files" },
-                    ]}
-                    value={tabDemo}
-                    onChange={setTabDemo}
-                    label="Record"
-                  />
+            <Text size="sm" tone="muted">
+              {tabDemo === "details"
+                ? "The description above is clamped to two lines. Copy of unbounded length at the top of every screen pushes the content a reader came for below the fold; two lines identifies the record without becoming the page."
+                : "Switching a tab changes which facet is shown and nothing about which record is chosen."}
+            </Text>
 
-                  <Text size="sm" tone="muted">
-                    {tabDemo === "details"
-                      ? "The description above is clamped to two lines. Copy of unbounded length at the top of every screen pushes the content a reader came for below the fold; two lines identifies the record without becoming the page."
-                      : "Switching a tab changes which facet is shown and nothing about which record is chosen."}
-                  </Text>
-                </Stack>
-              </div>
-            </div>
+            <Divider />
 
             <Stack gap="0.5rem">
               <Text size="xs" tone="faint">

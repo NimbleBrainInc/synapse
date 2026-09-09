@@ -1,20 +1,24 @@
 /**
- * IIFE entry point — exposes Synapse on window.Synapse for script tag usage.
+ * IIFE entry point — exposes the SDK on `window.Synapse` for script-tag usage
+ * from an MCP server's widget HTML.
  *
- * Usage: Synapse.connect({ name: "widget", version: "1.0.0" }).then(app => { ... })
+ * Usage: `Synapse.connect({ name: "widget", version: "1.0.0" }).then(app => …)`
  *
- * Also exposes createSynapse and createStore for backwards compatibility.
+ * The global keeps the `Synapse` name: it is the package namespace that every
+ * embedded `ui://` resource already references, not the removed legacy class.
  */
 
 import { connect } from "./connect.js";
-import { createSynapse } from "./core.js";
+import { action, downloadFile, pickFile, pickFiles } from "./extensions.js";
 import { connectUI } from "./host/connect.js";
-import { createStore } from "./store.js";
+import { callToolAsTask } from "./task-handle.js";
 
-// Expose on the global window object
 (window as any).Synapse = {
   connect,
-  createSynapse,
-  createStore,
   connectUI,
+  callToolAsTask,
+  action,
+  downloadFile,
+  pickFile,
+  pickFiles,
 };

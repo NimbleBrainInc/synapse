@@ -80,7 +80,6 @@ describe("extractTheme", () => {
     const theme = extractTheme(undefined);
 
     expect(theme.mode).toBe("light");
-    expect(theme.primaryColor).toBe("#6366f1");
     expect(theme.tokens).toEqual({});
   });
 
@@ -88,7 +87,6 @@ describe("extractTheme", () => {
     const theme = extractTheme({ theme: "dark" } as McpUiHostContext);
 
     expect(theme.mode).toBe("dark");
-    expect(theme.primaryColor).toBe("#6366f1");
     expect(theme.tokens).toEqual({});
   });
 
@@ -96,7 +94,6 @@ describe("extractTheme", () => {
     const theme = extractTheme({} as McpUiHostContext);
 
     expect(theme.mode).toBe("light");
-    expect(theme.primaryColor).toBe("#6366f1");
   });
 
   it("ignores invalid theme mode values", () => {

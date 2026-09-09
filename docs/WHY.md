@@ -42,7 +42,7 @@ One hook. No polling. The host notifies the iframe when the agent mutates state.
 **With Synapse:**
 
 ```tsx
-const setVisible = useVisibleState();
+const setVisible = useModelContext();
 
 // Whenever the filter changes:
 setVisible(
@@ -156,26 +156,6 @@ export default {
 ```
 
 `npm run dev` → Vite spawns your MCP server, serves a preview host at `/__preview`, proxies tool calls, handles the handshake. HMR works inside the iframe. Edit a `.tsx` file, see the change instantly.
-
----
-
-## 6. State doesn't survive iframe reloads
-
-**The problem:** The host may reload or remount the iframe (navigation, resizing, tab switching). All your component state disappears.
-
-**Without Synapse:** You'd need to implement your own serialization to `localStorage` or negotiate storage with the host via postMessage.
-
-**With Synapse:**
-
-```typescript
-const store = createStore(synapse, {
-  initialState: { selectedId: null, filters: {} },
-  actions: { select: (state, id) => ({ ...state, selectedId: id }) },
-  persist: true, // State survives iframe reloads
-});
-```
-
-The host stores it. The iframe gets it back on remount.
 
 ---
 

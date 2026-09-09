@@ -315,7 +315,7 @@ function previewHostHtml(appName: string): string {
           protocolVersion:"2026-01-26",
           serverInfo:{name:"nimblebrain",version:"preview"},
           capabilities:{openLinks:{},serverTools:{}},
-          hostContext:{theme:dark?"dark":"light",primaryColor:"#6366f1",styles:{variables:getTokens(dark)}}
+          hostContext:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}
         }});
         return;
       }

@@ -268,9 +268,9 @@ describe("connect()", () => {
     it("passes through custom event names as-is", async () => {
       app = await connectAndHandshake();
       const handler = vi.fn();
-      app.on("synapse/data-changed", handler);
+      app.on("acme/custom-event", handler);
 
-      dispatchNotification("synapse/data-changed", { server: "s1", tool: "t1" });
+      dispatchNotification("acme/custom-event", { server: "s1", tool: "t1" });
 
       expect(handler).toHaveBeenCalledWith({ server: "s1", tool: "t1" });
     });
@@ -433,7 +433,10 @@ describe("connect()", () => {
       ]);
     });
 
-    it("sendMessage() sends ui/message with context", async () => {
+    // `_meta.context` is a NimbleBrain convention, so it rides only on a
+    // NimbleBrain host — and this harness's host is `test-host`. Both branches
+    // are covered in connect-capabilities.test.ts.
+    it("sendMessage() omits context off a NimbleBrain host", async () => {
       app = await connectAndHandshake();
       postMessageSpy.mockClear();
 
@@ -444,7 +447,7 @@ describe("connect()", () => {
           method: "ui/message",
           params: {
             role: "user",
-            content: [{ type: "text", text: "Hello", _meta: { context: { action: "summarize" } } }],
+            content: [{ type: "text", text: "Hello" }],
           },
         }),
         "*",

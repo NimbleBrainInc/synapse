@@ -4,6 +4,86 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.17.0] - 2026-09-08
+
+### Breaking
+
+- **One connection API. `createSynapse` / `Synapse` / `SynapseProvider` are gone; `connect()` / `App` / `AppProvider` is the whole surface.**
+
+  `connect()` landed in 0.3.0 to replace `createSynapse()`, and the 0.3.0 notes marked the old call deprecated — but nothing enforced it, and every feature wave since landed on the deprecated path. `App` froze at five hooks while `Synapse` grew to thirteen. That is not a migration in progress; it is a fork whose dead branch was carrying the product.
+
+  It cost more than confusion. The two families were indistinguishable at the import site and disjoint at runtime, so a hook from the wrong one type-checked, built, and threw `useApp must be used within an <AppProvider>` at mount — which is how a saved-chart panel went down the first time a user opened it. Removing one half is what makes that class of failure unrepresentable.
+
+  Caret ranges on `0.x` do not cross a minor, so this arrives only on a deliberate bump.
+
+  | Removed | Use |
+  |---|---|
+  | `createSynapse(options)` | `await connect(options)` |
+  | `Synapse` (type) | `App` |
+  | `SynapseOptions` | `ConnectOptions` |
+  | `SynapseTheme` | `Theme` (no `primaryColor` — it was a constant no host ever set) |
+  | `<SynapseProvider>` | `<AppProvider>` |
+  | `useSynapse()` | `useApp()` |
+  | `useConnectTheme()` | `useTheme()` |
+  | `useVisibleState()` | `useModelContext()` |
+  | `useChat()` | `useSendMessage()` |
+  | `useAgentAction(cb)` | `app.on("action", cb)` |
+  | `synapse.chat(text, ctx)` | `app.sendMessage(text, ctx)` |
+  | `synapse.setVisibleState(s, sum)` | `app.updateModelContext(s, sum)`, or `useModelContext` for the debounce |
+  | `synapse.readResource(uri)` | `app.readServerResource({ uri })` |
+  | `synapse.getTheme()` / `onThemeChanged(cb)` | `app.theme` / `app.on("theme-changed", cb)` |
+  | `synapse.getHostContext()` / `onHostContextChanged(cb)` | `app.hostContext` / `app.on("host-context-changed", cb)` |
+  | `synapse.onDataChanged(cb)` | `app.on("data-changed", cb)` |
+  | `synapse.onAction(cb)` | `app.on("action", cb)` |
+  | `synapse.action(name, params)` | `action(app, name, params)` |
+  | `synapse.pickFile(o)` / `pickFiles(o)` | `pickFile(app, o)` / `pickFiles(app, o)` |
+  | `synapse.downloadFile(f, c, m)` | `downloadFile(app, f, c, m)` |
+  | `synapse.callToolAsTask(n, a, o)` | `callToolAsTask(app, n, a, o)` |
+  | `synapse.ready` | the `connect()` promise itself |
+  | `synapse._request` / `_onMessage` | no replacement — `callTool`'s `server` option covers the one real use, and the plumbing is now module-private |
+| `synapse._hostTasksCapability` | `app.supportsTasks` |
+| `VisibleState` (type) | `ModelContext` |
+  | `Synapse.createSynapse` (IIFE global) | `Synapse.connect` |
+
+- **`createStore` / `useStore` / `Store` / `StoreConfig` removed.** Zero consumers anywhere, and it was built on two NimbleBrain-private methods with no spec equivalent. Re-addable in ~110 lines against `App` if a real one appears.
+
+- **The NimbleBrain extensions are functions over `App`, not methods on it.** `action`, `pickFile`, `pickFiles`, `downloadFile` and `callToolAsTask` all take the app as their first argument and are imported from the package root. The point of the convergence was a smaller object with a nice front door, not the same seventeen methods under a new name — and an app that never picks a file no longer carries the picker.
+
+- **`sendMessage` sends `_meta.context` only on a NimbleBrain host.** `context` is a NimbleBrain convention riding the spec's open `_meta`; `Synapse.chat` already gated it and `App.sendMessage` did not. The gate is what the merged method keeps. On any other host the message is sent without it.
+
+- **`app.updateModelContext` sends immediately.** The 250 ms debounce that `setVisibleState` applied now lives in `useModelContext`, where the rapid-change problem actually is. A non-React caller that relied on the debounce should coalesce its own pushes.
+
+- **`AppProvider` renders nothing until the handshake completes**, where `SynapseProvider` rendered children immediately and left them to race the connection. A migrated app shows its own frame a tick later than it used to; nothing below the provider can now observe a half-connected app.
+
+### Added
+
+- **`connect({ internal })`** — the cross-server call mode `createSynapse` had. An internal app's `callTool` carries its own name as `server`.
+- **`callTool(name, args, { server })`** — route one call to a sibling server explicitly, instead of reaching past the SDK for a raw `tools/call`.
+- **`connect({ forwardKeys })`** — keyboard forwarding, off by default and gated on a NimbleBrain host. `SynapseProvider` forwarded Escape and every Ctrl/Cmd combo unconditionally; forwarding to a host that does not implement `synapse/keydown` only swallows the key. Pass `true` for the old default set, or an array for specific combos.
+- **`app.hostContext`, `app.isNimbleBrainHost`, `app.destroyed`** — handshake state that previously existed only on `Synapse`.
+- **`useCallTool`, `useDataSync`, `useHostContext`, `useModelContext`, `useFileUpload`, `useAction`, `useSendMessage`, `useCallToolAsTask`** now work under `<AppProvider>`. This is the parity that was missing; every one of them was previously reachable only from the provider being removed.
+- **`connect()` advertises `appCapabilities.tasks`.** It did not before, correctly, because `App` could not task-augment a call. It can now, so it says so — per MCP 2025-11-25 a requestor advertises exactly what it can use.
+- **`app.supportsTasks`** — whether the host negotiated the tasks utility, as a plain answer to a plain question. The old form of this was reading `_hostTasksCapability`, an `@internal` member consumers were told to feature-detect against; a capability question deserves a public name, not a documented peek into plumbing.
+
+### Internal
+
+- **The helpers' plumbing is module-private.** `action`, `pickFile`, `pickFiles`, `downloadFile` and `callToolAsTask` reach the transport through a `WeakMap` keyed by the app, not through a member on it. An `_internals` (or `_request`) member is still a member — it type-checks, autocompletes, and hands every consumer a transport the SDK does not model a use for. Underscore and an `@internal` tag are a request, not a boundary, and treating one as a boundary is how a bridge script came to hand-roll its own `tools/call`.
+
+### Fixed
+
+- **A partial `host-context-changed` no longer wipes the fields it omits** (#46). The spec types the notification as "a partial context update containing only changed fields", so it is a delta and `hostContext` is the state it updates. It was being applied as a replacement, which meant a host toggling dark mode with a bare `{ theme: "dark" }` lost its whole palette mid-session — `styles.variables` re-derived as `{}` and `applyTheme` stripped every host CSS variable from the DOM — and lost every extension it had published, so `useHostContext().workspace` read `undefined` after any toggle.
+
+  The merge is shallow. `styles.variables` is a complete map when a host sends one, so deep-merging it would leave no way to remove a variable. Fonts keep their own fold on top, because it encodes a rule a merge cannot: a batch whose entries are all malformed must leave the loaded faces alone rather than unload the host's typeface.
+
+  `on("host-context-changed", …)` delivers the **merged snapshot**, because that is what `hostContext` means and a delta cannot distinguish an omitted field from a cleared one. The notification exactly as sent is still available by subscribing to the wire method, `on("ui/notifications/host-context-changed", …)`.
+
+- **A host that errors `ui/initialize` no longer leaves the app blank.** `AppProvider` gates children on the handshake and had no rejection path, so a refused handshake rendered nothing forever with only an unhandled rejection to show for it. The rejection now re-throws during render, which makes it an ordinary React error: it reaches the nearest error boundary and is loud in development.
+
+### Changed
+
+- Smaller published package: unpacked 2,125,422 → 2,062,828 bytes. The runtime JS that a bundler actually pulls in drops ~15 KB (315,987 → 301,104 bytes across ESM+CJS), and `react/index.js` drops 13% (13,267 → 11,499 raw, 2,956 → 2,638 gzipped). The `connect.iife` global barely moves, because Zod dominates it — a separate problem, untouched here.
+- `./host` (`connectUI` / `window.SynapseUI`), `./ui`, `./vite` and `./codegen` are unchanged, and so is every wire frame. Only the TypeScript surface moved.
+
 ## [0.16.0] - 2026-09-07
 
 ### Breaking

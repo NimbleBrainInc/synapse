@@ -395,9 +395,8 @@ function isFontFaceDescriptor(value: unknown): value is FontFaceDescriptor {
 /**
  * Apply a resolved theme to the app document — CSS variables and font faces.
  *
- * This is the single path by which theming reaches the DOM: the handshake,
- * `host-context-changed`, and the React `<SynapseProvider>` all funnel through
- * here. Keeping colour and typography on one call is the point — two entry
+ * This is the single path by which theming reaches the DOM: the handshake and
+ * `host-context-changed` both funnel through here. Keeping colour and typography on one call is the point — two entry
  * points invite a caller to wire one and forget the other, shipping a host's
  * palette under the wrong typeface.
  *

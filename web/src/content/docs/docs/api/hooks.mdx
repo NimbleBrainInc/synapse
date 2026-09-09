@@ -1,77 +1,72 @@
 ---
 title: React hooks
-description: The AppProvider and SynapseProvider React hooks for tool calls, data sync, theming, actions, and state.
+description: AppProvider and the hooks over it — tool calls, data sync, theming, host context, agent context, actions, files, and long-running tasks.
 ---
 
-Synapse ships two React hook families from `@nimblebrain/synapse/react`, one per
-connection path. Wrap your app in the matching provider, then use the hooks
-below.
-
-## `AppProvider`-based (recommended)
-
-Thin wrappers over [`connect()`](/docs/api/connect/). Wrap your tree in
-`<AppProvider>`.
+Everything React lives at `@nimblebrain/synapse/react`. Wrap your tree in
+`<AppProvider>`, then use the hooks below. There is one provider and one hook
+family; a hook used outside the provider throws rather than returning something
+half-connected.
 
 ```tsx
-import {
-  AppProvider,
-  useApp,
-  useToolResult,
-  useToolInput,
-  useConnectTheme,
-  useResize,
-} from "@nimblebrain/synapse/react";
+import { AppProvider } from "@nimblebrain/synapse/react";
+
+createRoot(document.getElementById("root")!).render(
+  <AppProvider name="my-app" version="1.0.0">
+    <App />
+  </AppProvider>,
+);
 ```
+
+`<AppProvider>` takes the same options as [`connect()`](/docs/api/connect/) and
+**renders nothing until the handshake completes**, so nothing below it can
+observe an app that is not connected yet.
+
+## Host state
 
 | Hook | Returns | Description |
 | --- | --- | --- |
-| `useApp()` | `App` | Access the connected `App` instance |
+| `useApp()` | `App` | The connected app |
+| `useTheme()` | `Theme` | The current theme. Re-renders only when the theme actually moves — a host-context change that leaves it untouched does not re-render your components. |
+| `useHostContext<T>()` | `T` | The full host context, including host extensions. Re-renders on every change. |
 | `useToolResult()` | `ToolResultData \| null` | Re-renders on every `tool-result` event |
 | `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
-| `useConnectTheme()` | `Theme` | Reactive theme from `connect()` |
 | `useResize()` | `(w?, h?) => void` | Resize helper, auto-measures body if no args |
 
-To call a tool on this path, use the `App` instance directly: `useApp()`, then
-`app.callTool(name, args)`. The `useCallTool` hook (with built-in loading state)
-belongs to the `SynapseProvider` set below.
-
-## `SynapseProvider`-based (legacy)
-
-For apps built on [`createSynapse()`](/docs/api/createsynapse/). Wrap your tree
-in `<SynapseProvider>`.
-
-```tsx
-import {
-  SynapseProvider,
-  useSynapse,
-  useCallTool,
-  useCallToolAsTask,
-  useDataSync,
-  useTheme,
-  useAction,
-  useAgentAction,
-  useChat,
-  useVisibleState,
-  useFileUpload,
-  useStore,
-} from "@nimblebrain/synapse/react";
-```
+## Tools
 
 | Hook | Returns | Description |
 | --- | --- | --- |
-| `useSynapse()` | `Synapse` | Access the Synapse instance |
-| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
-| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | Lifecycle wrapper around `callToolAsTask` for long-running tools |
-| `useDataSync(cb)` | none | Subscribe to data change events |
-| `useTheme()` | `SynapseTheme` | Reactive theme object |
-| `useAction()` | `(name, params?) => void` | Dispatch platform actions |
-| `useAgentAction(cb)` | none | Subscribe to agent actions |
-| `useChat()` | `(msg, ctx?) => void` | Send chat messages |
-| `useVisibleState()` | `(state, summary?) => void` | Push LLM-visible state |
-| `useFileUpload()` | File picker helpers | File upload (NB-only) |
-| `useStore(store)` | `{ state, dispatch }` | Bind a store to React |
+| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state. `call(args, { server })` routes to a sibling server. |
+| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full MCP task lifecycle for a long-running tool. See [long-running tools](/docs/guides/long-running-tools/). |
+| `useDataSync(cb)` | none | Run `cb` when the agent changes data your app displays |
+
+## Agent-facing state
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useModelContext()` | `(state, summary?) => void` | Push what the user is looking at to the agent, debounced 250 ms |
+| `useModelContext(factory, deps)` | none | The same, pushed whenever `deps` change |
+| `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |
+
+The debounce lives in the hook rather than on `app.updateModelContext`, which
+sends immediately: a selection the user drags through should cost one frame, not
+thirty, and that problem is a React one.
+
+## NimbleBrain extensions
+
+These degrade off a NimbleBrain host — `useAction` becomes a no-op, and the file
+picker throws rather than resolving `null` forever.
+
+| Hook | Returns | Description |
+| --- | --- | --- |
+| `useAction()` | `(name, params?) => void` | Trigger a host-side action |
+| `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker |
+
+To *receive* the actions a tool emits, subscribe through the app:
+`useApp().on("action", cb)`.
 
 ## See also
 
-- [Events](/docs/api/events/) for the underlying `app.on()` event names.
-- [State store](/docs/api/store/) for `createStore` and `useStore`.
+- [`connect()`](/docs/api/connect/) for the `App` these hooks wrap.
+- [Events](/docs/api/events/) for the full `app.on()` event table.

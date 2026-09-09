@@ -26,8 +26,7 @@ re-render. Your own elements can reference the same variables:
 
 When you need theme values in JavaScript (branching on `mode`, feeding a token
 into a canvas or a chart), read them with `useTheme()`. It returns the current
-`SynapseTheme` and re-renders when the host theme changes. It is a
-`SynapseProvider` hook.
+`Theme` and re-renders when the host theme changes.
 
 ```tsx
 import { useTheme } from "@nimblebrain/synapse/react";
@@ -42,15 +41,8 @@ function Chart() {
 }
 ```
 
-On the `connect()` and `AppProvider` path, the equivalent hook is
-`useConnectTheme()`. It returns a `Theme` with the same reactive `mode` and
-`tokens`:
-
-```tsx
-import { useConnectTheme } from "@nimblebrain/synapse/react";
-
-const theme = useConnectTheme();
-```
+Outside React, read `app.theme` and subscribe with
+`app.on("theme-changed", cb)` — the same filtered stream the hook is built on.
 
 ## How it works
 

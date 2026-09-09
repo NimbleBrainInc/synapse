@@ -2,7 +2,7 @@
  * `useCallToolAsTask` — React lifecycle wrapper around
  * `synapse.callToolAsTask`.
  *
- * Tests exercise the hook's public API through `SynapseProvider` and a
+ * Tests exercise the hook's public API through `AppProvider` and a
  * mocked `postMessage` transport. Wire constants and status values are
  * sourced from SDK types so a spec rename fails compile here too.
  *
@@ -27,7 +27,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SynapseProvider, useCallToolAsTask } from "../../react/index.js";
+import { AppProvider, useCallToolAsTask } from "../../react/index.js";
 import type { TasksCapability } from "../../types.js";
 
 // -----------------------------------------------------------------------------
@@ -139,9 +139,9 @@ function makeCreateTaskResult(taskId: string, overrides?: Partial<Task>): Create
 function createWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <SynapseProvider name="test-app" version="1.0.0">
+      <AppProvider name="test-app" version="1.0.0">
         {children}
-      </SynapseProvider>
+      </AppProvider>
     );
   };
 }
@@ -179,10 +179,15 @@ afterEach(() => {
 // -----------------------------------------------------------------------------
 
 describe("useCallToolAsTask — fire()", () => {
-  it("returns nulls before fire() is called", () => {
+  it("returns nulls before fire() is called", async () => {
     const { result } = renderHook(() => useCallToolAsTask("do_research"), {
       wrapper: createWrapper(),
     });
+
+    // `<AppProvider>` renders nothing until `connect()` resolves, so the hook
+    // does not exist until the host has answered `ui/initialize`.
+    completeHandshake();
+    await flushMicrotasks();
 
     expect(result.current.task).toBeNull();
     expect(result.current.result).toBeNull();
@@ -592,6 +597,9 @@ describe("useCallToolAsTask — cancel()", () => {
       wrapper: createWrapper(),
     });
 
+    completeHandshake();
+    await flushMicrotasks();
+
     // Should not throw; no pending cancel request should go out.
     await act(async () => {
       await result.current.cancel();
@@ -808,6 +816,9 @@ describe("useCallToolAsTask — stable callback identities", () => {
     const { result, rerender } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
+
+    completeHandshake();
+    await flushMicrotasks();
 
     const fire1 = result.current.fire;
     const cancel1 = result.current.cancel;

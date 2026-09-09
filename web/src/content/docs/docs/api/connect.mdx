@@ -3,9 +3,9 @@ title: connect()
 description: connect(options) opens the ext-apps handshake and resolves to a connected App with theme, host info, and tool context ready.
 ---
 
-`connect(options)` is the recommended entry point. It opens the MCP ext-apps
-handshake and resolves once the host is ready, returning a connected `App` whose
-theme, host info, and tool context are available immediately.
+`connect(options)` is the entry point. It opens the MCP ext-apps handshake and
+resolves once the host is ready, returning a connected `App` whose theme, host
+info, and tool context are available immediately.
 
 ```typescript
 import { connect } from "@nimblebrain/synapse";
@@ -26,6 +26,8 @@ function connect(options: ConnectOptions): Promise<App>;
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default `false` |
+| `internal` | `boolean?` | NimbleBrain internal app. `callTool` then carries a `server` param so the host can route to a sibling server. External apps must not set it. |
+| `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host so its own shortcuts fire while focus is in the app. `true` is Escape plus every Ctrl/Cmd combo except the clipboard keys. Only a NimbleBrain host consumes these, so forwarding stays off everywhere else. |
 | `on` | `Record<string, (data) => void>?` | Pre-register event handlers before the handshake, so no early messages are lost |
 
 ## `App` properties
@@ -38,6 +40,10 @@ Available synchronously once the promise resolves.
 | `hostInfo` | `{ name, version }` | Host identity |
 | `toolInfo` | `{ tool } \| null` | Tool context if launched from a tool call |
 | `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
+| `hostContext` | `McpUiHostContext` | The full host context — spec fields plus whatever the host publishes alongside |
+| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
+| `destroyed` | `boolean` | True after `destroy()` |
+| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call`. `callToolAsTask` throws when this is false. |
 
 ## `App` methods
 
@@ -47,9 +53,22 @@ Available synchronously once the promise resolves.
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL (host-aware) |
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?)` | Call an MCP tool and get a typed result |
-| `sendMessage(text, context?)` | Send a chat message to the agent |
+| `callTool(name, args?, options?)` | Call an MCP tool and get a typed result. `options.server` routes the call to a sibling server (internal apps). |
+| `readServerResource({ uri })` | Read an MCP resource from the originating server |
+| `sendMessage(text, context?)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |
+
+That is the whole object. It is deliberately this small: NimbleBrain's own
+extensions and the MCP tasks utility are **functions over an `App`**, imported
+from the package root, so an app that never picks a file never carries the
+picker.
+
+| Function | Description |
+| --- | --- |
+| `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). |
+| `action(app, name, params?)` | Trigger a host-side action. No-op off a NimbleBrain host. |
+| `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Throws off a NimbleBrain host. |
+| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save. |
 
 ## See also
 

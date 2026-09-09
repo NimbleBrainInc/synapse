@@ -1,6 +1,6 @@
 import type { McpUiHostContext, McpUiInitializeResult } from "@modelcontextprotocol/ext-apps";
 import { normalizeFontFaces } from "./theme-defaults.js";
-import type { FontFaceDescriptor, HostInfo, SynapseTheme } from "./types";
+import type { FontFaceDescriptor, HostInfo, Theme } from "./types";
 
 /**
  * Host-context key carrying `@font-face` descriptors.
@@ -14,9 +14,8 @@ import type { FontFaceDescriptor, HostInfo, SynapseTheme } from "./types";
  */
 export const FONT_FACES_CONTEXT_KEY = "synapse/fontFaces";
 
-const DEFAULT_THEME: SynapseTheme = {
+const DEFAULT_THEME: Theme = {
   mode: "light",
-  primaryColor: "#6366f1",
   tokens: {},
 };
 
@@ -42,7 +41,7 @@ export function detectHost(initResponse: unknown): HostInfo {
   };
 }
 
-export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): SynapseTheme {
+export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Theme {
   if (!ctx) return { ...DEFAULT_THEME };
 
   // Spec: theme is a string ("light" | "dark")
@@ -60,7 +59,7 @@ export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Synaps
   // populating the field would publish a NON-sticky value on the return type and
   // invite `extractTheme(ctx).fontFaces`, which is the unload-on-toggle bug.
   // `resolveTheme` overlays the sticky set; nothing else should.
-  return { mode, primaryColor: DEFAULT_THEME.primaryColor, tokens };
+  return { mode, tokens };
 }
 
 /**

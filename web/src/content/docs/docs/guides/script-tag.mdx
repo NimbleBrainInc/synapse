@@ -31,8 +31,9 @@ so no import or bundler is needed.
 ## How it works
 
 The IIFE is the same core you would get from npm, pre-bundled for the browser. The
-`window.Synapse` global exposes `connect`, `createSynapse`, and `createStore`, so
-the vanilla-JS API is available with no module system.
+`window.Synapse` global exposes `connect` and the helpers over an `App`
+(`callToolAsTask`, `action`, `pickFile`, `pickFiles`, `downloadFile`), plus
+`connectUI` — so the vanilla-JS API is available with no module system.
 
 `Synapse.connect()` runs the ext-apps handshake and resolves to the same `App`
 instance the npm package returns, with `app.on(...)`, `app.callTool(...)`, and the
@@ -46,7 +47,6 @@ the typed hooks.
 
 ## Related
 
-- [Persist state across reloads](/docs/guides/state-store/)
 - [Develop locally with the Vite plugin](/docs/guides/local-dev/)
 - [Generate types from your tools](/docs/guides/codegen/)
 - [Render one component across hosts](/docs/guides/cross-host/)

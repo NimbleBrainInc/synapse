@@ -45,8 +45,8 @@ component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
 
 | Entry Point | Description |
 |-------------|-------------|
-| `@nimblebrain/synapse` | Vanilla JS core — `connect()`, `createSynapse()`, `createStore()` |
-| `@nimblebrain/synapse/react` | React hooks and providers (`AppProvider`, `SynapseProvider`) |
+| `@nimblebrain/synapse` | Vanilla JS core — `connect()`, plus the helpers over an `App`: `callToolAsTask()`, `action()`, `pickFile()`, `pickFiles()`, `downloadFile()` |
+| `@nimblebrain/synapse/react` | React hooks and the `AppProvider` |
 | `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
 | `@nimblebrain/synapse/ui/base` | Side-effect import that establishes the root-height chain (`html, body, #root`) the app shell fills. `AppFrame` does this automatically on render; import it in your entry to apply it before first paint |
 | `@nimblebrain/synapse/vite` | Vite plugin for dev mode |
@@ -96,7 +96,7 @@ These are the durable decisions behind the library; they rarely change.
 A CSS custom property can *name* a font family but cannot *load* one, and an app
 iframe is its own document — it inherits no `@font-face` from the host page. So a
 host that sends only tokens is naming a typeface the app has no way to render.
-`SynapseTheme.fontFaces` closes that gap: the host sends the faces alongside the
+`Theme.fontFaces` closes that gap: the host sends the faces alongside the
 tokens, and the SDK loads them into the app document.
 
 ```ts
@@ -287,53 +287,18 @@ unsub();
 | `"tool-input"` | `ui/notifications/tool-input` | `Record<string, unknown>` |
 | `"tool-input-partial"` | `ui/notifications/tool-input-partial` | `Record<string, unknown>` |
 | `"tool-cancelled"` | `ui/notifications/tool-cancelled` | — |
-| `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` |
+| `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` — fires only when the theme actually moves |
+| `"host-context-changed"` | `ui/notifications/host-context-changed` | `McpUiHostContext` — every change, unfiltered |
+| `"data-changed"` | `synapse/data-changed` | `DataChangedEvent` |
+| `"action"` | `synapse/action` | `AgentAction` |
 | `"teardown"` | `ui/resource-teardown` | — |
 | Any custom string | Passed through as-is | `unknown` |
 
-## State Store
-
-Create a typed, reactive store with optional persistence and agent visibility:
-
-```typescript
-import { createSynapse, createStore } from "@nimblebrain/synapse";
-
-const synapse = createSynapse({ name: "my-app", version: "1.0.0" });
-
-const store = createStore(synapse, {
-  initialState: { count: 0, items: [] },
-  actions: {
-    increment: (state) => ({ ...state, count: state.count + 1 }),
-    addItem: (state, item: string) => ({
-      ...state,
-      items: [...state.items, item],
-    }),
-  },
-  persist: true,
-  visibleToAgent: true,
-  summarize: (state) => `${state.items.length} items, count=${state.count}`,
-});
-
-store.dispatch.increment();
-store.dispatch.addItem("hello");
-```
-
-Use `useStore` in React:
-
-```tsx
-import { useStore } from "@nimblebrain/synapse/react";
-
-function Counter() {
-  const { state, dispatch } = useStore(store);
-  return <button onClick={() => dispatch.increment()}>{state.count}</button>;
-}
-```
-
 ## API Reference
 
-### `connect(options)` — Recommended
+### `connect(options)`
 
-Creates a connected `App` instance. The returned promise resolves after the ext-apps handshake completes — theme, host info, and tool context are available immediately.
+The one entry point. Creates a connected `App` instance. The returned promise resolves after the ext-apps handshake completes — theme, host info, and tool context are available immediately.
 
 ```typescript
 import { connect } from "@nimblebrain/synapse";
@@ -346,6 +311,9 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default: `false` |
+| `internal` | `boolean?` | NimbleBrain internal app — `callTool` carries a `server` param for cross-server routing |
+| `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host. Only a NimbleBrain host consumes them, so it stays off elsewhere. |
+| `on` | `Record<string, (data) => void>?` | Pre-register handlers before the handshake, so no early message is lost |
 
 ### `App` Properties
 
@@ -355,6 +323,10 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `hostInfo` | `{ name, version }` | Host identity |
 | `toolInfo` | `{ tool } \| null` | Tool context if launched from a tool call |
 | `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
+| `hostContext` | `McpUiHostContext` | The full host context — spec fields plus host extensions |
+| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
+| `destroyed` | `boolean` | True after `destroy()` |
+| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call` |
 
 ### `App` Methods
 
@@ -364,92 +336,67 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL (host-aware) |
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?)` | Call an MCP tool and get typed result |
-| `sendMessage(text, context?)` | Send a chat message to the agent |
+| `callTool(name, args?, options?)` | Call an MCP tool and get typed result. `options.server` routes to a sibling server. |
+| `readServerResource({ uri })` | Read an MCP resource from the originating server |
+| `sendMessage(text, context?)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |
 
-### `createSynapse(options)` — Advanced / Legacy
+### Helpers over an `App`
 
-The original Synapse API. Still fully supported — use it when you need the state store, agent actions, file operations, or NimbleBrain-specific features not yet surfaced in `connect()`.
+The `App` object carries the ext-apps surface and the state the handshake
+established. Everything else is a function that takes an app — imported from the
+package root — so the object stays small and an app that never picks a file
+never carries the picker.
 
 ```typescript
-import { createSynapse } from "@nimblebrain/synapse";
+import { connect, action, pickFile, downloadFile, callToolAsTask } from "@nimblebrain/synapse";
 
-const synapse = createSynapse({ name: "my-app", version: "1.0.0" });
-await synapse.ready;
+const app = await connect({ name: "my-app", version: "1.0.0" });
+action(app, "navigate", { entity: "board", id: "b1" });
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `name` | `string` | App name (must match registered bundle name) |
-| `version` | `string` | Semver version |
-| `internal` | `boolean?` | Enable cross-server tool calls (NB internal only) |
-| `forwardKeys` | `KeyForwardConfig[]?` | Custom keyboard forwarding rules |
+| Function | Description |
+|----------|-------------|
+| `callToolAsTask(app, name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
+| `action(app, name, params?)` | Trigger a NimbleBrain host action. No-op off a NimbleBrain host. |
+| `pickFile(app, options?)` | Native file picker, single file. Throws off a NimbleBrain host. |
+| `pickFiles(app, options?)` | Native file picker, multiple files. Throws off a NimbleBrain host. |
+| `downloadFile(app, name, content, mime?)` | Hand the user a file to save. |
 
-### `Synapse` Methods
-
-| Method | Description |
-|--------|-------------|
-| `ready` | Promise that resolves after the ext-apps handshake |
-| `isNimbleBrainHost` | Whether the host is a NimbleBrain platform |
-| `callTool(name, args?)` | Call an MCP tool and get typed result |
-| `callToolAsTask(name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks) below. |
-| `onDataChanged(cb)` | Subscribe to data change events |
-| `onAction(cb)` | Subscribe to agent actions (typed, declarative) |
-| `getTheme()` | Get current theme |
-| `onThemeChanged(cb)` | Subscribe to theme changes |
-| `action(name, params?)` | Dispatch a NB platform action |
-| `chat(message, context?)` | Send a chat message to the agent |
-| `setVisibleState(state, summary?)` | Push LLM-visible state (debounced 250ms) |
-| `downloadFile(name, content, mime?)` | Trigger a file download (NB-only) |
-| `pickFile(options?)` | Open native file picker, single file (NB-only) |
-| `pickFiles(options?)` | Open native file picker, multiple files (NB-only) |
-| `openLink(url)` | Open a URL (host-aware) |
-| `destroy()` | Clean up all listeners and timers |
-
-`Synapse` also exposes `_hostTasksCapability: TasksCapability | undefined | null` — the host's declared `tasks` capability from `ui/initialize`. `null` pre-handshake, `undefined` if the host did not advertise tasks, or the `TasksCapability` shape if it did. Read it to feature-detect before calling `callToolAsTask`.
+`app.supportsTasks` says whether the host negotiated the tasks utility for
+`tools/call`. `callToolAsTask` throws when it is false, so read it to decide
+whether to offer a long-running action at all rather than to discover the answer
+from an exception.
 
 ## React Hooks
 
-### `AppProvider`-based (Recommended)
-
-Wrap your app with `<AppProvider>` and use these hooks. Each is a thin wrapper over `connect()`.
+Wrap your tree in `<AppProvider>` — it takes the same options as `connect()` and
+renders nothing until the handshake completes, so nothing below it can observe a
+half-connected app.
 
 ```tsx
-import { AppProvider, useApp, useToolResult, useToolInput, useResize } from "@nimblebrain/synapse/react";
+import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse/react";
 ```
 
 | Hook | Returns | Description |
 |------|---------|-------------|
-| `useApp()` | `App` | Access the connected `App` instance |
+| `useApp()` | `App` | The connected app |
+| `useTheme()` | `Theme` | Reactive theme. Re-renders only when the theme actually moves. |
+| `useHostContext<T>()` | `T` | The full host context, including host extensions |
 | `useToolResult()` | `ToolResultData \| null` | Re-renders on every `tool-result` event |
 | `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
-| `useConnectTheme()` | `Theme` | Reactive theme from `connect()` |
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
-
-To call a tool on this path, use the `App` instance: `useApp()`, then `app.callTool(name, args)`. The `useCallTool` hook (with built-in loading state) belongs to the `SynapseProvider` set below.
-
-### `SynapseProvider`-based (Legacy)
-
-For existing apps using `createSynapse()`. Still fully supported.
-
-```tsx
-import { SynapseProvider, useSynapse, useCallTool, useTheme } from "@nimblebrain/synapse/react";
-```
-
-| Hook | Returns | Description |
-|------|---------|-------------|
-| `useSynapse()` | `Synapse` | Access the Synapse instance |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
-| `useDataSync(cb)` | — | Subscribe to data change events |
-| `useTheme()` | `SynapseTheme` | Reactive theme object |
-| `useAction()` | `(name, params?) => void` | Dispatch platform actions |
-| `useAgentAction(cb)` | — | Subscribe to agent actions |
-| `useChat()` | `(msg, ctx?) => void` | Send chat messages |
-| `useVisibleState()` | `(state, summary?) => void` | Push LLM-visible state |
-| `useFileUpload()` | File picker helpers | File upload (NB-only) |
-| `useStore(store)` | `{ state, dispatch }` | Bind a store to React |
-| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | Lifecycle wrapper around `callToolAsTask` for long-running tools. See below. |
+| `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full task lifecycle for a long-running tool. See below. |
+| `useDataSync(cb)` | — | Run `cb` when the agent changes data your app displays |
+| `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
+| `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
+| `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |
+| `useAction()` | `(name, params?) => void` | Trigger a NimbleBrain host action |
+| `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker (NB-only) |
+
+To *receive* the actions a tool emits, subscribe through the app:
+`useApp().on("action", cb)`.
 
 ## Long-running tools (tasks)
 

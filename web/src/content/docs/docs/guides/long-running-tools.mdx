@@ -14,7 +14,7 @@ the result when it lands, possibly after the user has navigated away and back.
 starts (or restarts) the task and returns immediately, `task` carries the live
 status, `result` and `error` populate when the work reaches a terminal state,
 `isWorking` and `isTerminal` are derived flags for rendering, and `cancel` stops
-an in-flight task. It is a `SynapseProvider` hook.
+an in-flight task. Wrap your tree in `<AppProvider>`.
 
 ```tsx
 import { useCallToolAsTask } from "@nimblebrain/synapse/react";

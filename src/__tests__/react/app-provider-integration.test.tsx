@@ -2,8 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
-import { useApp, useConnectTheme, useToolResult } from "../../react/connect-hooks.js";
-import { SynapseProvider, useCallTool, useSynapse } from "../../react/hooks.js";
+import { useApp, useCallTool, useTheme, useToolResult } from "../../react/hooks.js";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -73,16 +72,6 @@ function createAppWrapper() {
       <AppProvider name="test-app" version="1.0.0">
         {children}
       </AppProvider>
-    );
-  };
-}
-
-function createSynapseWrapper() {
-  return function Wrapper({ children }: { children: ReactNode }) {
-    return (
-      <SynapseProvider name="test-app" version="1.0.0">
-        {children}
-      </SynapseProvider>
     );
   };
 }
@@ -169,11 +158,11 @@ describe("React integration", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 2. AppProvider + useConnectTheme end-to-end
+  // 2. AppProvider + useTheme end-to-end
   // -----------------------------------------------------------------------
-  describe("AppProvider + useConnectTheme end-to-end", () => {
-    it("host sends host-context-changed -> useConnectTheme re-renders with new theme", async () => {
-      const { result, rerender } = renderHook(() => useConnectTheme(), {
+  describe("AppProvider + useTheme end-to-end", () => {
+    it("host sends host-context-changed -> useTheme re-renders with new theme", async () => {
+      const { result, rerender } = renderHook(() => useTheme(), {
         wrapper: createAppWrapper(),
       });
 
@@ -237,62 +226,24 @@ describe("React integration", () => {
   });
 
   // -----------------------------------------------------------------------
-  // 4. Backwards compat: SynapseProvider + useSynapse + useCallTool
+  // 4. AppProvider + useCallTool
   // -----------------------------------------------------------------------
-  describe("backwards compat: SynapseProvider + legacy hooks", () => {
-    it("SynapseProvider + useSynapse provides the Synapse instance", async () => {
-      const { result } = renderHook(() => useSynapse(), {
-        wrapper: createSynapseWrapper(),
+  describe("AppProvider + useCallTool", () => {
+    it("tracks pending/data across a call and resolves with the parsed result", async () => {
+      const { result, rerender } = renderHook(() => useCallTool("echo"), {
+        wrapper: createAppWrapper(),
       });
 
-      // SynapseProvider renders children immediately (unlike AppProvider)
-      expect(result.current).toBeDefined();
-      expect(typeof result.current.callTool).toBe("function");
-      expect(typeof result.current.destroy).toBe("function");
-      expect(typeof result.current.chat).toBe("function");
-      expect(typeof result.current.onDataChanged).toBe("function");
-    });
-
-    it("SynapseProvider + useCallTool sends request and resolves", async () => {
-      const { result } = renderHook(() => useCallTool("echo"), {
-        wrapper: createSynapseWrapper(),
-      });
-
-      // Complete the handshake for SynapseProvider (uses createSynapse internally)
-      const initCall = postMessageSpy.mock.calls.find(
-        (c: unknown[]) =>
-          c[0] &&
-          typeof c[0] === "object" &&
-          (c[0] as Record<string, unknown>).method === "ui/initialize",
-      );
-      expect(initCall).toBeDefined();
-
-      const id = (initCall?.[0] as Record<string, unknown>).id as string;
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          data: {
-            jsonrpc: "2.0",
-            id,
-            result: {
-              protocolVersion: "2026-01-26",
-              hostInfo: { name: "nimblebrain", version: "1.0.0" },
-              hostCapabilities: {},
-              hostContext: { theme: "dark", styles: { variables: {} } },
-            },
-          },
-        }),
-      );
-
-      // Wait for ready
       await act(async () => {
+        respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
+      rerender();
 
       expect(result.current.isPending).toBe(false);
       expect(result.current.data).toBeNull();
       expect(result.current.error).toBeNull();
 
-      // Call the tool
       postMessageSpy.mockClear();
       await act(async () => {
         const callPromise = result.current.call({ text: "hello" });

@@ -1,52 +1,140 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type { Task, TaskStatus } from "@modelcontextprotocol/sdk/types.js";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { pickFile, pickFiles, action as sendAction } from "../extensions.js";
+import { callToolAsTask } from "../task-handle.js";
 import type {
-  ActionReducer,
-  AgentAction,
+  App,
   CallToolAsTaskOptions,
+  CallToolOptions,
   DataChangedEvent,
   FileResult,
+  ModelContext,
   RequestFileOptions,
-  Store,
-  StoreDispatch,
-  Synapse,
-  SynapseTheme,
   TaskHandle,
+  Theme,
   ToolCallResult,
+  ToolResultData,
 } from "../types.js";
-import { SynapseProvider, useSynapseContext } from "./provider.js";
+import { useAppContext } from "./app-provider.js";
 
-// Re-export provider components
-export { SynapseProvider };
-
-export function useSynapse(): Synapse {
-  return useSynapseContext();
+/** The connected app. Throws outside an `<AppProvider>`. */
+export function useApp(): App {
+  return useAppContext();
 }
 
-export function useCallTool<TOutput = unknown>(
-  toolName: string,
-): {
-  call: (args?: Record<string, unknown>) => Promise<ToolCallResult<TOutput>>;
+// -----------------------------------------------------------------------------
+// Host state
+// -----------------------------------------------------------------------------
+
+/**
+ * The current theme, re-rendering only when it actually moves.
+ *
+ * `App` filters `host-context-changed` notifications through a theme equality
+ * check, so a context update that leaves the derived theme untouched (a
+ * workspace switch, say) does not re-render every themed component.
+ */
+export function useTheme(): Theme {
+  const app = useAppContext();
+  const [theme, setTheme] = useState<Theme>(() => app.theme);
+
+  useEffect(() => {
+    // Sync in case the theme changed between render and effect.
+    setTheme(app.theme);
+    return app.on("theme-changed", setTheme);
+  }, [app]);
+
+  return theme;
+}
+
+/**
+ * The full ext-apps host context — spec fields (`theme`, `styles`,
+ * `displayMode`, `toolInfo`) plus whatever the host publishes alongside.
+ * Re-renders on every `host-context-changed`.
+ *
+ * Prefer `useTheme()` when only theming matters: it filters no-op fires.
+ * Reach for this one for host extensions, e.g. on NimbleBrain:
+ *
+ * ```tsx
+ * const { workspace } = useHostContext<{ workspace?: { id: string } }>();
+ * ```
+ */
+export function useHostContext<T extends McpUiHostContext = McpUiHostContext>(): T {
+  const app = useAppContext();
+  const [ctx, setCtx] = useState<T>(() => app.hostContext as T);
+
+  useEffect(() => {
+    setCtx(app.hostContext as T);
+    return app.on("host-context-changed", (c) => setCtx(c as T));
+  }, [app]);
+
+  return ctx;
+}
+
+/** The latest tool result pushed by the host, or `null` before one arrives. */
+export function useToolResult(): ToolResultData | null {
+  const app = useAppContext();
+  const [data, setData] = useState<ToolResultData | null>(null);
+
+  useEffect(() => {
+    return app.on("tool-result", setData);
+  }, [app]);
+
+  return data;
+}
+
+/** The arguments the host is calling the bound tool with, as they arrive. */
+export function useToolInput(): Record<string, unknown> | null {
+  const app = useAppContext();
+  const [input, setInput] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    return app.on("tool-input", setInput);
+  }, [app]);
+
+  return input;
+}
+
+/** Ask the host to resize this app's frame. */
+export function useResize(): (width?: number, height?: number) => void {
+  const app = useAppContext();
+  return useCallback((width?: number, height?: number) => app.resize(width, height), [app]);
+}
+
+// -----------------------------------------------------------------------------
+// Tools
+// -----------------------------------------------------------------------------
+
+export interface UseCallToolResult<TOutput> {
+  call: (
+    args?: Record<string, unknown>,
+    options?: CallToolOptions,
+  ) => Promise<ToolCallResult<TOutput>>;
   isPending: boolean;
   error: Error | null;
   data: TOutput | null;
-} {
-  const synapse = useSynapseContext();
+}
+
+/** Call one tool, with pending/error/data state for the latest call. */
+export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolResult<TOutput> {
+  const app = useAppContext();
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<TOutput | null>(null);
   const callIdRef = useRef(0);
 
   const call = useCallback(
-    async (args?: Record<string, unknown>): Promise<ToolCallResult<TOutput>> => {
+    async (
+      args?: Record<string, unknown>,
+      options?: CallToolOptions,
+    ): Promise<ToolCallResult<TOutput>> => {
       const id = ++callIdRef.current;
       setIsPending(true);
       setError(null);
 
       try {
-        const result = await synapse.callTool<Record<string, unknown>, TOutput>(toolName, args);
-        // Stale guard: only update if this is still the latest call
+        const result = await app.callTool<TOutput>(toolName, args, options);
+        // Stale guard: only update if this is still the latest call.
         if (id === callIdRef.current) {
           setData(result.data);
           setIsPending(false);
@@ -61,155 +149,81 @@ export function useCallTool<TOutput = unknown>(
         throw err;
       }
     },
-    [synapse, toolName],
+    [app, toolName],
   );
 
   return { call, isPending, error, data };
 }
 
+/** Run `callback` whenever the agent changes data this app displays. */
 export function useDataSync(callback: (event: DataChangedEvent) => void): void {
-  const synapse = useSynapseContext();
+  const app = useAppContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
   useEffect(() => {
-    return synapse.onDataChanged((event) => callbackRef.current(event));
-  }, [synapse]);
+    return app.on("data-changed", (event) => callbackRef.current(event));
+  }, [app]);
 }
+
+// -----------------------------------------------------------------------------
+// Agent-facing state
+// -----------------------------------------------------------------------------
+
+/** Debounce window for `useModelContext`, in milliseconds. */
+const MODEL_CONTEXT_DEBOUNCE_MS = 250;
 
 /**
- * Subscribe to agent actions — typed, declarative commands from the server.
+ * Push what the user is looking at to the agent (ext-apps
+ * `ui/update-model-context`), debounced so a selection the user drags through
+ * costs one frame rather than thirty.
  *
- * Actions are emitted by tools as deterministic side effects (e.g., "navigate
- * to the board I just created"). The UI decides how to handle each action type.
- *
- * @example
+ * **Declarative** — pushes when `deps` change:
  * ```tsx
- * useAgentAction((action) => {
- *   if (action.type === "navigate") {
- *     const { entity, id } = action.payload as NavigatePayload;
- *     if (entity === "board") setSelectedBoardId(id);
- *   }
- * });
- * ```
- */
-export function useAgentAction(callback: (action: AgentAction) => void): void {
-  const synapse = useSynapseContext();
-  const callbackRef = useRef(callback);
-  callbackRef.current = callback;
-
-  useEffect(() => {
-    return synapse.onAction((action) => callbackRef.current(action));
-  }, [synapse]);
-}
-
-/**
- * Subscribe to the full ext-apps host context.
- *
- * Returns the host context bag — spec-standardized fields (`theme`, `styles`,
- * `displayMode`, `toolInfo`) plus any host extensions. Re-renders on every
- * `ui/notifications/host-context-changed` notification.
- *
- * Prefer `useTheme()` when only theming matters (it filters no-op fires and
- * returns a typed `SynapseTheme`). Reach for `useHostContext()` for non-theme
- * fields like host-specific extensions, e.g. on NimbleBrain:
- *
- * ```tsx
- * const { workspace } = useHostContext<{ workspace?: { id: string } }>();
- * ```
- */
-export function useHostContext<T extends McpUiHostContext = McpUiHostContext>(): T {
-  const synapse = useSynapseContext();
-  const [ctx, setCtx] = useState<T>(() => synapse.getHostContext() as T);
-
-  useEffect(() => {
-    // Sync in case context changed between render and effect
-    setCtx(synapse.getHostContext() as T);
-    return synapse.onHostContextChanged((c) => setCtx(c as T));
-  }, [synapse]);
-
-  return ctx;
-}
-
-/**
- * Re-renders only when the derived `SynapseTheme` actually changes (mode,
- * primaryColor, or any token value). Routes through `synapse.onThemeChanged`
- * — which is itself a `themesEqual`-filtered selector over the unified host
- * context — so a host-context update that doesn't move the theme (e.g. a
- * workspace switch) does NOT cause this hook's consumers to re-render.
- *
- * Building this on `useHostContext` instead would skip the filter: every
- * host-context-changed notification produces a new context reference, which
- * would propagate through `useState` and force a re-render even when the
- * derived theme is unchanged.
- */
-export function useTheme(): SynapseTheme {
-  const synapse = useSynapseContext();
-  const [theme, setTheme] = useState<SynapseTheme>(() => synapse.getTheme());
-
-  useEffect(() => {
-    // Sync in case theme changed between render and effect
-    setTheme(synapse.getTheme());
-    return synapse.onThemeChanged(setTheme);
-  }, [synapse]);
-
-  return theme;
-}
-
-export function useAction(): (action: string, params?: Record<string, unknown>) => void {
-  const synapse = useSynapseContext();
-  return useCallback(
-    (action: string, params?: Record<string, unknown>) => synapse.action(action, params),
-    [synapse],
-  );
-}
-
-export function useChat(): (
-  message: string,
-  context?: { action?: string; entity?: string },
-) => void {
-  const synapse = useSynapseContext();
-  return useCallback(
-    (message: string, context?: { action?: string; entity?: string }) =>
-      synapse.chat(message, context),
-    [synapse],
-  );
-}
-
-/**
- * Push the app's visible state to the agent via ext-apps `ui/update-model-context`.
- *
- * **Imperative** (no args) — returns a push function you call manually:
- * ```tsx
- * const push = useVisibleState();
- * push({ board: selectedBoard }, "Viewing board X");
- * ```
- *
- * **Declarative** (factory + deps) — auto-pushes when deps change:
- * ```tsx
- * useVisibleState(() => ({
+ * useModelContext(() => ({
  *   state: { board: selectedBoard },
  *   summary: `Viewing "${selectedBoard?.name}"`,
  * }), [selectedBoard]);
  * ```
+ *
+ * **Imperative** — returns a push function:
+ * ```tsx
+ * const push = useModelContext();
+ * push({ board: selectedBoard }, "Viewing board X");
+ * ```
+ *
+ * The debounce lives here rather than on `app.updateModelContext`, which
+ * sends immediately: the rapid-change problem is a React one, and the plain
+ * method should do what it says.
  */
-export function useVisibleState(): (state: Record<string, unknown>, summary?: string) => void;
-export function useVisibleState(
-  factory: () => { state: Record<string, unknown>; summary?: string },
-  deps: unknown[],
-): void;
-export function useVisibleState(
-  factory?: () => { state: Record<string, unknown>; summary?: string },
+export function useModelContext(): (state: Record<string, unknown>, summary?: string) => void;
+export function useModelContext(factory: () => ModelContext, deps: unknown[]): void;
+export function useModelContext(
+  factory?: () => ModelContext,
   deps?: unknown[],
 ): ((state: Record<string, unknown>, summary?: string) => void) | undefined {
-  const synapse = useSynapseContext();
+  const app = useAppContext();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const push = useCallback(
-    (state: Record<string, unknown>, summary?: string) => synapse.setVisibleState(state, summary),
-    [synapse],
+    (state: Record<string, unknown>, summary?: string) => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => {
+        timerRef.current = null;
+        app.updateModelContext(state, summary);
+      }, MODEL_CONTEXT_DEBOUNCE_MS);
+    },
+    [app],
   );
 
-  // Declarative mode: auto-push when deps change.
-  // The deps array is caller-provided (mirrors useMemo/useEffect pattern).
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
+
+  // Declarative mode: push when deps change. The deps array is
+  // caller-provided (mirrors useMemo/useEffect).
   const factoryRef = useRef(factory);
   factoryRef.current = factory;
   useEffect(() => {
@@ -221,58 +235,72 @@ export function useVisibleState(
   if (!factory) return push;
 }
 
-export function useFileUpload(): {
-  pickFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
-  pickFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
-  isPending: boolean;
-} {
-  const synapse = useSynapseContext();
-  const [isPending, setIsPending] = useState(false);
-
-  const pickFile = useCallback(
-    async (options?: RequestFileOptions) => {
-      setIsPending(true);
-      try {
-        return await synapse.pickFile(options);
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [synapse],
+/** Send a user message into the agent conversation. */
+export function useSendMessage(): (
+  text: string,
+  context?: { action?: string; entity?: string },
+) => void {
+  const app = useAppContext();
+  return useCallback(
+    (text: string, context?: { action?: string; entity?: string }) =>
+      app.sendMessage(text, context),
+    [app],
   );
-
-  const pickFiles = useCallback(
-    async (options?: RequestFileOptions) => {
-      setIsPending(true);
-      try {
-        return await synapse.pickFiles(options);
-      } finally {
-        setIsPending(false);
-      }
-    },
-    [synapse],
-  );
-
-  return { pickFile, pickFiles, isPending };
-}
-
-export function useStore<TState, TActions extends Record<string, ActionReducer<TState, any>>>(
-  store: Store<TState, TActions>,
-): {
-  state: TState;
-  dispatch: StoreDispatch<TActions>;
-} {
-  const state = useSyncExternalStore(
-    (onStoreChange) => store.subscribe(onStoreChange),
-    () => store.getState(),
-    () => store.getState(),
-  );
-
-  return { state, dispatch: store.dispatch };
 }
 
 // -----------------------------------------------------------------------------
-// useCallToolAsTask — lifecycle wrapper around `synapse.callToolAsTask`
+// NimbleBrain host extensions
+// -----------------------------------------------------------------------------
+
+/** Trigger a host-side action. No-op off a NimbleBrain host. */
+export function useAction(): (name: string, params?: Record<string, unknown>) => void {
+  const app = useAppContext();
+  return useCallback(
+    (name: string, params?: Record<string, unknown>) => sendAction(app, name, params),
+    [app],
+  );
+}
+
+export interface UseFileUploadResult {
+  pickFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
+  pickFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
+  isPending: boolean;
+}
+
+/** The host's native file picker, with a pending flag. NimbleBrain only. */
+export function useFileUpload(): UseFileUploadResult {
+  const app = useAppContext();
+  const [isPending, setIsPending] = useState(false);
+
+  const one = useCallback(
+    async (options?: RequestFileOptions) => {
+      setIsPending(true);
+      try {
+        return await pickFile(app, options);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [app],
+  );
+
+  const many = useCallback(
+    async (options?: RequestFileOptions) => {
+      setIsPending(true);
+      try {
+        return await pickFiles(app, options);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [app],
+  );
+
+  return { pickFile: one, pickFiles: many, isPending };
+}
+
+// -----------------------------------------------------------------------------
+// useCallToolAsTask — lifecycle wrapper around `callToolAsTask(app, …)`
 // -----------------------------------------------------------------------------
 
 /**
@@ -294,11 +322,9 @@ const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set<TaskStatus>([
 
 /**
  * Fallback poll cadence used when the receiver's `CreateTaskResult.task`
- * carries no `pollInterval`. Chosen to roughly match the 5s cadence
- * described in Task 005 ("a sensible default like 5s if pollInterval is
- * absent") — the effective fire delay is this value × 1.5 ≈ 7.5s, well
- * below default TTLs but long enough to avoid hammering hosts that do
- * emit `notifications/tasks/status`.
+ * carries no `pollInterval`. The effective fire delay is this value × 1.5
+ * ≈ 7.5s, well below default TTLs but long enough to avoid hammering hosts
+ * that do emit `notifications/tasks/status`.
  */
 const DEFAULT_POLL_INTERVAL_MS = 5_000;
 const POLL_FALLBACK_MULTIPLIER = 1.5;
@@ -344,7 +370,7 @@ export interface UseCallToolAsTaskResult<TInput, TOutput> {
 }
 
 /**
- * React hook wrapper around `synapse.callToolAsTask`.
+ * React wrapper around `callToolAsTask(app, …)`.
  *
  * Handles the full MCP 2025-11-25 task lifecycle:
  *
@@ -367,7 +393,7 @@ export interface UseCallToolAsTaskResult<TInput, TOutput> {
 export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = unknown>(
   toolName: string,
 ): UseCallToolAsTaskResult<TInput, TOutput> {
-  const synapse = useSynapseContext();
+  const app = useAppContext();
 
   const [task, setTask] = useState<Task | null>(null);
   const [result, setResult] = useState<ToolCallResult<TOutput> | null>(null);
@@ -476,7 +502,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
 
       let handle: TaskHandle<TOutput>;
       try {
-        handle = await synapse.callToolAsTask<TInput, TOutput>(toolName, args, options);
+        handle = await callToolAsTask<TOutput>(app, toolName, args, options);
       } catch (err) {
         if (gen !== genRef.current) throw err;
         const e = err instanceof Error ? err : new Error(String(err));
@@ -493,7 +519,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
 
       // Derive the fallback poll delay from the receiver's advertised
       // `pollInterval`. Spec allows it to be absent; we then use the
-      // 5s default described in Task 005.
+      // 5s default.
       const hintedInterval = handle.task.pollInterval;
       pollDelayRef.current =
         typeof hintedInterval === "number" && hintedInterval > 0
@@ -538,7 +564,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
           // instant `result` is populated — a "result populated while
           // isWorking=true" render is incoherent for consumers.
           setTask((prev) => {
-            const status: TaskStatus = res.isError ? "failed" : "completed";
+            const status: TaskStatus = res.isError ? FAILED_STATUS : COMPLETED_STATUS;
             const now = new Date().toISOString();
             return prev
               ? { ...prev, status, lastUpdatedAt: now }
@@ -580,10 +606,10 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
           setTask((prev) => {
             const now = new Date().toISOString();
             return prev
-              ? { ...prev, status: "failed", lastUpdatedAt: now }
+              ? { ...prev, status: FAILED_STATUS, lastUpdatedAt: now }
               : {
                   taskId: handle.task.taskId,
-                  status: "failed",
+                  status: FAILED_STATUS,
                   ttl: handle.task.ttl,
                   createdAt: handle.task.createdAt,
                   lastUpdatedAt: now,
@@ -599,7 +625,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
 
       return handle;
     },
-    [synapse, toolName, detachCurrent, clearPollTimer, scheduleNextPoll],
+    [app, toolName, detachCurrent, clearPollTimer, scheduleNextPoll],
   );
 
   const cancel = useCallback(async (): Promise<void> => {
@@ -620,8 +646,8 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
   }, [clearPollTimer]);
 
   // Cleanup on unmount: stop polling, drop the status subscription.
-  // Deliberately do NOT call `handle.cancel()` — per Task 005, the
-  // server-side task keeps running so a remount can recover state.
+  // Deliberately do NOT call `handle.cancel()` — the server-side task
+  // keeps running so a remount can recover state.
   useEffect(() => {
     return () => {
       genRef.current += 1;

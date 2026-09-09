@@ -9,7 +9,7 @@
  * That includes typography. The fallbacks are web-safe system stacks, so an app
  * renders correctly with no host, no network, and no font files. A host that
  * wants its own typeface sends `@font-face` descriptors on the theme
- * (`SynapseTheme.fontFaces`) and the SDK loads them — the SDK itself ships no
+ * (`Theme.fontFaces`) and the SDK loads them — the SDK itself ships no
  * font data and fetches nothing.
  */
 

@@ -33,7 +33,7 @@ import type { HTMLAttributes, ReactNode } from "react";
 import type { Crumb } from "../components/Breadcrumb.js";
 import { PageHeader } from "../components/PageHeader.js";
 
-interface PageLayoutProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+interface PageLayoutProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** The trail. Omit at the top level, which has nothing above it to name. */
   crumbs?: Crumb[];
   title: ReactNode;
@@ -78,7 +78,18 @@ export function PageLayout({
   ...rest
 }: PageLayoutProps) {
   return (
-    <div
+    // A `<section>`, not a `<div>`, and it is the header below that makes it load-bearing.
+    // `<header>` maps to the `banner` landmark UNLESS it descends from sectioning content, so
+    // a page inside a page — a `PageLayout` in a pane of one — produced TWO banners, both
+    // claiming to head the document. That is the same defect as the app-chrome bar this
+    // layout exists without, one layer down and invisible on screen: it shows up only in the
+    // landmark list a screen-reader user navigates by.
+    //
+    // Scoping it here rather than asking callers to wrap is the point. A consuming app hit
+    // this, diagnosed it, and wrapped its own instance — correct, and not a thing every app
+    // should have to rediscover. An embedded app is not the document anyway: the host owns
+    // the real banner, and what this renders is a section of the host's page.
+    <section
       style={{ display: "flex", flexDirection: "column", gap: "1.1rem", minWidth: 0, ...style }}
       {...rest}
     >
@@ -109,6 +120,6 @@ export function PageLayout({
         </div>
       ) : null}
       {children}
-    </div>
+    </section>
   );
 }

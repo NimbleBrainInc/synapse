@@ -405,3 +405,33 @@ describe("the scroll wrapper is reachable, and named only when there is a name",
     expect(wrapper.tabIndex).toBe(0);
   });
 });
+
+describe("PageLayout scopes its own header, so a page in a page is not two banners", () => {
+  it("nests without producing a second banner landmark", () => {
+    // `<header>` is the `banner` landmark unless it descends from sectioning content. A page
+    // rendered inside a pane of another page — which a list-detail layout does routinely —
+    // therefore produced two elements both claiming to head the document. Invisible on
+    // screen; visible in the landmark list a screen-reader user navigates by.
+    const { container } = render(
+      <PageLayout title="Outer">
+        <PageLayout title="Inner" />
+      </PageLayout>,
+    );
+
+    const headers = [...container.querySelectorAll("header")];
+    expect(headers).toHaveLength(2);
+    // Neither is a banner, because each has a sectioning ancestor. Asserted structurally:
+    // happy-dom computes no implicit ARIA role, so the mapping rule is checked directly —
+    // `closest` finds the nearest sectioning element, and it must not be the document.
+    for (const h of headers) {
+      expect(h.closest("section, article, aside, nav, main")).not.toBeNull();
+    }
+  });
+
+  it("is a section even at the top level, because the host owns the real banner", () => {
+    // Not a compromise for the nested case: an embedded app is a section of the host's page,
+    // never the document, so its header should not claim `banner` at any depth.
+    const { container } = render(<PageLayout title="Only" />);
+    expect((container.firstElementChild as HTMLElement).tagName).toBe("SECTION");
+  });
+});

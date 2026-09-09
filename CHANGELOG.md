@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.17.1] - 2026-09-09
+
+### Fixed
+
+- **`PageLayout` renders a `<section>`, so a page inside a page is not two banners.** Its root was a `<div>`, and `<header>` maps to the `banner` landmark unless it descends from sectioning content — so a `PageLayout` rendered in a pane of another one produced two elements both claiming to head the document. It is invisible on screen and visible in the landmark list a screen-reader user navigates by, which is why it shipped: a consuming app hit it, diagnosed it, and wrapped its own instance, and no app should have to rediscover that.
+
+  A section at every depth rather than only when nested, because an embedded app is not the document: the host owns the real banner, and what a Synapse app renders is a section of the host's page.
+
 ## [0.17.0] - 2026-09-08
 
 ### Breaking

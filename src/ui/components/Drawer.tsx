@@ -2,14 +2,11 @@
  * Drawer — an off-canvas overlay panel that slides in from an edge, over a
  * scrim. The general overlay the apps need (e.g. CRM's detail panel).
  *
- * A plain positioned `<div>` overlay — **not** a native `<dialog>`. The platform
- * mounts every app in a sandboxed iframe that withholds `allow-modals`, so
- * `HTMLDialogElement.showModal()` throws there and white-screens the app; a
- * `<dialog>` is unusable in the one environment these apps run in. So the panel
- * hand-rolls what `showModal()` gave for free: a scrim, a Tab/Shift+Tab focus
- * trap (while focus is inside the panel — not the full native `inert`; see the
- * scope note on the open effect and #43), focus-into-panel on open with focus
- * restored on close, background scroll lock, and Escape. Controlled via
+ * A plain positioned `<div>` overlay — **not** a native `<dialog>`, which the app
+ * iframe sandbox cannot open (see `internal/modal.ts`). The scrim is drawn here;
+ * the modal behaviour — focus into the panel on open and back on close, the Tab
+ * trap, background scroll lock, and Escape — comes from `useModal`, shared with
+ * `ConfirmDialog` so a confirmation raised inside a drawer stacks correctly. Controlled via
  * `open`/`onClose` (renders nothing when closed). Escape routes through `onEscape`
  * (defaults to `onClose`); clicking the scrim calls `onClose`. The slide-in is a
  * CSS keyframe on the panel.
@@ -38,6 +35,7 @@ import {
   useState,
 } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
+import { useModal } from "../internal/modal.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
 type Side = "left" | "right" | "bottom";
@@ -70,45 +68,6 @@ const RULES = `
   .nb-drawer-iconbtn { min-width: 44px; min-height: 44px; }
 }
 `;
-
-// A control inside a *closed* <details> (other than its own <summary>) is not
-// reachable, even though its tabIndex is 0 — the collapse is a UA `display:none`
-// on the disclosure content. It's structural (the `open` attribute + DOM
-// position), so it's detectable without layout and belongs in the filter below,
-// alongside `[hidden]` (also a UA `display:none` rule).
-function inClosedDetails(el: HTMLElement): boolean {
-  const details = el.closest("details:not([open])");
-  if (!details) return false;
-  const summary = details.querySelector("summary");
-  return !summary || !summary.contains(el);
-}
-
-// Tabbable elements inside the panel, in DOM order — the focus-trap boundary.
-// A broad candidate query filtered by a positive predicate, in place of a
-// `:not(...)` denylist that had to enumerate every non-tabbable case per clause.
-// The filter is the set of non-tabbable cases detectable *without layout*:
-// `tabIndex >= 0` rejects any negative tabindex, `:disabled` inherits through
-// `<fieldset disabled>`, `[hidden]` and closed-<details> collapse are tested on
-// the element and its ancestors. CSS-hidden focusables (`display:none` /
-// `visibility:hidden` set in a stylesheet) need layout to detect, so they're NOT
-// filtered (worst case: one Tab exits).
-//
-// CANDIDATES is an allowlist of mainstream focusables, not `*`: a bare `<a>` (no
-// href) reports tabIndex 0 but isn't focusable, so `*` would admit a phantom
-// boundary — `a[href]` is load-bearing. It is deliberately not exhaustive:
-// media/embeds (`<audio controls>`, `<iframe>`) and `[contenteditable]` are
-// omitted until a consumer needs one, to keep the set honest.
-const CANDIDATES = "a[href], button, input, select, textarea, summary, [tabindex]";
-function tabbables(panel: HTMLElement): HTMLElement[] {
-  return Array.from(panel.querySelectorAll<HTMLElement>(CANDIDATES)).filter(
-    (el) =>
-      el.tabIndex >= 0 &&
-      !el.matches(":disabled") &&
-      !el.closest("[hidden]") &&
-      !inClosedDetails(el) &&
-      (el as HTMLInputElement).type !== "hidden",
-  );
-}
 
 interface DrawerContextValue {
   labelId: string;
@@ -147,69 +106,7 @@ function DrawerRoot({
   // itself via `aria-labelledby` (preferred over a consumer-passed aria-label).
   const [hasTitle, setHasTitle] = useState(false);
 
-  // Escape → onEscape (defaults to onClose). A window keydown listener replaces
-  // the native <dialog> `onCancel`, which required showModal() — blocked in the
-  // app iframe sandbox (no `allow-modals`).
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        (onEscape ?? onClose)();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onEscape, onClose]);
-
-  // On open: focus into the panel, lock background scroll, and trap Tab/Shift+Tab
-  // within it (the focus-into + Tab containment showModal()'s top-layer gave).
-  // Restore focus + scroll on close.
-  //
-  // Scope: this contains Tab while focus is *inside* the panel — the modal case.
-  // It is NOT the full native `inert`: it doesn't recover focus that drops to
-  // <body> when a focused child unmounts (that fires focusout, not focusin), nor
-  // fence off portal'd overlays a consumer opens outside the panel. A
-  // document-scoped focus backstop would do neither reliably and would yank focus
-  // out of legitimate nested overlays — so full containment is a FocusScope-style
-  // owner stack, deferred to #43.
-  useEffect(() => {
-    if (!open) return;
-    const panel = panelRef.current;
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    panel?.focus();
-    const { body } = document;
-    const prevOverflow = body.style.overflow;
-    body.style.overflow = "hidden";
-
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Tab" || !panel) return;
-      const focusables = tabbables(panel);
-      if (focusables.length === 0) {
-        // Nothing tabbable inside — preventDefault keeps focus on the panel it's
-        // already on (the open effect focused it), so Tab can't leave.
-        e.preventDefault();
-        return;
-      }
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      const active = document.activeElement;
-      if (e.shiftKey && (active === first || active === panel)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    panel?.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      panel?.removeEventListener("keydown", onKeyDown);
-      body.style.overflow = prevOverflow;
-      previouslyFocused?.focus?.();
-    };
-  }, [open]);
+  useModal(open, panelRef, { onEscape: onEscape ?? onClose });
 
   const ctxValue = useMemo<DrawerContextValue>(() => ({ labelId, setHasTitle }), [labelId]);
 

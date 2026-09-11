@@ -70,6 +70,7 @@ const LIGHT: Record<string, string> = {
   "--color-ring-primary": "#2563eb",
   // ── Status / brand semantics ──
   "--nb-color-danger": "#dc2626",
+  "--nb-color-danger-foreground": "#ffffff",
   "--nb-color-success": "#059669",
   "--nb-color-warning": "#f59e0b",
   "--nb-color-processing": "#7c3aed",
@@ -101,6 +102,8 @@ const DARK: Record<string, string> = {
   "--color-ring-primary": "#818cf8",
   // ── Status / brand semantics (brightened for contrast on dark) ──
   "--nb-color-danger": "#f87171",
+  // Dark text on the brightened red: white on #f87171 is under 3:1.
+  "--nb-color-danger-foreground": "#18181b",
   "--nb-color-success": "#34d399",
   "--nb-color-warning": "#fbbf24",
   "--nb-color-processing": "#a78bfa",

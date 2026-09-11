@@ -56,7 +56,7 @@ component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
 ## UI Components (`@nimblebrain/synapse/ui`)
 
 A React component library for embedded Synapse apps: a token contract, layout
-primitives (`Stack`, `Inline`, …), components (`Card`, `Badge`, `Drawer`,
+primitives (`Stack`, `Inline`, …), components (`Card`, `Badge`, `Drawer`, `ConfirmDialog`,
 `Table`, `ListRow`, …), and responsive layout scaffolds (`AppFrame`,
 `SidebarLayout`, `ListDetailLayout`). The `gallery/` app is a living reference —
 every token and component in light/dark across several themes.
@@ -86,10 +86,12 @@ These are the durable decisions behind the library; they rarely change.
 - **Responsive to the pane, not the device.** Layouts observe their own width
   (`ResizeObserver` via `useBreakpoint`), because an app's iframe may be
   fullscreen, split, or a narrow rail regardless of screen size.
-- **Sandbox-safe overlays.** `Drawer` is a plain `<div>` overlay, not a native
-  `<dialog>`: the app iframe withholds `allow-modals`, so `<dialog>.showModal()`
-  throws there. The scrim, Tab focus trap, focus-in/restore, scroll-lock, and
-  Escape are hand-rolled.
+- **Sandbox-safe overlays.** `Drawer` and `ConfirmDialog` are plain `<div>`
+  overlays, not a native `<dialog>`: the app iframe withholds `allow-modals`, so
+  `<dialog>.showModal()` throws there. The scrim, Tab focus trap,
+  focus-in/restore, scroll-lock, and Escape are hand-rolled once and shared, and
+  the innermost open overlay owns Escape and Tab, so a confirmation raised inside
+  a drawer closes without closing the drawer.
 
 ### Host fonts
 

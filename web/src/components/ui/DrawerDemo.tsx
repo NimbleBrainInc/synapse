@@ -12,8 +12,8 @@ export default function DrawerDemo() {
         <Drawer.Body>
           <Stack gap={12}>
             <Text>
-              Drawer is built on the native <Text mono>&lt;dialog&gt;</Text> element, so
-              focus trapping, Escape to close, and scroll locking come for free.
+              Focus stays inside the panel while it is open, Escape closes it, and the
+              page behind it does not scroll.
             </Text>
             <Text tone="muted" size="sm">
               Press Escape or click the backdrop to dismiss.

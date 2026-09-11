@@ -340,20 +340,24 @@ describe("ui/initialize response parsing", () => {
 // ---------------------------------------------------------------------------
 
 describe("handshake ordering", () => {
-  it("sends size-changed → ui/initialize → initialized (in order)", async () => {
+  it("sends ui/initialize → initialized → size-changed (in order)", async () => {
     app = await connectAndHandshake();
 
     const methods = postMessageSpy.mock.calls
       .map((c: unknown[]) => (c[0] as Record<string, unknown>).method as string)
       .filter(Boolean);
 
-    const sizeIdx = methods.indexOf(SIZE_CHANGED_METHOD);
     const initIdx = methods.indexOf(INITIALIZE_METHOD);
     const initializedIdx = methods.indexOf(INITIALIZED_METHOD);
+    const sizeIdx = methods.indexOf(SIZE_CHANGED_METHOD);
 
-    expect(sizeIdx).toBeGreaterThanOrEqual(0);
-    expect(initIdx).toBeGreaterThan(sizeIdx);
+    // `ui/initialize` is the app's FIRST word. Nothing may precede it: a host
+    // is entitled to drop anything that arrives before the handshake opens,
+    // and a strict host does — leaving the frame hidden, which presents as a
+    // component that never rendered rather than as a protocol error.
+    expect(initIdx).toBe(0);
     expect(initializedIdx).toBeGreaterThan(initIdx);
+    expect(sizeIdx).toBeGreaterThan(initializedIdx);
   });
 
   it("registers on-handlers BEFORE sending initialized", async () => {

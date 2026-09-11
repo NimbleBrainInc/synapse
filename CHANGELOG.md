@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Breaking
+
+- **`callTool`'s `server` now travels in `_meta["ai.nimblebrain/server"]`, not as a sibling of `name` and `arguments`.** Cross-server dispatch is a host convention, not an MCP field, and `params` is parsed against `CallToolRequest` — so every spec client and host on the path strips a field the schema does not name, and the call arrives addressed to nobody. `_meta` is where the spec puts implementation-defined data and the only place one survives. Exported as `SERVER_META_KEY`.
+
+  **A host must read the new location before an app on this version can reach a second server.** Nothing in an app changes: `callTool(name, args, { server })` is the same call.
+
+### Fixed
+
+- **Neither client reports its size before the handshake.** `connect()` sent `ui/notifications/size-changed` ahead of `ui/initialize`, and the cross-host client sent one ahead of `ui/notifications/initialized`. A host may drop anything that arrives before the handshake opens, and a strict one does — leaving the frame hidden, which presents as a component that never rendered rather than as a protocol error. `ui/initialize` is now the first frame either client sends, and the spec's own client does the same.
+
+  The cross-host client still emits its *legacy* size frame immediately, because a pre-standard host never answers the handshake at all and needs a size now. Exactly one dialect is ever in flight: legacy before the handshake, spec after.
+
+- **The dev preview host answers `ui/initialize` the way the spec spells it**, with `hostInfo` and `hostCapabilities` rather than `serverInfo` and `capabilities`. A spec client validates the result and refuses a reply that is merely close, so an app built on the official ext-apps `App` could not connect to preview at all.
+
+  Two more defects in the same handshake came out with it. The preview gated request handling on `msg.id` being *truthy*, and the MCP SDK numbers request ids from zero — so it silently ignored the first request every spec client sends. And it published three CSS variables the spec's style-variable enum does not name; that enum is a strict record, so one extra key made a spec client reject the whole result rather than ignore the key. The kit's own defaults back those three, so the colours still render.
+
+### Added
+
+- **A conformance suite, run in CI** (`npm run conformance`). The spec's own `AppBridge` as the host in real Chromium, driving `connect()` and the vendored cross-host IIFE; and the spec's own `App` as the client, driving the dev preview host. Every bridge here is hand-written, and a hand-written parser agrees with its author's mistakes — so the spec's implementation is the only thing that can answer whether ours is correct. See `conformance/README.md`.
+
 ## [0.18.0]
 
 ### Added

@@ -7,3 +7,6 @@ coverage/
 .env
 .env.*
 .worktrees/
+
+# Conformance suite build output (bundled pages + the copied vendored client)
+conformance/.out/

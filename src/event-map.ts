@@ -19,6 +19,19 @@ export const REQUEST_FILE_METHOD = "synapse/request-file";
 export const DOWNLOAD_FILE_METHOD = "synapse/download-file";
 
 /**
+ * `_meta` key naming the server a `tools/call` is meant for, on a host that can
+ * dispatch to more than one.
+ *
+ * `_meta` is where the spec puts implementation-defined fields, and it is the
+ * only place one survives: `params` is parsed against the spec's own schema, so
+ * a sibling field next to `name` and `arguments` is stripped by every compliant
+ * client and host on the path. A reverse-DNS prefix keeps the key from colliding
+ * with the spec's own (`io.modelcontextprotocol/…`) or another vendor's, and
+ * matches how the host names its other extensions.
+ */
+export const SERVER_META_KEY = "ai.nimblebrain/server";
+
+/**
  * Maps short event names used in App.on() to full MCP method names.
  * Uses canonical constants from @modelcontextprotocol/ext-apps to stay
  * in sync with the spec — if the spec changes a method name, this breaks

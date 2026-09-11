@@ -27,6 +27,6 @@
     }
   },
   "files": {
-    "includes": ["src/**", "*.ts", "*.json"]
+    "includes": ["src/**", "conformance/**", "!conformance/.out", "*.ts", "*.json"]
   }
 }

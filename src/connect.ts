@@ -17,6 +17,7 @@ import {
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
 import type {
+  CallToolRequest,
   ReadResourceRequest,
   ReadResourceResult,
   TextContent,
@@ -24,7 +25,12 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { ACTION_METHOD, DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
+import {
+  ACTION_METHOD,
+  DATA_CHANGED_METHOD,
+  resolveEventMethod,
+  SERVER_META_KEY,
+} from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -116,11 +122,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   // --- Step 1: Set up message listener (handled by SynapseTransport constructor) ---
 
-  // --- Step 2: Send initial size ---
-  const resizer = createResizer((method, params) => transport.send(method, params), autoResize);
-  resizer.measureAndSend();
-
-  // --- Steps 3-4: Send ui/initialize and wait for response ---
+  // --- Steps 2-3: Send ui/initialize and wait for response ---
   //
   // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps spec
   // package, which does not yet model the MCP 2025-11-25 tasks utility. We
@@ -145,7 +147,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
     initParams as unknown as Record<string, unknown>,
   )) as McpUiInitializeResult | null;
 
-  // --- Step 5: Adopt the handshake response ---
+  // --- Step 4: Adopt the handshake response ---
   if (result) {
     const detected = detectHost(result);
     isNimbleBrainHost = detected.isNimbleBrain;
@@ -344,13 +346,24 @@ export async function connect(options: ConnectOptions): Promise<App> {
     }
   }
 
-  // --- Step 6: Pre-register handlers from options.on, then send initialized ---
+  // --- Step 5: Pre-register handlers from options.on, then send initialized ---
   if (options.on) {
     for (const [event, handler] of Object.entries(options.on)) {
       if (typeof handler === "function") subscribe(event, handler);
     }
   }
   transport.send(INITIALIZED_METHOD, {});
+
+  // --- Step 6: Start reporting size ---
+  //
+  // The handshake comes first. `ui/initialize` is the app's first word, and a
+  // host is entitled to drop anything that arrives before it has one — a strict
+  // host does exactly that and leaves the frame hidden, which reads as a
+  // component that simply never rendered. So the resizer is constructed here,
+  // not earlier: its `ResizeObserver` starts observing on construction, so
+  // building it any sooner is itself a way to send `size-changed` early.
+  const resizer = createResizer((method, params) => transport.send(method, params), autoResize);
+  resizer.measureAndSend();
 
   // Shared router for `notifications/tasks/status`. Created eagerly so the
   // transport-level listener registers exactly once — every `TaskHandle`
@@ -420,16 +433,23 @@ export async function connect(options: ConnectOptions): Promise<App> {
       args?: Record<string, unknown>,
       callOptions?: CallToolOptions,
     ): Promise<ToolCallResult<TOutput>> {
-      // `server` is a NimbleBrain bridge convention for cross-server dispatch,
-      // not an MCP spec field. An internal app defaults to its own name, which
-      // is what makes a plain `callTool` work for one.
+      // Cross-server dispatch is a NimbleBrain bridge convention, not an MCP
+      // spec field, so it rides in `_meta` — the one place a params extension
+      // survives. A sibling of `name` and `arguments` does not: `params` is
+      // parsed against `CallToolRequest`, and a spec client or host strips
+      // anything the schema does not name, so the call would silently arrive
+      // addressed to nobody. An internal app defaults to its own name, which is
+      // what makes a plain `callTool` work for one.
       const server = callOptions?.server ?? (internal ? name : undefined);
-      const params = {
+      const params: CallToolRequest["params"] = {
         name: toolName,
         arguments: args ?? {},
-        ...(server !== undefined && { server }),
+        ...(server !== undefined && { _meta: { [SERVER_META_KEY]: server } }),
       };
-      const raw = await transport.request(TOOLS_CALL_METHOD, params);
+      const raw = await transport.request(
+        TOOLS_CALL_METHOD,
+        params as unknown as Record<string, unknown>,
+      );
       return parseToolResult(raw) as ToolCallResult<TOutput>;
     },
 

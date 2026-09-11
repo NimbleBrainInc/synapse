@@ -65,13 +65,19 @@ function tabbables(panel: HTMLElement): HTMLElement[] {
   );
 }
 
-// The open overlays, in the order they opened. Module-level because the question it
-// answers — "am I the one on top?" — spans every overlay on the page, not one
-// component tree.
+// The open overlays, in the order they opened. Module-level because the questions it
+// answers — "am I the one on top?", "am I the last one open?" — span every overlay on
+// the page, not one component tree.
 interface OpenOverlay {
   panel: HTMLElement | null;
+  /** Where focus goes when this overlay closes. */
+  restoreTo: HTMLElement | null;
 }
 const openOverlays: OpenOverlay[] = [];
+// The body's overflow from before the first overlay opened. Page-level state is
+// owned by the stack, not by each overlay: the page is locked while any overlay is
+// open, whichever order they opened and closed in.
+let lockedOverflow = "";
 
 // Innermost means: no open overlay sits inside this one's panel, and none that is
 // not its ancestor opened after it. DOM nesting decides first because open order
@@ -113,26 +119,37 @@ export function useModal(
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
-    const entry: OpenOverlay = { panel };
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const entry: OpenOverlay = { panel, restoreTo: previouslyFocused };
+    // An overlay nested in this one that is already open opened in the same commit —
+    // React runs the child's effect first — so it recorded this overlay's opener as
+    // its own, and this one would record the nested overlay's control. Swap: this
+    // overlay returns focus to the opener, the nested one returns it to this panel.
+    const nested = openOverlays.find((o) => panel && o.panel && panel.contains(o.panel));
+    if (nested) {
+      entry.restoreTo = nested.restoreTo;
+      nested.restoreTo = panel;
+    }
+    const { body } = document;
+    if (openOverlays.length === 0) lockedOverflow = body.style.overflow;
     openOverlays.push(entry);
     const innermost = () => isInnermost(entry);
 
-    const previouslyFocused = document.activeElement as HTMLElement | null;
-    // Focus already inside the panel is left where it is. It got there by opening
-    // an overlay nested in this one in the same commit — React runs the child's
-    // effect first — and pulling it back to this panel would take it off the
-    // nested overlay's own initial focus.
+    // Focus already inside the panel is left where it is: it is the nested overlay's
+    // initial focus, from the same commit.
     if (!(panel && previouslyFocused && panel.contains(previouslyFocused))) {
       (initialFocusRef.current?.() ?? panel)?.focus();
     }
-    const { body } = document;
-    const prevOverflow = body.style.overflow;
     body.style.overflow = "hidden";
 
     // Escape on `window` rather than the panel, so it works wherever focus sits —
-    // including on <body> after a focused control inside the panel unmounted.
+    // including on <body> after a focused control inside the panel unmounted. An
+    // Escape something inside already handled (`defaultPrevented`) is not this
+    // overlay's: in a browser, the nested overlay's listener can close it and let
+    // React commit before this listener runs, leaving this one innermost for the
+    // same keypress.
     const onWindowKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || !innermost()) return;
+      if (e.key !== "Escape" || e.defaultPrevented || !innermost()) return;
       e.preventDefault();
       escapeRef.current();
     };
@@ -165,8 +182,8 @@ export function useModal(
       panel?.removeEventListener("keydown", onPanelKeyDown);
       const at = openOverlays.indexOf(entry);
       if (at !== -1) openOverlays.splice(at, 1);
-      body.style.overflow = prevOverflow;
-      previouslyFocused?.focus?.();
+      if (openOverlays.length === 0) body.style.overflow = lockedOverflow;
+      entry.restoreTo?.focus?.();
     };
   }, [open, panelRef]);
 }

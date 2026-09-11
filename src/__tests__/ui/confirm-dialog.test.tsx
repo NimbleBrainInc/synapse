@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useState } from "react";
+import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Button } from "../../ui/components/Button.js";
 import { ConfirmDialog } from "../../ui/components/ConfirmDialog.js";
@@ -308,6 +309,81 @@ describe("ConfirmDialog", () => {
       fireEvent.click(screen.getByRole("alertdialog").parentElement as HTMLElement);
       expect(screen.queryByRole("alertdialog")).toBeNull();
       expect(onClose).not.toHaveBeenCalled();
+    });
+
+    // A browser runs a microtask checkpoint between the listeners of a trusted
+    // keydown, so React commits the confirmation's close — and runs its cleanup —
+    // before the drawer's window listener sees the same Escape. `flushSync` in the
+    // handler reproduces that commit here; dispatching inside `act` would not.
+    it("takes one Escape for itself when the browser commits between listeners", () => {
+      const onClose = vi.fn();
+      function Committing() {
+        const [confirming, setConfirming] = useState(true);
+        return (
+          <Drawer open onClose={onClose}>
+            <Drawer.Body>
+              <ConfirmDialog
+                open={confirming}
+                onOpenChange={(o) => flushSync(() => setConfirming(o))}
+                title="Forget?"
+                onConfirm={() => {}}
+              />
+            </Drawer.Body>
+          </Drawer>
+        );
+      }
+      render(<Committing />);
+      pressEscape();
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(onClose).not.toHaveBeenCalled();
+    });
+
+    it("holds the page's scroll lock until the last overlay closes, then restores it", () => {
+      document.body.style.overflow = "";
+      render(<Nested onClose={() => {}} />);
+      act(() => {
+        pressEscape();
+      });
+      expect(screen.getByRole("dialog")).toBeDefined();
+      expect(document.body.style.overflow).toBe("hidden");
+      cleanup();
+      expect(document.body.style.overflow).toBe("");
+    });
+
+    it("returns focus to the drawer, and then to the drawer's opener", () => {
+      function Opener() {
+        const [open, setOpen] = useState(false);
+        const [confirming, setConfirming] = useState(true);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open
+            </button>
+            <Drawer open={open} onClose={() => setOpen(false)}>
+              <Drawer.Body>
+                <ConfirmDialog
+                  open={open && confirming}
+                  onOpenChange={setConfirming}
+                  title="Forget?"
+                  onConfirm={() => {}}
+                />
+              </Drawer.Body>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Opener />);
+      const opener = screen.getByText("Open");
+      opener.focus();
+      fireEvent.click(opener);
+      act(() => {
+        pressEscape();
+      });
+      expect(document.activeElement).toBe(screen.getByRole("dialog"));
+      act(() => {
+        pressEscape();
+      });
+      expect(document.activeElement).toBe(opener);
     });
   });
 

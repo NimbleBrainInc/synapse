@@ -139,7 +139,10 @@ export function ConfirmDialog({
       setPending(false);
       onOpenChange(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      // An empty message (`new Error(res.statusText)` over HTTP/2, where statusText
+      // is always "") must still show that it failed.
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message || "That didn't go through. Try again.");
       setPending(false);
     }
   };

@@ -13,8 +13,7 @@ This page walks through the specific problems Synapse solves, with before/after 
 **Without Synapse:**
 
 ```javascript
-// Poll every 2 seconds? Listen for a custom event?
-// There's no standard mechanism in ext-apps for this.
+// Poll every 2 seconds? Wire up notifications by hand?
 setInterval(async () => {
   const data = await callTool("get_workspace");
   render(data);
@@ -25,11 +24,11 @@ setInterval(async () => {
 
 ```tsx
 useDataSync(() => {
-  refreshPreview(); // Fires when the agent calls any tool on this server
+  refreshPreview(); // Fires when the server announces a change, or the agent calls one of its tools
 });
 ```
 
-One hook. No polling. The host notifies the iframe when the agent mutates state.
+One hook. No polling. The server announces its own changes with the spec's `notifications/resources/list_changed`, which the host forwards to the iframe; a NimbleBrain host also says when the agent calls a tool. Both arrive in the same callback.
 
 ---
 

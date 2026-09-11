@@ -33,11 +33,24 @@ on(event: string, handler: (data: unknown) => void): () => void;
 | `"tool-input-partial"` | `ui/notifications/tool-input-partial` | `Record<string, unknown>` |
 | `"tool-cancelled"` | `ui/notifications/tool-cancelled` | none |
 | `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` |
+| `"data-changed"` | `notifications/resources/list_changed` and `synapse/data-changed` | `DataChangedEvent` |
 | `"teardown"` | `ui/resource-teardown` | none |
 | Any custom string | Passed through as-is | `unknown` |
 
 NimbleBrain extensions work as passthrough event names (for example
 `app.on("synapse/data-changed", ...)`) and degrade to no-ops in other hosts.
+
+## `DataChangedEvent`
+
+One event over two notifications. See [Keep the UI in sync](/docs/guides/keep-ui-in-sync)
+for when each arrives.
+
+| `source` | Wire method | `server` | `tool` |
+| --- | --- | --- | --- |
+| `"server"` | `notifications/resources/list_changed`, sent by your server and forwarded by the host | absent | absent |
+| `"agent"` | `synapse/data-changed`, sent by a NimbleBrain host after the agent calls a tool | the server | the tool |
+
+`server` and `tool` are typed `string | undefined` until you narrow on `source`.
 
 ## `ToolResultData`
 

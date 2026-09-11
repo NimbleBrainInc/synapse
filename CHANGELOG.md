@@ -6,6 +6,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [0.18.0]
 
+### Breaking
+
+- **`useDataSync` and `on("data-changed")` also fire when the app's server announces a change, and `DataChangedEvent` says which source it was.** A server sends `notifications/resources/list_changed` when its data changes, and an MCP Apps host forwards it to the server's views (host capability `serverResources.listChanged`). That now arrives in the same callback as NimbleBrain's `synapse/data-changed`, as `{ source: "server" }`. So an app's sidebar list refreshes when its server says the list changed, including changes that never went through a tool call (a webhook, a schedule, another view), and on any host that forwards the notification.
+
+  `DataChangedEvent` is now a union:
+
+  ```ts
+  type DataChangedEvent =
+    | { source: "agent"; server: string; tool: string }
+    | { source: "server"; server?: undefined; tool?: undefined };
+  ```
+
+  A server event names no `server`, because a host forwards a server's notification only to that server's views, and the app cannot know the name its host gives that server. It names no `tool`, because the change need not come from a tool call.
+
+  **Migration.** A plain comparison such as `event.tool === "save"` still compiles and simply does not match a server event. Code that uses `event.tool` or `event.server` as a `string` (passing it on, calling string methods on it) must narrow first — `if (event.source === "agent") …` — or it fails to compile, and at runtime would read `undefined` on a server event. Code that branched on `source === "agent"` should decide what a `"server"` event means for it; usually it means re-read. It is a union type alias rather than an interface, so an interface can no longer `extend` it.
+
+- **The Vite dev preview forwards the server's `notifications/resources/list_changed` into the app** over a new `GET /__events` stream, as an MCP Apps host does, so `useDataSync` can be exercised locally. Other server notifications are not forwarded.
+
 ### Added
 
 - **`ConfirmDialog` — ask before doing something, and say what "it" is.** Props: `open`, `onOpenChange`, `title`, `description?`, `children?`, `confirmLabel?` (default "Confirm"), `cancelLabel?` (default "Cancel"), `pendingLabel?`, `destructive?`, `onConfirm`. The shape matches the confirmation dialog in the NimbleBrain host, so app and host confirmations read alike.

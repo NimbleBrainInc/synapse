@@ -39,7 +39,7 @@ observe an app that is not connected yet.
 | --- | --- | --- |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state. `call(args, { server })` routes to a sibling server. |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full MCP task lifecycle for a long-running tool. See [long-running tools](/docs/guides/long-running-tools/). |
-| `useDataSync(cb)` | none | Run `cb` when the agent changes data your app displays |
+| `useDataSync(cb)` | none | Run `cb` when data your app displays may have changed: your server announced it, or the agent called one of its tools |
 
 ## Agent-facing state
 

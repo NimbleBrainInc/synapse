@@ -291,7 +291,7 @@ unsub();
 | `"tool-cancelled"` | `ui/notifications/tool-cancelled` | — |
 | `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` — fires only when the theme actually moves |
 | `"host-context-changed"` | `ui/notifications/host-context-changed` | `McpUiHostContext` — every change, unfiltered |
-| `"data-changed"` | `synapse/data-changed` | `DataChangedEvent` |
+| `"data-changed"` | `notifications/resources/list_changed` (`source: "server"`) and `synapse/data-changed` (`source: "agent"`) | `DataChangedEvent` |
 | `"action"` | `synapse/action` | `AgentAction` |
 | `"teardown"` | `ui/resource-teardown` | — |
 | Any custom string | Passed through as-is | `unknown` |
@@ -390,7 +390,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full task lifecycle for a long-running tool. See below. |
-| `useDataSync(cb)` | — | Run `cb` when the agent changes data your app displays |
+| `useDataSync(cb)` | — | Run `cb` when data your app displays may have changed: your server announced it, or the agent called one of its tools |
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
 | `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
 | `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |

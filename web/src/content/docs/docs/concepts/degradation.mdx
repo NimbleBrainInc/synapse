@@ -37,7 +37,7 @@ them, so they no-op.
 | Feature | `synapse/*` method | Off NimbleBrain |
 | --- | --- | --- |
 | Agent actions (`onAction`, `action()`) | `synapse/action` | No-op |
-| Agent data-change events (`onDataChanged`, `useDataSync`) | `synapse/data-changed` | No-op |
+| Agent data-change events (`useDataSync` with `source: "agent"`) | `synapse/data-changed` | No-op. Server-announced changes (`source: "server"`) use the spec's `notifications/resources/list_changed` and still arrive. |
 | State persistence (`persist: true`) | `synapse/persist-state`, `synapse/state-loaded` | In-memory only, not restored across reloads |
 | File download (`downloadFile`) | `synapse/download-file` | No-op |
 | File picker (`pickFile`, `pickFiles`) | `synapse/request-file` | No-op |
@@ -45,11 +45,12 @@ them, so they no-op.
 
 Two of these are worth calling out because they shape how you write the app:
 
-**Data-change events are NimbleBrain-only.** The push that says "the agent mutated
-data on this server" travels over `synapse/data-changed`. Off NimbleBrain, that
-channel is silent, so `useDataSync` never fires. The ext-apps `tool-result`
-notification still arrives, though, so refreshing on the tool result is the portable
-way to keep the UI current across hosts.
+**The agent's data-change event is NimbleBrain-only; the server's is not.** The push
+that says "the agent called a tool on this server" travels over `synapse/data-changed`,
+and off NimbleBrain that channel is silent. A server that announces its own changes
+with `notifications/resources/list_changed` does not depend on it: any MCP Apps host
+that forwards the notification to views fires `useDataSync` with `source: "server"`.
+So the portable way to keep a view current is to have the server announce the change.
 
 **Persistence downgrades rather than errors.** A store marked `persist: true` relies
 on the host to hold state across a reload. Where that is unavailable the store still

@@ -1,7 +1,9 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import type { ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
+import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
 
 export interface SynapseVitePluginOptions {
   /** App name. If omitted, reads from ../manifest.json */
@@ -38,6 +40,8 @@ interface Manifest {
  * - Spawns the MCP server as a child process (stdio mode)
  * - Serves a preview host page at /__preview that iframes your app
  * - Proxies tool calls from the iframe through POST /__mcp to the server
+ * - Forwards the server's `notifications/resources/list_changed` to the iframe
+ *   (over GET /__events), as an MCP Apps host does, so `useDataSync` fires
  * - Handles the ext-apps handshake so Synapse hooks work
  * - HMR works inside the iframe — edit .tsx, see changes instantly
  *
@@ -56,6 +60,19 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
     string,
     { resolve: (v: unknown) => void; reject: (e: Error) => void }
   >();
+  // Preview pages listening on GET /__events for the server's notifications.
+  const eventClients = new Set<ServerResponse>();
+
+  /**
+   * Hand a server notification to every open preview page, which posts it into
+   * the app iframe. Only the one an MCP Apps host forwards to a view is passed
+   * on; anything else the server says stays between it and the dev server.
+   */
+  function forwardNotification(msg: { method?: unknown; params?: unknown }): void {
+    if (msg.method !== RESOURCE_LIST_CHANGED_METHOD) return;
+    const frame = `data: ${JSON.stringify({ method: msg.method, params: msg.params ?? {} })}\n\n`;
+    for (const client of eventClients) client.write(frame);
+  }
   let serverBuffer = "";
 
   function loadManifest(root: string): Manifest | null {
@@ -111,6 +128,8 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
             const p = pendingRequests.get(msg.id);
             pendingRequests.delete(msg.id);
             p?.resolve(msg);
+          } else if (msg.id === undefined && typeof msg.method === "string") {
+            forwardNotification(msg);
           }
         } catch {
           // Not JSON — log it
@@ -207,6 +226,21 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
         if (req.url === "/__preview" || req.url === "/__preview/") {
           res.writeHead(200, { "Content-Type": "text/html" });
           res.end(previewHostHtml(appName));
+          return;
+        }
+
+        // GET /__events — the server's notifications, pushed to the preview page
+        if (req.method === "GET" && req.url === "/__events") {
+          res.writeHead(200, {
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          });
+          res.write(": open\n\n");
+          eventClients.add(res);
+          req.on("close", () => {
+            eventClients.delete(res);
+          });
           return;
         }
 
@@ -332,13 +366,12 @@ function previewHostHtml(appName: string): string {
           var response = await r.json();
           response.id = originalId;
           post(response);
-          // Note: we intentionally do NOT emit synapse/data-changed here.
-          // data-changed signals that an *external actor* (the agent) mutated
-          // server state, prompting the UI to re-fetch. Tool calls originating
-          // from the UI itself should not trigger this — doing so creates an
-          // infinite loop (UI calls tool → data-changed → useDataSync re-fetches
-          // → calls tool → data-changed → ...). In production, the host only
-          // emits data-changed for agent-initiated tool calls.
+          // No synapse/data-changed here. A NimbleBrain host sends that when it
+          // sees the AGENT call a tool, and there is no agent in the preview.
+          // Sending it for the app's own calls would loop: the call fires the
+          // event, useDataSync re-fetches, the re-fetch fires the event again.
+          // When the call changes data, the server says so itself with
+          // resources/list_changed, which reaches the app over /__events.
         } catch(err) {
           post({jsonrpc:"2.0",id:originalId,error:{code:-32000,message:err.message}});
         }
@@ -357,6 +390,13 @@ function previewHostHtml(appName: string): string {
       dark = !dark;
       document.body.style.background = dark ? "#0f172a" : "#f1f5f9";
       post({jsonrpc:"2.0",method:"ui/notifications/host-context-changed",params:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}});
+    };
+
+    // The server's own notifications, forwarded into the app as an MCP Apps
+    // host forwards them. The dev server passes on only the ones a host would.
+    new EventSource("/__events").onmessage = function(e) {
+      var n = JSON.parse(e.data);
+      post({jsonrpc:"2.0",method:n.method,params:n.params});
     };
 
     // Load the iframe AFTER the message listener is attached to avoid

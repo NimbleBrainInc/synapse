@@ -1,6 +1,6 @@
 ---
 title: "Keep the UI in sync with the agent"
-description: "The agent mutates state on the same MCP server your UI renders, and the UI goes stale. useDataSync fires whenever the agent calls a tool, so you refresh on a push instead of polling."
+description: "The agent, a webhook or another view changes state on the MCP server your UI renders, and the UI goes stale. useDataSync fires when the server announces a change, or when the agent calls a tool, so you refresh on a push instead of polling."
 ---
 
 The agent and your UI share one MCP server. A user asks the agent to "rename the
@@ -21,9 +21,8 @@ useEffect(() => {
 
 ## The recipe
 
-`useDataSync(callback)` subscribes to the host's data-change signal. The host
-fires it after the agent completes any tool call on this server, so you re-fetch
-exactly when state moved and stay idle otherwise. Wrap your tree in
+`useDataSync(callback)` fires when data your app displays may have changed, so you
+re-fetch exactly when state moved and stay idle otherwise. Wrap your tree in
 `<AppProvider>`.
 
 ```tsx
@@ -40,7 +39,7 @@ function Root() {
 function Workspace() {
   const { call, data } = useCallTool("get_workspace");
 
-  // Re-fetch whenever the agent mutates state on this server.
+  // Re-fetch whenever state on this server may have moved.
   useDataSync(() => {
     call();
   });
@@ -52,12 +51,46 @@ function Workspace() {
 
 ## How it works
 
-The host emits a data-changed notification when the agent finishes a tool call on
-this server, and `useDataSync` invokes your callback with a small event describing
-the change. The callback receives the `source`, the `server`, and the `tool` that
-ran, so you can refresh selectively (skip the re-fetch for tools that do not touch
-what you render) instead of reloading everything. It is a push, not a poll: the UI
-updates the moment the agent acts and does no work in between.
+Two signals feed the one callback, and the event's `source` says which it was.
+
+**`source: "server"` — the server announced it.** When your server's data changes, it
+sends the standard MCP `notifications/resources/list_changed`, and an MCP Apps host
+forwards it to the server's views. The server owns the data, so this is the signal to
+prefer. It covers every write, including ones that never pass through a tool call (a
+webhook, a schedule, another user), and it works on any host that forwards it. The
+event carries nothing else: it always comes from your own server, and it implies no
+tool call.
+
+A FastMCP server sends it from inside the tool that wrote:
+
+```python
+from mcp.types import ResourceListChangedNotification
+
+@mcp.tool()
+async def save_item(item: Item, ctx: Context) -> dict:
+    stored = store.save(item)
+    await ctx.send_notification(ResourceListChangedNotification())
+    return stored
+```
+
+**`source: "agent"` — a NimbleBrain host saw the agent call a tool.** The event carries
+the `server` and the `tool` that ran. It says a tool was called, not that anything
+changed, and reads count too, so filter on `tool` to skip the calls that cannot touch
+what you render.
+
+```tsx
+const WRITES = new Set(["save_item", "delete_item"]);
+
+useDataSync((event) => {
+  if (event.source === "agent" && !WRITES.has(event.tool)) return;
+  call();
+});
+```
+
+Either way it is a push, not a poll: the UI updates the moment the data moves and does
+no work in between. The call your own app makes does not echo back as an agent event,
+so re-fetching from the callback cannot loop. A server announcement does reach the
+view that made the change, which is what you want: that view re-reads too.
 
 ## Related
 

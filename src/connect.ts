@@ -24,7 +24,12 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { ACTION_METHOD, DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
+import {
+  ACTION_METHOD,
+  DATA_CHANGED_METHOD,
+  RESOURCE_LIST_CHANGED_METHOD,
+  resolveEventMethod,
+} from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -196,8 +201,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   /**
    * Deliver a notification's raw params to anyone who subscribed by wire
-   * method name rather than by short event. The three methods below are routed
-   * by hand because each also has a typed view, and `ensureTransportSub` skips
+   * method name rather than by short event. The methods below are routed by
+   * hand because each also has a typed view, and `ensureTransportSub` skips
    * them for that reason — so the raw fan-out has to happen here or a
    * `on("synapse/data-changed", …)` would silently never fire.
    */
@@ -263,6 +268,17 @@ export async function connect(options: ConnectOptions): Promise<App> {
     for (const cb of dataCallbacks) cb(event);
   });
 
+  // The server's own announcement, forwarded by the host. It feeds the same
+  // `data-changed` view as the host's agent signal, so an app answers "my data
+  // changed" in one place whoever noticed. The params carry nothing the view
+  // needs (the spec defines only `_meta`), so none are read.
+  transport.onMessage(RESOURCE_LIST_CHANGED_METHOD, (params) => {
+    if (destroyed) return;
+    fanOutRaw(RESOURCE_LIST_CHANGED_METHOD, params);
+    const event: DataChangedEvent = { source: "server" };
+    for (const cb of dataCallbacks) cb(event);
+  });
+
   transport.onMessage(ACTION_METHOD, (params) => {
     if (destroyed) return;
     fanOutRaw(ACTION_METHOD, params);
@@ -282,6 +298,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
   const subscribedMethods = new Set<string>([
     HOST_CONTEXT_CHANGED_METHOD,
     DATA_CHANGED_METHOD,
+    RESOURCE_LIST_CHANGED_METHOD,
     ACTION_METHOD,
   ]);
 

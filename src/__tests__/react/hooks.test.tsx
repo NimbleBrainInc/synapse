@@ -102,6 +102,18 @@ describe("useDataSync", () => {
     });
   });
 
+  it("runs the callback when the app's server announces its resource list changed", async () => {
+    const cb = vi.fn();
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    act(() => {
+      dispatchNotification("notifications/resources/list_changed", {});
+    });
+
+    expect(cb).toHaveBeenCalledWith({ source: "server" });
+  });
+
   it("uses the latest callback without re-subscribing", async () => {
     const first = vi.fn();
     const second = vi.fn();

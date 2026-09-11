@@ -144,6 +144,13 @@ describe("preview host HTML", () => {
     expect(html).not.toContain('"synapse/data-changed"');
     expect(html).not.toContain("'synapse/data-changed'");
   });
+
+  it("posts the server's notifications from /__events into the app", () => {
+    const html = getPreviewHtml("hello");
+    expect(html).toContain('new EventSource("/__events")');
+    // Forwarded under the method the server sent, not one the page spells.
+    expect(html).toContain("method:n.method,params:n.params");
+  });
 });
 
 describe("manifest reading", () => {

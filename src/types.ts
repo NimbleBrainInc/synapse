@@ -170,11 +170,29 @@ export interface Theme {
   fontFaces?: FontFaceDescriptor[];
 }
 
-export interface DataChangedEvent {
-  source: "agent";
-  server: string;
-  tool: string;
-}
+/**
+ * Something this app displays may have changed. Two sources, and they mean
+ * different things:
+ *
+ * - `"server"` — the app's own MCP server announced that its resource list
+ *   changed (`notifications/resources/list_changed`, which an MCP Apps host
+ *   forwards to the server's views). The server that owns the data said so, so
+ *   there is nothing to filter. It names no `server`, because a host forwards a
+ *   server's notification only to that server's views, and the app cannot know
+ *   the name its host gives that server. It names no `tool`, because a change
+ *   need not come from a tool call at all: a webhook or a schedule can move the
+ *   data just as well.
+ * - `"agent"` — a NimbleBrain host saw the agent finish calling `tool` on
+ *   `server` (`synapse/data-changed`). That is a tool call, not a confirmed
+ *   change, and a read counts as much as a write, so filter on `tool` to skip
+ *   the ones that cannot have touched what you render.
+ *
+ * `server` and `tool` read as `string | undefined` until `source` narrows
+ * them, which keeps a plain `event.tool === "save"` comparison compiling.
+ */
+export type DataChangedEvent =
+  | { source: "agent"; server: string; tool: string }
+  | { source: "server"; server?: undefined; tool?: undefined };
 
 // ---------- Agent Actions ----------
 
@@ -499,6 +517,10 @@ export interface App {
    *  notification exactly as sent, subscribe to the wire method instead:
    *  `on("ui/notifications/host-context-changed", …)`. */
   on(event: "host-context-changed", handler: (ctx: McpUiHostContext) => void): () => void;
+  /** One view over two notifications: the server's own
+   *  `notifications/resources/list_changed` and the host's
+   *  `synapse/data-changed`. Either wire method can still be subscribed to by
+   *  name for its raw params. */
   on(event: "data-changed", handler: (event: DataChangedEvent) => void): () => void;
   on(event: "action", handler: (action: AgentAction) => void): () => void;
   on(event: "teardown", handler: () => void): () => void;

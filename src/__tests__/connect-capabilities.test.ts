@@ -277,6 +277,59 @@ describe("connect() capabilities", () => {
 
       expect(raw).toHaveBeenCalledWith({ server: "s", tool: "t" });
     });
+
+    it("fires as source 'server' when the host forwards the server's resources/list_changed", async () => {
+      app = await connectAndHandshake();
+      const seen: unknown[] = [];
+      app.on("data-changed", (e) => seen.push(e));
+
+      dispatchNotification("notifications/resources/list_changed", {});
+
+      // No server and no tool: the notification is from this app's own server,
+      // and a server-announced change implies no tool call.
+      expect(seen).toEqual([{ source: "server" }]);
+    });
+
+    it("delivers a list_changed with no params at all", async () => {
+      app = await connectAndHandshake();
+      const cb = vi.fn();
+      app.on("data-changed", cb);
+
+      dispatchNotification("notifications/resources/list_changed");
+
+      expect(cb).toHaveBeenCalledWith({ source: "server" });
+    });
+
+    it("both sources reach the same subscriber, each labelled", async () => {
+      app = await connectAndHandshake();
+      const seen: unknown[] = [];
+      app.on("data-changed", (e) => seen.push(e));
+
+      dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
+      dispatchNotification("notifications/resources/list_changed", {});
+
+      expect(seen).toEqual([{ source: "agent", server: "s", tool: "t" }, { source: "server" }]);
+    });
+
+    it("a subscriber on resources/list_changed by name gets the params verbatim", async () => {
+      app = await connectAndHandshake();
+      const raw = vi.fn();
+      app.on("notifications/resources/list_changed", raw);
+
+      dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
+
+      expect(raw).toHaveBeenCalledTimes(1);
+      expect(raw).toHaveBeenCalledWith({ _meta: { k: "v" } });
+    });
+
+    it("unsubscribe stops server-sourced delivery too", async () => {
+      app = await connectAndHandshake();
+      const cb = vi.fn();
+      const off = app.on("data-changed", cb);
+      off();
+      dispatchNotification("notifications/resources/list_changed", {});
+      expect(cb).not.toHaveBeenCalled();
+    });
   });
 
   describe("action (outbound)", () => {

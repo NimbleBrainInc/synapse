@@ -155,7 +155,12 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
   return { call, isPending, error, data };
 }
 
-/** Run `callback` whenever the agent changes data this app displays. */
+/**
+ * Run `callback` whenever data this app displays may have changed: when the
+ * app's server announces it (`source: "server"`), or when a NimbleBrain host
+ * sees the agent call one of the server's tools (`source: "agent"`). See
+ * {@link DataChangedEvent} for what each one promises.
+ */
 export function useDataSync(callback: (event: DataChangedEvent) => void): void {
   const app = useAppContext();
   const callbackRef = useRef(callback);

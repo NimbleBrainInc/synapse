@@ -13,8 +13,9 @@ type AnyFn = (...args: never[]) => unknown;
  * We import the plugin and call its hooks with mocked Vite objects.
  */
 
-// We need to test the previewHostHtml output and the configureServer middleware.
-// Since previewHostHtml is not exported, we test it indirectly through the plugin.
+// The page builder is exported as `vitePreviewHostHtml` for the conformance
+// suite, but these rows drive it the way the dev server does — through
+// `configureServer`, so the middleware's routing is under test as well.
 
 import { synapseVite } from "../../vite/plugin";
 

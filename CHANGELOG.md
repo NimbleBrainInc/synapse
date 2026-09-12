@@ -8,9 +8,9 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
-- **`callTool`'s `server` now travels in `_meta["ai.nimblebrain/server"]`, not as a sibling of `name` and `arguments`.** Cross-server dispatch is a host convention, not an MCP field, and `params` is parsed against `CallToolRequest` — so every spec client and host on the path strips a field the schema does not name, and the call arrives addressed to nobody. `_meta` is where the spec puts implementation-defined data and the only place one survives. Exported as `SERVER_META_KEY`.
+- **A `tools/call`'s `server` now travels in `_meta["ai.nimblebrain/server"]`, not as a sibling of `name` and `arguments`.** Cross-server dispatch is a host convention, not an MCP field, and `params` is parsed against `CallToolRequest` — so every spec client and host on the path strips a field the schema does not name, and the call arrives addressed to nobody. `_meta` is where the spec puts implementation-defined data and the only place one survives. Exported as `SERVER_META_KEY`.
 
-  **A host must read the new location before an app on this version can reach a second server.** Nothing in an app changes: `callTool(name, args, { server })` is the same call.
+  **A host must read the new location before an app on this version can reach a second server.** This is one wire and one rule: `callTool` and `callToolAsTask` both write the key, and a task-augmented call is no less exposed to a schema-shaped strip than a plain one — so a host that moves its reader for only the plain path still mis-routes every cross-server task. Nothing in an app changes: `callTool(name, args, { server })` is the same call.
 
 ### Fixed
 
@@ -18,13 +18,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   The cross-host client still emits its *legacy* size frame immediately, because a pre-standard host never answers the handshake at all and needs a size now. Exactly one dialect is ever in flight: legacy before the handshake, spec after.
 
-- **The dev preview host answers `ui/initialize` the way the spec spells it**, with `hostInfo` and `hostCapabilities` rather than `serverInfo` and `capabilities`. A spec client validates the result and refuses a reply that is merely close, so an app built on the official ext-apps `App` could not connect to preview at all.
+- **Both preview hosts answer `ui/initialize` the way the spec spells it**, with `hostInfo` and `hostCapabilities` rather than `serverInfo` and `capabilities`. A spec client validates the result and refuses a reply that is merely close, so an app built on the official ext-apps `App` could not connect to preview at all. This package ships two hand-written hosts — the standalone `synapse preview` harness and the dev server's `/__preview` page — and this fix lands in both.
 
-  Two more defects in the same handshake came out with it. The preview gated request handling on `msg.id` being *truthy*, and the MCP SDK numbers request ids from zero — so it silently ignored the first request every spec client sends. And it published three CSS variables the spec's style-variable enum does not name; that enum is a strict record, so one extra key made a spec client reject the whole result rather than ignore the key. The kit's own defaults back those three, so the colours still render.
+  Two more defects in the same handshake came out with it. Each host gated request handling on `msg.id` being *truthy*, and the MCP SDK numbers request ids from zero — so both silently ignored the first request every spec client sends, which is its `ui/initialize`. And both published three CSS variables the spec's style-variable enum does not name; that enum is a strict record, so one extra key made a spec client reject the whole result rather than ignore the key. The kit's own defaults back those three, so the colours still render — from the cascade layer instead of the wire.
 
 ### Added
 
-- **A conformance suite, run in CI** (`npm run conformance`). The spec's own `AppBridge` as the host in real Chromium, driving `connect()` and the vendored cross-host IIFE; and the spec's own `App` as the client, driving the dev preview host. Every bridge here is hand-written, and a hand-written parser agrees with its author's mistakes — so the spec's implementation is the only thing that can answer whether ours is correct. See `conformance/README.md`.
+- **A conformance suite, run in CI** (`npm run conformance`). The spec's own `AppBridge` as the host in real Chromium, driving `connect()` and the vendored cross-host IIFE; and the spec's own `App` as the client, driving each of the two preview hosts. Every bridge here is hand-written, and a hand-written parser agrees with its author's mistakes — so the spec's implementation is the only thing that can answer whether ours is correct. See `conformance/README.md`.
 
 ## [0.18.0]
 

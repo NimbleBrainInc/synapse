@@ -206,7 +206,7 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
         // /__preview — bridge host page
         if (req.url === "/__preview" || req.url === "/__preview/") {
           res.writeHead(200, { "Content-Type": "text/html" });
-          res.end(previewHostHtml(appName));
+          res.end(vitePreviewHostHtml(appName));
           return;
         }
 
@@ -250,7 +250,15 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
   };
 }
 
-function previewHostHtml(appName: string): string {
+/**
+ * The bridge host page the dev server serves at \`/__preview\`.
+ *
+ * Named apart from \`previewHostHtml\` in \`src/preview/server.ts\`, which is the
+ * standalone \`synapse preview\` harness: this package has two hand-written
+ * hosts, and the conformance suite drives both, so one name for two pages would
+ * be a name that resolves to whichever was imported last.
+ */
+export function vitePreviewHostHtml(appName: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -282,27 +290,34 @@ function previewHostHtml(appName: string): string {
     var iframe = document.getElementById("app");
     var dark = true;
 
+    // Every key here is one the spec's style-variable enum names. That enum is
+    // a strict record, so a single extra key makes a spec client reject the
+    // whole \`ui/initialize\` result and refuse to connect — not just ignore the
+    // key. The kit's own neutral defaults back anything a host leaves out.
     function getTokens(d) {
       return d ? {
         "--color-background-primary":"#0f172a","--color-background-secondary":"#1e293b",
         "--color-background-tertiary":"#2a374a","--color-text-primary":"#e2e8f0",
         "--color-text-secondary":"#94a3b8","--color-text-tertiary":"#64748b",
-        "--color-text-accent":"#6366f1","--nb-color-accent-foreground":"#fff",
         "--color-border-primary":"#334155","--color-border-secondary":"#475569",
-        "--color-ring-primary":"#6366f1","--nb-color-danger":"#ef4444",
+        "--color-ring-primary":"#6366f1",
         "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
       } : {
         "--color-background-primary":"#ffffff","--color-background-secondary":"#f8fafc",
         "--color-background-tertiary":"#f1f5f9","--color-text-primary":"#0f172a",
         "--color-text-secondary":"#64748b","--color-text-tertiary":"#94a3b8",
-        "--color-text-accent":"#6366f1","--nb-color-accent-foreground":"#fff",
         "--color-border-primary":"#e2e8f0","--color-border-secondary":"#cbd5e1",
-        "--color-ring-primary":"#6366f1","--nb-color-danger":"#ef4444",
+        "--color-ring-primary":"#6366f1",
         "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
       };
     }
 
     function post(msg) { iframe.contentWindow.postMessage(msg, "*"); }
+
+    // A request is a frame carrying an id — and \`0\` is a perfectly good id.
+    // The MCP SDK numbers from zero, so a truthiness test drops the first
+    // request every spec client ever sends, which is its \`ui/initialize\`.
+    function isRequest(msg) { return msg.id !== undefined && msg.id !== null; }
 
     window.addEventListener("message", async function(e) {
       if (e.source !== iframe.contentWindow) return;
@@ -310,11 +325,14 @@ function previewHostHtml(appName: string): string {
       if (!msg || typeof msg !== "object") return;
 
       // ext-apps handshake
-      if (msg.method === "ui/initialize" && msg.id) {
+      // \`hostInfo\`/\`hostCapabilities\` are the spec's field names, and a spec
+      // client validates the result against them — the official ext-apps
+      // \`App\` refuses to connect to anything else.
+      if (msg.method === "ui/initialize" && isRequest(msg)) {
         post({ jsonrpc:"2.0", id:msg.id, result: {
           protocolVersion:"2026-01-26",
-          serverInfo:{name:"nimblebrain",version:"preview"},
-          capabilities:{openLinks:{},serverTools:{}},
+          hostInfo:{name:"nimblebrain",version:"preview"},
+          hostCapabilities:{openLinks:{},serverTools:{}},
           hostContext:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}
         }});
         return;
@@ -322,7 +340,7 @@ function previewHostHtml(appName: string): string {
       if (msg.method === "ui/notifications/initialized") return;
 
       // Tool calls — proxy via Vite middleware
-      if (msg.method === "tools/call" && msg.id) {
+      if (msg.method === "tools/call" && isRequest(msg)) {
         var originalId = msg.id;
         try {
           var r = await fetch("/__mcp", {
@@ -348,7 +366,7 @@ function previewHostHtml(appName: string): string {
       // Log other messages
       if (msg.method === "synapse/chat") console.log("[chat]", msg.params?.message);
       else if (msg.method === "synapse/action") console.log("[action]", msg.params?.action, msg.params);
-      else if (msg.method === "ui/update-model-context") { console.log("[model-context]", msg.params?.structuredContent); if (msg.id) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
+      else if (msg.method === "ui/update-model-context") { console.log("[model-context]", msg.params?.structuredContent); if (isRequest(msg)) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
       else if (msg.method === "synapse/keydown") { /* ignore */ }
       else if (msg.method) console.log("[bridge]", msg.method, msg);
     });

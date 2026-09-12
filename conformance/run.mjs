@@ -245,20 +245,26 @@ function assertSpecHostScenario(name, report, opts) {
 
 await build();
 
-// `src/preview/server.ts` is TypeScript, so bundle the page builder and import
-// that. Reading the real export is the point: asserting against a copy of the
-// preview's handshake would prove nothing about what the preview answers.
-const previewModule = join(OUT, "preview-host.mjs");
-await esbuild.build({
-  entryPoints: [join(REPO, "src/preview/server.ts")],
-  outfile: previewModule,
-  bundle: true,
-  format: "esm",
-  platform: "node",
-  packages: "external",
-  logLevel: "warning",
-});
-const { previewHostHtml } = await import(previewModule);
+// This package ships **two** hand-written bridge hosts — the standalone
+// `synapse preview` harness and the dev server's `/__preview` page — and a
+// spec client has to reach both. They are TypeScript, so bundle the page
+// builders and import those. Reading the real exports is the point: asserting
+// against a copy of a handshake would prove nothing about what either answers.
+async function loadPageBuilder(entry, name) {
+  const outfile = join(OUT, `${name}.mjs`);
+  await esbuild.build({
+    entryPoints: [join(REPO, entry)],
+    outfile,
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    packages: "external",
+    logLevel: "warning",
+  });
+  return import(outfile);
+}
+const { previewHostHtml } = await loadPageBuilder("src/preview/server.ts", "preview-host");
+const { vitePreviewHostHtml } = await loadPageBuilder("src/vite/plugin.ts", "vite-host");
 
 const browser = await chromium.launch();
 let uiServer;
@@ -268,7 +274,13 @@ try {
   // so the app has to answer at the root of the port the page is told about.
   // Take a port first, then render the page against it.
   const officialPage = page("app-official", ["app-official.js"]);
-  uiServer = await serve(OUT, { "/": officialPage, "/index.html": officialPage });
+  // The dev-server host frames `/` on its own origin, so it is served from the
+  // same place the app is.
+  uiServer = await serve(OUT, {
+    "/": officialPage,
+    "/index.html": officialPage,
+    "/vite-preview": vitePreviewHostHtml("conformance-app"),
+  });
   previewServer = await serve(OUT, {
     "/preview": previewHostHtml(uiServer.port, 1),
   });
@@ -378,7 +390,11 @@ try {
 
   // 2. The vendored connectUI IIFE, under the same host.
   {
-    const { report } = await drive(browser, `${base}/host.html?app=connectui`, "__conformance");
+    const { report, consoleErrors } = await drive(
+      browser,
+      `${base}/host.html?app=connectui`,
+      "__conformance",
+    );
     assertSpecHostScenario("connectUI (vendored IIFE)", report, {
       hostContextChanged: (app) =>
         app?.themeChanged === "dark" || `themeChanged was ${JSON.stringify(app?.themeChanged)}`,
@@ -401,22 +417,31 @@ try {
           (_app, handled) =>
             handled.some((f) => f.method === "ui/message") || "no ui/message handled",
         ],
+        [
+          "no uncaught console errors",
+          "a spec host logs a rejected frame rather than failing the call",
+          () => consoleErrors.length === 0 || consoleErrors.join(" | "),
+        ],
       ],
     });
   }
 
-  // 3. The spec's own App, against our dev preview host.
-  {
-    const { report } = await drive(
-      browser,
-      `http://127.0.0.1:${previewServer.port}/preview`,
-      "__results",
-      { inFrame: true },
-    );
+  // 3. The spec's own App, against each of our hand-written hosts.
+  //
+  // Both, not one. They are separate hand-written implementations of the same
+  // handshake, and the first round of this suite pointed at one of them — so
+  // the fixes followed the suite and the other kept all the same defects. A
+  // host this package ships is a host this suite drives.
+  const ourHosts = [
+    ["preview host (synapse preview)", `http://127.0.0.1:${previewServer.port}/preview`],
+    ["preview host (dev server /__preview)", `${base}/vite-preview`],
+  ];
+  for (const [name, url] of ourHosts) {
+    const { report, consoleErrors } = await drive(browser, url, "__results", { inFrame: true });
     check(
-      "preview host",
+      name,
       "the spec's own App connects",
-      "the preview must answer with hostInfo/hostCapabilities, or an App-based app renders only in the real host",
+      "a host must answer with hostInfo/hostCapabilities, treat request id 0 as an id, and publish only style variables the spec's enum names — a spec client refuses the whole result otherwise, and an App-based app renders nowhere but the real host",
       () => {
         if (!report) return "the app published no results";
         if (report.connect?.ok !== true) return `connect failed: ${report.connect?.error}`;
@@ -425,6 +450,12 @@ try {
           `hostInfo was ${JSON.stringify(report.hostInfo)}`
         );
       },
+    );
+    check(
+      name,
+      "no uncaught console errors",
+      "a rejected frame is logged, not thrown",
+      () => consoleErrors.length === 0 || consoleErrors.join(" | "),
     );
   }
 } finally {

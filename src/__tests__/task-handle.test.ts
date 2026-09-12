@@ -219,7 +219,7 @@ describe("callToolAsTask — tools/call wire shape", () => {
     await pending;
   });
 
-  it("sends params.server when options.internal === true", async () => {
+  it("names the target server in _meta when options.internal === true", async () => {
     completeHandshake();
     app = await appPromise;
 
@@ -227,13 +227,17 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
-    expect(params.server).toBe("test-app");
+    // The same `_meta` key `callTool` uses. A sibling of `name`/`arguments`
+    // is stripped by any spec client or host on the path, and a task-augmented
+    // call is no less exposed to that than a plain one.
+    expect(params._meta?.["ai.nimblebrain/server"]).toBe("test-app");
+    expect(Object.hasOwn(params, "server")).toBe(false);
 
     respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_internal"));
     await pending;
   });
 
-  it("omits params.server by default (external app, internal flag not set)", async () => {
+  it("names no server by default (external app, internal flag not set)", async () => {
     completeHandshake();
     app = await appPromise;
 
@@ -241,14 +245,14 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
-    expect(params.server).toBeUndefined();
+    expect(params._meta).toBeUndefined();
     expect(Object.hasOwn(params, "server")).toBe(false);
 
     respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_external"));
     await pending;
   });
 
-  it("inherits params.server from app-level internal flag when options.internal is omitted", async () => {
+  it("inherits the target server from the app-level internal flag when options.internal is omitted", async () => {
     postMessageSpy = vi.fn();
     window.parent.postMessage = postMessageSpy;
     appPromise = connect({ name: "internal-app", version: "1.0.0", internal: true });
@@ -260,7 +264,8 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
-    expect(params.server).toBe("internal-app");
+    expect(params._meta?.["ai.nimblebrain/server"]).toBe("internal-app");
+    expect(Object.hasOwn(params, "server")).toBe(false);
 
     respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_app_internal"));
     await pending;

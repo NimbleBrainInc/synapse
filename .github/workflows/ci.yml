@@ -83,6 +83,26 @@ jobs:
             exit 1
           fi
 
+  conformance:
+    name: Conformance (spec host, real browser)
+    # Our clients driven by the spec's own AppBridge in Chromium, and the spec's
+    # own App driven against our dev preview host. Separate from `test` because
+    # it needs a browser binary — `npm run ci` stays runnable on a fresh clone.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # No `npm run build` step: the suite bundles the pages itself and reads
+      # the committed vendored client. That the vendored copy matches the build
+      # is the `build` job's gate, and duplicating it here would only hide which
+      # of the two failed.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run conformance
+
   docs-build:
     name: Docs site build
     # web/ (the landing + Starlight docs) otherwise only builds in web-pages.yml

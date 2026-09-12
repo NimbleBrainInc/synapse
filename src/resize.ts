@@ -1,3 +1,5 @@
+import { SIZE_CHANGED_METHOD } from "@modelcontextprotocol/ext-apps";
+
 type SendFn = (method: string, params: Record<string, unknown>) => void;
 
 interface Resizer {
@@ -15,13 +17,13 @@ export function createResizer(send: SendFn, autoResize: boolean): Resizer {
     if (destroyed) return;
     const width = document.body.scrollWidth;
     const height = document.body.scrollHeight;
-    send("ui/notifications/size-changed", { width, height });
+    send(SIZE_CHANGED_METHOD, { width, height });
   }
 
   function resize(width?: number, height?: number): void {
     if (destroyed) return;
     if (width !== undefined && height !== undefined) {
-      send("ui/notifications/size-changed", { width, height });
+      send(SIZE_CHANGED_METHOD, { width, height });
     } else {
       measureAndSend();
     }

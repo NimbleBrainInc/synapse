@@ -64,9 +64,9 @@ export interface CallToolAsTaskOptions {
   ttl?: number;
   /**
    * Route the call through the internal-apps cross-server authz path
-   * (adds `params.server` set to this app's name). External apps MUST
-   * NOT pass this; spec doesn't touch it — it's a NimbleBrain-specific
-   * bridge convention mirroring `callTool`'s behavior.
+   * (adds `_meta["ai.nimblebrain/server"]` set to this app's name). External
+   * apps MUST NOT pass this; the spec doesn't touch it — it's a
+   * NimbleBrain-specific bridge convention mirroring `callTool`'s behavior.
    */
   internal?: boolean;
 }
@@ -344,8 +344,9 @@ export interface ConnectOptions {
   autoResize?: boolean;
   /**
    * Mark as an internal NimbleBrain app. Enables cross-server tool calls:
-   * `callTool` carries a `server` param so the host can route the call to a
-   * sibling server. External apps MUST NOT set this.
+   * `callTool` names the target in `_meta["ai.nimblebrain/server"]` so the
+   * host can route the call to a sibling server. External apps MUST NOT set
+   * this.
    */
   internal?: boolean;
   /**

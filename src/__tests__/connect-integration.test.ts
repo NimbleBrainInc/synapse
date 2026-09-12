@@ -175,7 +175,7 @@ describe("connect() integration", () => {
   // 2. Handshake ordering verification
   // -----------------------------------------------------------------------
   describe("handshake ordering", () => {
-    it("sends size-changed BEFORE ui/initialize, and initialized AFTER host response", async () => {
+    it("sends ui/initialize first, then initialized, then size-changed", async () => {
       app = await connectApp();
 
       const methods = host.sentMethods;
@@ -184,12 +184,14 @@ describe("connect() integration", () => {
       const initIdx = methods.indexOf("ui/initialize");
       const initializedIdx = methods.indexOf("ui/notifications/initialized");
 
-      // size-changed first
-      expect(sizeIdx).toBeGreaterThanOrEqual(0);
-      expect(initIdx).toBeGreaterThan(sizeIdx);
+      // The handshake opens the conversation — nothing precedes it.
+      expect(initIdx).toBe(0);
 
-      // initialized last (after host responded to ui/initialize)
+      // initialized once the host has answered ui/initialize
       expect(initializedIdx).toBeGreaterThan(initIdx);
+
+      // and only then a size, which the host may act on
+      expect(sizeIdx).toBeGreaterThan(initializedIdx);
     });
 
     it("initial size message contains body dimensions", async () => {

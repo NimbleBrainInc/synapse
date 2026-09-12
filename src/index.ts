@@ -4,6 +4,9 @@ export type {
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
+// The `_meta` key a cross-server `tools/call` is addressed with. Exported so a
+// host reads the same string the client writes, rather than a second copy of it.
+export { SERVER_META_KEY } from "./event-map.js";
 // NimbleBrain host extensions — composable over `App`, no-ops or throws off a
 // NimbleBrain host. Not ext-apps spec surface.
 export { action, downloadFile, pickFile, pickFiles } from "./extensions.js";

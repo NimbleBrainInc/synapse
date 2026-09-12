@@ -153,7 +153,16 @@ export function createMcpAppsAdapter(
     const h = typeof height === "number" ? height : Math.ceil(win.document.body.scrollHeight);
     if (h === lastReportedHeight) return;
     lastReportedHeight = h;
-    notify(MCPAPP_SIZE_CHANGED, { height: h });
+    // Exactly one dialect is ever in flight, and which one is decided by the
+    // handshake. The JSON-RPC notification waits for it: `ui/initialize` is the
+    // app's first word on this bridge, and a host may drop anything that
+    // arrives before it has one — a strict host does, and leaves the frame
+    // hidden, which reads as a component that never rendered. The legacy frame
+    // goes now instead, because a pre-standard host needs a size immediately
+    // and never answers the handshake at all; a standard host ignores the
+    // non-JSON-RPC frame, and `postLegacy` stops sending it once the handshake
+    // confirms one.
+    if (standardConfirmed) notify(MCPAPP_SIZE_CHANGED, { height: h });
     postLegacy({ type: MCPUI_SIZE_CHANGE, payload: { height: h } });
   }
 
@@ -286,7 +295,9 @@ export function createMcpAppsAdapter(
           standardConfirmed = true;
           applyHostContext(result?.hostContext);
           notify(MCPAPP_INITIALIZED, {});
-          // A host keeps the frame hidden until it gets a size after init — force one.
+          // A host keeps the frame hidden until it gets a size after init, and
+          // this is the first point at which sending one is allowed — so force
+          // one past the de-duplication in `reportSize`.
           lastReportedHeight = -1;
           reportSize();
         })
@@ -294,6 +305,8 @@ export function createMcpAppsAdapter(
           // Not an MCP Apps host (or it was slow) — the legacy path covers data.
         });
 
+      // The legacy size frame, for a pre-standard host that will never answer
+      // the handshake. On a standard host this emits nothing (see `reportSize`).
       reportSize();
     },
     destroy() {

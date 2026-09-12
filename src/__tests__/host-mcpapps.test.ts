@@ -182,15 +182,32 @@ describe("connectUI — MCP Apps standard adapter", () => {
     await expect(p).resolves.toEqual({ structuredContent: { domain: "x.com" } });
   });
 
-  it("resize posts a standard size-changed and a legacy mirror", () => {
+  it("resize before the handshake posts only the legacy mirror", () => {
+    // `ui/initialize` is the app's first word on this bridge, so a JSON-RPC
+    // `size-changed` cannot precede the host's answer — a strict host drops it
+    // and leaves the frame hidden. The legacy frame still goes, because a
+    // pre-standard host never answers the handshake and needs a size now.
     synapse = connectUI({ host: "claude", autoResize: false });
     postMessageSpy.mockClear();
     synapse.resize(512);
-    expect(ofMethod(MCPAPP_SIZE_CHANGED).at(-1)?.params).toEqual({ height: 512 });
+    expect(ofMethod(MCPAPP_SIZE_CHANGED)).toEqual([]);
     expect(ofType("ui-size-change").at(-1)).toEqual({
       type: "ui-size-change",
       payload: { height: 512 },
     });
+  });
+
+  it("resize after the handshake posts the standard size-changed, and no legacy mirror", async () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+    respond(ofMethod(MCPAPP_INITIALIZE)[0].id, {});
+    await flush();
+
+    postMessageSpy.mockClear();
+    synapse.resize(512);
+    expect(ofMethod(MCPAPP_SIZE_CHANGED).at(-1)?.params).toEqual({ height: 512 });
+    // One dialect at a time: a confirmed standard host stops getting legacy
+    // frames, so it can never act on the same size twice.
+    expect(ofType("ui-size-change")).toEqual([]);
   });
 
   it("openLink posts a ui/open-link request and a legacy mirror", () => {

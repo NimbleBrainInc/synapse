@@ -8,6 +8,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
+import { SERVER_META_KEY } from "../event-map.js";
 import { action, downloadFile, pickFile, pickFiles } from "../extensions.js";
 import type { App, TasksCapability } from "../types.js";
 
@@ -137,22 +138,32 @@ describe("connect() capabilities", () => {
       await expect(p).resolves.toMatchObject({ data: { hits: 3 }, isError: false });
     });
 
-    it("omits `server` for a non-internal app", async () => {
+    it("omits the server key entirely for a non-internal app", async () => {
       app = await connectAndHandshake();
       app.callTool("search").catch(() => {});
+      expect(lastRequest().params).not.toHaveProperty("_meta");
+      // The pre-`_meta` sibling field must not come back either: a spec host
+      // strips it, so re-adding it would only make the call look addressed.
       expect(lastRequest().params).not.toHaveProperty("server");
     });
 
-    it("an internal app carries its own name as `server`", async () => {
+    it("an internal app carries its own name in the server _meta key", async () => {
       app = await connectAndHandshake({ internal: true });
       app.callTool("search").catch(() => {});
-      expect(lastRequest().params).toMatchObject({ server: "test-app" });
+      expect(lastRequest().params).toMatchObject({
+        _meta: { [SERVER_META_KEY]: "test-app" },
+      });
+      expect(lastRequest().params).not.toHaveProperty("server");
     });
 
-    it("an explicit `server` option routes the call cross-server", async () => {
+    it("an explicit `server` option routes the call cross-server through _meta", async () => {
       app = await connectAndHandshake({ internal: true });
       app.callTool("list_contacts", undefined, { server: "people" }).catch(() => {});
-      expect(lastRequest().params).toMatchObject({ name: "list_contacts", server: "people" });
+      expect(lastRequest().params).toMatchObject({
+        name: "list_contacts",
+        _meta: { [SERVER_META_KEY]: "people" },
+      });
+      expect(lastRequest().params).not.toHaveProperty("server");
     });
 
     it("rejects on an error response", async () => {

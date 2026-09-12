@@ -27,7 +27,15 @@ export interface PreviewOptions {
   previewPort: number;
 }
 
-const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
+/**
+ * The preview harness page: the bridge host that frames the app UI on
+ * `uiPort` and proxies its `tools/call` to the MCP server on `serverPort`.
+ *
+ * Exported so the conformance suite can serve this exact page and connect a
+ * real spec client to it. Asserting the handshake against a copy would prove
+ * nothing about what the preview actually answers.
+ */
+export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -56,40 +64,53 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
     var iframe = document.getElementById("app");
     var darkMode = true;
 
-    // Minimal NimbleBrain bridge host — just enough to make Synapse work
+    // Minimal NimbleBrain bridge host — just enough to make Synapse work.
+    //
+    // Every key here is one the spec's style-variable enum names. That enum is
+    // a strict record, so a single extra key makes a spec client reject the
+    // whole \`ui/initialize\` result and refuse to connect — not just ignore the
+    // key. The kit's own neutral defaults back anything a host leaves out, so
+    // the accent and danger colours still render; they come from the cascade
+    // layer instead of the wire.
     var tokens = darkMode ? {
       "--color-background-primary": "#0f172a", "--color-background-secondary": "#1e293b",
       "--color-background-tertiary": "#2a374a", "--color-text-primary": "#e2e8f0",
       "--color-text-secondary": "#94a3b8", "--color-text-tertiary": "#64748b",
-      "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
       "--color-border-primary": "#334155", "--color-border-secondary": "#475569",
-      "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+      "--color-ring-primary": "#6366f1",
       "--border-radius-sm": "0.5rem",
     } : {
       "--color-background-primary": "#ffffff", "--color-background-secondary": "#f9fafb",
       "--color-background-tertiary": "#f1f5f9", "--color-text-primary": "#1a1a1a",
       "--color-text-secondary": "#6b7280", "--color-text-tertiary": "#94a3b8",
-      "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
       "--color-border-primary": "#e5e7eb", "--color-border-secondary": "#cbd5e1",
-      "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+      "--color-ring-primary": "#6366f1",
       "--border-radius-sm": "0.5rem",
     };
 
     function post(msg) { iframe.contentWindow.postMessage(msg, "*"); }
+
+    // A request is a frame carrying an id — and \`0\` is a perfectly good id.
+    // The MCP SDK numbers from zero, so a truthiness test drops the first
+    // request every spec client ever sends, which is its \`ui/initialize\`.
+    function isRequest(msg) { return msg.id !== undefined && msg.id !== null; }
 
     window.addEventListener("message", async function (event) {
       if (event.source !== iframe.contentWindow) return;
       var msg = event.data;
       if (!msg || typeof msg !== "object") return;
 
-      // ext-apps handshake
-      if (msg.method === "ui/initialize" && msg.id) {
+      // ext-apps handshake. \`hostInfo\`/\`hostCapabilities\` are the spec's field
+      // names, and a spec client validates the result against them — the
+      // official ext-apps \`App\` refuses to connect to anything else, so an app
+      // built on it would render only in the real host and not in preview.
+      if (msg.method === "ui/initialize" && isRequest(msg)) {
         post({
           jsonrpc: "2.0", id: msg.id,
           result: {
             protocolVersion: "2026-01-26",
-            serverInfo: { name: "nimblebrain", version: "preview" },
-            capabilities: { openLinks: {}, serverTools: {} },
+            hostInfo: { name: "nimblebrain", version: "preview" },
+            hostCapabilities: { openLinks: {}, serverTools: {} },
             hostContext: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } }
           }
         });
@@ -99,7 +120,7 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
       if (msg.method === "ui/notifications/initialized") return;
 
       // Tool call proxy — forward to the MCP server
-      if (msg.method === "tools/call" && msg.id) {
+      if (msg.method === "tools/call" && isRequest(msg)) {
         try {
           var resp = await fetch("http://localhost:${serverPort}/mcp", {
             method: "POST",
@@ -137,7 +158,7 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
       // ui/update-model-context — log (ext-apps spec)
       if (msg.method === "ui/update-model-context") {
         console.log("[model-context]", msg.params?.structuredContent);
-        if (msg.id) post({ jsonrpc: "2.0", id: msg.id, result: {} });
+        if (isRequest(msg)) post({ jsonrpc: "2.0", id: msg.id, result: {} });
         return;
       }
 
@@ -152,17 +173,15 @@ const HOST_HTML = (uiPort: number, serverPort: number) => `<!DOCTYPE html>
         "--color-background-primary": "#0f172a", "--color-background-secondary": "#1e293b",
         "--color-background-tertiary": "#2a374a", "--color-text-primary": "#e2e8f0",
         "--color-text-secondary": "#94a3b8", "--color-text-tertiary": "#64748b",
-        "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
         "--color-border-primary": "#334155", "--color-border-secondary": "#475569",
-        "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+        "--color-ring-primary": "#6366f1",
         "--border-radius-sm": "0.5rem",
       } : {
         "--color-background-primary": "#ffffff", "--color-background-secondary": "#f9fafb",
         "--color-background-tertiary": "#f1f5f9", "--color-text-primary": "#1a1a1a",
         "--color-text-secondary": "#6b7280", "--color-text-tertiary": "#94a3b8",
-        "--color-text-accent": "#6366f1", "--nb-color-accent-foreground": "#ffffff",
         "--color-border-primary": "#e5e7eb", "--color-border-secondary": "#cbd5e1",
-        "--color-ring-primary": "#6366f1", "--nb-color-danger": "#ef4444",
+        "--color-ring-primary": "#6366f1",
         "--border-radius-sm": "0.5rem",
       };
       post({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } } });
@@ -203,7 +222,7 @@ export async function startPreview(options: PreviewOptions): Promise<void> {
   uiProc.stderr?.on("data", (d: Buffer) => process.stderr.write(`  [ui] ${d}`));
 
   // 3. Start preview host
-  const html = HOST_HTML(uiPort, serverPort);
+  const html = previewHostHtml(uiPort, serverPort);
   const host = createServer((_req: IncomingMessage, res: ServerResponse) => {
     res.writeHead(200, { "Content-Type": "text/html" });
     res.end(html);

@@ -13,8 +13,9 @@ type AnyFn = (...args: never[]) => unknown;
  * We import the plugin and call its hooks with mocked Vite objects.
  */
 
-// We need to test the previewHostHtml output and the configureServer middleware.
-// Since previewHostHtml is not exported, we test it indirectly through the plugin.
+// The page builder is exported as `vitePreviewHostHtml` for the conformance
+// suite, but these rows drive it the way the dev server does — through
+// `configureServer`, so the middleware's routing is under test as well.
 
 import { synapseVite } from "../../vite/plugin";
 
@@ -115,14 +116,41 @@ describe("preview host HTML", () => {
     expect(html).not.toContain("synapse/theme-changed");
   });
 
-  it("includes NB theme tokens under spec-compliant styles.variables", () => {
+  it("answers the handshake in the spec's field names, and treats id 0 as an id", () => {
+    // The conformance suite drives this host with the spec's own client, which
+    // is the stronger check — but it is a separate CI job and not part of
+    // `npm run ci`, so the fast suite holds the same two invariants.
     const html = getPreviewHtml("hello");
-    expect(html).toContain("--color-text-accent");
+    expect(html).toContain("hostInfo:");
+    expect(html).toContain("hostCapabilities:");
+    expect(html).not.toContain("serverInfo:");
+    // `msg.id` is falsy at 0, and the MCP SDK numbers requests from zero — so
+    // a truthiness gate drops every spec client's `ui/initialize`.
+    expect(html).not.toContain('=== "ui/initialize" && msg.id');
+    expect(html).toContain("function isRequest(msg)");
+  });
+
+  it("publishes only style variables the spec's enum names", () => {
+    const html = getPreviewHtml("hello");
     expect(html).toContain("--color-background-primary");
     expect(html).toContain("--color-text-primary");
     // Tokens must be nested under styles.variables in hostContext, not at
     // hostContext.tokens (spec requirement; SDK reads from styles.variables).
     expect(html).toContain("styles:{variables:getTokens");
+
+    // `styles.variables` is a **strict record** over a fixed enum of names, so
+    // one key outside it makes a spec client reject the entire `ui/initialize`
+    // result rather than ignore the key — the host then renders nothing at all.
+    // These three are the kit's own tokens, which the enum does not name; the
+    // kit's neutral defaults supply them, so nothing is lost by leaving them
+    // off the wire.
+    for (const nonSpec of [
+      "--color-text-accent",
+      "--nb-color-accent-foreground",
+      "--nb-color-danger",
+    ]) {
+      expect(html).not.toContain(nonSpec);
+    }
   });
 
   it("handles ui/update-model-context per ext-apps spec", () => {

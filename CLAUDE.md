@@ -5,10 +5,30 @@ Agent-aware app SDK for the MCP ext-apps protocol (2026-01-26).
 ## Verification
 
 ```bash
-npm run ci    # lint → typecheck → build → test
+npm run ci           # lint → typecheck → build → test
+npm run conformance  # our wire behaviour, against the spec's own implementation
 ```
 
 **Run `npm run ci` before declaring any change complete. No exceptions.**
+
+`conformance` is deliberately **not** part of `npm run ci`: it drives real
+Chromium, so folding it in would make the documented verification command fail
+on a fresh clone until someone ran `npx playwright install chromium`. CI runs
+both as separate jobs. Run it by hand whenever you touch a transport, a
+handshake, an adapter, or the preview host — see `conformance/README.md` for
+what it covers and how to add a row.
+
+**Re-vendor the Python client asset after any change under `src/host/`.** The
+build writes `dist/synapse-ui.iife.global.js`; the copy the Python package ships
+is a committed file that nothing updates for you:
+
+```bash
+npm run build && cp dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
+```
+
+CI's `build` job diffs the two, and the conformance suite runs the *vendored*
+copy — so a forgotten re-vendor shows up as a conformance failure describing
+behaviour you already fixed.
 
 ### Testing UI components — what the test DOM cannot see
 

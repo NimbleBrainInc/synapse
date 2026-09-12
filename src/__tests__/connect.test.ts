@@ -104,7 +104,7 @@ describe("connect()", () => {
       expect(typeof app.destroy).toBe("function");
     });
 
-    it("sends initial size BEFORE ui/initialize", async () => {
+    it("sends initial size AFTER the handshake, never before ui/initialize", async () => {
       app = await connectAndHandshake();
 
       // Find the order of messages
@@ -114,8 +114,8 @@ describe("connect()", () => {
 
       const sizeIdx = methods.indexOf("ui/notifications/size-changed");
       const initIdx = methods.indexOf("ui/initialize");
-      expect(sizeIdx).toBeGreaterThanOrEqual(0);
-      expect(initIdx).toBeGreaterThan(sizeIdx);
+      expect(initIdx).toBe(0);
+      expect(sizeIdx).toBeGreaterThan(initIdx);
     });
 
     it("sends ui/notifications/initialized after host response", async () => {

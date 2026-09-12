@@ -411,6 +411,66 @@ describe("ConfirmDialog", () => {
       });
       expect(document.activeElement).toBe(opener);
     });
+
+    // Three overlays deep, all opened in one commit. Each swaps with the one
+    // directly below it, so closing them from the inside out walks the chain back:
+    // inner confirmation -> outer confirmation -> drawer -> opener. Swapping with
+    // the innermost instead would hand the drawer a target that unmounts before it
+    // closes, and drop focus behind an overlay that is still open.
+    it("walks the restore chain out one overlay at a time", () => {
+      function Opener() {
+        const [open, setOpen] = useState(false);
+        const [outer, setOuter] = useState(true);
+        const [inner, setInner] = useState(true);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open
+            </button>
+            <Drawer open={open} onClose={() => setOpen(false)}>
+              <Drawer.Body>
+                <ConfirmDialog
+                  open={open && outer}
+                  onOpenChange={setOuter}
+                  title="Forget the album?"
+                  onConfirm={() => {}}
+                >
+                  <ConfirmDialog
+                    open={open && inner}
+                    onOpenChange={setInner}
+                    title="And the photos in it?"
+                    onConfirm={() => {}}
+                  />
+                </ConfirmDialog>
+              </Drawer.Body>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Opener />);
+      const opener = screen.getByText("Open");
+      opener.focus();
+      fireEvent.click(opener);
+      const [outerPanel] = screen.getAllByRole("alertdialog");
+      expect(screen.getAllByRole("alertdialog")).toHaveLength(2);
+
+      act(() => {
+        pressEscape();
+      });
+      expect(screen.getAllByRole("alertdialog")).toHaveLength(1);
+      expect(document.activeElement).toBe(outerPanel);
+
+      act(() => {
+        pressEscape();
+      });
+      expect(screen.queryByRole("alertdialog")).toBeNull();
+      expect(document.activeElement).toBe(screen.getByRole("dialog"));
+
+      act(() => {
+        pressEscape();
+      });
+      expect(document.activeElement).toBe(opener);
+    });
   });
 
   it("injects its stylesheet once, with the coarse-pointer tap target", () => {

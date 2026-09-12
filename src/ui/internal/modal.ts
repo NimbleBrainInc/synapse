@@ -128,7 +128,13 @@ export function useModal(
     // React runs the child's effect first — so it recorded this overlay's opener as
     // its own, and this one would record the nested overlay's control. Swap: this
     // overlay returns focus to the opener, the nested one returns it to this panel.
-    const nested = openOverlays.find((o) => panel && o.panel && panel.contains(o.panel));
+    //
+    // The swap is with the overlay directly below this one, which is the *outermost*
+    // of the ones nested inside it: the effects ran deepest-first, so each has already
+    // swapped with the one below it, and only the outermost still holds this overlay's
+    // opener. That same deepest-first order puts it last in the stack, so it is the
+    // last match, not the first.
+    const nested = openOverlays.filter((o) => panel && o.panel && panel.contains(o.panel)).at(-1);
     if (nested) {
       entry.restoreTo = nested.restoreTo;
       nested.restoreTo = panel;

@@ -44,7 +44,12 @@ const RULES = `
 .nb-textlink:disabled { opacity: 0.45; cursor: default; }
 `;
 
-type Variant = "primary" | "secondary" | "ghost";
+/**
+ * `danger` is for the verb that destroys something — Delete, Remove, Forget. It is
+ * filled like `primary`, so it is never the quiet option beside one, and red so the
+ * difference reads before the label does.
+ */
+type Variant = "primary" | "secondary" | "ghost" | "danger";
 type Size = "sm" | "md";
 
 const SIZE_PAD: Record<Size, string> = {
@@ -76,6 +81,10 @@ export function Button({
     vars["--nb-btn-bg"] = tokens.accent;
     vars["--nb-btn-bg-hover"] = `color-mix(in oklab, ${tokens.accent} 88%, black)`;
     vars["--nb-btn-fg"] = tokens.accentFg;
+  } else if (variant === "danger") {
+    vars["--nb-btn-bg"] = tokens.danger;
+    vars["--nb-btn-bg-hover"] = `color-mix(in oklab, ${tokens.danger} 88%, black)`;
+    vars["--nb-btn-fg"] = tokens.dangerFg;
   } else if (variant === "secondary") {
     vars["--nb-btn-bg"] = tokens.bgSubtle;
     vars["--nb-btn-bg-hover"] = tokens.bgRaised;

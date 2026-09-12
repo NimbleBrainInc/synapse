@@ -5,6 +5,7 @@ import {
   type BadgeTone,
   Button,
   Card,
+  ConfirmDialog,
   type Column,
   Divider,
   Drawer,
@@ -279,6 +280,8 @@ export function App() {
   const [layoutMode, setLayoutMode] = useState("reflow");
   const [paneWidth, setPaneWidth] = useState(760);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [nestedConfirmOpen, setNestedConfirmOpen] = useState(false);
   const [navDemo, setNavDemo] = useState("records");
   const [tabDemo, setTabDemo] = useState("details");
   const [selectedRun, setSelectedRun] = useState<number | null>(null);
@@ -434,6 +437,7 @@ export function App() {
               <Button variant="ghost">Ghost</Button>
               <Button size="sm">Small</Button>
               <Button disabled>Disabled</Button>
+              <Button variant="danger">Delete</Button>
               <Button variant="secondary">
                 <Spinner size={13} /> Loading
               </Button>
@@ -764,12 +768,27 @@ export function App() {
         </Section>
 
         <Section
-          title="Overlays & data — Drawer + Table"
-          subtitle="The two components the CRM retrofit proved we needed. Open the drawer; click a table row."
+          title="Overlays & data — Drawer, ConfirmDialog + Table"
+          subtitle="Open the drawer; click a table row. Forget asks first — and inside the drawer, Remove raises a confirmation over it, which Escape closes on its own."
         >
           <Stack gap="1.25rem">
-            <div>
+            <Inline gap="0.75rem" wrap>
               <Button onClick={() => setDrawerOpen(true)}>Open drawer</Button>
+              <Button variant="secondary" onClick={() => setConfirmOpen(true)}>
+                Forget a saved item…
+              </Button>
+              <ConfirmDialog
+                open={confirmOpen}
+                onOpenChange={setConfirmOpen}
+                destructive
+                title="Forget this saved query?"
+                description="It leaves the saved list for everyone in the workspace."
+                confirmLabel="Forget"
+                pendingLabel="Forgetting…"
+                onConfirm={() => new Promise<void>((resolve) => setTimeout(resolve, 800))}
+              >
+                <Text size="sm">how many users signed up in the past 7 days?</Text>
+              </ConfirmDialog>
               <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} width={380}>
                 <Drawer.Header onClose={() => setDrawerOpen(false)}>
                   Blue Ridge — Patient Portal
@@ -797,10 +816,23 @@ export function App() {
                     <Button size="sm" variant="ghost" onClick={() => setDrawerOpen(false)}>
                       Cancel
                     </Button>
+                    <Button size="sm" variant="danger" onClick={() => setNestedConfirmOpen(true)}>
+                      Remove
+                    </Button>
                   </Inline>
+                  <ConfirmDialog
+                    open={nestedConfirmOpen}
+                    onOpenChange={setNestedConfirmOpen}
+                    destructive
+                    title="Remove this deal?"
+                    confirmLabel="Remove"
+                    onConfirm={() => {
+                      throw new Error("The CRM refused the delete. Try again, or cancel.");
+                    }}
+                  />
                 </Drawer.Footer>
               </Drawer>
-            </div>
+            </Inline>
 
             <div
               style={{

@@ -19,6 +19,7 @@ export { Badge, type BadgeTone } from "./components/Badge.js";
 export { Breadcrumb, type Crumb } from "./components/Breadcrumb.js";
 export { Button, TextLink } from "./components/Button.js";
 export { Card } from "./components/Card.js";
+export { ConfirmDialog } from "./components/ConfirmDialog.js";
 export { Drawer } from "./components/Drawer.js";
 export { EmptyState } from "./components/EmptyState.js";
 export { ListRow } from "./components/ListRow.js";

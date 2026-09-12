@@ -1,14 +1,15 @@
 ---
 title: Drawer
-description: "An off-canvas panel built on the native dialog element: focus trap, Escape, and scroll lock for free."
+description: "An off-canvas panel over a scrim, with a focus trap, Escape, and scroll lock."
 ---
 
 import DrawerDemo from "../../../../components/ui/DrawerDemo.tsx";
 
 `Drawer` slides a panel in from the edge of the pane for detail views, forms, and
-filters. It's built on the native `<dialog>` element, so focus trapping, Escape to
-close, and background scroll locking come for free rather than being
-re-implemented. Its surface, border, and shadow resolve from the host's tokens.
+filters. It traps focus, closes on Escape, and locks background scroll. It is a
+positioned element rather than a native `<dialog>`, because an app iframe is
+sandboxed without `allow-modals` and a `<dialog>` cannot be opened there. Its
+surface, border, and shadow resolve from the host's tokens.
 
 ```tsx
 import { Drawer, Button } from "@nimblebrain/synapse/ui";

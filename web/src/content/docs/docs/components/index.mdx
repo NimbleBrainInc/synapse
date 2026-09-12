@@ -44,10 +44,10 @@ explain why the components behave the way they do.
   regardless of screen size, so device media queries would be measuring the wrong
   box.
 
-- **Lean on the platform.** `Drawer` is built on the native `<dialog>` element,
-  which brings focus-trapping, Escape-to-close, and scroll behavior for free
-  rather than re-implemented in JavaScript. Where the browser already solves a
-  problem, the library uses it.
+- **Built for the sandbox it runs in.** An app iframe is sandboxed without
+  `allow-modals`, so a native `<dialog>` cannot be opened there. `Drawer` is a
+  positioned element that supplies the modal behavior itself: focus trapping,
+  Escape to close, scroll locking, and focus restored on close.
 
 ## The library
 
@@ -105,8 +105,7 @@ Every component has its own page with live previews, props, and copy-paste code.
 - [SearchField](/docs/components/searchfield): a search / filter input.
 - [SegmentedControl](/docs/components/segmentedcontrol): single-select among a
   few options.
-- [Drawer](/docs/components/drawer): an overlay panel built on native
-  `<dialog>`.
+- [Drawer](/docs/components/drawer): an off-canvas overlay panel.
 
 **Feedback**: the components that report state.
 

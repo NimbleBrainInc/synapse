@@ -43,6 +43,7 @@ export const tokens = {
 
   // ── Status / brand semantics ──
   danger: "var(--nb-color-danger, #dc2626)",
+  dangerFg: "var(--nb-color-danger-foreground, #ffffff)",
   success: "var(--nb-color-success, #059669)",
   warning: "var(--nb-color-warning, #f59e0b)",
   processing: "var(--nb-color-processing, #7c3aed)",

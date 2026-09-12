@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.18.0]
+
+### Added
+
+- **`ConfirmDialog` — ask before doing something, and say what "it" is.** Props: `open`, `onOpenChange`, `title`, `description?`, `children?`, `confirmLabel?` (default "Confirm"), `cancelLabel?` (default "Cancel"), `pendingLabel?`, `destructive?`, `onConfirm`. The shape matches the confirmation dialog in the NimbleBrain host, so app and host confirmations read alike.
+
+  Apps had no kit answer for a destructive action, so each one hand-rolled a modal: a fixed `div` with no Escape and no focus trap, and a "danger" button made by overriding a primary button's background inline. This replaces that pattern.
+
+  - `onConfirm` may return a promise. While it runs, both buttons are disabled, Confirm shows `pendingLabel`, and nothing dismisses the dialog — closing over a running action would leave its outcome with nowhere to be reported. It closes (`onOpenChange(false)`) when the promise resolves, and stays open with the error's message shown when it throws, so the user can retry or cancel.
+  - A `destructive` dialog opens with focus on Cancel, so a reflexive Enter declines rather than deletes. Otherwise focus opens on Confirm.
+  - `role="alertdialog"`, `aria-modal`, named by the title and described by the description. Escape, the scrim and Cancel all deny.
+  - Like `Drawer`, it is a positioned `div` rather than a native `<dialog>`, because the app iframe sandbox withholds `allow-modals`. It renders in place, so it can be declared beside the control that opens it — including inside a `Drawer`.
+
+- **`Button variant="danger"`**, filled in the danger colour, for the verb that destroys something. `ConfirmDialog` uses it for a `destructive` Confirm.
+
+- **`tokens.dangerFg`** (`--nb-color-danger-foreground`), the text colour on a danger fill. The neutral defaults are white on the light theme's red and near-black on the dark theme's brightened red, where white falls under 3:1.
+
+### Changed
+
+- **Overlays nest.** `Drawer` and `ConfirmDialog` share one modal behaviour — focus in on open and back on close, the Tab trap, scroll lock, Escape — and it knows which overlay is innermost. Escape and Tab go to the innermost one only, so a confirmation raised inside a drawer closes on Escape and leaves the drawer open. Before, every open overlay listened for Escape on `window`, so one keypress closed them all. A single `Drawer` behaves as it did in every respect but one: a child with `autoFocus` now keeps focus on open, where it used to be moved to the panel.
+
 ## [0.17.1] - 2026-09-09
 
 ### Fixed

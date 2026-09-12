@@ -78,6 +78,9 @@ const openOverlays: OpenOverlay[] = [];
 // owned by the stack, not by each overlay: the page is locked while any overlay is
 // open, whichever order they opened and closed in.
 let lockedOverflow = "";
+// Escapes an overlay has already acted on, so one keypress closes one overlay.
+// See the window listener for why this is recorded rather than inferred.
+const handledEscapes = new WeakSet<Event>();
 
 // Innermost means: no open overlay sits inside this one's panel, and none that is
 // not its ancestor opened after it. DOM nesting decides first because open order
@@ -143,13 +146,23 @@ export function useModal(
     body.style.overflow = "hidden";
 
     // Escape on `window` rather than the panel, so it works wherever focus sits —
-    // including on <body> after a focused control inside the panel unmounted. An
-    // Escape something inside already handled (`defaultPrevented`) is not this
-    // overlay's: in a browser, the nested overlay's listener can close it and let
-    // React commit before this listener runs, leaving this one innermost for the
-    // same keypress.
+    // including on <body> after a focused control inside the panel unmounted.
+    //
+    // One Escape closes one overlay. In a browser the nested overlay's listener
+    // can close it and let React commit before this listener runs for the same
+    // keypress, which would leave this overlay innermost and close it too — so
+    // the overlay that acts records the event and the rest stand down.
+    //
+    // Recorded on the event rather than read off `defaultPrevented`, which
+    // answers a different question: "did anyone cancel this?" rather than "did
+    // an overlay act on it?". The SDK's own key forwarder cancels every Escape
+    // it forwards, on `document`, which a bubbling keydown reaches before
+    // `window` — so an overlay reading `defaultPrevented` finds it already true
+    // for an Escape nothing has handled, and no overlay ever closes. Only the
+    // overlays can answer the question the guard is asking.
     const onWindowKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || e.defaultPrevented || !innermost()) return;
+      if (e.key !== "Escape" || handledEscapes.has(e) || !innermost()) return;
+      handledEscapes.add(e);
       e.preventDefault();
       escapeRef.current();
     };

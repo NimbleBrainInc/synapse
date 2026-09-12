@@ -2,6 +2,8 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { useState } from "react";
 import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { KeyboardForwarder } from "../../keyboard.js";
+import type { SynapseTransport } from "../../transport.js";
 import { Button } from "../../ui/components/Button.js";
 import { ConfirmDialog } from "../../ui/components/ConfirmDialog.js";
 import { Drawer } from "../../ui/components/Drawer.js";
@@ -191,6 +193,30 @@ describe("ConfirmDialog", () => {
 
     fireEvent.click(retry);
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+  });
+
+  it("shows a fallback line when the rejection carries no message", async () => {
+    // `new Error(res.statusText)` over HTTP/2 always throws with an empty
+    // message, and `if (error)` is false for `""` — so without the fallback the
+    // user sees Confirm re-enable and nothing else, with focus left on <body>.
+    const onOpenChange = vi.fn();
+    const onConfirm = vi.fn().mockRejectedValueOnce(new Error(""));
+    render(
+      <ConfirmDialog
+        open
+        destructive
+        onOpenChange={onOpenChange}
+        title="Forget?"
+        confirmLabel="Forget"
+        onConfirm={onConfirm}
+      />,
+    );
+    fireEvent.click(screen.getByText("Forget"));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("That didn't go through. Try again.");
+    expect(onOpenChange).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByText("Cancel"));
   });
 
   it("clears a previous error when reopened", async () => {
@@ -426,5 +452,53 @@ describe("Button danger variant", () => {
     );
     fireEvent.click(screen.getByText("Delete"));
     expect(onClick).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Escape while the host forwards keys", () => {
+  // The SDK's own `KeyboardForwarder` listens on `document` and calls
+  // `preventDefault()` on every Escape it forwards. A bubbling keydown reaches
+  // `document` before `window`, so by the time an overlay's window listener
+  // runs, `defaultPrevented` is already true — for an Escape no overlay has
+  // touched. Nothing in the rest of this suite can see that: `pressEscape`
+  // dispatches into a document with no forwarder on it.
+  //
+  // Every fleet app passes `forwardKeys`, and two of them render a `Drawer`, so
+  // this is the configuration the kit actually ships into.
+  function withForwarder(run: () => void): void {
+    const forwarder = new KeyboardForwarder({ send: vi.fn() } as unknown as SynapseTransport);
+    try {
+      run();
+    } finally {
+      forwarder.destroy();
+    }
+  }
+
+  it("closes a Drawer", () => {
+    const onClose = vi.fn();
+    render(
+      <Drawer open onClose={onClose}>
+        <Drawer.Body>x</Drawer.Body>
+      </Drawer>,
+    );
+    withForwarder(() => {
+      act(() => {
+        pressEscape();
+      });
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes a ConfirmDialog", () => {
+    const onOpenChange = vi.fn();
+    render(
+      <ConfirmDialog open onOpenChange={onOpenChange} title="Delete it?" onConfirm={vi.fn()} />,
+    );
+    withForwarder(() => {
+      act(() => {
+        pressEscape();
+      });
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

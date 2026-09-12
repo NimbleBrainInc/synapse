@@ -23,7 +23,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- **Overlays nest.** `Drawer` and `ConfirmDialog` share one modal behaviour — focus in on open and back on close, the Tab trap, scroll lock, Escape — and it knows which overlay is innermost. Escape and Tab go to the innermost one only, so a confirmation raised inside a drawer closes on Escape and leaves the drawer open. Before, every open overlay listened for Escape on `window`, so one keypress closed them all. A single `Drawer` behaves exactly as it did.
+- **Overlays nest.** `Drawer` and `ConfirmDialog` share one modal behaviour — focus in on open and back on close, the Tab trap, scroll lock, Escape — and it knows which overlay is innermost. Escape and Tab go to the innermost one only, so a confirmation raised inside a drawer closes on Escape and leaves the drawer open. Before, every open overlay listened for Escape on `window`, so one keypress closed them all. A single `Drawer` behaves as it did in every respect but one: a child with `autoFocus` now keeps focus on open, where it used to be moved to the panel.
 
 ## [0.17.1] - 2026-09-09
 

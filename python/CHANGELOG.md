@@ -22,15 +22,20 @@ Nothing is removed and no existing key changes value.
 - **`tool_meta(visibility=...)`**, emitted as `ui.visibility` on every tool (the spec's
   default, `["model", "app"]`, when not given) and as ChatGPT's
   `openai/widgetAccessible`, plus `openai/visibility: "private"` when the model may not
-  call the tool.
+  call the tool. The tool's `ui` object therefore carries `visibility` beside
+  `resourceUri`; a test that exact-matches `tool_meta()["ui"]` needs it added.
 - **`tool_meta(security_schemes=...)`**, emitted as `_meta.securitySchemes`, the
   location ChatGPT documents for clients that read only `_meta`. ChatGPT reads it to
   offer sign-in mid-conversation.
 - **`auth_error_result(...)`**, a failed tool result carrying the `WWW-Authenticate`
   challenge in `_meta["mcp/www_authenticate"]` — the other half of that prompt.
-  Returning it from a tool with structured output needs mcp 2.1 or later: mcp 2.0
-  validates an error result against the output schema and replaces the challenge
-  with the validation error.
+
+### Changed
+
+- **Requires `mcp>=2.1.0,<3`.** mcp 2.0.0 validates an error result from a tool with
+  structured output against its output schema and replaces it, so the challenge
+  `auth_error_result` carries never reaches the client. A server pinned to mcp 2.0.x
+  must move to 2.1.
 
 ### Deprecated
 

@@ -36,11 +36,9 @@ def auth_error_result(
     read the challenge still shows why the call failed.
 
     A tool that declares structured output can return this too, annotated as
-    ``Annotated[CallToolResult, Model]``, on mcp 2.1 or later: the SDK does not
-    validate an error result against the output schema there, and still builds
-    ``structuredContent`` from a ``Model`` returned on the success path. mcp 2.0
-    validates it anyway, and replaces the result, challenge included, with the
-    validation error.
+    ``Annotated[CallToolResult, Model]``: the SDK does not validate an error result
+    against the output schema, and still builds ``structuredContent`` from a
+    ``Model`` returned on the success path.
 
     Args:
         resource_metadata: URL of the server's OAuth protected-resource metadata

@@ -8,7 +8,6 @@ interception), and the sign-in error result.
 
 from __future__ import annotations
 
-from importlib.metadata import version
 from typing import Annotated, Any
 
 import pytest
@@ -22,9 +21,10 @@ from nimblebrain_synapse.server import DATA_MARKER, SDK_MARKER
 
 UI_URI = "ui://test/report"
 RESOURCE_METADATA = "https://example.com/.well-known/oauth-protected-resource"
-# CI runs this suite at the newest mcp and at the declared floor; a test that needs
-# SDK behaviour newer than the floor says so by skipping below it.
-_MCP_VERSION = tuple(int(part) for part in version("mcp").split(".")[:2])
+_CHALLENGE = (
+    f'Bearer resource_metadata="{RESOURCE_METADATA}", '
+    'error="insufficient_scope", error_description="Sign in to continue"'
+)
 
 
 class _IntegrationReport(BaseModel):
@@ -160,6 +160,10 @@ def test_rejects_a_visibility_no_host_can_honour(visibility: list[str]):
         _ui().tool_meta(visibility=visibility)  # ty: ignore[invalid-argument-type]
 
 
+def test_repeated_visibility_entries_collapse():
+    assert _ui().tool_meta(visibility=["app", "app"])["ui"]["visibility"] == ["app"]
+
+
 def test_security_schemes_ride_the_tool_descriptor_meta():
     schemes = [{"type": "noauth"}, {"type": "oauth2", "scopes": ["report.read"]}]
     tm = _ui().tool_meta(security_schemes=schemes)
@@ -270,12 +274,7 @@ def test_auth_error_result_carries_the_challenge_chatgpt_reads():
         description="Sign in to continue",
     )
     assert result.is_error is True
-    assert result.meta == {
-        "mcp/www_authenticate": [
-            f'Bearer resource_metadata="{RESOURCE_METADATA}", '
-            'error="insufficient_scope", error_description="Sign in to continue"'
-        ]
-    }
+    assert result.meta == {"mcp/www_authenticate": [_CHALLENGE]}
     # A client that ignores the challenge still shows why the call failed.
     assert result.content == [types.TextContent(type="text", text="Sign in to continue")]
 
@@ -477,12 +476,6 @@ async def test_against_a_real_server_over_a_real_client():
         assert "openai/outputTemplate" not in unbound
 
 
-_CHALLENGE = (
-    f'Bearer resource_metadata="{RESOURCE_METADATA}", '
-    'error="insufficient_scope", error_description="Sign in to continue"'
-)
-
-
 async def test_auth_error_result_reaches_the_client_through_a_real_server():
     """The challenge survives the SDK's result handling and the interceptor on a
     bound tool, at every supported mcp version."""
@@ -506,10 +499,6 @@ async def test_auth_error_result_reaches_the_client_through_a_real_server():
         assert "openai/outputTemplate" not in refused.meta
 
 
-@pytest.mark.skipif(
-    _MCP_VERSION < (2, 1),
-    reason="mcp 2.0 validates an error result against the output schema, replacing the challenge",
-)
 async def test_auth_error_result_from_a_structured_tool():
     """On a tool that declares structured output, the error result skips output
     validation, and a successful call on the same tool still builds
@@ -532,10 +521,7 @@ async def test_auth_error_result_from_a_structured_tool():
         refused = await client.call_tool("analyze", {"domain": "signed-out.example"})
         assert refused.is_error
         assert refused.meta is not None
-        assert refused.meta["mcp/www_authenticate"] == [
-            f'Bearer resource_metadata="{RESOURCE_METADATA}", '
-            'error="insufficient_scope", error_description="Sign in to continue"'
-        ]
+        assert refused.meta["mcp/www_authenticate"] == [_CHALLENGE]
         assert "openai/outputTemplate" not in refused.meta
 
         allowed = await client.call_tool("analyze", {"domain": "example.com"})

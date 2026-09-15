@@ -93,11 +93,6 @@ async def analyze_domain(domain: str) -> Annotated[CallToolResult, Dossier]:
     return build_dossier(domain)  # a Dossier still becomes structuredContent
 ```
 
-Returning the error from a tool with structured output, as above, needs mcp 2.1 or
-later. mcp 2.0 validates an error result against the output schema and replaces it,
-challenge included, with the validation error; a tool without structured output
-works on any 2.x.
-
 `securitySchemes` rides the tool's `_meta`, which ChatGPT documents as the mirror for
 clients that read only `_meta`. The MCP SDK builds a tool descriptor from a fixed set
 of fields, so the top-level form cannot be emitted through it.
@@ -155,13 +150,17 @@ What both halves share is the **wire protocol** — the `ui://` resource MIMEs, 
 
 ### MCP SDK compatibility
 
-**This package requires mcp 2.x** (`mcp>=2.0.0,<3`) and does not run on 1.x. It is
+**This package requires mcp 2.x from 2.1** (`mcp>=2.1.0,<3`) and does not run on 1.x. It is
 built on two things that exist only in 2.x: the SEP-2133 extension interface
 (`mcp.server.extension.Extension`), and `mcp.server.apps` for the MCP Apps
 identifier and MIME. On 1.x the equivalent of `intercept_tool_call` did not exist,
 and this package reached into `FastMCP`'s private handler registry to get one — so
 there is no shape that serves both majors, and the range is a single major rather
 than a span.
+
+The floor is 2.1.0 because 2.0.0 validates an error result from a tool with
+structured output against its output schema and replaces it, dropping the challenge
+`auth_error_result` carries.
 
 The upper bound is deliberate. `mcp` 2.0 reached fresh installs of this package
 through an uncapped `>=` floor and broke them, which is what the cap prevents from

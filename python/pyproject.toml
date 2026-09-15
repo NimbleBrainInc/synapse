@@ -24,11 +24,14 @@ dependencies = [
     # module exists in 1.x, where `FastMCP` (now `MCPServer`) also had no
     # result-transform hook and this package patched `_mcp_server.request_handlers`
     # to get one. There is no 1.x-compatible shape for the current code, so the
-    # floor is the first 2.x release rather than a range spanning both.
+    # range does not span both. The floor is 2.1.0, not 2.0.0: 2.0.0 validates an
+    # error `CallToolResult` from a tool with structured output against the output
+    # schema and replaces it, so the challenge `auth_error_result` carries never
+    # reaches the client.
     #
     # Capped below 3 so the next major cannot reach a fresh install ahead of the
     # migration that supports it. That is what the missing cap cost at 2.0.
-    "mcp>=2.0.0,<3",
+    "mcp>=2.1.0,<3",
 ]
 
 [project.urls]

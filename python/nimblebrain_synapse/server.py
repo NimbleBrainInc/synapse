@@ -284,7 +284,9 @@ class SynapseUI(Extension):
                 stacklevel=2,
             )
             visibility = ("model", "app") if widget_accessible else ("model",)
-        audiences = list(visibility) if visibility is not None else list(_ALL_AUDIENCES)
+        audiences = (
+            list(dict.fromkeys(visibility)) if visibility is not None else list(_ALL_AUDIENCES)
+        )
         if not audiences or not set(audiences) <= set(_ALL_AUDIENCES):
             raise ValueError(
                 f"visibility must be a non-empty subset of {list(_ALL_AUDIENCES)}, "

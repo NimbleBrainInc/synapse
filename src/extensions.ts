@@ -22,14 +22,11 @@ const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 /**
  * Trigger a host-side action.
  *
- * The inverse direction of the `action` event: this sends a command *to* the
- * host (navigate, open a panel), where `app.on("action", …)` receives the ones
- * a tool emits. No-op off a NimbleBrain host.
+ * Sends a command *to* the host (navigate, open a panel). No-op off a
+ * NimbleBrain host.
  */
 export function action(app: App, name: string, params?: Record<string, unknown>): void {
   if (!app.isNimbleBrainHost) return;
-  // The outbound frame reuses the inbound method name; the host distinguishes
-  // direction, not method.
   internalsFor(app).send(ACTION_METHOD, { action: name, ...params });
 }
 

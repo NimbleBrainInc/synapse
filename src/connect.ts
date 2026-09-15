@@ -25,7 +25,7 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { ACTION_METHOD, DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
+import { DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -34,7 +34,6 @@ import { createTaskStatusRouter, TOOLS_CALL_METHOD } from "./task-handle.js";
 import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
-  AgentAction,
   App,
   ConnectOptions,
   DataChangedEvent,
@@ -103,16 +102,15 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   // --- Event handlers ---
   //
-  // Generic wire methods share one registry keyed by method. The four events
+  // Generic wire methods share one registry keyed by method. The three events
   // that are a *view* over a wire message rather than the message itself
-  // (theme, host context, data-changed, action) get their own sets, because
-  // two of them ride the same notification and hand their subscribers
-  // different payloads.
+  // (theme, host context, data-changed) get their own sets, because two of
+  // them ride the same notification and hand their subscribers different
+  // payloads.
   const handlers = new Map<string, Set<(params: unknown) => void>>();
   const themeCallbacks = new Set<(theme: Theme) => void>();
   const hostContextCallbacks = new Set<(ctx: McpUiHostContext) => void>();
   const dataCallbacks = new Set<(event: DataChangedEvent) => void>();
-  const actionCallbacks = new Set<(action: AgentAction) => void>();
 
   // --- Step 1: Set up message listener (handled by SynapseTransport constructor) ---
 
@@ -192,8 +190,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   /**
    * Deliver a notification's raw params to anyone who subscribed by wire
-   * method name rather than by short event. The three methods below are routed
-   * by hand because each also has a typed view, and `ensureTransportSub` skips
+   * method name rather than by short event. The two methods below are routed by
+   * hand because each also has a typed view, and `ensureTransportSub` skips
    * them for that reason — so the raw fan-out has to happen here or a
    * `on("synapse/data-changed", …)` would silently never fire.
    */
@@ -259,27 +257,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
     for (const cb of dataCallbacks) cb(event);
   });
 
-  transport.onMessage(ACTION_METHOD, (params) => {
-    if (destroyed) return;
-    fanOutRaw(ACTION_METHOD, params);
-    // The typed view drops an action with no `type` discriminator; a raw
-    // subscriber above has already seen it verbatim.
-    if (!params || typeof params.type !== "string") return;
-    const action: AgentAction = {
-      type: params.type as string,
-      payload: (params.payload as Record<string, unknown>) ?? {},
-      requiresConfirmation: params.requiresConfirmation === true,
-      label: typeof params.label === "string" ? params.label : undefined,
-    };
-    for (const cb of actionCallbacks) cb(action);
-  });
-
   // Helper to ensure a transport subscription exists for a generic method
-  const subscribedMethods = new Set<string>([
-    HOST_CONTEXT_CHANGED_METHOD,
-    DATA_CHANGED_METHOD,
-    ACTION_METHOD,
-  ]);
+  const subscribedMethods = new Set<string>([HOST_CONTEXT_CHANGED_METHOD, DATA_CHANGED_METHOD]);
 
   function ensureTransportSub(method: string): void {
     if (subscribedMethods.has(method)) return;
@@ -318,11 +297,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
         dataCallbacks.add(handler);
         return () => {
           dataCallbacks.delete(handler);
-        };
-      case "action":
-        actionCallbacks.add(handler);
-        return () => {
-          actionCallbacks.delete(handler);
         };
       default: {
         const method = resolveEventMethod(event);
@@ -473,7 +447,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
       themeCallbacks.clear();
       hostContextCallbacks.clear();
       dataCallbacks.clear();
-      actionCallbacks.clear();
       transport.destroy();
     },
   };

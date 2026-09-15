@@ -63,9 +63,6 @@ picker throws rather than resolving `null` forever.
 | `useAction()` | `(name, params?) => void` | Trigger a host-side action |
 | `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker |
 
-To *receive* the actions a tool emits, subscribe through the app:
-`useApp().on("action", cb)`.
-
 ## See also
 
 - [`connect()`](/docs/api/connect/) for the `App` these hooks wrap.

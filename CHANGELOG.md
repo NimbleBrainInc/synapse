@@ -14,6 +14,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   **Migration:** delete the `internal` prop or option, and drop the third argument to `callTool`. If an app depended on reaching another server, that capability was never functional through this surface; ask the agent instead (`app.sendMessage`).
 
+- **Apps no longer receive actions. The `"action"` event and its types are gone.** Removed: the `"action"` overload of `App.on` and its `AppEventName` member, `AgentAction`, `BuiltinActionType`, `NavigatePayload`, and `NotifyPayload`. No host sends `synapse/action` to an app, so the subscription never fired and the types described a message that does not exist.
+
+  Sending one is unchanged: `action(app, name, params)` and `useAction()` still send `synapse/action` to a NimbleBrain host.
+
+  **Migration:** delete any import of the four types, which now fails to compile. Delete any `on("action", …)` subscription too, but search for it rather than waiting on `tsc`: it still type-checks through the catch-all string overload, as a subscription to a method named `action` that nothing sends. Neither handled anything that was ever delivered.
+
 ### Fixed
 
 - **Neither client reports its size before the handshake.** `connect()` sent `ui/notifications/size-changed` ahead of `ui/initialize`, and the cross-host client sent one ahead of `ui/notifications/initialized`. A host may drop anything that arrives before the handshake opens, and a strict one does — leaving the frame hidden, which presents as a component that never rendered rather than as a protocol error. `ui/initialize` is now the first frame either client sends, and the spec's own client does the same.

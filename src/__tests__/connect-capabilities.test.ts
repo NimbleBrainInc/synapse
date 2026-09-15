@@ -275,7 +275,7 @@ describe("connect() capabilities", () => {
     });
   });
 
-  describe("action (outbound)", () => {
+  describe("action", () => {
     it("sends synapse/action on a NimbleBrain host", async () => {
       app = await connectAndHandshake();
       action(app, "navigate", { entity: "board", id: "b1" });
@@ -289,46 +289,6 @@ describe("connect() capabilities", () => {
       app = await connectAndHandshake({}, makeInitResult("claude"));
       action(app, "navigate", { id: "b1" });
       expect(sentNotifications("synapse/action")).toHaveLength(0);
-    });
-  });
-
-  describe("action (inbound)", () => {
-    it("fires on a synapse/action notification", async () => {
-      app = await connectAndHandshake();
-      const seen: unknown[] = [];
-      app.on("action", (a) => seen.push(a));
-
-      dispatchNotification("synapse/action", {
-        type: "navigate",
-        payload: { entity: "board", id: "b1" },
-        label: "Open board",
-      });
-
-      expect(seen).toEqual([
-        {
-          type: "navigate",
-          payload: { entity: "board", id: "b1" },
-          requiresConfirmation: false,
-          label: "Open board",
-        },
-      ]);
-    });
-
-    it("ignores a notification with no `type`", async () => {
-      app = await connectAndHandshake();
-      const cb = vi.fn();
-      app.on("action", cb);
-      dispatchNotification("synapse/action", { payload: {} });
-      expect(cb).not.toHaveBeenCalled();
-    });
-
-    it("unsubscribe stops delivery", async () => {
-      app = await connectAndHandshake();
-      const cb = vi.fn();
-      const off = app.on("action", cb);
-      off();
-      dispatchNotification("synapse/action", { type: "refresh", payload: {} });
-      expect(cb).not.toHaveBeenCalled();
     });
   });
 

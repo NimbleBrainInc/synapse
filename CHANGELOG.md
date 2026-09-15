@@ -8,9 +8,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
-- **A `tools/call`'s `server` now travels in `_meta["ai.nimblebrain/server"]`, not as a sibling of `name` and `arguments`.** Cross-server dispatch is a host convention, not an MCP field, and `params` is parsed against `CallToolRequest` — so every spec client and host on the path strips a field the schema does not name, and the call arrives addressed to nobody. `_meta` is where the spec puts implementation-defined data and the only place one survives. Exported as `SERVER_META_KEY`.
+- **An app reaches its own MCP server and nothing else. The cross-server surface is gone.** Removed: `CallToolOptions` and its `server` field, `connect({ internal })`, `callToolAsTask`'s `internal` option, and `AppInternals.internalApp`. `callTool` now takes `(name, args?)` and `useCallTool`'s `call` takes `(args?)`.
 
-  **A host must read the new location before an app on this version can reach a second server.** This is one wire and one rule: `callTool` and `callToolAsTask` both write the key, and a task-augmented call is no less exposed to a schema-shaped strip than a plain one — so a host that moves its reader for only the plain path still mis-routes every cross-server task. Nothing in an app changes: `callTool(name, args, { server })` is the same call.
+  Apps are isolated by design, and the trust this rested on was not real: it came from the app's own name, which is just the connector's server name. A host scopes every call to the server that mounted the app, so a named target was either the app's own server or ignored. Work that spans two sources belongs to the agent, which can call both and hand one result to the other — nothing about an app has to know a second server exists.
+
+  **Migration:** delete the `internal` prop or option, and drop the third argument to `callTool`. If an app depended on reaching another server, that capability was never functional through this surface; ask the agent instead (`app.sendMessage`).
 
 ### Fixed
 

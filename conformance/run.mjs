@@ -306,19 +306,14 @@ try {
             app?.toolResult?.answer === 42 || `toolResult was ${JSON.stringify(app?.toolResult)}`,
         ],
         [
-          "tools/call carries the server in _meta",
-          "a sibling of name/arguments is stripped by every spec client and host",
+          "tools/call names no target server",
+          "an app reaches its own server and nothing else — a host scopes the call to whatever mounted the app, so there is no target to carry",
           (_app, handled) => {
-            const calls = handled.filter((f) => f.method === "tools/call");
-            if (calls.length === 0) return "no tools/call handled";
-            const cross = calls.find((f) => f.params?.name === "list_items");
-            if (!cross) return "the cross-server call never arrived";
-            if ("server" in cross.params) return "params still carry a top-level `server`";
-            const meta = cross.params._meta ?? {};
-            return (
-              meta["ai.nimblebrain/server"] === "other-server" ||
-              `_meta was ${JSON.stringify(meta)}`
-            );
+            const call = handled.find((f) => f.method === "tools/call");
+            if (!call) return "no tools/call handled";
+            if ("server" in call.params) return "params carry a top-level `server`";
+            const meta = call.params._meta ?? {};
+            return !("ai.nimblebrain/server" in meta) || `_meta was ${JSON.stringify(meta)}`;
           },
         ],
         [

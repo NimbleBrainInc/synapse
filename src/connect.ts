@@ -25,12 +25,7 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import {
-  ACTION_METHOD,
-  DATA_CHANGED_METHOD,
-  resolveEventMethod,
-  SERVER_META_KEY,
-} from "./event-map.js";
+import { ACTION_METHOD, DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -41,7 +36,6 @@ import { SynapseTransport } from "./transport.js";
 import type {
   AgentAction,
   App,
-  CallToolOptions,
   ConnectOptions,
   DataChangedEvent,
   Dimensions,
@@ -71,7 +65,7 @@ const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
  * composable functions over it — import them from the package root.
  */
 export async function connect(options: ConnectOptions): Promise<App> {
-  const { name, version, autoResize = false, internal = false, forwardKeys } = options;
+  const { name, version, autoResize = false, forwardKeys } = options;
 
   const transport = new SynapseTransport();
   let destroyed = false;
@@ -431,20 +425,12 @@ export async function connect(options: ConnectOptions): Promise<App> {
     async callTool<TOutput = unknown>(
       toolName: string,
       args?: Record<string, unknown>,
-      callOptions?: CallToolOptions,
     ): Promise<ToolCallResult<TOutput>> {
-      // Cross-server dispatch is a NimbleBrain bridge convention, not an MCP
-      // spec field, so it rides in `_meta` — the one place a params extension
-      // survives. A sibling of `name` and `arguments` does not: `params` is
-      // parsed against `CallToolRequest`, and a spec client or host strips
-      // anything the schema does not name, so the call would silently arrive
-      // addressed to nobody. An internal app defaults to its own name, which is
-      // what makes a plain `callTool` work for one.
-      const server = callOptions?.server ?? (internal ? name : undefined);
+      // No target. A host scopes an app's call to the server that mounted it,
+      // so `params` carries what the spec names and nothing else.
       const params: CallToolRequest["params"] = {
         name: toolName,
         arguments: args ?? {},
-        ...(server !== undefined && { _meta: { [SERVER_META_KEY]: server } }),
       };
       const raw = await transport.request(
         TOOLS_CALL_METHOD,
@@ -508,7 +494,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
       return hostTasksCapability;
     },
     appName: name,
-    internalApp: internal,
   });
 
   return app;

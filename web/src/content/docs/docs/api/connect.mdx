@@ -26,7 +26,6 @@ function connect(options: ConnectOptions): Promise<App>;
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default `false` |
-| `internal` | `boolean?` | NimbleBrain internal app. `callTool` then carries a `server` param so the host can route to a sibling server. External apps must not set it. |
 | `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host so its own shortcuts fire while focus is in the app. `true` is Escape plus every Ctrl/Cmd combo except the clipboard keys. Only a NimbleBrain host consumes these, so forwarding stays off everywhere else. |
 | `on` | `Record<string, (data) => void>?` | Pre-register event handlers before the handshake, so no early messages are lost |
 
@@ -53,7 +52,7 @@ Available synchronously once the promise resolves.
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL (host-aware) |
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?, options?)` | Call an MCP tool and get a typed result. `options.server` routes the call to a sibling server (internal apps). |
+| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result. An app reaches its own server and nothing else — cross-source work belongs to the agent. |
 | `readServerResource({ uri })` | Read an MCP resource from the originating server |
 | `sendMessage(text, context?)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |

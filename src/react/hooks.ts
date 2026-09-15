@@ -6,7 +6,6 @@ import { callToolAsTask } from "../task-handle.js";
 import type {
   App,
   CallToolAsTaskOptions,
-  CallToolOptions,
   DataChangedEvent,
   FileResult,
   ModelContext,
@@ -106,10 +105,7 @@ export function useResize(): (width?: number, height?: number) => void {
 // -----------------------------------------------------------------------------
 
 export interface UseCallToolResult<TOutput> {
-  call: (
-    args?: Record<string, unknown>,
-    options?: CallToolOptions,
-  ) => Promise<ToolCallResult<TOutput>>;
+  call: (args?: Record<string, unknown>) => Promise<ToolCallResult<TOutput>>;
   isPending: boolean;
   error: Error | null;
   data: TOutput | null;
@@ -124,16 +120,13 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
   const callIdRef = useRef(0);
 
   const call = useCallback(
-    async (
-      args?: Record<string, unknown>,
-      options?: CallToolOptions,
-    ): Promise<ToolCallResult<TOutput>> => {
+    async (args?: Record<string, unknown>): Promise<ToolCallResult<TOutput>> => {
       const id = ++callIdRef.current;
       setIsPending(true);
       setError(null);
 
       try {
-        const result = await app.callTool<TOutput>(toolName, args, options);
+        const result = await app.callTool<TOutput>(toolName, args);
         // Stale guard: only update if this is still the latest call.
         if (id === callIdRef.current) {
           setData(result.data);

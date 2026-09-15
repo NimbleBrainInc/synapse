@@ -219,25 +219,10 @@ describe("callToolAsTask — tools/call wire shape", () => {
     await pending;
   });
 
-  it("names the target server in _meta when options.internal === true", async () => {
-    completeHandshake();
-    app = await appPromise;
-
-    const pending = callToolAsTask(app, "do_research", { query: "mcp" }, { internal: true });
-
-    const call = findCall(TOOLS_CALL_METHOD);
-    const params = call!.params as CallToolRequest["params"] & { server?: string };
-    // The same `_meta` key `callTool` uses. A sibling of `name`/`arguments`
-    // is stripped by any spec client or host on the path, and a task-augmented
-    // call is no less exposed to that than a plain one.
-    expect(params._meta?.["ai.nimblebrain/server"]).toBe("test-app");
-    expect(Object.hasOwn(params, "server")).toBe(false);
-
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_internal"));
-    await pending;
-  });
-
-  it("names no server by default (external app, internal flag not set)", async () => {
+  it("names no target server, by any route", async () => {
+    // A task-augmented call is an app calling its own server, same as a plain
+    // one. `task` is the only addition the spec makes to the params, and there
+    // is no way here to name another source.
     completeHandshake();
     app = await appPromise;
 
@@ -245,29 +230,11 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
     const call = findCall(TOOLS_CALL_METHOD);
     const params = call!.params as CallToolRequest["params"] & { server?: string };
+    expect(Object.keys(params).sort()).toEqual(["arguments", "name", "task"]);
     expect(params._meta).toBeUndefined();
     expect(Object.hasOwn(params, "server")).toBe(false);
 
     respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_external"));
-    await pending;
-  });
-
-  it("inherits the target server from the app-level internal flag when options.internal is omitted", async () => {
-    postMessageSpy = vi.fn();
-    window.parent.postMessage = postMessageSpy;
-    appPromise = connect({ name: "internal-app", version: "1.0.0", internal: true });
-    appPromise.catch(() => {});
-    completeHandshake();
-    app = await appPromise;
-
-    const pending = callToolAsTask(app, "do_thing");
-
-    const call = findCall(TOOLS_CALL_METHOD);
-    const params = call!.params as CallToolRequest["params"] & { server?: string };
-    expect(params._meta?.["ai.nimblebrain/server"]).toBe("internal-app");
-    expect(Object.hasOwn(params, "server")).toBe(false);
-
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_app_internal"));
     await pending;
   });
 

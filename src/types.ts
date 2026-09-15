@@ -384,7 +384,7 @@ export interface TaskStatusUpdate {
  *
  * Deliberately small: it carries the ext-apps spec surface plus the state the
  * handshake established. NimbleBrain's own extensions (the file picker,
- * `action`, `downloadFile`) and the MCP tasks utility are composable functions
+ * `action`), `downloadFile` and the MCP tasks utility are composable functions
  * over this object rather than more methods on it.
  */
 export interface App {

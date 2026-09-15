@@ -8,7 +8,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
-import { action, downloadFile, pickFile, pickFiles } from "../extensions.js";
+import { downloadFile } from "../download-file.js";
+import { action, pickFile, pickFiles } from "../extensions.js";
 import type { App, TasksCapability } from "../types.js";
 
 // --- Helpers ---
@@ -326,55 +327,110 @@ describe("connect() capabilities", () => {
   });
 
   describe("downloadFile", () => {
-    function lastDownload(): Record<string, unknown> {
-      const sent = sentNotifications("synapse/download-file");
-      return sent[sent.length - 1].params as Record<string, unknown>;
+    /**
+     * The `ui/download-file` request once it is on the wire. A Blob is read
+     * before the request goes out, so it arrives some microtasks after the call.
+     */
+    async function sentDownload(): Promise<Record<string, unknown>> {
+      return vi.waitFor(() => {
+        const msg = lastRequest();
+        if (msg.method !== "ui/download-file") throw new Error("not sent yet");
+        return msg;
+      });
     }
 
-    it("sends synapse/download-file with a Blob payload", async () => {
+    async function sentResource(): Promise<Record<string, unknown>> {
+      const params = (await sentDownload()).params as { contents: Record<string, unknown>[] };
+      expect(params.contents).toHaveLength(1);
+      expect(params.contents[0].type).toBe("resource");
+      return params.contents[0].resource as Record<string, unknown>;
+    }
+
+    /** A call whose outcome this test does not assert: `destroy()` rejects it on teardown. */
+    function settle(pending: Promise<unknown>): void {
+      pending.catch(() => {});
+    }
+
+    function decode(base64: string): number[] {
+      return Array.from(atob(base64), (c) => c.charCodeAt(0));
+    }
+
+    it("sends a string as an embedded text resource", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.csv", "a,b\n1,2", "text/csv");
-      const params = lastDownload();
-      expect(params.filename).toBe("a.csv");
-      expect(params.mimeType).toBe("text/csv");
-      expect(params.data).toBeInstanceOf(Blob);
+      settle(downloadFile(app, "a.csv", "a,b\n1,2", "text/csv"));
+      expect(await sentResource()).toEqual({
+        uri: "file:///a.csv",
+        mimeType: "text/csv",
+        text: "a,b\n1,2",
+      });
     });
 
-    it("passes a Blob through unchanged", async () => {
+    it("sends a Blob as base64, byte for byte", async () => {
       app = await connectAndHandshake();
-      const blob = new Blob(["x"], { type: "text/plain" });
-      downloadFile(app, "a.txt", blob);
-      expect(lastDownload().data).toBe(blob);
+      const bytes = [0, 1, 127, 128, 254, 255];
+      settle(downloadFile(app, "a.bin", new Blob([new Uint8Array(bytes)])));
+      const resource = await sentResource();
+      expect(resource.text).toBeUndefined();
+      expect(decode(resource.blob as string)).toEqual(bytes);
+    });
+
+    it("encodes a Blob larger than one encoding chunk", async () => {
+      app = await connectAndHandshake();
+      const bytes = Array.from({ length: 100_000 }, (_, i) => i % 256);
+      settle(downloadFile(app, "a.bin", new Blob([new Uint8Array(bytes)])));
+      expect(decode((await sentResource()).blob as string)).toEqual(bytes);
+    });
+
+    it("resolves with the host's result, including a refusal", async () => {
+      app = await connectAndHandshake();
+      const pending = downloadFile(app, "a.txt", "x");
+      await sentDownload();
+      respondToLastRequest({ isError: true });
+      await expect(pending).resolves.toEqual({ isError: true });
+    });
+
+    it("rejects when the host does not implement ui/download-file", async () => {
+      app = await connectAndHandshake();
+      const pending = downloadFile(app, "a.txt", "x");
+      await sentDownload();
+      rejectLastRequest(-32601, "method not found");
+      await expect(pending).rejects.toThrow("method not found");
+    });
+
+    it("is not gated on a NimbleBrain host — it is spec surface", async () => {
+      app = await connectAndHandshake({}, makeInitResult("claude"));
+      settle(downloadFile(app, "a.txt", "x"));
+      expect((await sentResource()).text).toBe("x");
     });
 
     it("defaults string content to application/octet-stream", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.bin", "x");
-      expect(lastDownload().mimeType).toBe("application/octet-stream");
+      settle(downloadFile(app, "a.bin", "x"));
+      expect((await sentResource()).mimeType).toBe("application/octet-stream");
     });
 
     it("treats an empty-string mimeType argument as absent", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.txt", new Blob(["x"], { type: "text/plain" }), "");
-      expect(lastDownload().mimeType).toBe("text/plain");
+      settle(downloadFile(app, "a.txt", new Blob(["x"], { type: "text/plain" }), ""));
+      expect((await sentResource()).mimeType).toBe("text/plain");
     });
 
     it("uses the Blob's intrinsic type when mimeType is omitted", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.json", new Blob(["{}"], { type: "application/json" }));
-      expect(lastDownload().mimeType).toBe("application/json");
+      settle(downloadFile(app, "a.json", new Blob(["{}"], { type: "application/json" })));
+      expect((await sentResource()).mimeType).toBe("application/json");
     });
 
     it("falls back to octet-stream when neither is present", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.bin", new Blob(["x"]));
-      expect(lastDownload().mimeType).toBe("application/octet-stream");
+      settle(downloadFile(app, "a.bin", new Blob(["x"])));
+      expect((await sentResource()).mimeType).toBe("application/octet-stream");
     });
 
     it("an explicit mimeType overrides the Blob's intrinsic type", async () => {
       app = await connectAndHandshake();
-      downloadFile(app, "a.csv", new Blob(["x"], { type: "text/plain" }), "text/csv");
-      expect(lastDownload().mimeType).toBe("text/csv");
+      settle(downloadFile(app, "a.csv", new Blob(["x"], { type: "text/plain" }), "text/csv"));
+      expect((await sentResource()).mimeType).toBe("text/csv");
     });
   });
 

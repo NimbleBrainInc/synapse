@@ -9,7 +9,8 @@
  */
 
 import { connect } from "./connect.js";
-import { action, downloadFile, pickFile, pickFiles } from "./extensions.js";
+import { downloadFile } from "./download-file.js";
+import { action, pickFile, pickFiles } from "./extensions.js";
 import { connectUI } from "./host/connect.js";
 import { callToolAsTask } from "./task-handle.js";
 

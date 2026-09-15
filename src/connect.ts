@@ -60,7 +60,7 @@ const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
  * {@link App}.
  *
  * The `App` it returns stays deliberately small. NimbleBrain's own extensions
- * (`action`, the file picker, `downloadFile`) and the MCP tasks utility are
+ * (`action`, the file picker), `downloadFile` and the MCP tasks utility are
  * composable functions over it — import them from the package root.
  */
 export async function connect(options: ConnectOptions): Promise<App> {

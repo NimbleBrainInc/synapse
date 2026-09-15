@@ -1,4 +1,4 @@
-import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
+import type { McpUiHostCapabilities, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type {
   CreateTaskResult,
   ReadResourceRequest,
@@ -359,6 +359,13 @@ export interface AppInternals {
    * task-augment a call unless this carries `requests.tools.call`.
    */
   readonly hostTasksCapability: TasksCapability | undefined;
+  /**
+   * The host's declared `downloadFile` capability from the `ui/initialize`
+   * response. `undefined` when the host advertised none — then
+   * `ui/download-file` is not sent, because nothing obliges such a host to
+   * answer it and a request has no deadline.
+   */
+  readonly hostDownloadFileCapability: McpUiHostCapabilities["downloadFile"];
 }
 
 /**

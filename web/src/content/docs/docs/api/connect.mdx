@@ -67,7 +67,7 @@ picker.
 | `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). |
 | `action(app, name, params?)` | Trigger a host-side action. No-op off a NimbleBrain host. |
 | `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Throws off a NimbleBrain host. |
-| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects on a host that does not implement the request. |
+| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
 ## See also
 

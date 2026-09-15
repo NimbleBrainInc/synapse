@@ -36,8 +36,9 @@ const BASE64_CHUNK = 0x8000;
  * embedded resource has no name field of its own.
  *
  * Resolves with the host's result: `{ isError: true }` when the host declined
- * or the user cancelled. Rejects when the host does not implement
- * `ui/download-file`.
+ * or the user cancelled. Rejects, without sending, when the host did not
+ * advertise the `downloadFile` capability — a host that does not implement the
+ * request may never answer it, and a request has no deadline.
  */
 export async function downloadFile(
   app: App,
@@ -46,6 +47,9 @@ export async function downloadFile(
   mimeType?: string,
 ): Promise<McpUiDownloadFileResult> {
   const internals = internalsFor(app);
+  if (internals.hostDownloadFileCapability === undefined) {
+    throw new Error("downloadFile is not supported in this host");
+  }
   const resolvedMime =
     mimeType || (content instanceof Blob ? content.type : "") || "application/octet-stream";
   const uri = `file:///${filename}`;

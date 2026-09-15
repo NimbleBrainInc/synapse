@@ -327,6 +327,14 @@ describe("connect() capabilities", () => {
   });
 
   describe("downloadFile", () => {
+    /** A NimbleBrain host that advertises `downloadFile`. */
+    function connectAdvertising(hostName = "nimblebrain"): Promise<App> {
+      return connectAndHandshake(
+        {},
+        makeInitResult(hostName, { hostCapabilities: { downloadFile: {} } }),
+      );
+    }
+
     /**
      * The `ui/download-file` request once it is on the wire. A Blob is read
      * before the request goes out, so it arrives some microtasks after the call.
@@ -356,7 +364,7 @@ describe("connect() capabilities", () => {
     }
 
     it("sends a string as an embedded text resource", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.csv", "a,b\n1,2", "text/csv"));
       expect(await sentResource()).toEqual({
         uri: "file:///a.csv",
@@ -366,7 +374,7 @@ describe("connect() capabilities", () => {
     });
 
     it("sends a Blob as base64, byte for byte", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       const bytes = [0, 1, 127, 128, 254, 255];
       settle(downloadFile(app, "a.bin", new Blob([new Uint8Array(bytes)])));
       const resource = await sentResource();
@@ -375,22 +383,35 @@ describe("connect() capabilities", () => {
     });
 
     it("encodes a Blob larger than one encoding chunk", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       const bytes = Array.from({ length: 100_000 }, (_, i) => i % 256);
       settle(downloadFile(app, "a.bin", new Blob([new Uint8Array(bytes)])));
       expect(decode((await sentResource()).blob as string)).toEqual(bytes);
     });
 
     it("resolves with the host's result, including a refusal", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       const pending = downloadFile(app, "a.txt", "x");
       await sentDownload();
       respondToLastRequest({ isError: true });
       await expect(pending).resolves.toEqual({ isError: true });
     });
 
-    it("rejects when the host does not implement ui/download-file", async () => {
+    it("rejects without sending when the host did not advertise downloadFile", async () => {
+      // A host that does not implement the request may never answer it, and a
+      // request has no deadline — sending would leave the promise pending forever.
       app = await connectAndHandshake();
+      await expect(downloadFile(app, "a.txt", "x")).rejects.toThrow(
+        "downloadFile is not supported in this host",
+      );
+      const sent = postMessageSpy.mock.calls.some(
+        (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/download-file",
+      );
+      expect(sent).toBe(false);
+    });
+
+    it("rejects when an advertising host answers with an error", async () => {
+      app = await connectAdvertising();
       const pending = downloadFile(app, "a.txt", "x");
       await sentDownload();
       rejectLastRequest(-32601, "method not found");
@@ -398,37 +419,37 @@ describe("connect() capabilities", () => {
     });
 
     it("is not gated on a NimbleBrain host — it is spec surface", async () => {
-      app = await connectAndHandshake({}, makeInitResult("claude"));
+      app = await connectAdvertising("claude");
       settle(downloadFile(app, "a.txt", "x"));
       expect((await sentResource()).text).toBe("x");
     });
 
     it("defaults string content to application/octet-stream", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.bin", "x"));
       expect((await sentResource()).mimeType).toBe("application/octet-stream");
     });
 
     it("treats an empty-string mimeType argument as absent", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.txt", new Blob(["x"], { type: "text/plain" }), ""));
       expect((await sentResource()).mimeType).toBe("text/plain");
     });
 
     it("uses the Blob's intrinsic type when mimeType is omitted", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.json", new Blob(["{}"], { type: "application/json" })));
       expect((await sentResource()).mimeType).toBe("application/json");
     });
 
     it("falls back to octet-stream when neither is present", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.bin", new Blob(["x"])));
       expect((await sentResource()).mimeType).toBe("application/octet-stream");
     });
 
     it("an explicit mimeType overrides the Blob's intrinsic type", async () => {
-      app = await connectAndHandshake();
+      app = await connectAdvertising();
       settle(downloadFile(app, "a.csv", new Blob(["x"], { type: "text/plain" }), "text/csv"));
       expect((await sentResource()).mimeType).toBe("text/csv");
     });

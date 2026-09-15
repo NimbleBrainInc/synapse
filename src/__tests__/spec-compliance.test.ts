@@ -546,7 +546,10 @@ describe("outbound message shapes", () => {
   });
 
   it("downloadFile sends ui/download-file with one embedded resource", async () => {
-    app = await connectAndHandshake();
+    app = await connectAndHandshake(
+      {},
+      makeSpecInitResult({ hostCapabilities: { downloadFile: {} } }),
+    );
     // Unanswered here, so `destroy()` rejects it on teardown.
     downloadFile(app, "a.txt", "abc", "text/plain").catch(() => {});
 

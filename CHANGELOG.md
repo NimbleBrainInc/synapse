@@ -20,11 +20,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   **Migration:** delete any import of the four types, which now fails to compile. Delete any `on("action", …)` subscription too, but search for it rather than waiting on `tsc`: it still type-checks through the catch-all string overload, as a subscription to a method named `action` that nothing sends. Neither handled anything that was ever delivered.
 
-- **`downloadFile` sends the spec's `ui/download-file`, and returns a promise.** The file travels as one embedded MCP resource at `file:///<filename>`: a string as the resource's `text`, a `Blob` read and base64-encoded as its `blob`. The promise resolves with the host's result, which is `{ isError: true }` when the host declined or the user cancelled, and rejects on a host that does not implement the request. `synapse/download-file` is no longer sent.
+- **`downloadFile` sends the spec's `ui/download-file`, and returns a promise.** The file travels as one embedded MCP resource at `file:///<filename>`: a string as the resource's `text`, a `Blob` read and base64-encoded as its `blob`. The promise resolves with the host's result, which is `{ isError: true }` when the host declined or the user cancelled, and rejects, without sending, when the host did not advertise the `downloadFile` capability. `synapse/download-file` is no longer sent.
 
   An app that hands the user a file now works on any host that advertises the `downloadFile` capability, not only on NimbleBrain. The bytes are always embedded, never linked: a host will not fetch a URI an app names on the user's behalf. Reading a `Blob` is asynchronous, which is why the function now returns a promise instead of `void`.
 
-  **Migration:** the arguments are unchanged. Handle the promise, with `await` or a `.catch`, because a host without `ui/download-file` rejects it. Check `isError` if the app should tell the user a file was not saved.
+  **Migration:** the arguments are unchanged. Handle the promise, with `await` or a `.catch`, because it rejects on a host that did not advertise `downloadFile`. A NimbleBrain host needs v0.25.0 or later, the first to answer `ui/download-file`. Check `isError` if the app should tell the user a file was not saved.
 
 ### Fixed
 

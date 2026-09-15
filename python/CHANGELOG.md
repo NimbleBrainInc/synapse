@@ -6,6 +6,38 @@ meet only on the wire protocol, not on a shared version number.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Every input `SynapseUI` takes is now emitted under the ext-apps `ui.*` key as well as
+ChatGPT's `openai/*` alias for it, and a server can declare the auth a tool needs.
+Nothing is removed and no existing key changes value.
+
+### Added
+
+- **`ui.csp`, `ui.prefersBorder` and `ui.domain` on the ChatGPT (skybridge) resource**,
+  beside the `openai/widgetCSP`, `openai/widgetPrefersBorder` and `openai/widgetDomain`
+  aliases it already carried. ChatGPT documents the `ui.*` keys as preferred. There,
+  `ui.domain` takes `widget_domain`; the MCP Apps resource still takes only
+  `mcp_app_domain`.
+- **`tool_meta(visibility=...)`**, emitted as `ui.visibility` on every tool (the spec's
+  default, `["model", "app"]`, when not given) and as ChatGPT's
+  `openai/widgetAccessible`, plus `openai/visibility: "private"` when the model may not
+  call the tool.
+- **`tool_meta(security_schemes=...)`**, emitted as `_meta.securitySchemes`, the
+  location ChatGPT documents for clients that read only `_meta`. ChatGPT reads it to
+  offer sign-in mid-conversation.
+- **`auth_error_result(...)`**, a failed tool result carrying the `WWW-Authenticate`
+  challenge in `_meta["mcp/www_authenticate"]` — the other half of that prompt.
+  Returning it from a tool with structured output needs mcp 2.1 or later: mcp 2.0
+  validates an error result against the output schema and replaces the challenge
+  with the validation error.
+
+### Deprecated
+
+- **`tool_meta(widget_accessible=...)`.** Pass `visibility` instead: `True` is
+  `["model", "app"]` and `False` is `["model"]`. The old argument still works and
+  emits a `DeprecationWarning`; passing both raises `TypeError`.
+
 ## [0.6.0]
 
 Requires **mcp 2.x**. The Python API changed shape; the wire protocol and the

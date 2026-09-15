@@ -46,6 +46,62 @@ and still read `structuredContent`.
 `bind` may be called before or after the server is constructed; the resources are
 built at construction, so a `SynapseUI` is fully formed before `MCPServer` reads it.
 
+## One declaration, every host's keys
+
+Each input is declared once and emitted under every key a host reads it from. The
+ext-apps `ui.*` key is the one the spec defines. ChatGPT reads those keys too and
+documents each `openai/*` key as a compatibility alias for one of them, so both are
+emitted and a caller never picks.
+
+| Input | ext-apps key | ChatGPT alias |
+|---|---|---|
+| the component | tool `ui.resourceUri` (the MCP Apps copy) | `openai/outputTemplate` (the skybridge copy) |
+| `tool_meta(visibility=)` | tool `ui.visibility` | `openai/widgetAccessible`; `openai/visibility: "private"` when `"model"` is absent |
+| `connect_domains`, `resource_domains` | resource `ui.csp` | `openai/widgetCSP` |
+| always `true` | resource `ui.prefersBorder` | `openai/widgetPrefersBorder` |
+| `widget_domain` | skybridge resource `ui.domain` | `openai/widgetDomain` |
+| `mcp_app_domain` | MCP Apps resource `ui.domain` | — |
+
+The two origins stay separate inputs because the hosts disagree on the value:
+ChatGPT takes an origin the developer declares, while Claude derives
+`sha256(<connector URL>)[:32] + ".claudemcpcontent.com"` and rejects anything else.
+Leave both unset unless the component needs a stable origin.
+
+`tool_meta(widget_accessible=)` still works and warns: it is
+`visibility=["model", "app"]` or `visibility=["model"]`.
+
+## Sign-in
+
+A server that requires auth declares it on each tool, and answers a call it cannot
+authorize with a result carrying the challenge. ChatGPT needs both to offer sign-in
+mid-conversation ([Apps SDK auth guide](https://developers.openai.com/apps-sdk/build/auth)).
+
+```python
+from typing import Annotated
+
+from mcp.types import CallToolResult
+from nimblebrain_synapse import auth_error_result
+
+@mcp.tool(meta=report_ui.tool_meta(security_schemes=[{"type": "oauth2", "scopes": ["report.read"]}]))
+async def analyze_domain(domain: str) -> Annotated[CallToolResult, Dossier]:
+    if not signed_in():
+        return auth_error_result(
+            resource_metadata="https://example.com/.well-known/oauth-protected-resource",
+            error="insufficient_scope",
+            description="Sign in to analyze a domain",
+        )
+    return build_dossier(domain)  # a Dossier still becomes structuredContent
+```
+
+Returning the error from a tool with structured output, as above, needs mcp 2.1 or
+later. mcp 2.0 validates an error result against the output schema and replaces it,
+challenge included, with the validation error; a tool without structured output
+works on any 2.x.
+
+`securitySchemes` rides the tool's `_meta`, which ChatGPT documents as the mirror for
+clients that read only `_meta`. The MCP SDK builds a tool descriptor from a fixed set
+of fields, so the top-level form cannot be emitted through it.
+
 ## Template contract
 
 The `template` is data-free HTML that carries two markers:

@@ -162,7 +162,9 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   is an MCP extension (SEP-2133): handed to `MCPServer(extensions=[...])`, it
   contributes the component as **two `ui://` resources** — `text/html+skybridge`
   (ChatGPT) and `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
-  (`openai/outputTemplate` + nested `ui.resourceUri`), the `<script>`-safe embed (XSS
+  (every input under its ext-apps `ui.*` key *and* ChatGPT's `openai/*` alias for it;
+  all ChatGPT-only emission lives in one marked section of `server.py`, so dropping
+  the skybridge copy is one deletion), the `<script>`-safe embed (XSS
   defense), and the `tools/call` interceptor that mirrors the template pointer into a
   bound tool's result `_meta`. Its vendored client IIFE
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from

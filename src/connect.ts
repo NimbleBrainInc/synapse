@@ -493,7 +493,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     get hostTasksCapability() {
       return hostTasksCapability;
     },
-    appName: name,
   });
 
   return app;

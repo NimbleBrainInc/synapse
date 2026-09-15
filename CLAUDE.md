@@ -123,6 +123,7 @@ Releases are public and provenance-attested — published artifacts carry a sign
 |------|-------|
 | `connect.ts` | `McpUiInitializeRequest`, `McpUiInitializeResult`, `McpUiHostContext`, `McpUiMessageRequest`, `McpUiOpenLinkRequest`, `McpUiUpdateModelContextRequest`, `TextContent`, `CallToolRequest` |
 | `core.ts` | Same init types plus `McpUiHostContextChangedNotification` |
+| `download-file.ts` | `McpUiDownloadFileRequest`, `McpUiDownloadFileResult`, `EmbeddedResource` |
 | `event-map.ts` | All `*_METHOD` constants |
 | `detection.ts` | `McpUiInitializeResult`, `McpUiHostContext` |
 
@@ -179,10 +180,10 @@ follows: size → `ui/initialize` request → await response → register handle
 `initialized` goes out, so no early message is lost.
 
 `App` carries the ext-apps surface plus the handshake state, and nothing else.
-The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`, `downloadFile`)
-and the MCP tasks utility (`callToolAsTask`) are **functions over an `App`** in
-`src/extensions.ts` and `src/task-handle.ts`, reaching the transport through
-`app._internals`. Adding a capability means adding a function there, not a
+The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`), the spec's
+`ui/download-file` (`downloadFile`) and the MCP tasks utility (`callToolAsTask`)
+are **functions over an `App`** in `src/extensions.ts`, `src/download-file.ts`
+and `src/task-handle.ts`, reaching the transport through `internalsFor(app)`. Adding a capability means adding a function there, not a
 method on the object — the whole point of collapsing the old two-API fork was a
 smaller object, and it grows back one convenience method at a time.
 
@@ -190,7 +191,7 @@ smaller object, and it grows back one convenience method at a time.
 
 No spec equivalent — degrade to no-ops in other hosts:
 
-`synapse/action`, `synapse/data-changed`, `synapse/download-file`, `synapse/keydown`, `synapse/request-file`
+`synapse/action`, `synapse/data-changed`, `synapse/keydown`, `synapse/request-file`
 
 ## IIFE build for MCP server widgets
 
@@ -200,7 +201,8 @@ MCP servers embed synapse as a `<script>` in widget HTML. Build with esbuild + s
 # Create entry
 cat > src/_iife-entry.ts << 'EOF'
 import { connect } from "./connect.ts";
-import { action, downloadFile, pickFile, pickFiles } from "./extensions.ts";
+import { downloadFile } from "./download-file.ts";
+import { action, pickFile, pickFiles } from "./extensions.ts";
 import { callToolAsTask } from "./task-handle.ts";
 (globalThis as any).Synapse = {
   connect, callToolAsTask, action, downloadFile, pickFile, pickFiles,
@@ -214,6 +216,7 @@ export const LATEST_PROTOCOL_VERSION = "2026-01-26";
 export const INITIALIZE_METHOD = "ui/initialize";
 export const INITIALIZED_METHOD = "ui/notifications/initialized";
 export const OPEN_LINK_METHOD = "ui/open-link";
+export const DOWNLOAD_FILE_METHOD = "ui/download-file";
 export const MESSAGE_METHOD = "ui/message";
 export const SIZE_CHANGED_METHOD = "ui/notifications/size-changed";
 export const TOOL_INPUT_METHOD = "ui/notifications/tool-input";

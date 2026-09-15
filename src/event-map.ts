@@ -16,7 +16,6 @@ import {
 export const DATA_CHANGED_METHOD = "synapse/data-changed";
 export const ACTION_METHOD = "synapse/action";
 export const REQUEST_FILE_METHOD = "synapse/request-file";
-export const DOWNLOAD_FILE_METHOD = "synapse/download-file";
 
 /**
  * Maps short event names used in App.on() to full MCP method names.

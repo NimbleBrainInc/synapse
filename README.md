@@ -361,7 +361,7 @@ action(app, "navigate", { entity: "board", id: "b1" });
 | `action(app, name, params?)` | Trigger a NimbleBrain host action. No-op off a NimbleBrain host. |
 | `pickFile(app, options?)` | Native file picker, single file. Throws off a NimbleBrain host. |
 | `pickFiles(app, options?)` | Native file picker, multiple files. Throws off a NimbleBrain host. |
-| `downloadFile(app, name, content, mime?)` | Hand the user a file to save. |
+| `downloadFile(app, name, content, mime?)` | Hand the user a file to save, over the spec's `ui/download-file`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
 `app.supportsTasks` says whether the host negotiated the tasks utility for
 `tools/call`. `callToolAsTask` throws when it is false, so read it to decide

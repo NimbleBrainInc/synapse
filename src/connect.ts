@@ -1,4 +1,5 @@
 import type {
+  McpUiHostCapabilities,
   McpUiHostContext,
   McpUiHostContextChangedNotification,
   McpUiInitializeRequest,
@@ -60,7 +61,7 @@ const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
  * {@link App}.
  *
  * The `App` it returns stays deliberately small. NimbleBrain's own extensions
- * (`action`, the file picker, `downloadFile`) and the MCP tasks utility are
+ * (`action`, the file picker), `downloadFile` and the MCP tasks utility are
  * composable functions over it — import them from the package root.
  */
 export async function connect(options: ConnectOptions): Promise<App> {
@@ -79,6 +80,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
   let toolInfo: { tool: Record<string, unknown> } | null = null;
   let containerDimensions: Dimensions | null = null;
   let hostTasksCapability: TasksCapability | undefined;
+  let hostDownloadFileCapability: McpUiHostCapabilities["downloadFile"];
   let keyboard: KeyboardForwarder | null = null;
 
   // Font faces are the one derived value that must NOT be recomputed from a
@@ -155,6 +157,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
       rawTasks && typeof rawTasks === "object" && !Array.isArray(rawTasks)
         ? (rawTasks as TasksCapability)
         : undefined;
+    hostDownloadFileCapability = result.hostCapabilities?.downloadFile;
 
     const ctx: McpUiHostContext | undefined = result.hostContext;
     if (ctx) {
@@ -465,6 +468,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
     taskRouter,
     get hostTasksCapability() {
       return hostTasksCapability;
+    },
+    get hostDownloadFileCapability() {
+      return hostDownloadFileCapability;
     },
   });
 

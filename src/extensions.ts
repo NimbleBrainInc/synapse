@@ -12,7 +12,7 @@
  * the ones with a return value throw, because a picker that silently resolves
  * `null` forever is worse than one that says it isn't there.
  */
-import { ACTION_METHOD, DOWNLOAD_FILE_METHOD, REQUEST_FILE_METHOD } from "./event-map.js";
+import { ACTION_METHOD, REQUEST_FILE_METHOD } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import type { App, FileResult, RequestFileOptions } from "./types.js";
 
@@ -28,29 +28,6 @@ const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 export function action(app: App, name: string, params?: Record<string, unknown>): void {
   if (!app.isNimbleBrainHost) return;
   internalsFor(app).send(ACTION_METHOD, { action: name, ...params });
-}
-
-/**
- * Hand the user a file to save.
- *
- * Precedence for the MIME type: the explicit argument, then the Blob's own
- * type, then `application/octet-stream`. An empty-string argument falls
- * through — a `""` MIME is effectively "no type".
- */
-export function downloadFile(
-  app: App,
-  filename: string,
-  content: string | Blob,
-  mimeType?: string,
-): void {
-  const resolvedMime =
-    mimeType || (content instanceof Blob ? content.type : "") || "application/octet-stream";
-  const blob = content instanceof Blob ? content : new Blob([content], { type: resolvedMime });
-  internalsFor(app).send(DOWNLOAD_FILE_METHOD, {
-    data: blob,
-    filename,
-    mimeType: resolvedMime,
-  });
 }
 
 /**

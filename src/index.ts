@@ -4,9 +4,11 @@ export type {
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
 export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
+// ext-apps `ui/download-file`, composable over `App`.
+export { downloadFile } from "./download-file.js";
 // NimbleBrain host extensions — composable over `App`, no-ops or throws off a
 // NimbleBrain host. Not ext-apps spec surface.
-export { action, downloadFile, pickFile, pickFiles } from "./extensions.js";
+export { action, pickFile, pickFiles } from "./extensions.js";
 // Cross-host UI client (push-first; ChatGPT / Claude / standalone). A
 // different axis from `connect()`, and unaffected by it.
 export { connectUI } from "./host/connect.js";

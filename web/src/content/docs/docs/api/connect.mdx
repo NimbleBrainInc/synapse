@@ -58,7 +58,7 @@ Available synchronously once the promise resolves.
 | `destroy()` | Clean up all listeners, observers, and timers |
 
 That is the whole object. It is deliberately this small: NimbleBrain's own
-extensions and the MCP tasks utility are **functions over an `App`**, imported
+extensions, `downloadFile` and the MCP tasks utility are **functions over an `App`**, imported
 from the package root, so an app that never picks a file never carries the
 picker.
 
@@ -67,7 +67,7 @@ picker.
 | `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). |
 | `action(app, name, params?)` | Trigger a host-side action. No-op off a NimbleBrain host. |
 | `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Throws off a NimbleBrain host. |
-| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save. |
+| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
 ## See also
 

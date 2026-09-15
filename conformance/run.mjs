@@ -375,6 +375,35 @@ try {
           (app) => stepOk(app, "updateModelContext"),
         ],
         [
+          "ui/download-file carries the file as an embedded resource",
+          "a host will not fetch a link an app names, so a file only reaches the user when its bytes travel in the request — text as `text`, binary as base64 `blob`",
+          (app, handled) => {
+            for (const key of ["downloadFile", "downloadFileBlob"]) {
+              const ok = stepOk(app, key);
+              if (ok !== true) return `${key} ${ok}`;
+            }
+            const blocks = handled
+              .filter((f) => f.method === "ui/download-file")
+              .flatMap((f) => f.params?.contents ?? []);
+            const byUri = (uri) => blocks.find((b) => b.resource?.uri === uri);
+            if (blocks.length !== 2) return `expected 2 blocks, got ${JSON.stringify(blocks)}`;
+            if (blocks.some((b) => b.type !== "resource")) {
+              return `a block was not an embedded resource: ${JSON.stringify(blocks)}`;
+            }
+            const text = byUri("file:///a.txt")?.resource;
+            if (text?.text !== "abc" || text.mimeType !== "text/plain") {
+              return `text block was ${JSON.stringify(text)}`;
+            }
+            const bin = byUri("file:///b.bin")?.resource;
+            if (typeof bin?.blob !== "string") return `binary block was ${JSON.stringify(bin)}`;
+            const bytes = [...Buffer.from(bin.blob, "base64")];
+            return (
+              JSON.stringify(bytes) === JSON.stringify([0, 1, 127, 128, 254, 255]) ||
+              `binary block decoded to ${JSON.stringify(bytes)}`
+            );
+          },
+        ],
+        [
           "no uncaught console errors",
           "a spec host logs a rejected frame rather than failing the call",
           () => consoleErrors.length === 0 || consoleErrors.join(" | "),

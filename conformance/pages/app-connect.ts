@@ -8,7 +8,8 @@
  * here is part of the suite's contract.
  */
 import { connect } from "../../src/connect.js";
-import { downloadFile, pickFile } from "../../src/extensions.js";
+import { downloadFile } from "../../src/download-file.js";
+import { pickFile } from "../../src/extensions.js";
 import { internalsFor } from "../../src/internals.js";
 import { callToolAsTask, TASKS_GET_METHOD, TASKS_RESULT_METHOD } from "../../src/task-handle.js";
 
@@ -67,6 +68,11 @@ if (app) {
   await step("openLink", () => connected.openLink("https://example.com"));
   await step("updateModelContext", () => connected.updateModelContext({ a: 1 }));
   await step("downloadFile", () => downloadFile(connected, "a.txt", "abc", "text/plain"));
+  // Every byte value a naive text encoding would mangle, so the row can prove
+  // the base64 path round-trips rather than merely that something arrived.
+  await step("downloadFileBlob", () =>
+    downloadFile(connected, "b.bin", new Blob([new Uint8Array([0, 1, 127, 128, 254, 255])])),
+  );
   // A `synapse/*` request, app → host, answered by the host's fallback handler.
   await step("requestFile", () => pickFile(connected));
   // The tasks utility has no ext-apps typed surface, so its methods ride the

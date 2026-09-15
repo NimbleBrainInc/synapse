@@ -13,6 +13,7 @@
 // --- Canonical spec types and constants ---
 import type {
   McpUiAppCapabilities,
+  McpUiDownloadFileRequest,
   McpUiHostCapabilities,
   McpUiHostContext,
   McpUiHostContextChangedNotification,
@@ -29,6 +30,7 @@ import type {
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps";
 import {
+  DOWNLOAD_FILE_METHOD,
   HOST_CONTEXT_CHANGED_METHOD,
   INITIALIZE_METHOD,
   INITIALIZED_METHOD,
@@ -59,6 +61,7 @@ import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connect } from "../connect.js";
+import { downloadFile } from "../download-file.js";
 import { resolveEventMethod } from "../event-map.js";
 import { parseToolResult } from "../result-parser.js";
 import { callToolAsTask } from "../task-handle.js";
@@ -186,6 +189,10 @@ describe("method name constants", () => {
 
   it("RESOURCE_TEARDOWN_METHOD is ui/resource-teardown", () => {
     expect(RESOURCE_TEARDOWN_METHOD).toBe("ui/resource-teardown");
+  });
+
+  it("DOWNLOAD_FILE_METHOD is ui/download-file", () => {
+    expect(DOWNLOAD_FILE_METHOD).toBe("ui/download-file");
   });
 });
 
@@ -536,6 +543,29 @@ describe("outbound message shapes", () => {
     expect(first.uri).toBe("videos://bunny-1mb");
     expect(first.mimeType).toBe("video/mp4");
     expect("blob" in first && first.blob).toBe("AAAA");
+  });
+
+  it("downloadFile sends ui/download-file with one embedded resource", async () => {
+    app = await connectAndHandshake(
+      {},
+      makeSpecInitResult({ hostCapabilities: { downloadFile: {} } }),
+    );
+    // Unanswered here, so `destroy()` rejects it on teardown.
+    downloadFile(app, "a.txt", "abc", "text/plain").catch(() => {});
+
+    const msg = postMessageSpy.mock.calls
+      .map((c: unknown[]) => c[0] as Record<string, unknown>)
+      .find((m) => m.method === DOWNLOAD_FILE_METHOD);
+    expect(msg?.id).toBeDefined();
+    const expected: McpUiDownloadFileRequest["params"] = {
+      contents: [
+        {
+          type: "resource",
+          resource: { uri: "file:///a.txt", mimeType: "text/plain", text: "abc" },
+        },
+      ],
+    };
+    expect(msg?.params).toEqual(expected);
   });
 });
 

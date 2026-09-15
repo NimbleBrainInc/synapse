@@ -1,6 +1,6 @@
 ---
 title: Standalone and non-NimbleBrain hosts
-description: "How NimbleBrain-specific features (the synapse/* extensions: host actions, data-change events, state persistence, file operations, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
+description: "How NimbleBrain-specific features (the synapse/* extensions: host actions, data-change events, state persistence, the file picker, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
 ---
 
 Synapse runs in any host that implements ext-apps: Claude Desktop, VS Code,
@@ -23,6 +23,8 @@ Everything defined by ext-apps is available in every conforming host:
 - theme changes via `host-context-changed`;
 - calling MCP tools with `callTool`;
 - reporting size with `resize` and opening links with `openLink`;
+- handing the user a file with `downloadFile`, on a host that advertises the
+  `downloadFile` capability (elsewhere its promise rejects without sending);
 - teardown notification when the host removes the view.
 
 If your app only uses these, it behaves identically across hosts. This is the
@@ -39,7 +41,6 @@ them, so they no-op.
 | Host actions (`action()`, `useAction`) | `synapse/action` | No-op |
 | Agent data-change events (`onDataChanged`, `useDataSync`) | `synapse/data-changed` | No-op |
 | State persistence (`persist: true`) | `synapse/persist-state`, `synapse/state-loaded` | In-memory only, not restored across reloads |
-| File download (`downloadFile`) | `synapse/download-file` | No-op |
 | File picker (`pickFile`, `pickFiles`) | `synapse/request-file` | No-op |
 | Keyboard forwarding | `synapse/keydown` | No-op |
 
@@ -70,7 +71,7 @@ extension that no-ops.
 Most of the time you should just call the method and let it no-op. When you want to
 branch, read the host identity: `App` exposes `isNimbleBrainHost`, and the
 `connect()` `App` exposes `hostInfo` with the host name and version. Use it to hide
-a NimbleBrain-only affordance (a download button, say) on hosts that cannot fulfill
+a NimbleBrain-only affordance (an upload button, say) on hosts that cannot fulfill
 it, rather than to guard against a crash, because there is no crash to guard
 against.
 

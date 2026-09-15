@@ -292,7 +292,6 @@ unsub();
 | `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` — fires only when the theme actually moves |
 | `"host-context-changed"` | `ui/notifications/host-context-changed` | `McpUiHostContext` — every change, unfiltered |
 | `"data-changed"` | `synapse/data-changed` | `DataChangedEvent` |
-| `"action"` | `synapse/action` | `AgentAction` |
 | `"teardown"` | `ui/resource-teardown` | — |
 | Any custom string | Passed through as-is | `unknown` |
 
@@ -395,9 +394,6 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |
 | `useAction()` | `(name, params?) => void` | Trigger a NimbleBrain host action |
 | `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker (NB-only) |
-
-To *receive* the actions a tool emits, subscribe through the app:
-`useApp().on("action", cb)`.
 
 ## Long-running tools (tasks)
 

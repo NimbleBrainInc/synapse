@@ -169,55 +169,6 @@ export interface DataChangedEvent {
   tool: string;
 }
 
-// ---------- Agent Actions ----------
-
-/**
- * Built-in action types that Synapse handles natively.
- *
- * - `navigate` — select/focus a resource in the UI (e.g., a board, document, record)
- * - `notify`   — display a transient message (toast/banner)
- * - `refresh`  — force a full data refresh (heavier than datachanged)
- * - `confirm`  — request user confirmation before the agent proceeds
- *
- * Apps may also receive custom string types for domain-specific actions.
- */
-export type BuiltinActionType = "navigate" | "notify" | "refresh" | "confirm";
-
-/**
- * A typed, declarative action sent from the agent/server to the UI.
- *
- * Actions are deterministic side effects of tool execution — the tool decides
- * what action to emit, not the LLM. The UI decides how to handle it.
- *
- * This mirrors Studio's ClientAction pattern, adapted for iframe postMessage.
- */
-export interface AgentAction<TPayload = Record<string, unknown>> {
-  /** Discriminator — a BuiltinActionType or custom string. */
-  type: BuiltinActionType | (string & {});
-  /** Typed payload — shape depends on `type`. */
-  payload: TPayload;
-  /** If true, the UI should confirm with the user before executing. */
-  requiresConfirmation?: boolean;
-  /** Human-readable label for confirmation dialogs or logs. */
-  label?: string;
-}
-
-/** Payload for the built-in "navigate" action. */
-export interface NavigatePayload {
-  /** Entity type (e.g., "board", "document", "task"). */
-  entity: string;
-  /** Entity ID to select/focus. */
-  id: string;
-  /** Optional sub-view or section within the entity. */
-  view?: string;
-}
-
-/** Payload for the built-in "notify" action. */
-export interface NotifyPayload {
-  message: string;
-  level?: "info" | "success" | "warning" | "error";
-}
-
 export interface ToolCallResult<T = unknown> {
   data: T;
   isError: boolean;
@@ -375,7 +326,6 @@ export type AppEventName =
   | "theme-changed"
   | "host-context-changed"
   | "data-changed"
-  | "action"
   | "teardown";
 
 /**
@@ -472,7 +422,6 @@ export interface App {
    *  `on("ui/notifications/host-context-changed", …)`. */
   on(event: "host-context-changed", handler: (ctx: McpUiHostContext) => void): () => void;
   on(event: "data-changed", handler: (event: DataChangedEvent) => void): () => void;
-  on(event: "action", handler: (action: AgentAction) => void): () => void;
   on(event: "teardown", handler: () => void): () => void;
   on(event: string, handler: (params: any) => void): () => void;
 

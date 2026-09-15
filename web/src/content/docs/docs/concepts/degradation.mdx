@@ -1,6 +1,6 @@
 ---
 title: Standalone and non-NimbleBrain hosts
-description: "How NimbleBrain-specific features (the synapse/* extensions: agent actions, data-change events, state persistence, file operations, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
+description: "How NimbleBrain-specific features (the synapse/* extensions: host actions, data-change events, state persistence, file operations, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
 ---
 
 Synapse runs in any host that implements ext-apps: Claude Desktop, VS Code,
@@ -36,7 +36,7 @@ them, so they no-op.
 
 | Feature | `synapse/*` method | Off NimbleBrain |
 | --- | --- | --- |
-| Agent actions (`onAction`, `action()`) | `synapse/action` | No-op |
+| Host actions (`action()`, `useAction`) | `synapse/action` | No-op |
 | Agent data-change events (`onDataChanged`, `useDataSync`) | `synapse/data-changed` | No-op |
 | State persistence (`persist: true`) | `synapse/persist-state`, `synapse/state-loaded` | In-memory only, not restored across reloads |
 | File download (`downloadFile`) | `synapse/download-file` | No-op |

@@ -18,7 +18,7 @@ describe("resolveEventMethod", () => {
     expect(resolveEventMethod("tool-cancelled")).toBe("ui/notifications/tool-cancelled");
   });
 
-  // `connect()` intercepts these four before it consults the map, so a mapping
+  // `connect()` intercepts these three before it consults the map, so a mapping
   // here would be a second table claiming the same names — and the one nothing
   // reads is the one that goes wrong quietly. Passing through unchanged is the
   // evidence that only one table owns them.
@@ -26,7 +26,6 @@ describe("resolveEventMethod", () => {
     "theme-changed",
     "host-context-changed",
     "data-changed",
-    "action",
   ])("does not claim %s — connect() routes it", (name) => {
     expect(resolveEventMethod(name)).toBe(name);
   });

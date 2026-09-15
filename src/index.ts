@@ -23,10 +23,8 @@ export {
 // MCP 2025-11-25 tasks utility, composable over `App`.
 export { callToolAsTask } from "./task-handle.js";
 export type {
-  AgentAction,
   App,
   AppEventName,
-  BuiltinActionType,
   CallToolAsTaskOptions,
   ConnectOptions,
   CreateTaskResult,
@@ -39,8 +37,6 @@ export type {
   KeyForwardConfig,
   McpUiHostContext,
   ModelContext,
-  NavigatePayload,
-  NotifyPayload,
   RequestFileOptions,
   Task,
   TaskHandle,

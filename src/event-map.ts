@@ -24,8 +24,8 @@ export const DOWNLOAD_FILE_METHOD = "synapse/download-file";
  * in sync with the spec — if the spec changes a method name, this breaks
  * at compile time, not silently at runtime.
  *
- * `theme-changed`, `host-context-changed`, `data-changed` and `action` are
- * deliberately absent: `connect()` routes each of those itself, because each is
+ * `theme-changed`, `host-context-changed` and `data-changed` are deliberately
+ * absent: `connect()` routes each of those itself, because each is
  * a typed *view* over a notification rather than the notification's raw params
  * (and the first two are two views over the same one). Listing them here would
  * be a second table nothing consults — the kind of copy that goes wrong quietly

@@ -409,8 +409,6 @@ export interface AppInternals {
    * task-augment a call unless this carries `requests.tools.call`.
    */
   readonly hostTasksCapability: TasksCapability | undefined;
-  /** App name, as sent in `appInfo`. */
-  readonly appName: string;
 }
 
 /**

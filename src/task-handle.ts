@@ -147,7 +147,6 @@ export async function callToolAsTask<TOutput = unknown>(
   // Build `tools/call` params. We layer our own shape on the SDK's
   // `CallToolRequest["params"]` via `satisfies` so any rename upstream
   // (`name` → `toolName`, `arguments` → `args`, etc.) trips tsc.
-  //
   const callParams = {
     name: toolName,
     arguments: (args as Record<string, unknown> | undefined) ?? {},

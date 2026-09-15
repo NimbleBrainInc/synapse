@@ -337,7 +337,7 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL (host-aware) |
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?, options?)` | Call an MCP tool and get typed result. `options.server` routes to a sibling server. |
+| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result |
 | `readServerResource({ uri })` | Read an MCP resource from the originating server |
 | `sendMessage(text, context?)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |

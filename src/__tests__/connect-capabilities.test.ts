@@ -1,7 +1,7 @@
 /**
- * Capability coverage for `connect()` — the host identity gate, cross-server
- * routing, the `synapse/*` extensions, the host-context and theme views, and
- * the tasks handshake.
+ * Capability coverage for `connect()` — the host identity gate, the
+ * `tools/call` wire shape, the `synapse/*` extensions, the host-context and
+ * theme views, and the tasks handshake.
  *
  * `connect.test.ts` covers the handshake and the ext-apps message shapes; this
  * file covers what an app can do once connected.

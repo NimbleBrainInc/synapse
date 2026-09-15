@@ -8,7 +8,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
-import { SERVER_META_KEY } from "../event-map.js";
 import { action, downloadFile, pickFile, pickFiles } from "../extensions.js";
 import type { App, TasksCapability } from "../types.js";
 
@@ -138,32 +137,18 @@ describe("connect() capabilities", () => {
       await expect(p).resolves.toMatchObject({ data: { hits: 3 }, isError: false });
     });
 
-    it("omits the server key entirely for a non-internal app", async () => {
+    // An app reaches its own server and nothing else. A host scopes every call
+    // to whatever mounted the app, so there is no target to send — and the
+    // params carry no way to name one, by either route a previous version used.
+    // The guard is on the wire rather than on the type, because a type is not
+    // what a host reads.
+    it("names no target server, by any route", async () => {
       app = await connectAndHandshake();
       app.callTool("search").catch(() => {});
-      expect(lastRequest().params).not.toHaveProperty("_meta");
-      // The pre-`_meta` sibling field must not come back either: a spec host
-      // strips it, so re-adding it would only make the call look addressed.
-      expect(lastRequest().params).not.toHaveProperty("server");
-    });
-
-    it("an internal app carries its own name in the server _meta key", async () => {
-      app = await connectAndHandshake({ internal: true });
-      app.callTool("search").catch(() => {});
-      expect(lastRequest().params).toMatchObject({
-        _meta: { [SERVER_META_KEY]: "test-app" },
-      });
-      expect(lastRequest().params).not.toHaveProperty("server");
-    });
-
-    it("an explicit `server` option routes the call cross-server through _meta", async () => {
-      app = await connectAndHandshake({ internal: true });
-      app.callTool("list_contacts", undefined, { server: "people" }).catch(() => {});
-      expect(lastRequest().params).toMatchObject({
-        name: "list_contacts",
-        _meta: { [SERVER_META_KEY]: "people" },
-      });
-      expect(lastRequest().params).not.toHaveProperty("server");
+      const { params } = lastRequest();
+      expect(params).toEqual({ name: "search", arguments: {} });
+      expect(params).not.toHaveProperty("_meta");
+      expect(params).not.toHaveProperty("server");
     });
 
     it("rejects on an error response", async () => {

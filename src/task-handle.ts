@@ -13,7 +13,6 @@ import type {
   TaskStatusNotificationParams,
 } from "@modelcontextprotocol/sdk/types.js";
 
-import { SERVER_META_KEY } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
 import type { SynapseTransport } from "./transport.js";
@@ -145,28 +144,14 @@ export async function callToolAsTask<TOutput = unknown>(
   const taskParam: { ttl?: number } = {};
   if (options?.ttl !== undefined) taskParam.ttl = options.ttl;
 
-  // `internal` resolution:
-  //   - explicit `options.internal === true`  → cross-server, add `server`
-  //   - explicit `options.internal === false` → never add `server`
-  //   - omitted                                → inherit from app-level
-  //                                              `internal` flag (same
-  //                                              semantics as `callTool`)
-  const crossServer = options?.internal ?? deps.internalApp;
-
   // Build `tools/call` params. We layer our own shape on the SDK's
   // `CallToolRequest["params"]` via `satisfies` so any rename upstream
   // (`name` → `toolName`, `arguments` → `args`, etc.) trips tsc.
   //
-  // Cross-server dispatch is a NimbleBrain bridge convention, not an MCP spec
-  // field, so it rides in `_meta` — the same place and the same key `callTool`
-  // uses. One convention, one location: a sibling of `name` and `arguments` is
-  // stripped by any spec client or host on the path, and a task-augmented call
-  // is no less exposed to that than a plain one.
   const callParams = {
     name: toolName,
     arguments: (args as Record<string, unknown> | undefined) ?? {},
     task: taskParam,
-    ...(crossServer ? { _meta: { [SERVER_META_KEY]: deps.appName } } : {}),
   } satisfies CallToolRequest["params"];
 
   const raw = await deps.request(

@@ -33,7 +33,6 @@ await step("connect", async () => {
     name: "conformance-app",
     version: "1.0.0",
     autoResize: true,
-    internal: true,
     // Pre-registered, so the result the host sends the instant `initialized`
     // arrives is not lost. This is the one handler that cannot be attached
     // after `connect()` resolves.
@@ -63,9 +62,6 @@ if (app) {
   results.themeAtConnect = connected.theme.mode;
 
   await step("callTool", () => connected.callTool("echo", { a: 1 }));
-  await step("callToolCrossServer", () =>
-    connected.callTool("list_items", { q: "x" }, { server: "other-server" }),
-  );
   await step("readServerResource", () => connected.readServerResource({ uri: "x://a" }));
   await step("sendMessage", () => connected.sendMessage("hi", { action: "a" }));
   await step("openLink", () => connected.openLink("https://example.com"));

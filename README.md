@@ -313,7 +313,6 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default: `false` |
-| `internal` | `boolean?` | NimbleBrain internal app — `callTool` carries a `server` param for cross-server routing |
 | `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host. Only a NimbleBrain host consumes them, so it stays off elsewhere. |
 | `on` | `Record<string, (data) => void>?` | Pre-register handlers before the handshake, so no early message is lost |
 

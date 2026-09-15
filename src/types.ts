@@ -62,13 +62,6 @@ export interface CallToolAsTaskOptions {
    * "unlimited" explicitly.
    */
   ttl?: number;
-  /**
-   * Route the call through the internal-apps cross-server authz path
-   * (adds `_meta["ai.nimblebrain/server"]` set to this app's name). External
-   * apps MUST NOT pass this; the spec doesn't touch it — it's a
-   * NimbleBrain-specific bridge convention mirroring `callTool`'s behavior.
-   */
-  internal?: boolean;
 }
 
 /**
@@ -343,13 +336,6 @@ export interface ConnectOptions {
   /** Track the document height and re-send `size-changed` as it moves. */
   autoResize?: boolean;
   /**
-   * Mark as an internal NimbleBrain app. Enables cross-server tool calls:
-   * `callTool` names the target in `_meta["ai.nimblebrain/server"]` so the
-   * host can route the call to a sibling server. External apps MUST NOT set
-   * this.
-   */
-  internal?: boolean;
-  /**
    * Forward keyboard shortcuts from this iframe up to the host, so the host's
    * own shortcuts still fire while focus is inside the app.
    *
@@ -378,17 +364,6 @@ export interface ToolResultData {
   content: unknown;
   structuredContent: unknown;
   raw: Record<string, unknown>;
-}
-
-/** Per-call overrides for {@link App.callTool}. */
-export interface CallToolOptions {
-  /**
-   * Route the call to a sibling MCP server rather than the app's own.
-   * Internal apps only — the host rejects it otherwise. Defaults to this
-   * app's name when `connect({ internal: true })` was used, which is what
-   * makes a plain `callTool` work for an internal app.
-   */
-  server?: string;
 }
 
 /** Known short event names for {@link App.on}. */
@@ -434,10 +409,8 @@ export interface AppInternals {
    * task-augment a call unless this carries `requests.tools.call`.
    */
   readonly hostTasksCapability: TasksCapability | undefined;
-  /** App name, as sent in `appInfo` — the `server` an internal call defaults to. */
+  /** App name, as sent in `appInfo`. */
   readonly appName: string;
-  /** Whether `connect()` was given `internal: true`. */
-  readonly internalApp: boolean;
 }
 
 /**
@@ -516,10 +489,17 @@ export interface App {
    * change want `useModelContext`, which debounces.
    */
   updateModelContext(state: Record<string, unknown>, summary?: string): void;
+  /**
+   * Call a tool on this app's own MCP server.
+   *
+   * An app reaches its own server and nothing else. A host scopes every call
+   * to the server that mounted the app, so there is no target to name and no
+   * option to pass — cross-source work belongs to the agent, which can call
+   * two servers and hand one's result to the other.
+   */
   callTool<TOutput = unknown>(
     name: string,
     args?: Record<string, unknown>,
-    options?: CallToolOptions,
   ): Promise<ToolCallResult<TOutput>>;
   /**
    * Read an MCP resource from the originating server via the host bridge

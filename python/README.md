@@ -46,6 +46,57 @@ and still read `structuredContent`.
 `bind` may be called before or after the server is constructed; the resources are
 built at construction, so a `SynapseUI` is fully formed before `MCPServer` reads it.
 
+## One declaration, every host's keys
+
+Each input is declared once and emitted under every key a host reads it from. The
+ext-apps `ui.*` key is the one the spec defines. ChatGPT reads those keys too and
+documents each `openai/*` key as a compatibility alias for one of them, so both are
+emitted and a caller never picks.
+
+| Input | ext-apps key | ChatGPT alias |
+|---|---|---|
+| the component | tool `ui.resourceUri` (the MCP Apps copy) | `openai/outputTemplate` (the skybridge copy) |
+| `tool_meta(visibility=)` | tool `ui.visibility` | `openai/widgetAccessible`; `openai/visibility: "private"` when `"model"` is absent |
+| `connect_domains`, `resource_domains` | resource `ui.csp` | `openai/widgetCSP` |
+| always `true` | resource `ui.prefersBorder` | `openai/widgetPrefersBorder` |
+| `widget_domain` | skybridge resource `ui.domain` | `openai/widgetDomain` |
+| `mcp_app_domain` | MCP Apps resource `ui.domain` | — |
+
+The two origins stay separate inputs because the hosts disagree on the value:
+ChatGPT takes an origin the developer declares, while Claude derives
+`sha256(<connector URL>)[:32] + ".claudemcpcontent.com"` and rejects anything else.
+Leave both unset unless the component needs a stable origin.
+
+`tool_meta(widget_accessible=)` still works and warns: it is
+`visibility=["model", "app"]` or `visibility=["model"]`.
+
+## Sign-in
+
+A server that requires auth declares it on each tool, and answers a call it cannot
+authorize with a result carrying the challenge. ChatGPT needs both to offer sign-in
+mid-conversation ([Apps SDK auth guide](https://developers.openai.com/apps-sdk/build/auth)).
+
+```python
+from typing import Annotated
+
+from mcp.types import CallToolResult
+from nimblebrain_synapse import auth_error_result
+
+@mcp.tool(meta=report_ui.tool_meta(security_schemes=[{"type": "oauth2", "scopes": ["report.read"]}]))
+async def analyze_domain(domain: str) -> Annotated[CallToolResult, Dossier]:
+    if not signed_in():
+        return auth_error_result(
+            resource_metadata="https://example.com/.well-known/oauth-protected-resource",
+            error="insufficient_scope",
+            description="Sign in to analyze a domain",
+        )
+    return build_dossier(domain)  # a Dossier still becomes structuredContent
+```
+
+`securitySchemes` rides the tool's `_meta`, which ChatGPT documents as the mirror for
+clients that read only `_meta`. The MCP SDK builds a tool descriptor from a fixed set
+of fields, so the top-level form cannot be emitted through it.
+
 ## Template contract
 
 The `template` is data-free HTML that carries two markers:
@@ -99,13 +150,17 @@ What both halves share is the **wire protocol** — the `ui://` resource MIMEs, 
 
 ### MCP SDK compatibility
 
-**This package requires mcp 2.x** (`mcp>=2.0.0,<3`) and does not run on 1.x. It is
+**This package requires mcp 2.x from 2.1** (`mcp>=2.1.0,<3`) and does not run on 1.x. It is
 built on two things that exist only in 2.x: the SEP-2133 extension interface
 (`mcp.server.extension.Extension`), and `mcp.server.apps` for the MCP Apps
 identifier and MIME. On 1.x the equivalent of `intercept_tool_call` did not exist,
 and this package reached into `FastMCP`'s private handler registry to get one — so
 there is no shape that serves both majors, and the range is a single major rather
 than a span.
+
+The floor is 2.1.0 because 2.0.0 validates an error result from a tool with
+structured output against its output schema and replaces it, dropping the challenge
+`auth_error_result` carries.
 
 The upper bound is deliberate. `mcp` 2.0 reached fresh installs of this package
 through an uncapped `>=` floor and broke them, which is what the cap prevents from

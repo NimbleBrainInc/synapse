@@ -193,7 +193,7 @@ smaller object, and it grows back one convenience method at a time.
 
 No spec equivalent — degrade to no-ops in other hosts:
 
-`synapse/action`, `synapse/data-changed`, `synapse/keydown`, `synapse/request-file`
+`synapse/action`, `synapse/keydown`, `synapse/request-file`
 
 ## IIFE build for MCP server widgets
 

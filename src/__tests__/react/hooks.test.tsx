@@ -86,7 +86,32 @@ afterEach(() => {
 });
 
 describe("useDataSync", () => {
-  it("runs the callback when the agent changes data", async () => {
+  it("runs the callback with the params when the app's server announces a change", async () => {
+    const cb = vi.fn();
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    act(() => {
+      dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
+    });
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledWith({ _meta: { k: "v" } });
+  });
+
+  it("hands the callback an empty object when the notification carries no params", async () => {
+    const cb = vi.fn();
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    act(() => {
+      dispatchNotification("notifications/resources/list_changed");
+    });
+
+    expect(cb).toHaveBeenCalledWith({});
+  });
+
+  it("does not run on synapse/data-changed", async () => {
     const cb = vi.fn();
     renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
     await settle();
@@ -95,11 +120,7 @@ describe("useDataSync", () => {
       dispatchNotification("synapse/data-changed", { server: "people", tool: "update_contact" });
     });
 
-    expect(cb).toHaveBeenCalledWith({
-      source: "agent",
-      server: "people",
-      tool: "update_contact",
-    });
+    expect(cb).not.toHaveBeenCalled();
   });
 
   it("uses the latest callback without re-subscribing", async () => {
@@ -113,7 +134,7 @@ describe("useDataSync", () => {
 
     rerender({ cb: second });
     act(() => {
-      dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
+      dispatchNotification("notifications/resources/list_changed", {});
     });
 
     expect(first).not.toHaveBeenCalled();

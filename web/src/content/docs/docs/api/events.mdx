@@ -36,8 +36,10 @@ on(event: string, handler: (data: unknown) => void): () => void;
 | `"teardown"` | `ui/resource-teardown` | none |
 | Any custom string | Passed through as-is | `unknown` |
 
-NimbleBrain extensions work as passthrough event names (for example
-`app.on("synapse/data-changed", ...)`) and degrade to no-ops in other hosts.
+Any wire method works as a passthrough event name. For example,
+`app.on("notifications/resources/list_changed", ...)` fires when your server
+announces its data changed, which is what [`useDataSync`](/docs/guides/keep-ui-in-sync)
+listens for.
 
 ## `ToolResultData`
 

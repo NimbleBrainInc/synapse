@@ -30,7 +30,6 @@ export type {
   CallToolAsTaskOptions,
   ConnectOptions,
   CreateTaskResult,
-  DataChangedEvent,
   Dimensions,
   FileResult,
   FontDisplayValue,

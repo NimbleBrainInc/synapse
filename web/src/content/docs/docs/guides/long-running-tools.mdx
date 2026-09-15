@@ -82,16 +82,17 @@ host advertised `tasks.requests.tools.call`.
 
 ## The dual-channel pattern
 
-When a task creates a domain entity (a research run, an import job), the entity ID
-arrives on the data-changed channel, not in the task result. Keep the two channels
+When a task creates a domain entity (a research run, an import job), the UI learns
+the entity exists from the server, not from the task result. Keep the two channels
 separate:
 
 - The **task channel** (`task`, `isWorking`, `isTerminal`, `result`) signals
   lifecycle: started, running, done, cancelled.
-- The **entity channel** (`synapse/data-changed` via [`useDataSync`](/docs/guides/keep-ui-in-sync))
-  carries the durable record, including the new entity's ID.
+- The **data channel** is the server's own: it announces the write with
+  `notifications/resources/list_changed`, and [`useDataSync`](/docs/guides/keep-ui-in-sync)
+  re-reads the list the new entity now appears in.
 
-So a UI that needs to navigate to the entity the task just created should listen
+So a UI that needs to navigate to the entity the task just created should re-read
 on `useDataSync` rather than waiting on `result`.
 
 ## How it works
@@ -107,4 +108,4 @@ user can re-fire to recover state on their next visit.
 ## Related
 
 - [Call MCP tools with types](/docs/guides/call-tools): the inline `useCallTool` for work that fits in one request.
-- [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): the data-changed channel the entity ID arrives on.
+- [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): the server's announcement that `useDataSync` re-reads on.

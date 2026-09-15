@@ -8,6 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
+- **`useDataSync` fires when the app's own server announces a change, and hands the callback that notification's params.** It subscribes to `notifications/resources/list_changed`, which a server sends when its data changes and an MCP Apps host forwards to that server's views (host capability `serverResources.listChanged`). The callback receives the notification's params as the spec defines them, or `{}` when there are none. NimbleBrain's `synapse/data-changed` is no longer handled: the `"data-changed"` event and the `DataChangedEvent` type are gone.
+
+  The server that owns the data is the one that knows it changed. Its announcement covers every write — the agent's, a webhook's, a call from another view — and arrives on any host that forwards it. The signal it replaces was a host's guess from the agent's tool calls: it fired on reads as well as writes, missed every change the agent did not make, and existed on one host.
+
+  **Migration:** the server must announce its writes, or `useDataSync` does not fire; send `notifications/resources/list_changed` from the tool that wrote. In the callback, drop any use of `source`, `server` or `tool`, and any filter on the tool name: the notification only ever comes from the app's own server and names no tool, so the answer to it is to re-read. Replace `app.on("data-changed", …)` with `app.on("notifications/resources/list_changed", …)` — and search for it rather than waiting on `tsc`, because a leftover `on("data-changed", …)` still type-checks through the catch-all string overload and never fires. Delete any import of `DataChangedEvent`, which now fails to compile.
+
 - **The `@modelcontextprotocol/ext-apps` peer range is `^1.7.5`, and the host's tasks capability is read from `hostCapabilities.experimental`.** `connect()` reads `experimental["io.modelcontextprotocol/tasks"]`, the MCP Tasks extension identifier, and `experimental["ai.nimblebrain/tasks"]` when that is absent. A top-level `hostCapabilities.tasks` is no longer read.
 
   The ext-apps host capability type has no `tasks` field, so a client that validates the handshake against the spec's schema strips a top-level one. `experimental` is the one slot whose contents survive that parse, and only from ext-apps 1.7.5: every earlier release empties it too.
@@ -43,6 +49,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   Two more defects in the same handshake came out with it. Each host gated request handling on `msg.id` being *truthy*, and the MCP SDK numbers request ids from zero — so both silently ignored the first request every spec client sends, which is its `ui/initialize`. And both published three CSS variables the spec's style-variable enum does not name; that enum is a strict record, so one extra key made a spec client reject the whole result rather than ignore the key. The kit's own defaults back those three, so the colours still render — from the cascade layer instead of the wire.
 
 ### Added
+
+- **The Vite dev preview forwards the server's `notifications/resources/list_changed` into the app**, over a `GET /__events` stream, as an MCP Apps host does — so `useDataSync` fires locally when the server announces a write. Nothing else the server sends is forwarded.
 
 - **A conformance suite, run in CI** (`npm run conformance`). The spec's own `AppBridge` as the host in real Chromium, driving `connect()` and the vendored cross-host IIFE; and the spec's own `App` as the client, driving each of the two preview hosts. Every bridge here is hand-written, and a hand-written parser agrees with its author's mistakes — so the spec's implementation is the only thing that can answer whether ours is correct. See `conformance/README.md`.
 

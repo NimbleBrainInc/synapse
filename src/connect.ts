@@ -26,7 +26,7 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { DATA_CHANGED_METHOD, resolveEventMethod } from "./event-map.js";
+import { resolveEventMethod } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -41,7 +41,6 @@ import { SynapseTransport } from "./transport.js";
 import type {
   App,
   ConnectOptions,
-  DataChangedEvent,
   Dimensions,
   FontFaceDescriptor,
   TasksCapability,
@@ -108,15 +107,13 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   // --- Event handlers ---
   //
-  // Generic wire methods share one registry keyed by method. The three events
+  // Generic wire methods share one registry keyed by method. The two events
   // that are a *view* over a wire message rather than the message itself
-  // (theme, host context, data-changed) get their own sets, because two of
-  // them ride the same notification and hand their subscribers different
-  // payloads.
+  // (theme, host context) get their own sets, because they ride the same
+  // notification and hand their subscribers different payloads.
   const handlers = new Map<string, Set<(params: unknown) => void>>();
   const themeCallbacks = new Set<(theme: Theme) => void>();
   const hostContextCallbacks = new Set<(ctx: McpUiHostContext) => void>();
-  const dataCallbacks = new Set<(event: DataChangedEvent) => void>();
 
   // --- Step 1: Set up message listener (handled by SynapseTransport constructor) ---
 
@@ -191,10 +188,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   /**
    * Deliver a notification's raw params to anyone who subscribed by wire
-   * method name rather than by short event. The two methods below are routed by
-   * hand because each also has a typed view, and `ensureTransportSub` skips
-   * them for that reason — so the raw fan-out has to happen here or a
-   * `on("synapse/data-changed", …)` would silently never fire.
+   * method name rather than by short event. The method below is routed by hand
+   * because it also has typed views, and `ensureTransportSub` skips it for that
+   * reason — so the raw fan-out has to happen here or a
+   * `on("ui/notifications/host-context-changed", …)` would silently never fire.
    */
   function fanOutRaw(method: string, params: Record<string, unknown> | undefined): void {
     const set = handlers.get(method);
@@ -246,20 +243,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
     }
   });
 
-  transport.onMessage(DATA_CHANGED_METHOD, (params) => {
-    if (destroyed) return;
-    fanOutRaw(DATA_CHANGED_METHOD, params);
-    if (!params) return;
-    const event: DataChangedEvent = {
-      source: "agent",
-      server: (params.server as string) ?? "",
-      tool: (params.tool as string) ?? "",
-    };
-    for (const cb of dataCallbacks) cb(event);
-  });
-
   // Helper to ensure a transport subscription exists for a generic method
-  const subscribedMethods = new Set<string>([HOST_CONTEXT_CHANGED_METHOD, DATA_CHANGED_METHOD]);
+  const subscribedMethods = new Set<string>([HOST_CONTEXT_CHANGED_METHOD]);
 
   function ensureTransportSub(method: string): void {
     if (subscribedMethods.has(method)) return;
@@ -293,11 +278,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
         hostContextCallbacks.add(handler);
         return () => {
           hostContextCallbacks.delete(handler);
-        };
-      case "data-changed":
-        dataCallbacks.add(handler);
-        return () => {
-          dataCallbacks.delete(handler);
         };
       default: {
         const method = resolveEventMethod(event);
@@ -447,7 +427,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
       handlers.clear();
       themeCallbacks.clear();
       hostContextCallbacks.clear();
-      dataCallbacks.clear();
       transport.destroy();
     },
   };

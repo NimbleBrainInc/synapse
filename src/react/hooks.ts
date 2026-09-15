@@ -1,12 +1,16 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
-import type { Task, TaskStatus } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  ResourceListChangedNotification,
+  Task,
+  TaskStatus,
+} from "@modelcontextprotocol/sdk/types.js";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
 import { pickFile, pickFiles, action as sendAction } from "../extensions.js";
 import { callToolAsTask } from "../task-handle.js";
 import type {
   App,
   CallToolAsTaskOptions,
-  DataChangedEvent,
   FileResult,
   ModelContext,
   RequestFileOptions,
@@ -148,14 +152,25 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
   return { call, isPending, error, data };
 }
 
-/** Run `callback` whenever the agent changes data this app displays. */
-export function useDataSync(callback: (event: DataChangedEvent) => void): void {
+/**
+ * Run `callback` when the app's own MCP server announces that its data changed.
+ *
+ * A server sends `notifications/resources/list_changed` from the write that
+ * changed its data, and an MCP Apps host forwards it to that server's views
+ * (host capability `serverResources.listChanged`). The callback receives the
+ * notification's params as the spec defines them, or `{}` when the host sends
+ * none. They name no server and no tool: the notification only ever comes from
+ * this app's own server, and a change need not come from a tool call at all.
+ */
+export function useDataSync(
+  callback: (params: NonNullable<ResourceListChangedNotification["params"]>) => void,
+): void {
   const app = useAppContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
   useEffect(() => {
-    return app.on("data-changed", (event) => callbackRef.current(event));
+    return app.on(RESOURCE_LIST_CHANGED_METHOD, (params) => callbackRef.current(params ?? {}));
   }, [app]);
 }
 

@@ -245,34 +245,38 @@ describe("connect() capabilities", () => {
     });
   });
 
-  describe("data-changed", () => {
-    it("fires on a synapse/data-changed notification", async () => {
+  describe("resources/list_changed", () => {
+    it("a subscriber on the wire method gets the params verbatim", async () => {
       app = await connectAndHandshake();
-      const seen: unknown[] = [];
-      app.on("data-changed", (e) => seen.push(e));
+      const raw = vi.fn();
+      app.on("notifications/resources/list_changed", raw);
 
-      dispatchNotification("synapse/data-changed", { server: "people", tool: "update_contact" });
+      dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
 
-      expect(seen).toEqual([{ source: "agent", server: "people", tool: "update_contact" }]);
+      expect(raw).toHaveBeenCalledTimes(1);
+      expect(raw).toHaveBeenCalledWith({ _meta: { k: "v" } });
     });
 
     it("unsubscribe stops delivery", async () => {
       app = await connectAndHandshake();
       const cb = vi.fn();
-      const off = app.on("data-changed", cb);
+      const off = app.on("notifications/resources/list_changed", cb);
       off();
-      dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
+      dispatchNotification("notifications/resources/list_changed", {});
       expect(cb).not.toHaveBeenCalled();
     });
 
-    it("a subscriber on the raw wire method gets the params verbatim", async () => {
+    it("synapse/data-changed feeds no event", async () => {
+      // A NimbleBrain host still sends it, and nothing here translates it. A
+      // leftover `on("data-changed")` type-checks through the string overload
+      // and subscribes to a method of that name, which nothing sends.
       app = await connectAndHandshake();
-      const raw = vi.fn();
-      app.on("synapse/data-changed", raw);
+      const cb = vi.fn();
+      app.on("data-changed", cb);
 
       dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
 
-      expect(raw).toHaveBeenCalledWith({ server: "s", tool: "t" });
+      expect(cb).not.toHaveBeenCalled();
     });
   });
 

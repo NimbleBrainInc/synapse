@@ -31,7 +31,11 @@ import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
-import { createTaskStatusRouter, TOOLS_CALL_METHOD } from "./task-handle.js";
+import {
+  createTaskStatusRouter,
+  readHostTasksCapability,
+  TOOLS_CALL_METHOD,
+} from "./task-handle.js";
 import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {
@@ -150,13 +154,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
       version: result.hostInfo?.version ?? "unknown",
     };
 
-    // The ext-apps `McpUiHostCapabilities` type lacks a `tasks` field (the
-    // SDK extension post-dates it), so read via the result's index signature.
-    const rawTasks = (result.hostCapabilities as Record<string, unknown> | undefined)?.tasks;
-    hostTasksCapability =
-      rawTasks && typeof rawTasks === "object" && !Array.isArray(rawTasks)
-        ? (rawTasks as TasksCapability)
-        : undefined;
+    hostTasksCapability = readHostTasksCapability(result.hostCapabilities);
     hostDownloadFileCapability = result.hostCapabilities?.downloadFile;
 
     const ctx: McpUiHostContext | undefined = result.hostContext;

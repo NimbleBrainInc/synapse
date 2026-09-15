@@ -64,7 +64,9 @@ function makeInitResult(overrides?: { hostTasks?: TasksCapability | null }) {
   const hostTasks =
     overrides && "hostTasks" in overrides ? overrides.hostTasks : HOST_TASKS_CAPABILITY;
   const hostCapabilities: Record<string, unknown> = {};
-  if (hostTasks != null) hostCapabilities.tasks = hostTasks;
+  if (hostTasks != null) {
+    hostCapabilities.experimental = { "io.modelcontextprotocol/tasks": hostTasks };
+  }
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: "nimblebrain", version: "1.0.0" },

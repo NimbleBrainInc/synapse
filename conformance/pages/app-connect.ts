@@ -61,6 +61,7 @@ if (app) {
   results.hostInfo = connected.hostInfo;
   results.hostContextAtConnect = connected.hostContext;
   results.themeAtConnect = connected.theme.mode;
+  results.supportsTasks = connected.supportsTasks;
 
   await step("callTool", () => connected.callTool("echo", { a: 1 }));
   await step("readServerResource", () => connected.readServerResource({ uri: "x://a" }));

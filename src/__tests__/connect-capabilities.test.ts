@@ -649,13 +649,42 @@ describe("connect() capabilities", () => {
       });
     });
 
-    it("supportsTasks is true when the host advertised tasks.requests.tools.call", async () => {
-      const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
+    const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
+    const withExperimental = (experimental: Record<string, unknown>) =>
+      makeInitResult("nimblebrain", { hostCapabilities: { experimental } });
+
+    it("supportsTasks is true when the host advertised it under the extension identifier", async () => {
+      app = await connectAndHandshake(
+        {},
+        withExperimental({ "io.modelcontextprotocol/tasks": tasks }),
+      );
+      expect(app.supportsTasks).toBe(true);
+    });
+
+    it("supportsTasks is true when the host advertised it under the vendor key only", async () => {
+      app = await connectAndHandshake({}, withExperimental({ "ai.nimblebrain/tasks": tasks }));
+      expect(app.supportsTasks).toBe(true);
+    });
+
+    it("the extension identifier wins over the vendor key", async () => {
+      app = await connectAndHandshake(
+        {},
+        withExperimental({
+          "io.modelcontextprotocol/tasks": { cancel: {} },
+          "ai.nimblebrain/tasks": tasks,
+        }),
+      );
+      expect(app.supportsTasks).toBe(false);
+    });
+
+    it("a top-level hostCapabilities.tasks is not read", async () => {
+      // A spec client's handshake parse strips it, so honouring it here would
+      // show a capability that no client validating the handshake can see.
       app = await connectAndHandshake(
         {},
         makeInitResult("nimblebrain", { hostCapabilities: { tasks } }),
       );
-      expect(app.supportsTasks).toBe(true);
+      expect(app.supportsTasks).toBe(false);
     });
 
     it("supportsTasks is false when the host advertised none", async () => {
@@ -666,7 +695,7 @@ describe("connect() capabilities", () => {
     it("supportsTasks is false when the host advertised tasks but not tools/call", async () => {
       app = await connectAndHandshake(
         {},
-        makeInitResult("nimblebrain", { hostCapabilities: { tasks: { cancel: {} } } }),
+        withExperimental({ "io.modelcontextprotocol/tasks": { cancel: {} } }),
       );
       expect(app.supportsTasks).toBe(false);
     });

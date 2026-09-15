@@ -56,8 +56,11 @@ the extension the client is missing.
 
 ## Detect the capability and degrade
 
-Not every host supports tasks. Hosts that do not will not advertise the
-`tasks.requests.tools.call` capability, and `callToolAsTask` throws on them. Wrap
+Not every host supports tasks. A host that does advertises
+`tasks.requests.tools.call` in
+`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]` (or, from a
+NimbleBrain host, `"ai.nimblebrain/tasks"`). Hosts that do not advertise it get
+a `callToolAsTask` that throws. Wrap
 it and fall back to a blocking `callTool` if you want graceful degradation:
 
 ```typescript
@@ -74,9 +77,8 @@ try {
 }
 ```
 
-To branch before you fire, read `synapse._hostTasksCapability`: it is `null`
-before the handshake, `undefined` if the host did not advertise tasks, or the
-capability shape if it did.
+To branch before you fire, read `app.supportsTasks`: it is `true` only when the
+host advertised `tasks.requests.tools.call`.
 
 ## The dual-channel pattern
 

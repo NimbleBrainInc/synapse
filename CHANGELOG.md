@@ -8,6 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
+- **The `@modelcontextprotocol/ext-apps` peer range is `^1.7.5`, and the host's tasks capability is read from `hostCapabilities.experimental`.** `connect()` reads `experimental["io.modelcontextprotocol/tasks"]`, the MCP Tasks extension identifier, and `experimental["ai.nimblebrain/tasks"]` when that is absent. A top-level `hostCapabilities.tasks` is no longer read.
+
+  The ext-apps host capability type has no `tasks` field, so a client that validates the handshake against the spec's schema strips a top-level one. `experimental` is the one slot whose contents survive that parse, and only from ext-apps 1.7.5: every earlier release empties it too.
+
+  **Migration:** install `@modelcontextprotocol/ext-apps@^1.7.5`. A host that advertises only a top-level `tasks` now reads as not supporting tasks: `app.supportsTasks` is `false` and `callToolAsTask` throws. A NimbleBrain host needs a release after v0.26.0, the first to publish the capability under `experimental`. A host of your own publishes `experimental: { "io.modelcontextprotocol/tasks": { cancel: {}, requests: { tools: { call: {} } } } }`.
+
 - **An app reaches its own MCP server and nothing else. The cross-server surface is gone.** Removed: `CallToolOptions` and its `server` field, `connect({ internal })`, `callToolAsTask`'s `internal` option, and `AppInternals.internalApp`. `callTool` now takes `(name, args?)` and `useCallTool`'s `call` takes `(args?)`.
 
   Apps are isolated by design, and the trust this rested on was not real: it came from the app's own name, which is just the connector's server name. A host scopes every call to the server that mounted the app, so a named target was either the app's own server or ignored. Work that spans two sources belongs to the agent, which can call both and hand one result to the other — nothing about an app has to know a second server exists.

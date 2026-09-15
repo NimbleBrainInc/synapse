@@ -82,11 +82,13 @@ const bridge = new AppBridge(
     logging: {},
     updateModelContext: { text: {} },
     message: { text: {} },
-    // The MCP tasks utility, advertised the way the NimbleBrain host advertises
-    // it. Not modelled by the ext-apps capability type, which is the finding
-    // this keeps honest: a spec client parsing the result drops it.
-    tasks: { cancel: {}, requests: { tools: { call: {} } } },
-  } as never,
+    // The MCP tasks utility, under its extension identifier in `experimental`.
+    // The ext-apps capability type has no `tasks` field, so `experimental` is
+    // the only slot a spec client's handshake parse keeps.
+    experimental: {
+      "io.modelcontextprotocol/tasks": { cancel: {}, requests: { tools: { call: {} } } },
+    },
+  },
   {
     hostContext: {
       theme: "light",

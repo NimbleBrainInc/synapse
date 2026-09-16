@@ -55,18 +55,21 @@ The server that owns the data is the one that knows it changed, so it says so. I
 sends the standard MCP `notifications/resources/list_changed` from the write, and
 an MCP Apps host forwards it to that server's views (host capability
 `serverResources.listChanged`). That covers every write, whoever made it: the
-agent, a webhook, a schedule, or a call from another view.
+agent, a webhook, a schedule, or a call from another view. It is `list_changed`
+rather than `resources/updated` because forwarding a list change is the only
+thing that capability offers a host — there is no per-resource subscription to
+relay.
 
 With the Python MCP SDK, send it from inside the tool that wrote:
 
 ```python
-from mcp.types import ResourceListChangedNotification, ServerNotification
+from mcp.types import ResourceListChangedNotification
 
 @mcp.tool()
 async def save_item(item: Item, ctx: Context) -> dict:
     stored = store.save(item)
     await ctx.session.send_notification(
-        ServerNotification(ResourceListChangedNotification()),
+        ResourceListChangedNotification(),
         related_request_id=ctx.request_id,
     )
     return stored
@@ -75,6 +78,9 @@ async def save_item(item: Item, ctx: Context) -> dict:
 Tying the notification to the call (`related_request_id`) matters over HTTP: it
 then travels in that call's response, rather than on an optional stream the host
 may not hold open.
+
+Announce once per write, not once per row. A bulk import that announces inside
+its loop sends N notifications, and every open view re-reads N times.
 
 A server that does not announce its writes gives `useDataSync` nothing to fire on.
 

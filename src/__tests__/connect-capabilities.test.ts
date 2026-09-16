@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { action, pickFile, pickFiles } from "../extensions.js";
+import { internalsFor } from "../internals.js";
 import type { App, TasksCapability } from "../types.js";
 
 // --- Helpers ---
@@ -665,19 +666,24 @@ describe("connect() capabilities", () => {
       expect(app.supportsTasks).toBe(true);
     });
 
-    it("supportsTasks is true when the host advertised it under the vendor key only", async () => {
+    it("a key other than the extension identifier is not read", async () => {
+      // One key. A host publishing the capability under some other name is not
+      // advertising this extension, and reading it anyway would make the
+      // identifier decorative.
       app = await connectAndHandshake({}, withExperimental({ "ai.nimblebrain/tasks": tasks }));
-      expect(app.supportsTasks).toBe(true);
+      expect(app.supportsTasks).toBe(false);
     });
 
-    it("the extension identifier wins over the vendor key", async () => {
+    it("an entry that is not an object is not handed on as a capability", async () => {
+      // `experimental` is typed as a record of records, but its values are
+      // whatever the host put on the wire. Both readers would only find such a
+      // value false, so the guard shows up here rather than in `supportsTasks`:
+      // what it prevents is a stored capability that contradicts its own type.
       app = await connectAndHandshake(
         {},
-        withExperimental({
-          "io.modelcontextprotocol/tasks": { cancel: {} },
-          "ai.nimblebrain/tasks": tasks,
-        }),
+        withExperimental({ "io.modelcontextprotocol/tasks": "yes" }),
       );
+      expect(internalsFor(app).hostTasksCapability).toBeUndefined();
       expect(app.supportsTasks).toBe(false);
     });
 

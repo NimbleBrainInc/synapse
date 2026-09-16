@@ -17,7 +17,7 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    external: ["react", "@modelcontextprotocol/ext-apps", "vite"],
+    external: ["react", "@modelcontextprotocol/ext-apps", "@modelcontextprotocol/sdk", "vite"],
     splitting: true,
     treeshake: true,
   },

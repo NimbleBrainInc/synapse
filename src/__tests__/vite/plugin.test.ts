@@ -172,6 +172,9 @@ describe("preview host HTML", () => {
   it("posts the server's notifications from /__events into the app", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain('new EventSource("/__events")');
+    // The capability that says a host forwards a server's notifications to its
+    // views. The page does forward, so the handshake has to say so.
+    expect(html).toContain("serverResources:{listChanged:true}");
     // Forwarded under the method the server sent, not one the page spells.
     expect(html).toContain("method:n.method,params:n.params");
   });

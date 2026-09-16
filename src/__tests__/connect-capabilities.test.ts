@@ -6,11 +6,12 @@
  * `connect.test.ts` covers the handshake and the ext-apps message shapes; this
  * file covers what an app can do once connected.
  */
+import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { action, pickFile, pickFiles } from "../extensions.js";
-import { internalsFor } from "../internals.js";
+import { readHostTasksCapability, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
 
 // --- Helpers ---
@@ -716,17 +717,18 @@ describe("connect() capabilities", () => {
       expect(app.supportsTasks).toBe(false);
     });
 
-    it("an entry that is not an object is not handed on as a capability", async () => {
-      // `experimental` is typed as a record of records, but its values are
-      // whatever the host put on the wire. Both readers would only find such a
-      // value false, so the guard shows up here rather than in `supportsTasks`:
-      // what it prevents is a stored capability that contradicts its own type.
-      app = await connectAndHandshake(
-        {},
-        withExperimental({ "io.modelcontextprotocol/tasks": "yes" }),
-      );
-      expect(internalsFor(app).hostTasksCapability).toBeUndefined();
-      expect(app.supportsTasks).toBe(false);
+    it("a malformed experimental entry reads as no capability", () => {
+      // Read directly rather than driven through a handshake: `experimental` is
+      // typed as a record of records, so a client that validates the result
+      // against the spec's schema refuses this shape upstream and it never
+      // reaches the read over the wire. What the guard prevents is a stored
+      // capability that contradicts its own type — both callers ask only
+      // `?.requests?.tools?.call`, so it is not visible in `supportsTasks`.
+      expect(
+        readHostTasksCapability({
+          experimental: { [TASKS_EXTENSION_ID]: "yes" },
+        } as unknown as McpUiHostCapabilities),
+      ).toBeUndefined();
     });
 
     it("a top-level hostCapabilities.tasks is not read", async () => {

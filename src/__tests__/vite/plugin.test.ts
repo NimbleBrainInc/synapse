@@ -158,19 +158,25 @@ describe("preview host HTML", () => {
     expect(html).toContain("ui/update-model-context");
   });
 
-  it("does NOT emit synapse/data-changed from UI-initiated tool calls", () => {
-    // The preview harness proxies tools/call through /__mcp. It must not
-    // fire synapse/data-changed on the response path: data-changed signals
-    // agent-initiated mutation and is what useDataSync refetches on.
-    // Emitting it here creates a classic feedback loop (UI calls tool →
-    // data-changed → useDataSync refetches → calls tool → ...).
+  it("spells no data-change method of its own", () => {
+    // A change is the server's to announce, and the page forwards it under the
+    // method the server sent. One the page spelled itself would be the page
+    // deciding data changed — and fired on the app's own tool call it loops:
+    // the call fires it, useDataSync re-fetches, the re-fetch fires it again.
     const html = getPreviewHtml("hello");
     expect(html).toContain('fetch("/__mcp"');
-    // Any actual emission would use the string as a JSON-RPC method value,
-    // e.g. `method:"synapse/data-changed"`. Explanatory comments that
-    // mention the name unquoted don't count.
-    expect(html).not.toContain('"synapse/data-changed"');
-    expect(html).not.toContain("'synapse/data-changed'");
+    expect(html).not.toContain("synapse/data-changed");
+    expect(html).not.toContain("resources/list_changed");
+  });
+
+  it("posts the server's notifications from /__events into the app", () => {
+    const html = getPreviewHtml("hello");
+    expect(html).toContain('new EventSource("/__events")');
+    // The capability that says a host forwards a server's notifications to its
+    // views. The page does forward, so the handshake has to say so.
+    expect(html).toContain("serverResources:{listChanged:true}");
+    // Forwarded under the method the server sent, not one the page spells.
+    expect(html).toContain("method:n.method,params:n.params");
   });
 });
 

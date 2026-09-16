@@ -6,6 +6,16 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
+import type { ResourceListChangedNotification } from "@modelcontextprotocol/sdk/types.js";
+
+/**
+ * A server's own `notifications/resources/list_changed`, which an MCP Apps host
+ * forwards to that server's views (host capability `serverResources.listChanged`).
+ * A core MCP method, so ext-apps exports no constant for it; typing the literal
+ * with the SDK's notification `method` still breaks the build if it is renamed.
+ */
+export const RESOURCE_LIST_CHANGED_METHOD: ResourceListChangedNotification["method"] =
+  "notifications/resources/list_changed";
 
 /**
  * NimbleBrain extension methods. No spec equivalent, so no constant to import
@@ -13,7 +23,6 @@ import {
  * twice, and the `synapse/` prefix keeps them visibly outside the spec.
  * Hosts that don't implement them simply never send them.
  */
-export const DATA_CHANGED_METHOD = "synapse/data-changed";
 export const ACTION_METHOD = "synapse/action";
 export const REQUEST_FILE_METHOD = "synapse/request-file";
 
@@ -23,12 +32,11 @@ export const REQUEST_FILE_METHOD = "synapse/request-file";
  * in sync with the spec — if the spec changes a method name, this breaks
  * at compile time, not silently at runtime.
  *
- * `theme-changed`, `host-context-changed` and `data-changed` are deliberately
- * absent: `connect()` routes each of those itself, because each is
- * a typed *view* over a notification rather than the notification's raw params
- * (and the first two are two views over the same one). Listing them here would
- * be a second table nothing consults — the kind of copy that goes wrong quietly
- * because nothing reads it to notice.
+ * `theme-changed` and `host-context-changed` are deliberately absent:
+ * `connect()` routes both itself, because each is a typed *view* over the same
+ * notification rather than its raw params. Listing them here would be a second
+ * table nothing consults — the kind of copy that goes wrong quietly because
+ * nothing reads it to notice.
  */
 const EVENT_MAP: Record<string, string> = {
   "tool-result": TOOL_RESULT_METHOD,

@@ -164,12 +164,6 @@ export interface Theme {
   fontFaces?: FontFaceDescriptor[];
 }
 
-export interface DataChangedEvent {
-  source: "agent";
-  server: string;
-  tool: string;
-}
-
 export interface ToolCallResult<T = unknown> {
   data: T;
   isError: boolean;
@@ -326,7 +320,6 @@ export type AppEventName =
   | "tool-cancelled"
   | "theme-changed"
   | "host-context-changed"
-  | "data-changed"
   | "teardown";
 
 /**
@@ -429,7 +422,6 @@ export interface App {
    *  notification exactly as sent, subscribe to the wire method instead:
    *  `on("ui/notifications/host-context-changed", …)`. */
   on(event: "host-context-changed", handler: (ctx: McpUiHostContext) => void): () => void;
-  on(event: "data-changed", handler: (event: DataChangedEvent) => void): () => void;
   on(event: "teardown", handler: () => void): () => void;
   on(event: string, handler: (params: any) => void): () => void;
 

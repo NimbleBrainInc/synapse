@@ -51,8 +51,10 @@ if (app) {
   connected.on("host-context-changed", (ctx) => {
     results.hostContextChanged = ctx;
   });
-  connected.on("data-changed", (event) => {
-    results.dataChanged = event;
+  // A real host-to-app extension frame: the NimbleBrain host still sends it.
+  // Subscribed by wire method, because the SDK gives it no typed view.
+  connected.on("synapse/data-changed", (params) => {
+    results.dataChanged = params;
   });
   connected.on("notifications/resources/list_changed", () => {
     results.resourcesListChanged = true;

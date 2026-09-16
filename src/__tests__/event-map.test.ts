@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveEventMethod } from "../event-map.js";
+import { RESOURCE_LIST_CHANGED_METHOD, resolveEventMethod } from "../event-map.js";
 
 describe("resolveEventMethod", () => {
   it("maps tool-result to full MCP method", () => {
@@ -18,14 +18,13 @@ describe("resolveEventMethod", () => {
     expect(resolveEventMethod("tool-cancelled")).toBe("ui/notifications/tool-cancelled");
   });
 
-  // `connect()` intercepts these three before it consults the map, so a mapping
+  // `connect()` intercepts these two before it consults the map, so a mapping
   // here would be a second table claiming the same names — and the one nothing
   // reads is the one that goes wrong quietly. Passing through unchanged is the
   // evidence that only one table owns them.
   it.each([
     "theme-changed",
     "host-context-changed",
-    "data-changed",
   ])("does not claim %s — connect() routes it", (name) => {
     expect(resolveEventMethod(name)).toBe(name);
   });
@@ -39,6 +38,14 @@ describe("resolveEventMethod", () => {
   });
 
   it("passes through fully-qualified MCP method names", () => {
-    expect(resolveEventMethod("synapse/data-changed")).toBe("synapse/data-changed");
+    expect(resolveEventMethod("notifications/resources/list_changed")).toBe(
+      "notifications/resources/list_changed",
+    );
+  });
+});
+
+describe("RESOURCE_LIST_CHANGED_METHOD", () => {
+  it("is the core MCP notification a host forwards to a server's views", () => {
+    expect(RESOURCE_LIST_CHANGED_METHOD).toBe("notifications/resources/list_changed");
   });
 });

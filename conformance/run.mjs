@@ -99,11 +99,18 @@ const MIME = {
   ".map": "application/json; charset=utf-8",
 };
 
-/** Serve `dir`, plus any extra routes, on an ephemeral port. */
+/**
+ * Serve `dir`, plus any extra routes, on an ephemeral port. A route is an HTML
+ * string, or a `(req, res) => void` handler for anything that is not a page.
+ */
 async function serve(dir, routes = {}) {
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     const route = routes[url.pathname];
+    if (typeof route === "function") {
+      route(req, res);
+      return;
+    }
     if (route) {
       res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
       res.end(route);
@@ -120,7 +127,25 @@ async function serve(dir, routes = {}) {
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const { port } = server.address();
-  return { port, close: () => new Promise((resolve) => server.close(resolve)) };
+  return {
+    port,
+    close: () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        // An open event stream never ends on its own, and `close` waits for it.
+        server.closeAllConnections();
+      }),
+  };
+}
+
+/**
+ * The dev server's `GET /__events`: an event stream the `/__preview` page holds
+ * open for the server's notifications. Served open and silent, because no MCP
+ * server runs here — without it the page's `EventSource` 404s.
+ */
+function openEventStream(_req, res) {
+  res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+  res.write(": open\n\n");
 }
 
 /**
@@ -280,6 +305,7 @@ try {
     "/": officialPage,
     "/index.html": officialPage,
     "/vite-preview": vitePreviewHostHtml("conformance-app"),
+    "/__events": openEventStream,
   });
   previewServer = await serve(OUT, {
     "/preview": previewHostHtml(uiServer.port, 1),

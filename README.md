@@ -274,8 +274,9 @@ app.on("teardown", () => {
   saveState();
 });
 
-// NimbleBrain extensions work as passthrough event names
-app.on("synapse/data-changed", (params) => {
+// Any wire method works as a passthrough event name — here, your server
+// announcing that its data changed (which is what useDataSync listens for)
+app.on("notifications/resources/list_changed", (params) => {
   refreshData();
 });
 
@@ -291,7 +292,6 @@ unsub();
 | `"tool-cancelled"` | `ui/notifications/tool-cancelled` | — |
 | `"theme-changed"` | `ui/notifications/host-context-changed` | `Theme` — fires only when the theme actually moves |
 | `"host-context-changed"` | `ui/notifications/host-context-changed` | `McpUiHostContext` — every change, unfiltered |
-| `"data-changed"` | `synapse/data-changed` | `DataChangedEvent` |
 | `"teardown"` | `ui/resource-teardown` | — |
 | Any custom string | Passed through as-is | `unknown` |
 
@@ -393,7 +393,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full task lifecycle for a long-running tool. See below. |
-| `useDataSync(cb)` | — | Run `cb` when the agent changes data your app displays |
+| `useDataSync(cb)` | — | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`); `cb` gets the notification's params |
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
 | `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
 | `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |
@@ -433,7 +433,7 @@ async def start_research(query: str, ctx: Context) -> dict:
 
 `TasksExtension` is what serves the task methods; a task-enabled tool with no extension registered aborts the server at startup, before it binds. `mode="optional"` lets the same tool run inline (`callTool`) or as a task (`callToolAsTask`) — the client decides. `mode="required"` rejects a call from a client that has not negotiated the extension with JSON-RPC `-32021` (`MISSING_REQUIRED_CLIENT_CAPABILITY`), whose `data.requiredCapabilities` names the extension the client is missing.
 
-**Dual-channel pattern.** When a task creates a domain entity (a research run, an import job), the entity ID is delivered via `synapse/data-changed` / `useDataSync`, **not** the task result. The task channel signals "started / running / done / cancelled"; the entity channel carries the durable record. UIs that need to navigate to the new entity should listen on `useDataSync` rather than awaiting `result()`.
+**Dual-channel pattern.** When a task creates a domain entity (a research run, an import job), the UI learns the entity exists from the server, **not** from the task result: the server announces the write with `notifications/resources/list_changed`, and `useDataSync` re-reads the list the entity now appears in. The task channel signals "started / running / done / cancelled"; the server's data carries the durable record. UIs that need to navigate to the new entity should re-read on `useDataSync` rather than awaiting `result()`.
 
 **Capability detection.** Hosts that don't support tasks won't advertise the `tasks.requests.tools.call` capability. `callToolAsTask` throws on hosts without the capability — wrap in a try/catch and fall back to `callTool` if you want graceful degradation:
 

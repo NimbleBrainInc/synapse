@@ -1,6 +1,6 @@
 ---
 title: "Keep the UI in sync with the agent"
-description: "The agent mutates state on the same MCP server your UI renders, and the UI goes stale. useDataSync fires whenever the agent calls a tool, so you refresh on a push instead of polling."
+description: "The agent, a webhook or another view changes state on the MCP server your UI renders, and the UI goes stale. The server announces the change, useDataSync fires, and you refresh on a push instead of polling."
 ---
 
 The agent and your UI share one MCP server. A user asks the agent to "rename the
@@ -21,10 +21,9 @@ useEffect(() => {
 
 ## The recipe
 
-`useDataSync(callback)` subscribes to the host's data-change signal. The host
-fires it after the agent completes any tool call on this server, so you re-fetch
-exactly when state moved and stay idle otherwise. Wrap your tree in
-`<AppProvider>`.
+`useDataSync(callback)` fires when your server announces that its data changed,
+so you re-fetch exactly when state moved and stay idle otherwise. Wrap your tree
+in `<AppProvider>`.
 
 ```tsx
 import { AppProvider, useDataSync, useCallTool } from "@nimblebrain/synapse/react";
@@ -40,7 +39,7 @@ function Root() {
 function Workspace() {
   const { call, data } = useCallTool("get_workspace");
 
-  // Re-fetch whenever the agent mutates state on this server.
+  // Re-fetch whenever the server says its data changed.
   useDataSync(() => {
     call();
   });
@@ -50,17 +49,59 @@ function Workspace() {
 }
 ```
 
+## The server's half
+
+The server that owns the data is the one that knows it changed, so it says so. It
+sends the standard MCP `notifications/resources/list_changed` from the write, and
+an MCP Apps host forwards it to that server's views (host capability
+`serverResources.listChanged`). That covers every write, whoever made it: the
+agent, a webhook, a schedule, or a call from another view. It is `list_changed`
+rather than `resources/updated` because forwarding a list change is the only
+thing that capability offers a host — there is no per-resource subscription to
+relay.
+
+With the Python MCP SDK, send it from inside the tool that wrote:
+
+```python
+from mcp.types import ResourceListChangedNotification
+
+@mcp.tool()
+async def save_item(item: Item, ctx: Context) -> dict:
+    stored = store.save(item)
+    await ctx.session.send_notification(
+        ResourceListChangedNotification(),
+        related_request_id=ctx.request_id,
+    )
+    return stored
+```
+
+Tying the notification to the call (`related_request_id`) matters over HTTP: it
+then travels in that call's response, rather than on an optional stream the host
+may not hold open.
+
+Announce once per write, not once per row. A bulk import that announces inside
+its loop sends N notifications, and every open view re-reads N times.
+
+A server that does not announce its writes gives `useDataSync` nothing to fire on.
+
 ## How it works
 
-The host emits a data-changed notification when the agent finishes a tool call on
-this server, and `useDataSync` invokes your callback with a small event describing
-the change. The callback receives the `source`, the `server`, and the `tool` that
-ran, so you can refresh selectively (skip the re-fetch for tools that do not touch
-what you render) instead of reloading everything. It is a push, not a poll: the UI
-updates the moment the agent acts and does no work in between.
+`useDataSync` subscribes to `notifications/resources/list_changed` and hands your
+callback the notification's params as the spec defines them, or `{}` when there
+are none. They name no server, because a host forwards a server's notification
+only to that server's own views, and no tool, because a change need not come from
+a tool call. So there is nothing to filter: re-read what you render.
+
+It is a push, not a poll: the UI updates the moment the data moves and does no
+work in between. An announcement also reaches the view that made the change,
+which is what you want — that view re-reads too. Your own call cannot loop,
+because a re-read is not a write and announces nothing.
+
+In the Vite dev preview, the dev server forwards the server's announcement into
+the app the same way, so `useDataSync` fires locally.
 
 ## Related
 
 - [Call MCP tools with types](/docs/guides/call-tools): the `useCallTool` you refresh with.
-- [Handle long-running tools (tasks)](/docs/guides/long-running-tools): where the same data-changed channel carries the new entity ID.
+- [Handle long-running tools (tasks)](/docs/guides/long-running-tools): how a UI learns about the entity a task created.
 - [Give the agent context about the UI](/docs/guides/agent-context): the reverse direction, pushing UI state to the agent.

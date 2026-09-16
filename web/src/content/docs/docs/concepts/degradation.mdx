@@ -1,6 +1,6 @@
 ---
 title: Standalone and non-NimbleBrain hosts
-description: "How NimbleBrain-specific features (the synapse/* extensions: host actions, data-change events, state persistence, the file picker, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
+description: "How NimbleBrain-specific features (the synapse/* extensions: host actions, state persistence, the file picker, keyboard forwarding) degrade to no-ops in Claude, VS Code, and ChatGPT while the ext-apps baseline is preserved."
 ---
 
 Synapse runs in any host that implements ext-apps: Claude Desktop, VS Code,
@@ -25,6 +25,12 @@ Everything defined by ext-apps is available in every conforming host:
 - reporting size with `resize` and opening links with `openLink`;
 - handing the user a file with `downloadFile`, on a host that advertises the
   `downloadFile` capability (elsewhere its promise rejects without sending);
+- `useDataSync`, on a host that forwards your server's
+  `notifications/resources/list_changed` to its views (capability
+  `serverResources.listChanged`) — it depends on your server announcing its
+  writes, not on the host. The SDK does not read that capability, so unlike
+  `downloadFile` there is nothing to check in advance: on a host that does not
+  forward, the hook simply stays quiet;
 - teardown notification when the host removes the view.
 
 If your app only uses these, it behaves identically across hosts. This is the
@@ -39,18 +45,11 @@ them, so they no-op.
 | Feature | `synapse/*` method | Off NimbleBrain |
 | --- | --- | --- |
 | Host actions (`action()`, `useAction`) | `synapse/action` | No-op |
-| Agent data-change events (`onDataChanged`, `useDataSync`) | `synapse/data-changed` | No-op |
 | State persistence (`persist: true`) | `synapse/persist-state`, `synapse/state-loaded` | In-memory only, not restored across reloads |
 | File picker (`pickFile`, `pickFiles`) | `synapse/request-file` | No-op |
 | Keyboard forwarding | `synapse/keydown` | No-op |
 
-Two of these are worth calling out because they shape how you write the app:
-
-**Data-change events are NimbleBrain-only.** The push that says "the agent mutated
-data on this server" travels over `synapse/data-changed`. Off NimbleBrain, that
-channel is silent, so `useDataSync` never fires. The ext-apps `tool-result`
-notification still arrives, though, so refreshing on the tool result is the portable
-way to keep the UI current across hosts.
+One of these is worth calling out because it shapes how you write the app:
 
 **Persistence downgrades rather than errors.** A store marked `persist: true` relies
 on the host to hold state across a reload. Where that is unavailable the store still

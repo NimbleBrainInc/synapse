@@ -73,6 +73,17 @@ import type { App, TasksCapability } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 /** Build a spec-compliant McpUiInitializeResult. */
 function makeSpecInitResult(overrides?: Partial<McpUiInitializeResult>): McpUiInitializeResult {
   return {
@@ -101,11 +112,13 @@ function makeSpecInitResult(overrides?: Partial<McpUiInitializeResult>): McpUiIn
 }
 
 /** Connect and complete the ext-apps handshake with a spec-compliant response. */
-function connectAndHandshake(
+async function connectAndHandshake(
   options?: Partial<Parameters<typeof connect>[0]>,
   initResult?: McpUiInitializeResult,
 ): Promise<App> {
   const promise = connect({ name: "test-app", version: "1.0.0", ...options });
+
+  await flush();
 
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
@@ -115,14 +128,17 @@ function connectAndHandshake(
   );
   if (!initCall) throw new Error("No ui/initialize call found");
 
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: initResult ?? makeSpecInitResult() },
     }),
   );
 
-  return promise;
+  const app = await promise;
+  await flush();
+  return app;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,51 +163,51 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("method name constants", () => {
-  it("INITIALIZE_METHOD is ui/initialize", () => {
+  it("INITIALIZE_METHOD is ui/initialize", async () => {
     expect(INITIALIZE_METHOD).toBe("ui/initialize");
   });
 
-  it("INITIALIZED_METHOD is ui/notifications/initialized", () => {
+  it("INITIALIZED_METHOD is ui/notifications/initialized", async () => {
     expect(INITIALIZED_METHOD).toBe("ui/notifications/initialized");
   });
 
-  it("TOOL_RESULT_METHOD is ui/notifications/tool-result", () => {
+  it("TOOL_RESULT_METHOD is ui/notifications/tool-result", async () => {
     expect(TOOL_RESULT_METHOD).toBe("ui/notifications/tool-result");
   });
 
-  it("TOOL_INPUT_METHOD is ui/notifications/tool-input", () => {
+  it("TOOL_INPUT_METHOD is ui/notifications/tool-input", async () => {
     expect(TOOL_INPUT_METHOD).toBe("ui/notifications/tool-input");
   });
 
-  it("TOOL_INPUT_PARTIAL_METHOD is ui/notifications/tool-input-partial", () => {
+  it("TOOL_INPUT_PARTIAL_METHOD is ui/notifications/tool-input-partial", async () => {
     expect(TOOL_INPUT_PARTIAL_METHOD).toBe("ui/notifications/tool-input-partial");
   });
 
-  it("TOOL_CANCELLED_METHOD is ui/notifications/tool-cancelled", () => {
+  it("TOOL_CANCELLED_METHOD is ui/notifications/tool-cancelled", async () => {
     expect(TOOL_CANCELLED_METHOD).toBe("ui/notifications/tool-cancelled");
   });
 
-  it("HOST_CONTEXT_CHANGED_METHOD is ui/notifications/host-context-changed", () => {
+  it("HOST_CONTEXT_CHANGED_METHOD is ui/notifications/host-context-changed", async () => {
     expect(HOST_CONTEXT_CHANGED_METHOD).toBe("ui/notifications/host-context-changed");
   });
 
-  it("MESSAGE_METHOD is ui/message", () => {
+  it("MESSAGE_METHOD is ui/message", async () => {
     expect(MESSAGE_METHOD).toBe("ui/message");
   });
 
-  it("OPEN_LINK_METHOD is ui/open-link", () => {
+  it("OPEN_LINK_METHOD is ui/open-link", async () => {
     expect(OPEN_LINK_METHOD).toBe("ui/open-link");
   });
 
-  it("SIZE_CHANGED_METHOD is ui/notifications/size-changed", () => {
+  it("SIZE_CHANGED_METHOD is ui/notifications/size-changed", async () => {
     expect(SIZE_CHANGED_METHOD).toBe("ui/notifications/size-changed");
   });
 
-  it("RESOURCE_TEARDOWN_METHOD is ui/resource-teardown", () => {
+  it("RESOURCE_TEARDOWN_METHOD is ui/resource-teardown", async () => {
     expect(RESOURCE_TEARDOWN_METHOD).toBe("ui/resource-teardown");
   });
 
-  it("DOWNLOAD_FILE_METHOD is ui/download-file", () => {
+  it("DOWNLOAD_FILE_METHOD is ui/download-file", async () => {
     expect(DOWNLOAD_FILE_METHOD).toBe("ui/download-file");
   });
 });
@@ -201,15 +217,15 @@ describe("method name constants", () => {
 // ---------------------------------------------------------------------------
 
 describe("event map uses spec constants", () => {
-  it("tool-result resolves to TOOL_RESULT_METHOD", () => {
+  it("tool-result resolves to TOOL_RESULT_METHOD", async () => {
     expect(resolveEventMethod("tool-result")).toBe(TOOL_RESULT_METHOD);
   });
 
-  it("tool-input resolves to TOOL_INPUT_METHOD", () => {
+  it("tool-input resolves to TOOL_INPUT_METHOD", async () => {
     expect(resolveEventMethod("tool-input")).toBe(TOOL_INPUT_METHOD);
   });
 
-  it("tool-cancelled resolves to TOOL_CANCELLED_METHOD", () => {
+  it("tool-cancelled resolves to TOOL_CANCELLED_METHOD", async () => {
     expect(resolveEventMethod("tool-cancelled")).toBe(TOOL_CANCELLED_METHOD);
   });
 
@@ -225,6 +241,7 @@ describe("event map uses spec constants", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           method: HOST_CONTEXT_CHANGED_METHOD,
@@ -232,12 +249,13 @@ describe("event map uses spec constants", () => {
         },
       }),
     );
+    await flush();
 
     expect(themed).toHaveBeenCalledTimes(1);
     expect(ctx).toHaveBeenCalledTimes(1);
   });
 
-  it("teardown resolves to RESOURCE_TEARDOWN_METHOD", () => {
+  it("teardown resolves to RESOURCE_TEARDOWN_METHOD", async () => {
     expect(resolveEventMethod("teardown")).toBe(RESOURCE_TEARDOWN_METHOD);
   });
 });
@@ -381,6 +399,7 @@ describe("handshake ordering", () => {
     // registered before initialized was sent
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           method: TOOL_RESULT_METHOD,
@@ -390,6 +409,7 @@ describe("handshake ordering", () => {
         },
       }),
     );
+    await flush();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -493,6 +513,7 @@ describe("outbound message shapes", () => {
     const id = (call![0] as Record<string, unknown>).id;
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           id,
@@ -533,6 +554,7 @@ describe("outbound message shapes", () => {
     };
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { jsonrpc: "2.0", id, result: specResult },
       }),
     );
@@ -574,7 +596,7 @@ describe("outbound message shapes", () => {
 // ---------------------------------------------------------------------------
 
 describe("compile-time type assertions", () => {
-  it("McpUiInitializeRequest.params has appInfo, not clientInfo", () => {
+  it("McpUiInitializeRequest.params has appInfo, not clientInfo", async () => {
     // This test exists as a compile-time guard. If someone changes the
     // import or field name, TypeScript will error before tests even run.
     const params: McpUiInitializeRequest["params"] = {
@@ -585,7 +607,7 @@ describe("compile-time type assertions", () => {
     expect(params.appInfo.name).toBe("test");
   });
 
-  it("McpUiInitializeResult has hostInfo, not serverInfo", () => {
+  it("McpUiInitializeResult has hostInfo, not serverInfo", async () => {
     const result: McpUiInitializeResult = {
       protocolVersion: LATEST_PROTOCOL_VERSION,
       hostInfo: { name: "host", version: "1.0" },
@@ -595,7 +617,7 @@ describe("compile-time type assertions", () => {
     expect(result.hostInfo.name).toBe("host");
   });
 
-  it("McpUiHostContext.theme is a string, not an object", () => {
+  it("McpUiHostContext.theme is a string, not an object", async () => {
     const ctx: McpUiHostContext = {
       theme: "dark",
       styles: { variables: {} },
@@ -603,7 +625,7 @@ describe("compile-time type assertions", () => {
     expect(ctx.theme).toBe("dark");
   });
 
-  it("McpUiHostContext.styles.variables holds CSS tokens", () => {
+  it("McpUiHostContext.styles.variables holds CSS tokens", async () => {
     const ctx: McpUiHostContext = {
       theme: "light",
       styles: {
@@ -616,7 +638,7 @@ describe("compile-time type assertions", () => {
     expect(ctx.styles?.variables?.["--color-background-primary"]).toBe("#fff");
   });
 
-  it("McpUiMessageRequest.params has role and content array", () => {
+  it("McpUiMessageRequest.params has role and content array", async () => {
     const params: McpUiMessageRequest["params"] = {
       role: "user",
       content: [{ type: "text", text: "hello" }],
@@ -625,19 +647,19 @@ describe("compile-time type assertions", () => {
     expect(params.content[0]).toMatchObject({ type: "text" });
   });
 
-  it("McpUiToolResultNotification.params is a CallToolResult", () => {
+  it("McpUiToolResultNotification.params is a CallToolResult", async () => {
     const params: McpUiToolResultNotification["params"] = {
       content: [{ type: "text", text: '{"data":true}' }],
     };
     expect(Array.isArray(params.content)).toBe(true);
   });
 
-  it("ReadResourceRequest.params has uri", () => {
+  it("ReadResourceRequest.params has uri", async () => {
     const params: ReadResourceRequest["params"] = { uri: "foo://bar" };
     expect(params.uri).toBe("foo://bar");
   });
 
-  it("ReadResourceResult has contents array with text or blob variants", () => {
+  it("ReadResourceResult has contents array with text or blob variants", async () => {
     const result: ReadResourceResult = {
       contents: [
         { uri: "foo://text", mimeType: "text/plain", text: "hi" },
@@ -701,7 +723,7 @@ describe("tasks capability advertisement", () => {
 // ---------------------------------------------------------------------------
 
 describe("parseToolResult preserves _meta", () => {
-  it("preserves _meta['io.modelcontextprotocol/related-task'] on parsed result", () => {
+  it("preserves _meta['io.modelcontextprotocol/related-task'] on parsed result", async () => {
     const taskId = "tsk_01abc123";
     const raw = {
       content: [{ type: "text", text: '{"ok":true}' }],
@@ -718,7 +740,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId });
   });
 
-  it("preserves arbitrary _meta keys (key-preserving passthrough, not selective copy)", () => {
+  it("preserves arbitrary _meta keys (key-preserving passthrough, not selective copy)", async () => {
     const raw = {
       content: [{ type: "text", text: '"hello"' }],
       _meta: {
@@ -737,7 +759,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.progressToken).toBe("prog-42");
   });
 
-  it("does not add a _meta field when the source has no _meta (backward compat)", () => {
+  it("does not add a _meta field when the source has no _meta (backward compat)", async () => {
     const raw = {
       content: [{ type: "text", text: '{"id":"tsk_legacy"}' }],
     };
@@ -750,7 +772,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(Object.hasOwn(result, "_meta")).toBe(false);
   });
 
-  it("preserves _meta on error results (isError: true)", () => {
+  it("preserves _meta on error results (isError: true)", async () => {
     const raw = {
       isError: true,
       content: [{ type: "text", text: "boom" }],
@@ -766,7 +788,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_failed" });
   });
 
-  it("preserves _meta when content array is empty", () => {
+  it("preserves _meta when content array is empty", async () => {
     const raw = {
       content: [] as unknown[],
       _meta: {
@@ -780,7 +802,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_empty" });
   });
 
-  it("preserves _meta when no text blocks are present", () => {
+  it("preserves _meta when no text blocks are present", async () => {
     const raw = {
       content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
       _meta: {
@@ -793,7 +815,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_image" });
   });
 
-  it("ignores malformed _meta (non-object) without throwing", () => {
+  it("ignores malformed _meta (non-object) without throwing", async () => {
     // Defensive: a bridge that forwards a stringly-typed meta should not
     // crash the parser. Spec-compliant meta is always an object.
     const raw = {
@@ -807,7 +829,7 @@ describe("parseToolResult preserves _meta", () => {
 });
 
 describe("RELATED_TASK_META_KEY constant matches spec", () => {
-  it("is io.modelcontextprotocol/related-task", () => {
+  it("is io.modelcontextprotocol/related-task", async () => {
     expect(RELATED_TASK_META_KEY).toBe("io.modelcontextprotocol/related-task");
   });
 });
@@ -848,6 +870,8 @@ describe("task-augmented tools/call wire shape", () => {
   async function makeReadyApp(): Promise<{ app: App; cleanup: () => void }> {
     const pending = connect({ name: "test-app", version: "1.0.0" });
 
+    await flush();
+
     // Answer ui/initialize with a host that advertises the tasks capability.
     const initCall = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
@@ -855,6 +879,7 @@ describe("task-augmented tools/call wire shape", () => {
     if (!initCall) throw new Error("ui/initialize not sent");
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           id: (initCall[0] as Record<string, unknown>).id,
@@ -863,26 +888,27 @@ describe("task-augmented tools/call wire shape", () => {
       }),
     );
     const ready = await pending;
+    await flush();
     return { app: ready, cleanup: () => ready.destroy() };
   }
 
-  function respondTo(method: string, result: unknown): void {
+  async function respondTo(method: string, result: unknown): void {
     const call = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === method,
     );
     if (!call) throw new Error(`No pending ${method} request`);
     const id = (call[0] as Record<string, unknown>).id;
     window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { jsonrpc: "2.0", id, result },
-      }),
+      new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", id, result } }),
     );
+    await flush();
   }
 
   it("tools/call with task param has the spec wire shape", async () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_research", { query: "mcp" }, { ttl: 60_000 });
+    await flush();
 
     // Find the tools/call message on the wire.
     const call = postMessageSpy.mock.calls.find(
@@ -894,7 +920,8 @@ describe("task-augmented tools/call wire shape", () => {
     // Request shape: has id, jsonrpc, method, params — no forbidden fields.
     expect(msg.jsonrpc).toBe("2.0");
     expect(msg.method).toBe(TOOLS_CALL_METHOD);
-    expect(typeof msg.id).toBe("string");
+    // The spec allows a string or a number; the MCP SDK numbers requests from 0.
+    expect(typeof msg.id).toBe("number");
 
     const params = msg.params as CallToolRequest["params"];
     // Spec-required fields
@@ -913,7 +940,7 @@ describe("task-augmented tools/call wire shape", () => {
         lastUpdatedAt: "2026-04-22T00:00:00.000Z",
       },
     };
-    respondTo(TOOLS_CALL_METHOD, createResult);
+    await respondTo(TOOLS_CALL_METHOD, createResult);
     await pending;
     cleanup();
   });
@@ -922,7 +949,7 @@ describe("task-augmented tools/call wire shape", () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_thing", {});
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_meta_spec",
         status: "working" satisfies TaskStatus,
@@ -943,7 +970,7 @@ describe("task-augmented tools/call wire shape", () => {
         [RELATED_TASK_META_KEY]: { taskId: "tsk_meta_spec" },
       },
     } satisfies GetTaskPayloadResult;
-    respondTo(TASKS_RESULT_METHOD, terminal);
+    await respondTo(TASKS_RESULT_METHOD, terminal);
 
     const result = await resultPromise;
     expect(result._meta).toBeDefined();
@@ -963,7 +990,7 @@ describe("task-augmented tools/call wire shape", () => {
     expect(startMsg).toBeDefined();
     expect((startMsg!.params as CallToolRequest["params"]).task).toEqual({ ttl: 90_000 });
 
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_lc",
         status: "working" satisfies TaskStatus,
@@ -987,7 +1014,7 @@ describe("task-augmented tools/call wire shape", () => {
     // `params.taskId` directly.
     expect(getMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
 
-    respondTo(TASKS_GET_METHOD, {
+    await respondTo(TASKS_GET_METHOD, {
       taskId: "tsk_lc",
       status: "working" satisfies TaskStatus,
       ttl: 90_000,
@@ -1006,7 +1033,7 @@ describe("task-augmented tools/call wire shape", () => {
     expect(resultMsg).toBeDefined();
     expect((resultMsg!.params as GetTaskPayloadRequest["params"]).taskId).toBe("tsk_lc");
 
-    respondTo(TASKS_RESULT_METHOD, {
+    await respondTo(TASKS_RESULT_METHOD, {
       content: [{ type: "text", text: '{"done":true}' }],
       _meta: { [RELATED_TASK_META_KEY]: { taskId: "tsk_lc" } },
     } satisfies GetTaskPayloadResult);
@@ -1022,7 +1049,7 @@ describe("task-augmented tools/call wire shape", () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_thing", {});
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_cancel",
         status: "working" satisfies TaskStatus,
@@ -1045,7 +1072,7 @@ describe("task-augmented tools/call wire shape", () => {
     // _meta requirement; enforce by absence.
     expect(cancelMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
 
-    respondTo(TASKS_CANCEL_METHOD, {
+    await respondTo(TASKS_CANCEL_METHOD, {
       taskId: "tsk_cancel",
       status: "cancelled" satisfies TaskStatus,
       ttl: 60_000,

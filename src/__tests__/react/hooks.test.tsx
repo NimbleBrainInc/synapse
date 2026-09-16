@@ -19,6 +19,17 @@ import {
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 function makeInitResult(hostName = "nimblebrain") {
   return {
     protocolVersion: "2026-01-26",
@@ -28,25 +39,30 @@ function makeInitResult(hostName = "nimblebrain") {
   };
 }
 
-function respondToInitialize(hostName?: string) {
+async function respondToInitialize(hostName?: string) {
+  await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",
   );
   if (!initCall) throw new Error("No ui/initialize call found");
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: makeInitResult(hostName) },
     }),
   );
+  await flush();
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>) {
+async function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
 function sent(method: string): Record<string, unknown>[] {
@@ -68,7 +84,7 @@ function createWrapper() {
 /** `<AppProvider>` renders nothing until `connect()` resolves. */
 async function settle(hostName?: string) {
   await act(async () => {
-    respondToInitialize(hostName);
+    await respondToInitialize(hostName);
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -91,8 +107,8 @@ describe("useDataSync", () => {
     renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
-      dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
+    await act(async () => {
+      await dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
     });
 
     expect(cb).toHaveBeenCalledTimes(1);
@@ -104,8 +120,8 @@ describe("useDataSync", () => {
     renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
-      dispatchNotification("notifications/resources/list_changed");
+    await act(async () => {
+      await dispatchNotification("notifications/resources/list_changed");
     });
 
     expect(cb).toHaveBeenCalledWith({});
@@ -116,8 +132,11 @@ describe("useDataSync", () => {
     renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
-      dispatchNotification("synapse/data-changed", { server: "people", tool: "update_contact" });
+    await act(async () => {
+      await dispatchNotification("synapse/data-changed", {
+        server: "people",
+        tool: "update_contact",
+      });
     });
 
     expect(cb).not.toHaveBeenCalled();
@@ -133,8 +152,8 @@ describe("useDataSync", () => {
     await settle();
 
     rerender({ cb: second });
-    act(() => {
-      dispatchNotification("notifications/resources/list_changed", {});
+    await act(async () => {
+      await dispatchNotification("notifications/resources/list_changed", {});
     });
 
     expect(first).not.toHaveBeenCalled();
@@ -148,7 +167,7 @@ describe("useModelContext", () => {
     const { result } = renderHook(() => useModelContext(), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
+    await act(async () => {
       result.current?.({ n: 1 });
       result.current?.({ n: 2 });
       result.current?.({ n: 3 }, "three");
@@ -156,7 +175,7 @@ describe("useModelContext", () => {
 
     expect(sent("ui/update-model-context")).toHaveLength(0);
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(250);
     });
 
@@ -173,7 +192,7 @@ describe("useModelContext", () => {
     const { result } = renderHook(() => useModelContext(), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
+    await act(async () => {
       result.current?.({ n: 1 });
       vi.advanceTimersByTime(250);
     });
@@ -190,13 +209,13 @@ describe("useModelContext", () => {
     );
     await settle();
 
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(250);
     });
     expect(sent("ui/update-model-context")).toHaveLength(1);
 
     rerender({ board: "b" });
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(250);
     });
 
@@ -210,11 +229,11 @@ describe("useModelContext", () => {
     const { result, unmount } = renderHook(() => useModelContext(), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
+    await act(async () => {
       result.current?.({ n: 1 });
     });
     unmount();
-    act(() => {
+    await act(async () => {
       vi.advanceTimersByTime(250);
     });
 
@@ -227,7 +246,7 @@ describe("useSendMessage", () => {
     const { result } = renderHook(() => useSendMessage(), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
+    await act(async () => {
       result.current("hello");
     });
 
@@ -243,7 +262,7 @@ describe("useAction", () => {
     const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
     await settle();
 
-    act(() => {
+    await act(async () => {
       result.current("navigate", { id: "b1" });
     });
 
@@ -254,7 +273,7 @@ describe("useAction", () => {
     const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
     await settle("claude");
 
-    act(() => {
+    await act(async () => {
       result.current("navigate", { id: "b1" });
     });
 
@@ -270,7 +289,7 @@ describe("useFileUpload", () => {
     expect(result.current.isPending).toBe(false);
 
     let pending!: Promise<unknown>;
-    act(() => {
+    await act(async () => {
       pending = result.current.pickFile({ accept: ".csv" });
     });
     expect(result.current.isPending).toBe(true);
@@ -281,14 +300,19 @@ describe("useFileUpload", () => {
     await act(async () => {
       window.dispatchEvent(
         new MessageEvent("message", {
+          source: window.parent,
           data: {
             jsonrpc: "2.0",
             id: request.id,
             result: {
-              id: "fl_0123456789abcdef01234567",
-              filename: "a.csv",
-              mimeType: "text/csv",
-              size: 4,
+              files: [
+                {
+                  id: "fl_0123456789abcdef01234567",
+                  filename: "a.csv",
+                  mimeType: "text/csv",
+                  size: 4,
+                },
+              ],
             },
           },
         }),

@@ -2,6 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import type { App } from "../types.js";
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 // ---------------------------------------------------------------------------
 // MockHost — reusable postMessage simulator for the MCP Apps host side
 // ---------------------------------------------------------------------------
@@ -19,7 +30,8 @@ class MockHost {
   }
 
   /** Auto-respond to ui/initialize when it arrives. */
-  respondToInitialize(initResult?: Record<string, unknown>) {
+  async respondToInitialize(initResult?: Record<string, unknown>) {
+    await flush();
     const initCall = this.postMessageSpy.mock.calls.find(
       (c: unknown[]) =>
         c[0] &&
@@ -28,31 +40,37 @@ class MockHost {
     );
     if (!initCall) throw new Error("No ui/initialize call found");
 
-    const id = (initCall[0] as Record<string, unknown>).id as string;
+    const id = (initCall[0] as Record<string, unknown>).id;
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { jsonrpc: "2.0", id, result: initResult ?? this.defaultInitResult() },
       }),
     );
+    await flush();
   }
 
   /** Send a notification from host to app. */
-  sendNotification(method: string, params?: Record<string, unknown>) {
+  async sendNotification(method: string, params?: Record<string, unknown>) {
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
       }),
     );
+    await flush();
   }
 
   /** Respond to the most recent pending request. */
-  respondToLastRequest(result: unknown) {
+  async respondToLastRequest(result: unknown) {
+    await flush();
     const calls = this.postMessageSpy.mock.calls;
     for (let i = calls.length - 1; i >= 0; i--) {
       const msg = calls[i][0] as Record<string, unknown>;
-      if (msg.id && msg.method) {
+      if (msg.id !== undefined && msg.method) {
         window.dispatchEvent(
           new MessageEvent("message", {
+            source: window.parent,
             data: { jsonrpc: "2.0", id: msg.id, result },
           }),
         );
@@ -84,8 +102,10 @@ class MockHost {
       hostCapabilities: {},
       hostContext: {
         theme: "dark",
-        styles: { variables: { "--bg": "#111" } },
-        toolInfo: { tool: { name: "search", description: "Search tool" } },
+        styles: { variables: { "--color-background-primary": "#111" } },
+        toolInfo: {
+          tool: { name: "search", description: "Search tool", inputSchema: { type: "object" } },
+        },
         containerDimensions: { width: 400, height: 600 },
       },
     };
@@ -114,7 +134,9 @@ describe("connect() integration", () => {
     initResult?: Record<string, unknown>,
   ): Promise<App> {
     const promise = connect({ name: "test-app", version: "1.0.0", ...opts });
-    host.respondToInitialize(initResult);
+
+    await flush();
+    await host.respondToInitialize(initResult);
     return promise;
   }
 
@@ -141,28 +163,31 @@ describe("connect() integration", () => {
       app.on("theme-changed", themeHandler);
 
       // Host sends tool-result
-      host.sendNotification("ui/notifications/tool-result", {
+      await host.sendNotification("ui/notifications/tool-result", {
         content: [{ type: "text", text: '{"count":42}' }],
       });
       expect(toolResultHandler).toHaveBeenCalledTimes(1);
       expect(toolResultHandler.mock.calls[0][0].content).toEqual({ count: 42 });
 
       // Host sends theme-changed
-      host.sendNotification("ui/notifications/host-context-changed", {
+      await host.sendNotification("ui/notifications/host-context-changed", {
         theme: "light",
-        styles: { variables: { "--bg": "#fff" } },
+        styles: { variables: { "--color-background-primary": "#fff" } },
       });
       expect(themeHandler).toHaveBeenCalledTimes(1);
-      expect(app.theme).toEqual({ mode: "light", tokens: { "--bg": "#fff" } });
+      expect(app.theme).toEqual({
+        mode: "light",
+        tokens: { "--color-background-primary": "#fff" },
+      });
 
       // Destroy
       app.destroy();
 
       // No further events
-      host.sendNotification("ui/notifications/tool-result", {
+      await host.sendNotification("ui/notifications/tool-result", {
         content: [{ type: "text", text: '{"count":99}' }],
       });
-      host.sendNotification("ui/notifications/host-context-changed", {
+      await host.sendNotification("ui/notifications/host-context-changed", {
         theme: "dark",
         tokens: {},
       });
@@ -223,7 +248,7 @@ describe("connect() integration", () => {
       });
 
       // Host responds with MCP content array
-      host.respondToLastRequest({
+      await host.respondToLastRequest({
         content: [{ type: "text", text: '{"message":"hi back"}' }],
       });
 
@@ -323,14 +348,14 @@ describe("connect() integration", () => {
       app.on("tool-input", h2);
       app.on("tool-input", h3);
 
-      host.sendNotification("ui/notifications/tool-input", { query: "hello" });
+      await host.sendNotification("ui/notifications/tool-input", { arguments: { query: "hello" } });
 
       expect(h1).toHaveBeenCalledTimes(1);
       expect(h2).toHaveBeenCalledTimes(1);
       expect(h3).toHaveBeenCalledTimes(1);
       // All receive the same payload
-      expect(h1).toHaveBeenCalledWith({ query: "hello" });
-      expect(h2).toHaveBeenCalledWith({ query: "hello" });
+      expect(h1).toHaveBeenCalledWith({ arguments: { query: "hello" } });
+      expect(h2).toHaveBeenCalledWith({ arguments: { query: "hello" } });
     });
   });
 
@@ -345,13 +370,13 @@ describe("connect() integration", () => {
       app.on("tool-input", stays);
       const unsub = app.on("tool-input", leaves);
 
-      host.sendNotification("ui/notifications/tool-input", { a: 1 });
+      await host.sendNotification("ui/notifications/tool-input", { a: 1 });
       expect(stays).toHaveBeenCalledTimes(1);
       expect(leaves).toHaveBeenCalledTimes(1);
 
       unsub();
 
-      host.sendNotification("ui/notifications/tool-input", { a: 2 });
+      await host.sendNotification("ui/notifications/tool-input", { a: 2 });
       expect(stays).toHaveBeenCalledTimes(2);
       expect(leaves).toHaveBeenCalledTimes(1); // did not fire again
     });
@@ -366,7 +391,7 @@ describe("connect() integration", () => {
       const handler = vi.fn();
       app.on("tool-result", handler);
 
-      host.sendNotification("ui/notifications/tool-result", {
+      await host.sendNotification("ui/notifications/tool-result", {
         content: [
           { type: "text", text: '{"items":' },
           { type: "text", text: "[1,2,3]}" },
@@ -383,7 +408,7 @@ describe("connect() integration", () => {
       const handler = vi.fn();
       app.on("tool-result", handler);
 
-      host.sendNotification("ui/notifications/tool-result", {
+      await host.sendNotification("ui/notifications/tool-result", {
         structuredContent: { direct: true, count: 7 },
         content: [{ type: "text", text: "fallback text" }],
       });
@@ -398,7 +423,7 @@ describe("connect() integration", () => {
       const handler = vi.fn();
       app.on("tool-result", handler);
 
-      host.sendNotification("ui/notifications/tool-result", {
+      await host.sendNotification("ui/notifications/tool-result", {
         content: [{ type: "text", text: "not valid json {" }],
       });
 
@@ -416,7 +441,7 @@ describe("connect() integration", () => {
         structuredContent: { a: 1 },
         content: [{ type: "text", text: "fallback" }],
       };
-      host.sendNotification("ui/notifications/tool-result", rawParams);
+      await host.sendNotification("ui/notifications/tool-result", rawParams);
 
       const data = handler.mock.calls[0][0];
       expect(data.raw).toEqual(rawParams);
@@ -467,7 +492,7 @@ describe("connect() integration", () => {
       app.on("tool-input", handler);
 
       // Now an event arrives — should be delivered
-      host.sendNotification("ui/notifications/tool-input", { q: "test" });
+      await host.sendNotification("ui/notifications/tool-input", { q: "test" });
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
@@ -480,8 +505,9 @@ describe("connect() integration", () => {
       // Destroy while pending
       app.destroy();
 
-      // The pending callTool should reject with transport destroyed
-      await expect(resultPromise).rejects.toThrow("Transport destroyed");
+      // Closing the connection rejects everything still in flight, in the
+      // client's own words.
+      await expect(resultPromise).rejects.toThrow(/Connection closed/);
     });
   });
 });

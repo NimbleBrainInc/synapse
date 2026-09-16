@@ -19,6 +19,15 @@ import type { App } from "../types.js";
 let postMessageSpy: ReturnType<typeof vi.fn>;
 let loaded: Set<FakeFontFace>;
 
+/** Let a dispatched frame reach its handler: the spec's client dispatches on
+ * a microtask, so an assertion made in the same turn would run too early. */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 class FakeFontFace {
   constructor(
     public family: string,
@@ -66,17 +75,20 @@ function completeHandshake() {
   const id = (initCall[0] as Record<string, unknown>).id as string;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: makeInitResult() },
     }),
   );
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>) {
+async function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
 const families = () => [...loaded].map((f) => f.family);
@@ -109,7 +121,7 @@ describe("host fonts survive a partial context change", () => {
     expect(families()).toEqual(["Brand"]);
 
     // A dark-mode toggle carrying only the changed field.
-    dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
+    await dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
 
     expect(families()).toEqual(["Brand"]);
   });
@@ -117,7 +129,7 @@ describe("host fonts survive a partial context change", () => {
   it("replaces faces when the host sends a new set", async () => {
     await connectAndHandshake();
 
-    dispatchNotification("ui/notifications/host-context-changed", {
+    await dispatchNotification("ui/notifications/host-context-changed", {
       theme: "dark",
       [FONT_FACES_CONTEXT_KEY]: [{ family: "Other", src: "url('/other.woff2')" }],
     });
@@ -128,7 +140,7 @@ describe("host fonts survive a partial context change", () => {
   it("clears faces when the host sends an explicit empty list", async () => {
     await connectAndHandshake();
 
-    dispatchNotification("ui/notifications/host-context-changed", {
+    await dispatchNotification("ui/notifications/host-context-changed", {
       [FONT_FACES_CONTEXT_KEY]: [],
     });
 
@@ -143,7 +155,7 @@ describe("theme subscribers agree with what is loaded", () => {
     const seen: (string[] | undefined)[] = [];
     app.on("theme-changed", (t) => seen.push(t.fontFaces?.map((f) => f.family)));
 
-    dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
+    await dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
 
     // The two public accessors must not disagree: both report the loaded set.
     expect(seen).toEqual([["Brand"]]);
@@ -158,7 +170,7 @@ describe("theme subscribers agree with what is loaded", () => {
 
     // Same mode, same tokens — only the typeface moves. The equality filter
     // must not swallow it, or every useTheme() consumer reports stale faces.
-    dispatchNotification("ui/notifications/host-context-changed", {
+    await dispatchNotification("ui/notifications/host-context-changed", {
       theme: "light",
       styles: { variables: {} },
       [FONT_FACES_CONTEXT_KEY]: [{ family: "Other", src: "url('/other.woff2')" }],
@@ -184,7 +196,7 @@ describe("an all-malformed batch never unloads the typeface", () => {
     const app = await connectAndHandshake();
     expect(families()).toEqual(["Brand"]);
 
-    dispatchNotification("ui/notifications/host-context-changed", {
+    await dispatchNotification("ui/notifications/host-context-changed", {
       theme: "dark",
       [FONT_FACES_CONTEXT_KEY]: [{ fontFamily: "Brand", source: "url('/brand.woff2')" }],
     });

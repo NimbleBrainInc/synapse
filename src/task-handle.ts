@@ -16,7 +16,6 @@ import type {
 
 import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
-import type { SynapseTransport } from "./transport.js";
 import type {
   App,
   CallToolAsTaskOptions,
@@ -87,12 +86,18 @@ export const TASKS_STATUS_NOTIFICATION_METHOD: TaskStatusNotification["method"] 
 // Status router
 // -----------------------------------------------------------------------------
 
-export function createTaskStatusRouter(transport: SynapseTransport): TaskStatusRouter {
+/** Subscribe to a wire method, and return the unsubscribe. */
+type SubscribeFn = (
+  method: string,
+  handler: (params: Record<string, unknown> | undefined) => void,
+) => () => void;
+
+export function createTaskStatusRouter(subscribe: SubscribeFn): TaskStatusRouter {
   const listeners = new Map<string, Set<(update: TaskStatusUpdate) => void>>();
 
-  // Single transport-level subscription. All per-handle listeners filter
-  // in-memory by taskId off this one wire handler.
-  const unsub = transport.onMessage(TASKS_STATUS_NOTIFICATION_METHOD, (rawParams) => {
+  // A single subscription to the wire method. All per-handle listeners filter
+  // in-memory by taskId off this one handler.
+  const unsub = subscribe(TASKS_STATUS_NOTIFICATION_METHOD, (rawParams) => {
     if (!rawParams) return;
     const params = rawParams as unknown as TaskStatusNotificationParams;
     const taskId = params.taskId;

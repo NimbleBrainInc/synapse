@@ -8,6 +8,24 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
+- **`connect()` runs on the spec's own client.** `@modelcontextprotocol/ext-apps`'s `App` owns the transport, the handshake and the wire schemas; this package is the framework on top of it — theme injection, parsed payloads, multi-subscriber events, resize, and the NimbleBrain extensions. The public API is unchanged: `connect`, `AppProvider`, every method on the `App` object, all sixteen React exports, `callToolAsTask`, `pickFile`/`pickFiles`, `action` and `downloadFile` keep their names and call shapes.
+
+  What changes is what reaches the wire, and what the wire is allowed to say:
+
+  - **A handshake result that is not the shape the spec defines is refused**, and `connect()` rejects instead of half-adopting it. `hostInfo`, `hostCapabilities` and `hostContext` are all required; `hostContext.styles.variables` may only carry the 76 names the spec's enum lists, and one key outside it rejects the whole result; `hostContext.toolInfo.tool` must be a valid `Tool`. A host that answers with the pre-spec `serverInfo`/`capabilities` naming cannot connect at all.
+  - **`ui/message` and `ui/update-model-context` travel as requests**, which is what the spec defines them as. They were notifications. `ui/resource-teardown` is a request too, and is now answered rather than only observed.
+  - **Request ids are numbers**, counted from zero, because that is how the MCP SDK numbers them. The spec allows a string or a number; a host that accepts only strings drops these.
+  - **Every request this SDK sends carries no deadline.** The MCP SDK's default is 60 seconds, which is wrong for a picker waiting on a person, a blocking `tasks/result`, or a slow tool, so each request passes the longest timer a browser accepts instead.
+  - **`destroy()` rejects whatever is in flight** with the client's own `Connection closed`, where it used to say `Transport destroyed`.
+
+  **Migration:** a host must answer the handshake exactly as the spec defines it, accept a numeric request id, and answer `ui/message` and `ui/open-link`. For NimbleBrain that means a release after v0.26.0.
+
+- **The file picker's result is an object: `synapse/request-file` answers `{ files }`.** `pickFile` resolves the first entry or `null`, and `pickFiles` resolves the array, as before — but the host now answers `{ files: [...] }`, with `{ files: [] }` for a cancel, rather than a bare object, a bare array, or `null`.
+
+  A JSON-RPC result is an object by definition, and MCP types it as one. The bare shapes cannot be parsed by a spec client at all: the call hangs instead of resolving, which is what made this the one wire change the rebuild could not avoid.
+
+  **Migration:** the SDK's API is unchanged; the host's answer is not. A NimbleBrain host needs a release after v0.26.0. A host of your own returns `{ files: FileResult[] }`.
+
 - **`useDataSync` fires when the app's own server announces a change, and hands the callback that notification's params.** It subscribes to `notifications/resources/list_changed`, which a server sends when its data changes and an MCP Apps host forwards to that server's views (host capability `serverResources.listChanged`). The callback receives the notification's params as the spec defines them, or `{}` when there are none. NimbleBrain's `synapse/data-changed` is no longer handled: the `"data-changed"` event and the `DataChangedEvent` type are gone.
 
   The server that owns the data is the one that knows it changed. Its announcement covers every write — the agent's, a webhook's, a call from another view — and arrives on any host that forwards it. The signal it replaces was a host's guess from the agent's tool calls: it fired on reads as well as writes, missed every change the agent did not make, and existed on one host.

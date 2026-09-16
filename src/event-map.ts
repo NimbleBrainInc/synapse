@@ -25,6 +25,7 @@ export const RESOURCE_LIST_CHANGED_METHOD: ResourceListChangedNotification["meth
  */
 export const ACTION_METHOD = "synapse/action";
 export const REQUEST_FILE_METHOD = "synapse/request-file";
+export const KEYDOWN_METHOD = "synapse/keydown";
 
 /**
  * Maps short event names used in App.on() to full MCP method names.

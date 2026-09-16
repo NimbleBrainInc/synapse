@@ -16,6 +16,17 @@ import type { App, TasksCapability } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 function makeInitResult(hostName = "nimblebrain", overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
@@ -30,11 +41,13 @@ function makeInitResult(hostName = "nimblebrain", overrides?: Record<string, unk
 }
 
 /** Start a connect() and answer its `ui/initialize`. */
-function connectAndHandshake(
+async function connectAndHandshake(
   options?: Partial<Parameters<typeof connect>[0]>,
   initResult?: Record<string, unknown>,
 ): Promise<App> {
   const promise = connect({ name: "test-app", version: "1.0.0", ...options });
+
+  await flush();
 
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
@@ -44,49 +57,66 @@ function connectAndHandshake(
   );
   if (!initCall) throw new Error("No ui/initialize call found");
 
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: initResult ?? makeInitResult() },
     }),
   );
 
-  return promise;
+  const app = await promise;
+  await flush();
+  return app;
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>) {
+async function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
 function lastRequest(): Record<string, unknown> {
   const calls = postMessageSpy.mock.calls;
   for (let i = calls.length - 1; i >= 0; i--) {
     const msg = calls[i][0] as Record<string, unknown>;
-    if (msg.id && msg.method) return msg;
+    if (msg.id !== undefined && msg.method) return msg;
   }
   throw new Error("No pending request found");
 }
 
-function respondToLastRequest(result: unknown) {
+async function respondToLastRequest(result: unknown) {
   const msg = lastRequest();
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id: msg.id, result },
     }),
   );
+  await flush();
 }
 
-function rejectLastRequest(code: number, message: string) {
+async function rejectLastRequest(code: number, message: string) {
   const msg = lastRequest();
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id: msg.id, error: { code, message } },
     }),
   );
+  await flush();
+}
+
+/** Every message sent for `method`, in order. `ui/message` is a request:
+ * the spec defines it as one, and the client sends it as one. */
+function sentByMethod(method: string): Record<string, unknown>[] {
+  return postMessageSpy.mock.calls
+    .map((c: unknown[]) => c[0] as Record<string, unknown>)
+    .filter((m) => m?.method === method);
 }
 
 /** Every notification sent for `method`, in order. */
@@ -131,7 +161,7 @@ describe("connect() capabilities", () => {
       expect(msg.method).toBe("tools/call");
       expect(msg.params).toEqual({ name: "search", arguments: { q: "test" } });
 
-      respondToLastRequest({
+      await respondToLastRequest({
         content: [{ type: "text", text: '{"hits":3}' }],
         structuredContent: { hits: 3 },
       });
@@ -155,7 +185,7 @@ describe("connect() capabilities", () => {
     it("rejects on an error response", async () => {
       app = await connectAndHandshake();
       const p = app.callTool("boom");
-      rejectLastRequest(-32603, "tool exploded");
+      await rejectLastRequest(-32603, "tool exploded");
       await expect(p).rejects.toThrow("tool exploded");
     });
   });
@@ -170,14 +200,14 @@ describe("connect() capabilities", () => {
       expect(msg.params).toEqual({ uri: "files://abc" });
 
       const contents = { contents: [{ uri: "files://abc", mimeType: "text/plain", text: "hi" }] };
-      respondToLastRequest(contents);
+      await respondToLastRequest(contents);
       await expect(p).resolves.toEqual(contents);
     });
 
     it("rejects on an error response", async () => {
       app = await connectAndHandshake();
       const p = app.readServerResource({ uri: "files://missing" });
-      rejectLastRequest(-32602, "not found");
+      await rejectLastRequest(-32602, "not found");
       await expect(p).rejects.toThrow("not found");
     });
   });
@@ -198,43 +228,45 @@ describe("connect() capabilities", () => {
       expect(msg.method).toBe("synapse/request-file");
       expect(msg.params).toMatchObject({ accept: ".csv", multiple: false });
 
-      respondToLastRequest(fileResult);
+      await respondToLastRequest({ files: [fileResult] });
       await expect(p).resolves.toEqual(fileResult);
     });
 
-    it("pickFiles sends multiple: true and accepts an array result", async () => {
+    it("pickFiles sends multiple: true and resolves the files the host returned", async () => {
       app = await connectAndHandshake();
       const p = pickFiles(app);
       expect(lastRequest().params).toMatchObject({ multiple: true });
-      respondToLastRequest([fileResult, { ...fileResult, id: "fl_ffffffffffffffffffffffff" }]);
+      await respondToLastRequest({
+        files: [fileResult, { ...fileResult, id: "fl_ffffffffffffffffffffffff" }],
+      });
       await expect(p).resolves.toHaveLength(2);
     });
 
     it("pickFile resolves null when the user cancels", async () => {
       app = await connectAndHandshake();
       const p = pickFile(app);
-      respondToLastRequest(null);
+      await respondToLastRequest({ files: [] });
       await expect(p).resolves.toBeNull();
     });
 
     it("pickFiles resolves [] when the user cancels", async () => {
       app = await connectAndHandshake();
       const p = pickFiles(app);
-      respondToLastRequest(null);
+      await respondToLastRequest({ files: [] });
       await expect(p).resolves.toEqual([]);
     });
 
     it("pickFile throws loudly on the legacy base64 shape (no `id`)", async () => {
       app = await connectAndHandshake();
       const p = pickFile(app);
-      respondToLastRequest({ base64Data: "AAA=", filename: "a.csv" });
+      await respondToLastRequest({ files: [{ base64Data: "AAA=", filename: "a.csv" }] });
       await expect(p).rejects.toThrow(/without a string `id`/);
     });
 
     it("pickFiles throws if any entry is missing `id`", async () => {
       app = await connectAndHandshake();
       const p = pickFiles(app);
-      respondToLastRequest([fileResult, { filename: "b.csv" }]);
+      await respondToLastRequest({ files: [fileResult, { filename: "b.csv" }] });
       await expect(p).rejects.toThrow(/without a string `id`/);
     });
 
@@ -251,7 +283,7 @@ describe("connect() capabilities", () => {
       const raw = vi.fn();
       app.on("notifications/resources/list_changed", raw);
 
-      dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
+      await dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
 
       expect(raw).toHaveBeenCalledTimes(1);
       expect(raw).toHaveBeenCalledWith({ _meta: { k: "v" } });
@@ -262,7 +294,7 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       const off = app.on("notifications/resources/list_changed", cb);
       off();
-      dispatchNotification("notifications/resources/list_changed", {});
+      await dispatchNotification("notifications/resources/list_changed", {});
       expect(cb).not.toHaveBeenCalled();
     });
 
@@ -274,7 +306,7 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       app.on("data-changed", cb);
 
-      dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
+      await dispatchNotification("synapse/data-changed", { server: "s", tool: "t" });
 
       expect(cb).not.toHaveBeenCalled();
     });
@@ -301,8 +333,9 @@ describe("connect() capabilities", () => {
     it("attaches _meta.context on a NimbleBrain host", async () => {
       app = await connectAndHandshake();
       app.sendMessage("hello", { action: "open", entity: "board" });
+      await flush();
 
-      const sent = sentNotifications("ui/message");
+      const sent = sentByMethod("ui/message");
       expect(sent[0].params).toEqual({
         role: "user",
         content: [
@@ -314,8 +347,9 @@ describe("connect() capabilities", () => {
     it("omits _meta off a NimbleBrain host — the field is a NimbleBrain convention", async () => {
       app = await connectAndHandshake({}, makeInitResult("claude"));
       app.sendMessage("hello", { action: "open" });
+      await flush();
 
-      const sent = sentNotifications("ui/message");
+      const sent = sentByMethod("ui/message");
       expect(sent[0].params).toEqual({
         role: "user",
         content: [{ type: "text", text: "hello" }],
@@ -325,7 +359,8 @@ describe("connect() capabilities", () => {
     it("omits _meta when no context is given", async () => {
       app = await connectAndHandshake();
       app.sendMessage("hello");
-      const sent = sentNotifications("ui/message");
+      await flush();
+      const sent = sentByMethod("ui/message");
       expect(sent[0].params).toEqual({ role: "user", content: [{ type: "text", text: "hello" }] });
     });
   });
@@ -397,7 +432,7 @@ describe("connect() capabilities", () => {
       app = await connectAdvertising();
       const pending = downloadFile(app, "a.txt", "x");
       await sentDownload();
-      respondToLastRequest({ isError: true });
+      await respondToLastRequest({ isError: true });
       await expect(pending).resolves.toEqual({ isError: true });
     });
 
@@ -418,7 +453,7 @@ describe("connect() capabilities", () => {
       app = await connectAdvertising();
       const pending = downloadFile(app, "a.txt", "x");
       await sentDownload();
-      rejectLastRequest(-32601, "method not found");
+      await rejectLastRequest(-32601, "method not found");
       await expect(pending).rejects.toThrow("method not found");
     });
 
@@ -475,7 +510,7 @@ describe("connect() capabilities", () => {
       window.open = openSpy as unknown as typeof window.open;
 
       app.openLink("https://example.com");
-      rejectLastRequest(-32601, "method not found");
+      await rejectLastRequest(-32601, "method not found");
       await Promise.resolve();
       await Promise.resolve();
 
@@ -499,9 +534,9 @@ describe("connect() capabilities", () => {
       const seen: unknown[] = [];
       app.on("host-context-changed", (c) => seen.push(c));
 
-      dispatchNotification("ui/notifications/host-context-changed", {
+      await dispatchNotification("ui/notifications/host-context-changed", {
         theme: "light",
-        styles: { variables: { "--bg": "#fff" } },
+        styles: { variables: { "--color-background-primary": "#fff" } },
       });
 
       expect(seen).toHaveLength(1);
@@ -517,17 +552,17 @@ describe("connect() capabilities", () => {
         makeInitResult("nimblebrain", {
           hostContext: {
             theme: "dark",
-            styles: { variables: { "--nb-color-primary": "#315EDB" } },
-            toolInfo: { tool: { name: "search" } },
+            styles: { variables: { "--color-ring-primary": "#315EDB" } },
+            toolInfo: { tool: { name: "search", inputSchema: { type: "object" } } },
             containerDimensions: { width: 400 },
             workspace: { id: "ws_1" },
           },
         }),
       );
 
-      dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
 
-      expect(app.theme).toEqual({ mode: "light", tokens: { "--nb-color-primary": "#315EDB" } });
+      expect(app.theme).toEqual({ mode: "light", tokens: { "--color-ring-primary": "#315EDB" } });
       expect(app.hostContext).toMatchObject({
         theme: "light",
         toolInfo: { tool: { name: "search" } },
@@ -540,18 +575,23 @@ describe("connect() capabilities", () => {
       app = await connectAndHandshake(
         {},
         makeInitResult("nimblebrain", {
-          hostContext: { theme: "dark", styles: { variables: { "--a": "1", "--b": "2" } } },
+          hostContext: {
+            theme: "dark",
+            styles: {
+              variables: { "--color-background-primary": "1", "--color-text-primary": "2" },
+            },
+          },
         }),
       );
 
       // `styles.variables` is a complete map when the host sends one, so the
       // merge is shallow: this drops `--b` rather than keeping it around
       // forever with no way for a host to remove a variable.
-      dispatchNotification("ui/notifications/host-context-changed", {
-        styles: { variables: { "--a": "9" } },
+      await dispatchNotification("ui/notifications/host-context-changed", {
+        styles: { variables: { "--color-background-primary": "9" } },
       });
 
-      expect(app.theme.tokens).toEqual({ "--a": "9" });
+      expect(app.theme.tokens).toEqual({ "--color-background-primary": "9" });
     });
 
     it("the short event delivers the merged snapshot; the wire method delivers the delta", async () => {
@@ -566,7 +606,7 @@ describe("connect() capabilities", () => {
       app.on("host-context-changed", merged);
       app.on("ui/notifications/host-context-changed", delta);
 
-      dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
 
       expect(merged).toHaveBeenCalledWith(
         expect.objectContaining({ theme: "light", workspace: { id: "ws_1" } }),
@@ -579,7 +619,7 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       const off = app.on("host-context-changed", cb);
       off();
-      dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
       expect(cb).not.toHaveBeenCalled();
     });
 
@@ -588,7 +628,7 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       app.on("host-context-changed", cb);
       app.destroy();
-      dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
       expect(cb).not.toHaveBeenCalled();
     });
   });
@@ -604,7 +644,7 @@ describe("connect() capabilities", () => {
       const seen: unknown[] = [];
       app.on("theme-changed", (t) => seen.push(t));
 
-      dispatchNotification("ui/notifications/host-context-changed", {
+      await dispatchNotification("ui/notifications/host-context-changed", {
         theme: "light",
         styles: { variables: {} },
       });
@@ -617,7 +657,7 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       app.on("theme-changed", cb);
 
-      dispatchNotification("ui/notifications/host-context-changed", {
+      await dispatchNotification("ui/notifications/host-context-changed", {
         theme: "dark",
         styles: { variables: {} },
         workspace: { id: "ws_2" },
@@ -631,9 +671,9 @@ describe("connect() capabilities", () => {
       const cb = vi.fn();
       app.on("theme-changed", cb);
 
-      dispatchNotification("ui/notifications/host-context-changed", {
+      await dispatchNotification("ui/notifications/host-context-changed", {
         theme: "dark",
-        styles: { variables: { "--bg": "#000" } },
+        styles: { variables: { "--color-background-primary": "#000" } },
       });
 
       expect(cb).toHaveBeenCalledTimes(1);
@@ -641,8 +681,10 @@ describe("connect() capabilities", () => {
   });
 
   describe("tasks capability", () => {
-    it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", () => {
+    it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
       connect({ name: "test-app", version: "1.0.0" }).catch(() => {});
+
+      await flush();
 
       const initCall = postMessageSpy.mock.calls.find(
         (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",

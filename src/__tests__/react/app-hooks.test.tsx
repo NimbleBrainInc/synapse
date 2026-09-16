@@ -8,6 +8,17 @@ import { useApp, useResize, useTheme, useToolInput, useToolResult } from "../../
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 function makeInitResult(overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
@@ -15,8 +26,10 @@ function makeInitResult(overrides?: Record<string, unknown>) {
     hostCapabilities: {},
     hostContext: {
       theme: "dark",
-      styles: { variables: { "--bg": "#111" } },
-      toolInfo: { tool: { name: "search", description: "Search tool" } },
+      styles: { variables: { "--color-background-primary": "#111" } },
+      toolInfo: {
+        tool: { name: "search", description: "Search tool", inputSchema: { type: "object" } },
+      },
       containerDimensions: { width: 400, height: 600 },
     },
     ...overrides,
@@ -27,7 +40,8 @@ function makeInitResult(overrides?: Record<string, unknown>) {
  * Respond to the ui/initialize request that connect() sends.
  * Must be called after rendering a component tree with <AppProvider>.
  */
-function respondToInitialize(initResult?: Record<string, unknown>) {
+async function respondToInitialize(initResult?: Record<string, unknown>) {
+  await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
       c[0] &&
@@ -36,20 +50,24 @@ function respondToInitialize(initResult?: Record<string, unknown>) {
   );
   if (!initCall) throw new Error("No ui/initialize call found");
 
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: initResult ?? makeInitResult() },
     }),
   );
+  await flush();
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>) {
+async function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
 function createWrapper() {
@@ -89,7 +107,7 @@ describe("app hooks", () => {
       // We need to complete the handshake first
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         // Let microtasks resolve (connect() promise + setState)
         await new Promise((r) => setTimeout(r, 0));
       });
@@ -110,7 +128,7 @@ describe("app hooks", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
 
@@ -121,7 +139,7 @@ describe("app hooks", () => {
 
       // Fire a tool-result event
       await act(async () => {
-        dispatchNotification("ui/notifications/tool-result", {
+        await dispatchNotification("ui/notifications/tool-result", {
           content: [{ type: "text", text: '{"items":[1,2]}' }],
         });
       });
@@ -138,7 +156,7 @@ describe("app hooks", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
 
@@ -147,12 +165,12 @@ describe("app hooks", () => {
       expect(result.current).toBeNull();
 
       await act(async () => {
-        dispatchNotification("ui/notifications/tool-input", {
-          query: "search term",
+        await dispatchNotification("ui/notifications/tool-input", {
+          arguments: { query: "search term" },
         });
       });
 
-      expect(result.current).toEqual({ query: "search term" });
+      expect(result.current).toEqual({ arguments: { query: "search term" } });
     });
   });
 
@@ -163,13 +181,16 @@ describe("app hooks", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
 
       rerender();
 
-      expect(result.current).toEqual({ mode: "dark", tokens: { "--bg": "#111" } });
+      expect(result.current).toEqual({
+        mode: "dark",
+        tokens: { "--color-background-primary": "#111" },
+      });
     });
 
     it("updates when theme-changed event fires", async () => {
@@ -178,20 +199,23 @@ describe("app hooks", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
 
       rerender();
 
       await act(async () => {
-        dispatchNotification("ui/notifications/host-context-changed", {
+        await dispatchNotification("ui/notifications/host-context-changed", {
           theme: "light",
-          styles: { variables: { "--bg": "#fff" } },
+          styles: { variables: { "--color-background-primary": "#fff" } },
         });
       });
 
-      expect(result.current).toEqual({ mode: "light", tokens: { "--bg": "#fff" } });
+      expect(result.current).toEqual({
+        mode: "light",
+        tokens: { "--color-background-primary": "#fff" },
+      });
     });
   });
 
@@ -202,14 +226,14 @@ describe("app hooks", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
 
       rerender();
       postMessageSpy.mockClear();
 
-      act(() => {
+      await act(async () => {
         result.current(300, 500);
       });
 
@@ -250,12 +274,14 @@ describe("app hooks", () => {
         </Boundary>,
       );
 
+      await flush();
       const initCall = postMessageSpy.mock.calls.find(
         (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",
       );
       await act(async () => {
         window.dispatchEvent(
           new MessageEvent("message", {
+            source: window.parent,
             data: {
               jsonrpc: "2.0",
               id: (initCall?.[0] as Record<string, unknown>).id,
@@ -274,31 +300,31 @@ describe("app hooks", () => {
   });
 
   describe("hooks outside AppProvider", () => {
-    it("useApp throws when used outside AppProvider", () => {
+    it("useApp throws when used outside AppProvider", async () => {
       expect(() => {
         renderHook(() => useApp());
       }).toThrow("useApp must be used within an <AppProvider>");
     });
 
-    it("useToolResult throws when used outside AppProvider", () => {
+    it("useToolResult throws when used outside AppProvider", async () => {
       expect(() => {
         renderHook(() => useToolResult());
       }).toThrow("useApp must be used within an <AppProvider>");
     });
 
-    it("useToolInput throws when used outside AppProvider", () => {
+    it("useToolInput throws when used outside AppProvider", async () => {
       expect(() => {
         renderHook(() => useToolInput());
       }).toThrow("useApp must be used within an <AppProvider>");
     });
 
-    it("useResize throws when used outside AppProvider", () => {
+    it("useResize throws when used outside AppProvider", async () => {
       expect(() => {
         renderHook(() => useResize());
       }).toThrow("useApp must be used within an <AppProvider>");
     });
 
-    it("useTheme throws when used outside AppProvider", () => {
+    it("useTheme throws when used outside AppProvider", async () => {
       expect(() => {
         renderHook(() => useTheme());
       }).toThrow("useApp must be used within an <AppProvider>");

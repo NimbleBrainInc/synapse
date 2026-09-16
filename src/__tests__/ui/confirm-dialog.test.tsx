@@ -3,7 +3,6 @@ import { useState } from "react";
 import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KeyboardForwarder } from "../../keyboard.js";
-import type { SynapseTransport } from "../../transport.js";
 import { Button } from "../../ui/components/Button.js";
 import { ConfirmDialog } from "../../ui/components/ConfirmDialog.js";
 import { Drawer } from "../../ui/components/Drawer.js";
@@ -526,7 +525,7 @@ describe("Escape while the host forwards keys", () => {
   // Every fleet app passes `forwardKeys`, and two of them render a `Drawer`, so
   // this is the configuration the kit actually ships into.
   function withForwarder(run: () => void): void {
-    const forwarder = new KeyboardForwarder({ send: vi.fn() } as unknown as SynapseTransport);
+    const forwarder = new KeyboardForwarder(vi.fn());
     try {
       run();
     } finally {

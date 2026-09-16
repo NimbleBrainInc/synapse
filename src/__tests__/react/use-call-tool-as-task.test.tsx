@@ -52,6 +52,17 @@ const CANCELLED_STATUS: TaskStatus = "cancelled";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 const HOST_TASKS_CAPABILITY: TasksCapability = {
   cancel: {},
   requests: { tools: { call: {} } },
@@ -77,50 +88,65 @@ function findAllCalls(method: string): Record<string, unknown>[] {
 
 const answeredIds = new Set<string>();
 
-function respondToRequest(method: string, result: unknown): void {
+async function respondToRequest(method: string, result: unknown): Promise<void> {
+  await flush();
   const calls = findAllCalls(method);
   const msg = [...calls].reverse().find((m) => {
     const id = m.id;
-    return typeof id === "string" && !answeredIds.has(id);
+    return id !== undefined && !answeredIds.has(String(id));
   });
-  if (!msg || typeof msg.id !== "string") {
+  if (!msg || msg.id === undefined) {
     throw new Error(`No pending ${method} request`);
   }
-  answeredIds.add(msg.id);
+  answeredIds.add(String(msg.id));
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id: msg.id, result },
     }),
   );
+  await flush();
 }
 
-function rejectRequest(method: string, error: { code: number; message: string }): void {
+async function rejectRequest(
+  method: string,
+  error: { code: number; message: string },
+): Promise<void> {
+  await flush();
   const calls = findAllCalls(method);
   const msg = [...calls].reverse().find((m) => {
     const id = m.id;
-    return typeof id === "string" && !answeredIds.has(id);
+    return id !== undefined && !answeredIds.has(String(id));
   });
-  if (!msg || typeof msg.id !== "string") {
+  if (!msg || msg.id === undefined) {
     throw new Error(`No pending ${method} request`);
   }
-  answeredIds.add(msg.id);
+  answeredIds.add(String(msg.id));
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id: msg.id, error },
     }),
   );
+  await flush();
 }
 
-function completeHandshake(): void {
-  respondToRequest("ui/initialize", makeInitResult());
+async function completeHandshake(): Promise<void> {
+  await flush();
+  await respondToRequest("ui/initialize", makeInitResult());
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>): void {
+async function dispatchNotification(
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<void> {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
 function makeCreateTaskResult(taskId: string, overrides?: Partial<Task>): CreateTaskResult {
@@ -186,7 +212,7 @@ describe("useCallToolAsTask — fire()", () => {
 
     // `<AppProvider>` renders nothing until `connect()` resolves, so the hook
     // does not exist until the host has answered `ui/initialize`.
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     expect(result.current.task).toBeNull();
@@ -201,7 +227,7 @@ describe("useCallToolAsTask — fire()", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     expect(result.current.task).toBeNull();
@@ -210,7 +236,7 @@ describe("useCallToolAsTask — fire()", () => {
       result.current.fire({ query: "foo" });
       // Let the request hit the wire, then respond.
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_fire"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_fire"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -233,13 +259,13 @@ describe("useCallToolAsTask — status notifications", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_notif"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_notif"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -247,7 +273,7 @@ describe("useCallToolAsTask — status notifications", () => {
     expect(result.current.task?.status).toBe(WORKING_STATUS);
 
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: "tsk_notif",
         status: COMPLETED_STATUS,
       });
@@ -274,7 +300,7 @@ describe("useCallToolAsTask — polling fallback", () => {
     // microtasks without jumping any scheduled timers forward — we
     // need to reach `fire()` state without accidentally firing the
     // poll fallback timer that gets scheduled mid-test.
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -282,7 +308,7 @@ describe("useCallToolAsTask — polling fallback", () => {
     await act(async () => {
       result.current.fire({});
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_poll", { pollInterval: 2_000 }),
       );
@@ -314,7 +340,7 @@ describe("useCallToolAsTask — polling fallback", () => {
       pollInterval: 2_000,
     };
     await act(async () => {
-      respondToRequest(TASKS_GET_METHOD, freshTask);
+      await respondToRequest(TASKS_GET_METHOD, freshTask);
       await vi.advanceTimersByTimeAsync(0);
     });
 
@@ -326,7 +352,7 @@ describe("useCallToolAsTask — polling fallback", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -335,7 +361,7 @@ describe("useCallToolAsTask — polling fallback", () => {
       result.current.fire({});
       await vi.advanceTimersByTimeAsync(0);
       // NB: no pollInterval on the task.
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_def"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_def"));
       await vi.advanceTimersByTimeAsync(0);
     });
 
@@ -357,7 +383,7 @@ describe("useCallToolAsTask — polling fallback", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -365,7 +391,7 @@ describe("useCallToolAsTask — polling fallback", () => {
     await act(async () => {
       result.current.fire({});
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_term", { pollInterval: 1_000 }),
       );
@@ -381,7 +407,7 @@ describe("useCallToolAsTask — polling fallback", () => {
 
     // Receiver reports terminal.
     await act(async () => {
-      respondToRequest(TASKS_GET_METHOD, {
+      await respondToRequest(TASKS_GET_METHOD, {
         taskId: "tsk_term",
         status: COMPLETED_STATUS,
         ttl: 60_000,
@@ -413,13 +439,13 @@ describe("useCallToolAsTask — result & error", () => {
         wrapper: createWrapper(),
       },
     );
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ok"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ok"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -428,7 +454,7 @@ describe("useCallToolAsTask — result & error", () => {
 
     // Respond to the pending tasks/result.
     await act(async () => {
-      respondToRequest(TASKS_RESULT_METHOD, {
+      await respondToRequest(TASKS_RESULT_METHOD, {
         content: [{ type: "text", text: '{"answer":42}' }],
       } satisfies CallToolResult);
       await Promise.resolve();
@@ -445,19 +471,19 @@ describe("useCallToolAsTask — result & error", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_terr"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_terr"));
       await Promise.resolve();
       await Promise.resolve();
     });
 
     await act(async () => {
-      respondToRequest(TASKS_RESULT_METHOD, {
+      await respondToRequest(TASKS_RESULT_METHOD, {
         isError: true,
         content: [{ type: "text", text: "boom" }],
       } satisfies CallToolResult);
@@ -475,19 +501,19 @@ describe("useCallToolAsTask — result & error", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_fail"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_fail"));
       await Promise.resolve();
       await Promise.resolve();
     });
 
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: "tsk_fail",
         status: FAILED_STATUS,
       });
@@ -500,7 +526,7 @@ describe("useCallToolAsTask — result & error", () => {
     // Now the blocking tasks/result resolves with isError:true — both
     // notification-driven terminal state and error surface correctly.
     await act(async () => {
-      respondToRequest(TASKS_RESULT_METHOD, {
+      await respondToRequest(TASKS_RESULT_METHOD, {
         isError: true,
         content: [{ type: "text", text: "failed" }],
       } satisfies CallToolResult);
@@ -522,7 +548,7 @@ describe("useCallToolAsTask — cancel()", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -530,7 +556,7 @@ describe("useCallToolAsTask — cancel()", () => {
     await act(async () => {
       result.current.fire({});
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_cancel", { pollInterval: 1_000 }),
       );
@@ -543,7 +569,7 @@ describe("useCallToolAsTask — cancel()", () => {
     await act(async () => {
       const p = result.current.cancel();
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(TASKS_CANCEL_METHOD, {
+      await respondToRequest(TASKS_CANCEL_METHOD, {
         taskId: "tsk_cancel",
         status: CANCELLED_STATUS,
         ttl: 60_000,
@@ -570,13 +596,13 @@ describe("useCallToolAsTask — cancel()", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_cerr"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_cerr"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -584,7 +610,7 @@ describe("useCallToolAsTask — cancel()", () => {
     await act(async () => {
       const p = result.current.cancel();
       await Promise.resolve();
-      rejectRequest(TASKS_CANCEL_METHOD, { code: -32602, message: "task already terminal" });
+      await rejectRequest(TASKS_CANCEL_METHOD, { code: -32602, message: "task already terminal" });
       await Promise.resolve();
       await p;
     });
@@ -597,7 +623,7 @@ describe("useCallToolAsTask — cancel()", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     // Should not throw; no pending cancel request should go out.
@@ -624,20 +650,20 @@ describe("useCallToolAsTask — isWorking / isTerminal", () => {
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult(`tsk_${status}`));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult(`tsk_${status}`));
       await Promise.resolve();
       await Promise.resolve();
     });
 
     // Drive to the target status via a notification.
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: `tsk_${status}`,
         status,
       });
@@ -658,7 +684,7 @@ describe("useCallToolAsTask — unmount cleanup", () => {
     const { result, unmount } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -666,7 +692,7 @@ describe("useCallToolAsTask — unmount cleanup", () => {
     await act(async () => {
       result.current.fire({});
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_unmount", { pollInterval: 1_000 }),
       );
@@ -696,13 +722,13 @@ describe("useCallToolAsTask — unmount cleanup", () => {
     const { result, unmount } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire({});
       await Promise.resolve();
-      respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_late"));
+      await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_late"));
       await Promise.resolve();
       await Promise.resolve();
     });
@@ -711,14 +737,14 @@ describe("useCallToolAsTask — unmount cleanup", () => {
     unmount();
 
     // Late notification shouldn't trigger a React warning.
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_late",
       status: COMPLETED_STATUS,
     });
 
     // Late tasks/result response shouldn't either.
     try {
-      respondToRequest(TASKS_RESULT_METHOD, {
+      await respondToRequest(TASKS_RESULT_METHOD, {
         content: [{ type: "text", text: '"ok"' }],
       } satisfies CallToolResult);
     } catch {
@@ -747,7 +773,7 @@ describe("useCallToolAsTask — re-fire while a previous task is running", () =>
     const { result } = renderHook(() => useCallToolAsTask("do_thing"), {
       wrapper: createWrapper(),
     });
-    completeHandshake();
+    await completeHandshake();
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -755,7 +781,7 @@ describe("useCallToolAsTask — re-fire while a previous task is running", () =>
     await act(async () => {
       result.current.fire({ query: "first" });
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_first", { pollInterval: 1_000 }),
       );
@@ -769,7 +795,7 @@ describe("useCallToolAsTask — re-fire while a previous task is running", () =>
     await act(async () => {
       result.current.fire({ query: "second" });
       await vi.advanceTimersByTimeAsync(0);
-      respondToRequest(
+      await respondToRequest(
         TOOLS_CALL_METHOD,
         makeCreateTaskResult("tsk_second", { pollInterval: 1_000 }),
       );
@@ -788,7 +814,7 @@ describe("useCallToolAsTask — re-fire while a previous task is running", () =>
     // Notifications for the OLD task must no longer update hook state
     // (listener was unsubscribed on re-fire).
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: "tsk_first",
         status: COMPLETED_STATUS,
       });
@@ -798,7 +824,7 @@ describe("useCallToolAsTask — re-fire while a previous task is running", () =>
 
     // Notifications for the NEW task do update state.
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: "tsk_second",
         status: COMPLETED_STATUS,
       });
@@ -817,7 +843,7 @@ describe("useCallToolAsTask — stable callback identities", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     const fire1 = result.current.fire;
@@ -846,14 +872,14 @@ describe("useCallToolAsTask — result() settles terminal state", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire();
       await Promise.resolve();
     });
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_done"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_done"));
     await flushMicrotasks();
 
     // Resolve `tasks/result` BEFORE any notification or refresh has
@@ -861,7 +887,7 @@ describe("useCallToolAsTask — result() settles terminal state", () => {
     expect(result.current.task?.status).toBe(WORKING_STATUS);
     expect(result.current.isTerminal).toBe(false);
 
-    respondToRequest(TASKS_RESULT_METHOD, {
+    await respondToRequest(TASKS_RESULT_METHOD, {
       content: [{ type: "text", text: '{"ok":true}' }],
     });
     await flushMicrotasks();
@@ -889,17 +915,17 @@ describe("useCallToolAsTask — result() settles terminal state", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire();
       await Promise.resolve();
     });
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_isError"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_isError"));
     await flushMicrotasks();
 
-    respondToRequest(TASKS_RESULT_METHOD, {
+    await respondToRequest(TASKS_RESULT_METHOD, {
       content: [{ type: "text", text: "boom" }],
       isError: true,
     });
@@ -923,17 +949,17 @@ describe("useCallToolAsTask — result() settles terminal state", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire();
       await Promise.resolve();
     });
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_reject"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_reject"));
     await flushMicrotasks();
 
-    rejectRequest(TASKS_RESULT_METHOD, { code: -32602, message: "task gone" });
+    await rejectRequest(TASKS_RESULT_METHOD, { code: -32602, message: "task gone" });
     await flushMicrotasks();
 
     expect(result.current.error?.message).toContain("task gone");
@@ -962,7 +988,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
@@ -972,7 +998,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
     // pollInterval=1000 → fallback fires every 1500ms. Note: result()
     // is intentionally LEFT UNANSWERED so the polling loop is the only
     // path that could keep firing.
-    respondToRequest(
+    await respondToRequest(
       TOOLS_CALL_METHOD,
       makeCreateTaskResult("tsk_failover", { pollInterval: 1000 }),
     );
@@ -985,7 +1011,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
         vi.advanceTimersByTime(1500);
       });
       await flushMicrotasks();
-      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "gone" });
+      await rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "gone" });
       await flushMicrotasks();
     }
 
@@ -1007,14 +1033,14 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire();
       await Promise.resolve();
     });
-    respondToRequest(
+    await respondToRequest(
       TOOLS_CALL_METHOD,
       makeCreateTaskResult("tsk_recovered", { pollInterval: 1000 }),
     );
@@ -1027,7 +1053,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
         vi.advanceTimersByTime(1500);
       });
       await flushMicrotasks();
-      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
+      await rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
       await flushMicrotasks();
     }
 
@@ -1035,7 +1061,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
       vi.advanceTimersByTime(1500);
     });
     await flushMicrotasks();
-    respondToRequest(TASKS_GET_METHOD, {
+    await respondToRequest(TASKS_GET_METHOD, {
       taskId: "tsk_recovered",
       status: WORKING_STATUS,
       ttl: 60_000,
@@ -1049,7 +1075,7 @@ describe("useCallToolAsTask — refresh failure backoff", () => {
         vi.advanceTimersByTime(1500);
       });
       await flushMicrotasks();
-      rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
+      await rejectRequest(TASKS_GET_METHOD, { code: -32602, message: "transient" });
       await flushMicrotasks();
     }
 
@@ -1072,14 +1098,14 @@ describe("useCallToolAsTask — onStatus merges initial Task fields", () => {
       wrapper: createWrapper(),
     });
 
-    completeHandshake();
+    await completeHandshake();
     await flushMicrotasks();
 
     await act(async () => {
       result.current.fire();
       await Promise.resolve();
     });
-    respondToRequest(
+    await respondToRequest(
       TOOLS_CALL_METHOD,
       makeCreateTaskResult("tsk_merge", {
         createdAt: "2026-04-22T00:00:00.000Z",
@@ -1090,7 +1116,7 @@ describe("useCallToolAsTask — onStatus merges initial Task fields", () => {
     await flushMicrotasks();
 
     await act(async () => {
-      dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+      await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
         taskId: "tsk_merge",
         status: WORKING_STATUS,
         statusMessage: "halfway",

@@ -29,10 +29,17 @@ function ofType(type: string): Array<Record<string, unknown>> {
   return outbound().filter((m) => m?.type === type);
 }
 function respond(id: unknown, result: unknown): void {
-  window.dispatchEvent(new MessageEvent("message", { data: { jsonrpc: "2.0", id, result } }));
+  window.dispatchEvent(
+    new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", id, result } }),
+  );
 }
 function notify(method: string, params: unknown): void {
-  window.dispatchEvent(new MessageEvent("message", { data: { jsonrpc: "2.0", method, params } }));
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      source: window.parent,
+      data: { jsonrpc: "2.0", method, params },
+    }),
+  );
 }
 function setBodyHeight(px: number): void {
   Object.defineProperty(document.body, "scrollHeight", { value: px, configurable: true });
@@ -161,6 +168,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
     synapse.onData(onData);
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           type: "ui-lifecycle-iframe-render-data",
           payload: { renderData: { domain: "legacy.com" } },
@@ -237,6 +245,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
     postMessageSpy.mockClear();
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { jsonrpc: "2.0", id: 99, method: "ui/resource-teardown", params: {} },
       }),
     );
@@ -257,6 +266,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
   function pushLegacyRenderData(payload: Record<string, unknown>): void {
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { type: "ui-lifecycle-iframe-render-data", payload },
       }),
     );

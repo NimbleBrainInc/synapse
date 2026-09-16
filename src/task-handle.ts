@@ -35,28 +35,24 @@ export type { TaskStatusRouter, TaskStatusUpdate };
 /** The MCP Tasks extension identifier. */
 export const TASKS_EXTENSION_ID = "io.modelcontextprotocol/tasks";
 
-/** The vendor key a NimbleBrain host also publishes the capability under. */
-export const NIMBLEBRAIN_TASKS_EXTENSION_ID = "ai.nimblebrain/tasks";
-
 /**
  * The host's tasks capability, from the `ui/initialize` result.
  *
- * It lives in `hostCapabilities.experimental`, keyed by extension identifier.
- * The ext-apps host capability type has no `tasks` field, so a client that
+ * It lives in `hostCapabilities.experimental`, under the MCP Tasks extension
+ * identifier. The ext-apps host capability type has no `tasks` field, so a client that
  * validates the handshake against the spec's schema strips a top-level `tasks`;
  * `experimental` is the one slot whose contents survive that parse (ext-apps
  * 1.7.5 and later). A top-level `tasks` is therefore not read at all — reading
  * it would make a capability visible here that no spec client can see.
  *
- * The extension identifier wins. The vendor key is read only in its absence,
- * because a host publishing both means the same capability by each.
+ * One key, and only that one: the identifier is the extension registry's, and a
+ * host publishing the capability under any other name is not advertising this
+ * extension.
  */
 export function readHostTasksCapability(
   capabilities: McpUiHostCapabilities | undefined,
 ): TasksCapability | undefined {
-  const experimental = capabilities?.experimental;
-  const entry =
-    experimental?.[TASKS_EXTENSION_ID] ?? experimental?.[NIMBLEBRAIN_TASKS_EXTENSION_ID];
+  const entry = capabilities?.experimental?.[TASKS_EXTENSION_ID];
   return entry && typeof entry === "object" && !Array.isArray(entry)
     ? (entry as TasksCapability)
     : undefined;

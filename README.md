@@ -370,9 +370,8 @@ from an exception.
 
 A host advertises the capability in
 `hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, the MCP Tasks
-extension identifier; `"ai.nimblebrain/tasks"` is read when that is absent. A
-top-level `hostCapabilities.tasks` is not read, because a spec client's handshake
-parse strips it.
+extension identifier, and nowhere else. A top-level `hostCapabilities.tasks` is
+not read, because a spec client's handshake parse strips it.
 
 ## React Hooks
 

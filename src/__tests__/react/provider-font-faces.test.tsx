@@ -19,6 +19,17 @@ import { AppProvider } from "../../react/app-provider.js";
 import { resetAppliedFontFaces } from "../../theme-defaults.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
+
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
 let loaded: Set<FakeFontFace>;
 
 class FakeFontFace {
@@ -42,7 +53,8 @@ function installFontStub(): Set<FakeFontFace> {
   return added;
 }
 
-function respondToInitialize() {
+async function respondToInitialize() {
+  await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
       c[0] &&
@@ -50,9 +62,10 @@ function respondToInitialize() {
       (c[0] as Record<string, unknown>).method === "ui/initialize",
   );
   if (!initCall) throw new Error("No ui/initialize call found");
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: {
         jsonrpc: "2.0",
         id,
@@ -69,14 +82,17 @@ function respondToInitialize() {
       },
     }),
   );
+  await flush();
 }
 
-function dispatchHostContext(params: Record<string, unknown>) {
+async function dispatchHostContext(params: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params },
     }),
   );
+  await flush();
 }
 
 const wrapper = ({ children }: { children: ReactNode }) => (
@@ -109,11 +125,11 @@ afterEach(() => {
 describe("AppProvider + host fonts", () => {
   it("keeps the host typeface across a dark-mode toggle", async () => {
     render(<div />, { wrapper });
-    respondToInitialize();
+    await respondToInitialize();
     await settle();
     expect(families()).toEqual(["Brand"]);
 
-    dispatchHostContext({ theme: "dark" });
+    await dispatchHostContext({ theme: "dark" });
 
     // The theme re-applies a tick later; it must not clobber the faces.
     await new Promise((r) => setTimeout(r, 0));
@@ -122,10 +138,10 @@ describe("AppProvider + host fonts", () => {
 
   it("still honours an explicit face swap from the host", async () => {
     render(<div />, { wrapper });
-    respondToInitialize();
+    await respondToInitialize();
     await settle();
 
-    dispatchHostContext({
+    await dispatchHostContext({
       theme: "dark",
       [FONT_FACES_CONTEXT_KEY]: [{ family: "Other", src: "url('/other.woff2')" }],
     });

@@ -18,9 +18,15 @@ both as separate jobs. Run it by hand whenever you touch a transport, a
 handshake, an adapter, or the preview host — see `conformance/README.md` for
 what it covers and how to add a row.
 
-**Re-vendor the Python client asset after any change under `src/host/`.** The
-build writes `dist/synapse-ui.iife.global.js`; the copy the Python package ships
-is a committed file that nothing updates for you:
+**Re-vendor the Python client asset whenever the build output moves.** The
+trigger is not "a change under `src/host/`": the bundle reaches outside it —
+`src/host/adapters/mcpapps.ts` imports `foldFontFaces` from `src/detection.ts` —
+and esbuild assigns minified names across the whole output, so deleting an
+unrelated export from a module it touches re-mangles the bundle at an unchanged
+size. Diff it rather than reasoning about which files matter, and never take a
+byte count as evidence the bundle is unchanged. The build writes
+`dist/synapse-ui.iife.global.js`; the copy the Python package ships is a
+committed file that nothing updates for you:
 
 ```bash
 npm run build && cp dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
@@ -121,11 +127,11 @@ Releases are public and provenance-attested — published artifacts carry a sign
 
 | File | Types |
 |------|-------|
-| `connect.ts` | `McpUiInitializeRequest`, `McpUiInitializeResult`, `McpUiHostContext`, `McpUiMessageRequest`, `McpUiOpenLinkRequest`, `McpUiUpdateModelContextRequest`, `TextContent`, `CallToolRequest` |
-| `core.ts` | Same init types plus `McpUiHostContextChangedNotification` |
+| `connect.ts` | The `App` class itself, plus `AppEventMap`, `AppRequest`, `AppNotification`, `McpUiHostCapabilities`, `McpUiHostContext`, `McpUiMessageRequest`, `McpUiOpenLinkRequest`, `McpUiUpdateModelContextRequest`, `TextContent`, `CallToolRequest`, `CallToolResultSchema`, `ResultSchema` |
 | `download-file.ts` | `McpUiDownloadFileRequest`, `McpUiDownloadFileResult`, `EmbeddedResource` |
-| `event-map.ts` | All `*_METHOD` constants |
-| `detection.ts` | `McpUiInitializeResult`, `McpUiHostContext` |
+| `event-map.ts` | All `*_METHOD` constants, plus `ResourceListChangedNotification` |
+| `task-handle.ts` | `McpUiHostCapabilities`, and every task request/result type |
+| `detection.ts` | `McpUiHostContext` |
 
 ## Cross-host UI client (`connectUI` / `src/host/`)
 
@@ -176,12 +182,34 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
 
 ## The connection
 
-`await connect(options)` returns an `App`. It is the only entry point, and it
-follows: size → `ui/initialize` request → await response → register handlers →
-`ui/notifications/initialized`. `options.on` pre-registers handlers before
-`initialized` goes out, so no early message is lost.
+`await connect(options)` returns an `App`. It is the only entry point, and the
+protocol underneath it is the spec's own client: `@modelcontextprotocol/ext-apps`'s
+`App` owns the transport, the handshake and the wire schemas. This package is the
+framework on top — theme injection, parsed payloads, multi-subscriber events,
+resize, and the NimbleBrain extensions.
 
-`App` carries the ext-apps surface plus the handshake state, and nothing else.
+Four things about that seam are load-bearing:
+
+- **Handlers are registered before `App.connect()`**, including everything in
+  `options.on`, so a tool result the host sends in the same turn as `initialized`
+  is not lost.
+- **One `addEventListener` per mapped event**, with this SDK's own fan-out under
+  it. A second registration for the same method through the `on*` setters throws,
+  and `App` warns when a handler for a one-shot event is registered after the
+  handshake — which is when every hook subscribes. Everything `App` does not
+  model (`synapse/*`, `notifications/resources/list_changed`,
+  `notifications/tasks/status`) arrives through one `fallbackNotificationHandler`,
+  for the same reason: a second handler for a method would silently replace the
+  first.
+- **Requests carry no deadline.** The SDK's default is 60 seconds; a file picker
+  waits on a person and `tasks/result` blocks until a task ends. `Infinity` is not
+  usable — `setTimeout` coerces it to `0` — so `NO_DEADLINE` is the longest timer
+  a browser accepts.
+- **`autoResize` belongs to `App`.** Ours never observes as well: two observers
+  mean two `size-changed` streams for one document.
+
+The returned object carries the ext-apps surface plus the handshake state, and
+nothing else.
 The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`), the spec's
 `ui/download-file` (`downloadFile`) and the MCP tasks utility (`callToolAsTask`)
 are **functions over an `App`** in `src/extensions.ts`, `src/download-file.ts`
@@ -196,6 +224,13 @@ No spec equivalent — degrade to no-ops in other hosts:
 `synapse/action`, `synapse/keydown`, `synapse/request-file`
 
 ## IIFE build for MCP server widgets
+
+**This recipe is for the cross-host `SynapseUI` client only.** It replaces
+`@modelcontextprotocol/*` with string constants, and `connect()` needs the real
+`App` class — so a `connect()` bundle built this way has no client at all. The
+`connect()` IIFE is built by `tsup` (`dist/connect.iife.global.js`) and bundles
+ext-apps and Zod deliberately: about 117 KB gzipped, against 3.8 KB for the
+`SynapseUI` bundle a self-contained `ui://` component inlines.
 
 MCP servers embed synapse as a `<script>` in widget HTML. Build with esbuild + shims to avoid bundling Zod (~11KB vs ~400KB):
 

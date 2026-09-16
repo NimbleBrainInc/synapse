@@ -8,6 +8,17 @@ import { useHostContext, useTheme } from "../../react/hooks.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 function makeInitResult(hostContext?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
@@ -22,6 +33,7 @@ function makeInitResult(hostContext?: Record<string, unknown>) {
  * setState settle — `<AppProvider>` renders nothing until it has an `App`.
  */
 async function completeHandshake(hostContext?: Record<string, unknown>) {
+  await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
       c[0] &&
@@ -29,18 +41,20 @@ async function completeHandshake(hostContext?: Record<string, unknown>) {
       (c[0] as Record<string, unknown>).method === "ui/initialize",
   );
   if (!initCall) throw new Error("No ui/initialize call found");
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: makeInitResult(hostContext) },
     }),
   );
   await new Promise((r) => setTimeout(r, 0));
 }
 
-function dispatchHostContextChanged(params: Record<string, unknown>) {
+async function dispatchHostContextChanged(params: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: {
         jsonrpc: "2.0",
         method: "ui/notifications/host-context-changed",
@@ -48,6 +62,7 @@ function dispatchHostContextChanged(params: Record<string, unknown>) {
       },
     }),
   );
+  await flush();
 }
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -101,7 +116,7 @@ describe("useHostContext / useTheme React hooks", () => {
 
       const before = renderCount.mock.calls.length;
       await act(async () => {
-        dispatchHostContextChanged({
+        await dispatchHostContextChanged({
           theme: "dark",
           styles: { variables: {} },
           workspace: { id: "ws_b", name: "Beta" },
@@ -119,11 +134,11 @@ describe("useHostContext / useTheme React hooks", () => {
       await act(async () => {
         await completeHandshake({
           theme: "dark",
-          styles: { variables: { "--color-bg": "#000" } },
+          styles: { variables: { "--color-background-primary": "#000" } },
         });
       });
       expect(result.current.mode).toBe("dark");
-      expect(result.current.tokens).toEqual({ "--color-bg": "#000" });
+      expect(result.current.tokens).toEqual({ "--color-background-primary": "#000" });
     });
 
     it("does NOT re-render on workspace-only host-context changes", async () => {
@@ -144,12 +159,12 @@ describe("useHostContext / useTheme React hooks", () => {
 
       const before = renderCount.mock.calls.length;
       await act(async () => {
-        dispatchHostContextChanged({
+        await dispatchHostContextChanged({
           theme: "dark",
           styles: { variables: {} },
           workspace: { id: "ws_a", name: "Alpha" },
         });
-        dispatchHostContextChanged({
+        await dispatchHostContextChanged({
           theme: "dark",
           styles: { variables: {} },
           workspace: { id: "ws_b", name: "Beta" },
@@ -177,7 +192,7 @@ describe("useHostContext / useTheme React hooks", () => {
 
       const before = renderCount.mock.calls.length;
       await act(async () => {
-        dispatchHostContextChanged({ theme: "light", styles: { variables: {} } });
+        await dispatchHostContextChanged({ theme: "light", styles: { variables: {} } });
       });
 
       expect(renderCount.mock.calls.length).toBeGreaterThan(before);

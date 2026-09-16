@@ -1,39 +1,41 @@
 import type {
+  AppEventMap,
+  AppNotification,
+  AppRequest,
   McpUiHostCapabilities,
   McpUiHostContext,
-  McpUiHostContextChangedNotification,
   McpUiInitializeRequest,
-  McpUiInitializeResult,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps";
 import {
+  App as ExtAppsApp,
   HOST_CONTEXT_CHANGED_METHOD,
-  INITIALIZE_METHOD,
-  INITIALIZED_METHOD,
-  LATEST_PROTOCOL_VERSION,
-  MESSAGE_METHOD,
-  OPEN_LINK_METHOD,
+  RESOURCE_TEARDOWN_METHOD,
+  TOOL_CANCELLED_METHOD,
+  TOOL_INPUT_METHOD,
+  TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
+import type { RequestOptions } from "@modelcontextprotocol/sdk/shared/protocol.js";
 import type {
   CallToolRequest,
   ReadResourceRequest,
   ReadResourceResult,
   TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
+import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
-import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { READ_RESOURCE_METHOD, resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
+import { extractTheme, foldFontFaces } from "./detection.js";
+import { resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
 import { createTaskStatusRouter, readHostTasksCapability } from "./task-handle.js";
 import { applyTheme, fontFacesKey } from "./theme-defaults.js";
-import { SynapseTransport } from "./transport.js";
 import type {
   App,
   ConnectOptions,
@@ -44,19 +46,51 @@ import type {
   ToolCallResult,
 } from "./types.js";
 
-// Derived locally because `@modelcontextprotocol/ext-apps` only exports
-// METHOD constants for ext-apps specific ui/* methods. Typing the literal
-// with the spec's request `method` field still produces a compile error if
-// upstream renames it.
-const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
-  "ui/update-model-context";
+/**
+ * The host name that identifies a NimbleBrain host in the handshake. The
+ * `synapse/*` extensions are gated on it.
+ */
+const NIMBLEBRAIN_HOST = "nimblebrain";
+
+/**
+ * Requests this SDK sends carry no deadline.
+ *
+ * The MCP SDK gives every request a 60-second one, which is wrong for all three
+ * kinds of request an app makes: a file picker waits on a person, `tasks/result`
+ * blocks until the task finishes, and a tool call takes as long as the tool
+ * takes. A deadline here would reject a call the host is still working on, and
+ * the app would report a failure that did not happen.
+ *
+ * `Infinity` is not usable — `setTimeout` coerces it to `0` and the timer fires
+ * immediately — so this is the largest delay a browser timer accepts, about 24
+ * days.
+ */
+const NO_DEADLINE: RequestOptions = { timeout: 2_147_483_647 };
+
+/**
+ * The events `App` models, paired with the wire method each one carries.
+ *
+ * Every one is registered exactly once, before the handshake, and fans out to
+ * this SDK's own subscribers underneath. Two reasons it has to be this way: a
+ * second registration for the same method through the `on*` setters throws, and
+ * `App` warns when a handler for a one-shot event (the tool ones) is registered
+ * after `connect()` resolves, which is when every hook subscribes.
+ */
+const MAPPED_EVENTS = [
+  ["toolinput", TOOL_INPUT_METHOD],
+  ["toolinputpartial", TOOL_INPUT_PARTIAL_METHOD],
+  ["toolresult", TOOL_RESULT_METHOD],
+  ["toolcancelled", TOOL_CANCELLED_METHOD],
+] as const satisfies ReadonlyArray<readonly [keyof AppEventMap, string]>;
 
 /**
  * Connect to an MCP Apps host.
  *
- * The one entry point: owns the ext-apps handshake, theme injection, content
- * parsing, resize management, and event routing, and resolves to a ready
- * {@link App}.
+ * The one entry point. The protocol underneath is the spec's own client,
+ * `@modelcontextprotocol/ext-apps`'s `App`: it owns the transport, the
+ * handshake and the wire schemas. What this adds is the framework on top —
+ * theme injection, the parsed payloads, multi-subscriber events, resize, and
+ * the NimbleBrain extensions — and it resolves to a ready {@link App}.
  *
  * The `App` it returns stays deliberately small. NimbleBrain's own extensions
  * (`action`, the file picker), `downloadFile` and the MCP tasks utility are
@@ -65,14 +99,12 @@ const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
 export async function connect(options: ConnectOptions): Promise<App> {
   const { name, version, autoResize = false, forwardKeys } = options;
 
-  const transport = new SynapseTransport();
   let destroyed = false;
 
   // --- Mutable state ---
   //
-  // The host context is the single source of truth. `theme` is a derived view
-  // of it, not a parallel copy.
-  let hostContext: McpUiHostContext = {};
+  // The host context lives in `App`, which merges each delta into it, so it is
+  // read back rather than copied. `theme` is a derived view of it.
   let hostInfo: { name: string; version: string } = { name: "unknown", version: "unknown" };
   let isNimbleBrainHost = false;
   let toolInfo: { tool: Record<string, unknown> } | null = null;
@@ -89,6 +121,39 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // explicit empty list from the host.
   let fontFaces: FontFaceDescriptor[] | undefined;
 
+  // The theme currently applied to the document. Tracked rather than derived at
+  // dispatch time, because `App` merges a host-context delta into the context it
+  // holds *before* it calls listeners — so by the time this SDK hears about a
+  // change, "the theme before it" is no longer recoverable from the context.
+  // Comparing against what is actually loaded is also the honest question: the
+  // filter exists to skip a re-render when nothing visible moved.
+  let appliedTheme: Theme = { mode: "light", tokens: {} };
+
+  // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps spec
+  // package, which does not yet model the MCP 2025-11-25 tasks utility. We
+  // extend structurally via `TasksCapability` and `satisfies` the extension so
+  // the nested objects match the spec literally — empty objects `{}` as
+  // presence flags, NOT booleans.
+  const appCapabilities = {
+    tasks: {
+      cancel: {},
+      requests: { tools: { call: {} } },
+    } satisfies TasksCapability,
+  };
+
+  // `autoResize` is handed to `App`, which observes the document and reports
+  // size after the handshake. Ours must not observe as well: two observers mean
+  // two `size-changed` streams for one document.
+  const client = new ExtAppsApp(
+    { name, version },
+    appCapabilities as unknown as McpUiInitializeRequest["params"]["appCapabilities"],
+    { autoResize },
+  );
+
+  function currentContext(): McpUiHostContext {
+    return client.getHostContext() ?? {};
+  }
+
   /**
    * The theme as reported to consumers: derived from the context, with the
    * sticky faces folded back in. Every public view goes through here — the
@@ -96,8 +161,16 @@ export async function connect(options: ConnectOptions): Promise<App> {
    * they cannot disagree with each other or with what is actually loaded.
    */
   function resolveTheme(): Theme {
-    const theme = extractTheme(hostContext);
+    const theme = extractTheme(currentContext());
     return fontFaces ? { ...theme, fontFaces } : theme;
+  }
+
+  /** Apply the current theme to the document, and record what was applied. */
+  function applyResolvedTheme(): Theme {
+    const theme = resolveTheme();
+    applyTheme(theme.mode, theme.tokens, theme.fontFaces);
+    appliedTheme = theme;
+    return theme;
   }
 
   // --- Event handlers ---
@@ -110,126 +183,77 @@ export async function connect(options: ConnectOptions): Promise<App> {
   const themeCallbacks = new Set<(theme: Theme) => void>();
   const hostContextCallbacks = new Set<(ctx: McpUiHostContext) => void>();
 
-  // --- Step 1: Set up message listener (handled by SynapseTransport constructor) ---
-
-  // --- Steps 2-3: Send ui/initialize and wait for response ---
-  //
-  // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps spec
-  // package, which does not yet model the MCP 2025-11-25 tasks utility. We
-  // extend structurally via `TasksCapability` and `satisfies` the extension so
-  // the nested objects match the spec literally — empty objects `{}` as
-  // presence flags, NOT booleans.
-  const appCapabilities = {
-    tasks: {
-      cancel: {},
-      requests: { tools: { call: {} } },
-    } satisfies TasksCapability,
-  };
-  const initParams: McpUiInitializeRequest["params"] = {
-    protocolVersion: LATEST_PROTOCOL_VERSION,
-    appInfo: { name, version },
-    appCapabilities:
-      appCapabilities as unknown as McpUiInitializeRequest["params"]["appCapabilities"],
-  };
-
-  const result = (await transport.request(
-    INITIALIZE_METHOD,
-    initParams as unknown as Record<string, unknown>,
-  )) as McpUiInitializeResult | null;
-
-  // --- Step 4: Adopt the handshake response ---
-  if (result) {
-    const detected = detectHost(result);
-    isNimbleBrainHost = detected.isNimbleBrain;
-    hostInfo = {
-      name: result.hostInfo?.name ?? "unknown",
-      version: result.hostInfo?.version ?? "unknown",
-    };
-
-    hostTasksCapability = readHostTasksCapability(result.hostCapabilities);
-    hostDownloadFileCapability = result.hostCapabilities?.downloadFile;
-
-    const ctx: McpUiHostContext | undefined = result.hostContext;
-    if (ctx) {
-      hostContext = ctx;
-      fontFaces = foldFontFaces(fontFaces, ctx);
-
-      if (ctx.toolInfo && typeof ctx.toolInfo === "object") {
-        toolInfo = { tool: (ctx.toolInfo.tool as unknown as Record<string, unknown>) ?? {} };
-      }
-      if (ctx.containerDimensions && typeof ctx.containerDimensions === "object") {
-        containerDimensions = ctx.containerDimensions as Dimensions;
-      }
-
-      // Inject the theme into the DOM: the host's values go inline, and the
-      // neutral defaults for the mode go in a cascade layer, where they back
-      // any var nobody declares and lose to every var that is declared. Any
-      // host-supplied font faces load alongside — a token names a family, it
-      // cannot load one.
-      const theme = resolveTheme();
-      applyTheme(theme.mode, theme.tokens, theme.fontFaces);
-    }
-  }
-
-  // Keyboard forwarding is a NimbleBrain extension: only a NimbleBrain host
-  // consumes `synapse/keydown`. Forwarding elsewhere would `preventDefault` a
-  // key for a host that does nothing with it, so the gate is on identity, not
-  // just on the option.
-  if (forwardKeys && isNimbleBrainHost) {
-    keyboard = new KeyboardForwarder(transport, forwardKeys === true ? undefined : forwardKeys);
-  }
-
-  // --- Route incoming notifications ---
-
-  /**
-   * Deliver a notification's raw params to anyone who subscribed by wire
-   * method name rather than by short event. The method below is routed by hand
-   * because it also has typed views, and `ensureTransportSub` skips it for that
-   * reason — so the raw fan-out has to happen here or a
-   * `on("ui/notifications/host-context-changed", …)` would silently never fire.
-   */
-  function fanOutRaw(method: string, params: Record<string, unknown> | undefined): void {
+  /** Deliver a payload to everyone subscribed to a wire method. */
+  function fanOut(method: string, payload: unknown): void {
     const set = handlers.get(method);
     if (!set) return;
-    for (const handler of set) handler(params);
+    for (const handler of set) handler(payload);
   }
 
-  // `host-context-changed` feeds three different views, so it is handled once
-  // here rather than through the generic registry.
-  transport.onMessage(HOST_CONTEXT_CHANGED_METHOD, (params) => {
+  /**
+   * Send a notification `App` does not model. The `synapse/*` extensions have
+   * no spec equivalent and so no place in its notification union; the cast is
+   * the one place that is admitted, and the method still comes from a constant
+   * rather than a literal spelled at the call site.
+   */
+  function sendRaw(method: string, params?: Record<string, unknown>): void {
     if (destroyed) return;
-    const ctx = (params ?? {}) as Partial<McpUiHostContextChangedNotification["params"]>;
-    const prevTheme = resolveTheme();
+    void client
+      .notification({ method, params } as unknown as AppNotification)
+      // A closed transport is the ordinary way this rejects, during teardown.
+      .catch(() => {});
+  }
 
-    // The spec types these params as "a partial context update containing only
-    // changed fields", so the notification is a delta and `hostContext` is the
-    // state it updates. Replacing wholesale would make a host that toggles dark
-    // mode with a bare `{ theme: "dark" }` lose its entire palette and every
-    // extension it published — `styles.variables` re-derived as `{}` strips the
-    // host's CSS variables from the DOM, and `workspace` reads `undefined`.
+  /** Send a request `App` does not model, and resolve with the host's result. */
+  function requestRaw(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    return client.request({ method, params } as unknown as AppRequest, ResultSchema, NO_DEADLINE);
+  }
+
+  // --- Route what the host sends ---
+  //
+  // Registered before `connect()`, so a notification the host sends the instant
+  // the handshake completes is already routed.
+
+  for (const [event, method] of MAPPED_EVENTS) {
+    client.addEventListener(event, (params) => {
+      if (destroyed) return;
+      // `tool-result` is delivered parsed — the payload every subscriber gets,
+      // however they subscribed — because the wire shape is three shapes and
+      // picking between them is work each app would otherwise repeat.
+      fanOut(
+        method,
+        method === TOOL_RESULT_METHOD
+          ? parseToolResultParams(params as Record<string, unknown>)
+          : params,
+      );
+    });
+  }
+
+  client.addEventListener("hostcontextchanged", (params) => {
+    if (destroyed) return;
+    const prevTheme = appliedTheme;
+
+    // `App` has already merged this delta into the context it holds — shallowly,
+    // which is what the spec asks for: `styles.variables` is a complete map when
+    // the host sends one, so a deep merge would leave a host no way to remove a
+    // variable.
     //
-    // The merge is SHALLOW on purpose. `styles.variables` is a complete map
-    // when the host sends one, so deep-merging it would leave a host no way to
-    // remove a variable.
-    hostContext = { ...hostContext, ...ctx };
-
     // Fonts keep their own fold even so, because it encodes a rule the merge
     // cannot: a batch whose entries are ALL malformed reads as `undefined` and
     // must leave the loaded faces alone. Deriving from the merged context would
     // instead see the key present, find nothing usable in it, and unload the
-    // host's typeface — a far more visible break than the colour equivalent.
-    fontFaces = foldFontFaces(fontFaces, ctx);
-    const nextTheme = resolveTheme();
-
-    applyTheme(nextTheme.mode, nextTheme.tokens, nextTheme.fontFaces);
+    // host's typeface.
+    fontFaces = foldFontFaces(fontFaces, params as Partial<McpUiHostContext>);
+    const nextTheme = applyResolvedTheme();
 
     // Subscribers to the short event get the merged snapshot, because that is
     // what `app.hostContext` means and a delta cannot distinguish an omitted
-    // field from a cleared one. A caller who genuinely wants the notification
-    // as sent subscribes to the wire method instead, which `fanOutRaw` passes
-    // through untouched.
-    for (const cb of hostContextCallbacks) cb(hostContext);
-    fanOutRaw(HOST_CONTEXT_CHANGED_METHOD, params);
+    // field from a cleared one. A caller who genuinely wants the notification as
+    // sent subscribes to the wire method instead, which is passed through
+    // untouched.
+    const merged = currentContext();
+    for (const cb of hostContextCallbacks) cb(merged);
+    fanOut(HOST_CONTEXT_CHANGED_METHOD, params);
     // Theme subscribers see only real theme movement: a host-context change
     // that leaves the derived theme identical (a workspace switch, say) must
     // not re-render every themed component in the app.
@@ -238,28 +262,23 @@ export async function connect(options: ConnectOptions): Promise<App> {
     }
   });
 
-  // Helper to ensure a transport subscription exists for a generic method
-  const subscribedMethods = new Set<string>([HOST_CONTEXT_CHANGED_METHOD]);
+  // Teardown is a *request* in the spec, not a notification: the host asks, and
+  // the view is expected to answer. Subscribers see it as the `teardown` event;
+  // answering it is this SDK's job, not theirs.
+  client.onteardown = (params) => {
+    if (!destroyed) fanOut(RESOURCE_TEARDOWN_METHOD, params);
+    return {};
+  };
 
-  function ensureTransportSub(method: string): void {
-    if (subscribedMethods.has(method)) return;
-    subscribedMethods.add(method);
-
-    const isToolResult = method === TOOL_RESULT_METHOD;
-
-    transport.onMessage(method, (params) => {
-      if (destroyed) return;
-      const set = handlers.get(method);
-      if (!set) return;
-      for (const handler of set) {
-        if (isToolResult) {
-          handler(parseToolResultParams(params));
-        } else {
-          handler(params);
-        }
-      }
-    });
-  }
+  // Everything else the host sends: the `synapse/*` extensions, the server's
+  // `notifications/resources/list_changed`, and `notifications/tasks/status`.
+  // `App` routes a notification here when no typed handler claims its method,
+  // and one handler with a fan-out under it is the only safe shape —
+  // registering a second handler for a method would silently replace the first.
+  client.fallbackNotificationHandler = async (notification) => {
+    if (destroyed) return;
+    fanOut(notification.method, notification.params);
+  };
 
   /** Register one handler and return its unsubscribe. */
   function subscribe(event: string, handler: (params: any) => void): () => void {
@@ -278,7 +297,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
         const method = resolveEventMethod(event);
         if (!handlers.has(method)) handlers.set(method, new Set());
         handlers.get(method)?.add(handler);
-        ensureTransportSub(method);
         return () => {
           const set = handlers.get(method);
           if (set) {
@@ -290,31 +308,73 @@ export async function connect(options: ConnectOptions): Promise<App> {
     }
   }
 
-  // --- Step 5: Pre-register handlers from options.on, then send initialized ---
+  // Handlers from `options.on` are registered before the handshake goes out, so
+  // a tool result the host sends in the same turn as `initialized` is not lost.
   if (options.on) {
     for (const [event, handler] of Object.entries(options.on)) {
       if (typeof handler === "function") subscribe(event, handler);
     }
   }
-  transport.send(INITIALIZED_METHOD, {});
 
-  // --- Step 6: Start reporting size ---
-  //
-  // The handshake comes first. `ui/initialize` is the app's first word, and a
-  // host is entitled to drop anything that arrives before it has one — a strict
-  // host does exactly that and leaves the frame hidden, which reads as a
-  // component that simply never rendered. So the resizer is constructed here,
-  // not earlier: its `ResizeObserver` starts observing on construction, so
-  // building it any sooner is itself a way to send `size-changed` early.
-  const resizer = createResizer((method, params) => transport.send(method, params), autoResize);
-  resizer.measureAndSend();
+  // --- The handshake: `ui/initialize`, then `initialized` ---
+  await client.connect();
+
+  const hostVersion = client.getHostVersion();
+  hostInfo = {
+    name: hostVersion?.name ?? "unknown",
+    version: hostVersion?.version ?? "unknown",
+  };
+  isNimbleBrainHost = hostInfo.name === NIMBLEBRAIN_HOST;
+
+  const hostCapabilities = client.getHostCapabilities();
+  hostTasksCapability = readHostTasksCapability(hostCapabilities);
+  hostDownloadFileCapability = hostCapabilities?.downloadFile;
+
+  const initialContext = client.getHostContext();
+  if (initialContext) {
+    fontFaces = foldFontFaces(fontFaces, initialContext);
+
+    if (initialContext.toolInfo && typeof initialContext.toolInfo === "object") {
+      toolInfo = {
+        tool: (initialContext.toolInfo.tool as unknown as Record<string, unknown>) ?? {},
+      };
+    }
+    if (
+      initialContext.containerDimensions &&
+      typeof initialContext.containerDimensions === "object"
+    ) {
+      containerDimensions = initialContext.containerDimensions as Dimensions;
+    }
+
+    // Inject the theme into the DOM: the host's values go inline, and the
+    // neutral defaults for the mode go in a cascade layer, where they back any
+    // var nobody declares and lose to every var that is declared. Any
+    // host-supplied font faces load alongside — a token names a family, it
+    // cannot load one.
+    applyResolvedTheme();
+  }
+
+  // Keyboard forwarding is a NimbleBrain extension: only a NimbleBrain host
+  // consumes `synapse/keydown`. Forwarding elsewhere would `preventDefault` a
+  // key for a host that does nothing with it, so the gate is on identity, not
+  // just on the option.
+  if (forwardKeys && isNimbleBrainHost) {
+    keyboard = new KeyboardForwarder(sendRaw, forwardKeys === true ? undefined : forwardKeys);
+  }
+
+  // The resizer serves `app.resize()`. It never observes: under `autoResize`
+  // that is `App`'s job, and it has already reported the first size.
+  const resizer = createResizer(sendRaw, false);
+  if (!autoResize) resizer.measureAndSend();
 
   // Shared router for `notifications/tasks/status`. Created eagerly so the
-  // transport-level listener registers exactly once — every `TaskHandle`
-  // filters off this single wire subscription by taskId.
-  const taskRouter = createTaskStatusRouter(transport);
+  // subscription registers exactly once — every `TaskHandle` filters off this
+  // single wire subscription by taskId.
+  const taskRouter = createTaskStatusRouter((method, handler) =>
+    subscribe(method, handler as (params: any) => void),
+  );
 
-  // --- Step 7: Build and return the App object ---
+  // --- The App this SDK hands out ---
   const app: App = {
     get theme() {
       return resolveTheme();
@@ -323,7 +383,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
       return { ...hostInfo };
     },
     get hostContext() {
-      return hostContext;
+      return currentContext();
     },
     get isNimbleBrainHost() {
       return isNimbleBrainHost;
@@ -352,13 +412,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
     openLink(url: string): void {
       if (destroyed) return;
       const params: McpUiOpenLinkRequest["params"] = { url };
-      // Spec: ui/open-link is a request (expects a response), not a notification
-      transport
-        .request(OPEN_LINK_METHOD, params as unknown as Record<string, unknown>)
-        .catch(() => {
-          // Fallback: if the host doesn't respond, open directly.
-          window.open(url, "_blank", "noopener");
-        });
+      client.openLink(params, NO_DEADLINE).catch(() => {
+        // The host refused or does not serve it: open directly instead.
+        window.open(url, "_blank", "noopener");
+      });
     },
 
     updateModelContext(state: Record<string, unknown>, summary?: string): void {
@@ -369,7 +426,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
           content: [{ type: "text", text: summary } satisfies TextContent],
         }),
       };
-      transport.send(UPDATE_MODEL_CONTEXT_METHOD, params as unknown as Record<string, unknown>);
+      client.updateModelContext(params, NO_DEADLINE).catch(() => {});
     },
 
     async callTool<TOutput = unknown>(
@@ -382,19 +439,20 @@ export async function connect(options: ConnectOptions): Promise<App> {
         name: toolName,
         arguments: args ?? {},
       };
-      const raw = await transport.request(
-        TOOLS_CALL_METHOD,
-        params as unknown as Record<string, unknown>,
+      // Sent through the generic request path rather than `callServerTool`,
+      // which asks for a progress token: that puts `_meta.progressToken` on
+      // every call, and nothing here subscribes to progress. The result is
+      // validated against the spec's schema either way.
+      const raw = await client.request(
+        { method: TOOLS_CALL_METHOD, params },
+        CallToolResultSchema,
+        NO_DEADLINE,
       );
       return parseToolResult(raw) as ToolCallResult<TOutput>;
     },
 
     async readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult> {
-      const raw = await transport.request(
-        READ_RESOURCE_METHOD,
-        params as unknown as Record<string, unknown>,
-      );
-      return raw as ReadResourceResult;
+      return await client.readServerResource(params, NO_DEADLINE);
     },
 
     sendMessage(text: string, context?: { action?: string; entity?: string }): void {
@@ -410,7 +468,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
         role: "user",
         content: [textBlock],
       };
-      transport.send(MESSAGE_METHOD, params as unknown as Record<string, unknown>);
+      client.sendMessage(params, NO_DEADLINE).catch(() => {});
     },
 
     destroy(): void {
@@ -422,20 +480,19 @@ export async function connect(options: ConnectOptions): Promise<App> {
       handlers.clear();
       themeCallbacks.clear();
       hostContextCallbacks.clear();
-      transport.destroy();
+      void client.close();
     },
   };
 
   registerInternals(app, {
     send(method, params) {
-      if (destroyed) return;
-      transport.send(method, params);
+      sendRaw(method, params);
     },
     request(method, params) {
-      return transport.request(method, params);
+      return requestRaw(method, params);
     },
     onMessage(method, handler) {
-      return transport.onMessage(method, handler);
+      return subscribe(method, handler as (params: any) => void);
     },
     taskRouter,
     get hostTasksCapability() {

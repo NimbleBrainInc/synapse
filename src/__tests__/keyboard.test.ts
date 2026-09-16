@@ -1,15 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeyboardForwarder } from "../keyboard.js";
-import type { SynapseTransport } from "../transport.js";
-
-function createMockTransport(): SynapseTransport {
-  return {
-    send: vi.fn(),
-    request: vi.fn(),
-    onMessage: vi.fn(),
-    destroy: vi.fn(),
-  } as unknown as SynapseTransport;
-}
 
 function fireKeydown(
   key: string,
@@ -29,11 +19,11 @@ function fireKeydown(
 }
 
 describe("KeyboardForwarder", () => {
-  let transport: SynapseTransport;
+  let send: ReturnType<typeof vi.fn>;
   let forwarder: KeyboardForwarder;
 
   beforeEach(() => {
-    transport = createMockTransport();
+    send = vi.fn();
   });
 
   afterEach(() => {
@@ -41,10 +31,10 @@ describe("KeyboardForwarder", () => {
   });
 
   it("forwards Ctrl+K keydown with correct params", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
     fireKeydown("k", { ctrlKey: true });
 
-    expect(transport.send).toHaveBeenCalledWith("synapse/keydown", {
+    expect(send).toHaveBeenCalledWith("synapse/keydown", {
       key: "k",
       ctrlKey: true,
       metaKey: false,
@@ -54,10 +44,10 @@ describe("KeyboardForwarder", () => {
   });
 
   it("forwards Cmd+K (metaKey)", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
     fireKeydown("k", { metaKey: true });
 
-    expect(transport.send).toHaveBeenCalledWith("synapse/keydown", {
+    expect(send).toHaveBeenCalledWith("synapse/keydown", {
       key: "k",
       ctrlKey: false,
       metaKey: true,
@@ -67,14 +57,14 @@ describe("KeyboardForwarder", () => {
   });
 
   it("does NOT forward plain 'k' without modifier", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
     fireKeydown("k");
 
-    expect(transport.send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("does NOT forward clipboard shortcuts (Cmd+C, Cmd+V, Cmd+X, Cmd+A)", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
 
     fireKeydown("c", { metaKey: true });
     fireKeydown("v", { metaKey: true });
@@ -85,14 +75,14 @@ describe("KeyboardForwarder", () => {
     fireKeydown("x", { ctrlKey: true });
     fireKeydown("a", { ctrlKey: true });
 
-    expect(transport.send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("forwards Escape by default", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
     fireKeydown("Escape");
 
-    expect(transport.send).toHaveBeenCalledWith(
+    expect(send).toHaveBeenCalledWith(
       "synapse/keydown",
       expect.objectContaining({
         key: "Escape",
@@ -101,43 +91,43 @@ describe("KeyboardForwarder", () => {
   });
 
   it("custom config [{ key: 'k', ctrl: true }] only forwards Ctrl+K", () => {
-    forwarder = new KeyboardForwarder(transport, [{ key: "k", ctrl: true }]);
+    forwarder = new KeyboardForwarder(send, [{ key: "k", ctrl: true }]);
 
     // Ctrl+K should be forwarded
     fireKeydown("k", { ctrlKey: true });
-    expect(transport.send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
 
     // Cmd+K should NOT be forwarded (custom config, ctrl not matched)
     fireKeydown("k", { metaKey: true });
-    expect(transport.send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
 
     // Escape should NOT be forwarded (not in custom config)
     fireKeydown("Escape");
-    expect(transport.send).toHaveBeenCalledTimes(1);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("empty config [] forwards nothing", () => {
-    forwarder = new KeyboardForwarder(transport, []);
+    forwarder = new KeyboardForwarder(send, []);
 
     fireKeydown("k", { ctrlKey: true });
     fireKeydown("Escape");
     fireKeydown("k", { metaKey: true });
 
-    expect(transport.send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("destroy() removes the event listener", () => {
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
     forwarder.destroy();
 
     fireKeydown("k", { ctrlKey: true });
 
-    expect(transport.send).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
   });
 
   it("destroy() is idempotent", () => {
     const removeSpy = vi.spyOn(document, "removeEventListener");
-    forwarder = new KeyboardForwarder(transport);
+    forwarder = new KeyboardForwarder(send);
 
     forwarder.destroy();
     forwarder.destroy();

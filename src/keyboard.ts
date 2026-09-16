@@ -1,5 +1,8 @@
-import type { SynapseTransport } from "./transport.js";
+import { KEYDOWN_METHOD } from "./event-map.js";
 import type { KeyForwardConfig } from "./types.js";
+
+/** Send a notification to the host. */
+type SendFn = (method: string, params: Record<string, unknown>) => void;
 
 /**
  * Forward keyboard shortcuts from the iframe document to the host.
@@ -11,14 +14,14 @@ export class KeyboardForwarder {
   private listener: (event: KeyboardEvent) => void;
   private destroyed = false;
 
-  constructor(transport: SynapseTransport, customKeys?: KeyForwardConfig[]) {
+  constructor(send: SendFn, customKeys?: KeyForwardConfig[]) {
     const config = customKeys ?? null; // null = default behavior
 
     this.listener = (event: KeyboardEvent) => {
       if (this.destroyed) return;
       if (this.shouldForward(event, config)) {
         event.preventDefault();
-        transport.send("synapse/keydown", {
+        send(KEYDOWN_METHOD, {
           key: event.key,
           ctrlKey: event.ctrlKey,
           metaKey: event.metaKey,

@@ -73,6 +73,17 @@ import type { App, TasksCapability } from "../types.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 /** Build a spec-compliant McpUiInitializeResult. */
 function makeSpecInitResult(overrides?: Partial<McpUiInitializeResult>): McpUiInitializeResult {
   return {
@@ -101,11 +112,13 @@ function makeSpecInitResult(overrides?: Partial<McpUiInitializeResult>): McpUiIn
 }
 
 /** Connect and complete the ext-apps handshake with a spec-compliant response. */
-function connectAndHandshake(
+async function connectAndHandshake(
   options?: Partial<Parameters<typeof connect>[0]>,
   initResult?: McpUiInitializeResult,
 ): Promise<App> {
   const promise = connect({ name: "test-app", version: "1.0.0", ...options });
+
+  await flush();
 
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
@@ -115,14 +128,17 @@ function connectAndHandshake(
   );
   if (!initCall) throw new Error("No ui/initialize call found");
 
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: initResult ?? makeSpecInitResult() },
     }),
   );
 
-  return promise;
+  const app = await promise;
+  await flush();
+  return app;
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +241,7 @@ describe("event map uses spec constants", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           method: HOST_CONTEXT_CHANGED_METHOD,
@@ -232,6 +249,7 @@ describe("event map uses spec constants", () => {
         },
       }),
     );
+    await flush();
 
     expect(themed).toHaveBeenCalledTimes(1);
     expect(ctx).toHaveBeenCalledTimes(1);
@@ -381,6 +399,7 @@ describe("handshake ordering", () => {
     // registered before initialized was sent
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           method: TOOL_RESULT_METHOD,
@@ -390,6 +409,7 @@ describe("handshake ordering", () => {
         },
       }),
     );
+    await flush();
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -493,6 +513,7 @@ describe("outbound message shapes", () => {
     const id = (call![0] as Record<string, unknown>).id;
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           id,
@@ -533,6 +554,7 @@ describe("outbound message shapes", () => {
     };
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: { jsonrpc: "2.0", id, result: specResult },
       }),
     );
@@ -848,6 +870,8 @@ describe("task-augmented tools/call wire shape", () => {
   async function makeReadyApp(): Promise<{ app: App; cleanup: () => void }> {
     const pending = connect({ name: "test-app", version: "1.0.0" });
 
+    await flush();
+
     // Answer ui/initialize with a host that advertises the tasks capability.
     const initCall = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
@@ -855,6 +879,7 @@ describe("task-augmented tools/call wire shape", () => {
     if (!initCall) throw new Error("ui/initialize not sent");
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           id: (initCall[0] as Record<string, unknown>).id,
@@ -863,26 +888,27 @@ describe("task-augmented tools/call wire shape", () => {
       }),
     );
     const ready = await pending;
+    await flush();
     return { app: ready, cleanup: () => ready.destroy() };
   }
 
-  function respondTo(method: string, result: unknown): void {
+  async function respondTo(method: string, result: unknown): Promise<void> {
     const call = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === method,
     );
     if (!call) throw new Error(`No pending ${method} request`);
     const id = (call[0] as Record<string, unknown>).id;
     window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { jsonrpc: "2.0", id, result },
-      }),
+      new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", id, result } }),
     );
+    await flush();
   }
 
   it("tools/call with task param has the spec wire shape", async () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_research", { query: "mcp" }, { ttl: 60_000 });
+    await flush();
 
     // Find the tools/call message on the wire.
     const call = postMessageSpy.mock.calls.find(
@@ -894,7 +920,8 @@ describe("task-augmented tools/call wire shape", () => {
     // Request shape: has id, jsonrpc, method, params — no forbidden fields.
     expect(msg.jsonrpc).toBe("2.0");
     expect(msg.method).toBe(TOOLS_CALL_METHOD);
-    expect(typeof msg.id).toBe("string");
+    // The spec allows a string or a number; the MCP SDK numbers requests from 0.
+    expect(typeof msg.id).toBe("number");
 
     const params = msg.params as CallToolRequest["params"];
     // Spec-required fields
@@ -913,7 +940,7 @@ describe("task-augmented tools/call wire shape", () => {
         lastUpdatedAt: "2026-04-22T00:00:00.000Z",
       },
     };
-    respondTo(TOOLS_CALL_METHOD, createResult);
+    await respondTo(TOOLS_CALL_METHOD, createResult);
     await pending;
     cleanup();
   });
@@ -922,7 +949,7 @@ describe("task-augmented tools/call wire shape", () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_thing", {});
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_meta_spec",
         status: "working" satisfies TaskStatus,
@@ -943,7 +970,7 @@ describe("task-augmented tools/call wire shape", () => {
         [RELATED_TASK_META_KEY]: { taskId: "tsk_meta_spec" },
       },
     } satisfies GetTaskPayloadResult;
-    respondTo(TASKS_RESULT_METHOD, terminal);
+    await respondTo(TASKS_RESULT_METHOD, terminal);
 
     const result = await resultPromise;
     expect(result._meta).toBeDefined();
@@ -963,7 +990,7 @@ describe("task-augmented tools/call wire shape", () => {
     expect(startMsg).toBeDefined();
     expect((startMsg!.params as CallToolRequest["params"]).task).toEqual({ ttl: 90_000 });
 
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_lc",
         status: "working" satisfies TaskStatus,
@@ -987,7 +1014,7 @@ describe("task-augmented tools/call wire shape", () => {
     // `params.taskId` directly.
     expect(getMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
 
-    respondTo(TASKS_GET_METHOD, {
+    await respondTo(TASKS_GET_METHOD, {
       taskId: "tsk_lc",
       status: "working" satisfies TaskStatus,
       ttl: 90_000,
@@ -1006,7 +1033,7 @@ describe("task-augmented tools/call wire shape", () => {
     expect(resultMsg).toBeDefined();
     expect((resultMsg!.params as GetTaskPayloadRequest["params"]).taskId).toBe("tsk_lc");
 
-    respondTo(TASKS_RESULT_METHOD, {
+    await respondTo(TASKS_RESULT_METHOD, {
       content: [{ type: "text", text: '{"done":true}' }],
       _meta: { [RELATED_TASK_META_KEY]: { taskId: "tsk_lc" } },
     } satisfies GetTaskPayloadResult);
@@ -1022,7 +1049,7 @@ describe("task-augmented tools/call wire shape", () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
     const pending = callToolAsTask(taskApp, "do_thing", {});
-    respondTo(TOOLS_CALL_METHOD, {
+    await respondTo(TOOLS_CALL_METHOD, {
       task: {
         taskId: "tsk_cancel",
         status: "working" satisfies TaskStatus,
@@ -1045,7 +1072,7 @@ describe("task-augmented tools/call wire shape", () => {
     // _meta requirement; enforce by absence.
     expect(cancelMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
 
-    respondTo(TASKS_CANCEL_METHOD, {
+    await respondTo(TASKS_CANCEL_METHOD, {
       taskId: "tsk_cancel",
       status: "cancelled" satisfies TaskStatus,
       ttl: 60_000,

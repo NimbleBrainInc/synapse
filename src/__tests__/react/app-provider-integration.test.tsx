@@ -10,6 +10,17 @@ import { useApp, useCallTool, useTheme, useToolResult } from "../../react/hooks.
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 function makeInitResult(overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
@@ -17,15 +28,18 @@ function makeInitResult(overrides?: Record<string, unknown>) {
     hostCapabilities: {},
     hostContext: {
       theme: "dark",
-      styles: { variables: { "--bg": "#111" } },
-      toolInfo: { tool: { name: "search", description: "Search tool" } },
+      styles: { variables: { "--color-background-primary": "#111" } },
+      toolInfo: {
+        tool: { name: "search", description: "Search tool", inputSchema: { type: "object" } },
+      },
       containerDimensions: { width: 400, height: 600 },
     },
     ...overrides,
   };
 }
 
-function respondToInitialize(initResult?: Record<string, unknown>) {
+async function respondToInitialize(initResult?: Record<string, unknown>) {
+  await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) =>
       c[0] &&
@@ -34,29 +48,34 @@ function respondToInitialize(initResult?: Record<string, unknown>) {
   );
   if (!initCall) throw new Error("No ui/initialize call found");
 
-  const id = (initCall[0] as Record<string, unknown>).id as string;
+  const id = (initCall[0] as Record<string, unknown>).id;
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, result: initResult ?? makeInitResult() },
     }),
   );
+  await flush();
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>) {
+async function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );
+  await flush();
 }
 
-function respondToLastRequest(result: unknown) {
+async function respondToLastRequest(result: unknown) {
   const calls = postMessageSpy.mock.calls;
   for (let i = calls.length - 1; i >= 0; i--) {
     const msg = calls[i][0] as Record<string, unknown>;
-    if (msg.id && msg.method) {
+    if (msg.id !== undefined && msg.method) {
       window.dispatchEvent(
         new MessageEvent("message", {
+          source: window.parent,
           data: { jsonrpc: "2.0", id: msg.id, result },
         }),
       );
@@ -104,7 +123,7 @@ describe("React integration", () => {
 
       // Complete handshake
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
       rerender();
@@ -114,7 +133,7 @@ describe("React integration", () => {
 
       // Host sends tool-result with JSON content
       await act(async () => {
-        dispatchNotification("ui/notifications/tool-result", {
+        await dispatchNotification("ui/notifications/tool-result", {
           content: [{ type: "text", text: '{"users":["alice","bob"]}' }],
         });
       });
@@ -133,14 +152,14 @@ describe("React integration", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
       rerender();
 
       // First result
       await act(async () => {
-        dispatchNotification("ui/notifications/tool-result", {
+        await dispatchNotification("ui/notifications/tool-result", {
           content: [{ type: "text", text: '{"v":1}' }],
         });
       });
@@ -148,7 +167,7 @@ describe("React integration", () => {
 
       // Second result replaces the first
       await act(async () => {
-        dispatchNotification("ui/notifications/tool-result", {
+        await dispatchNotification("ui/notifications/tool-result", {
           structuredContent: { v: 2, extra: true },
         });
       });
@@ -167,25 +186,30 @@ describe("React integration", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
       rerender();
 
       // Initial theme from handshake
-      expect(result.current).toEqual({ mode: "dark", tokens: { "--bg": "#111" } });
+      expect(result.current).toEqual({
+        mode: "dark",
+        tokens: { "--color-background-primary": "#111" },
+      });
 
       // Host changes theme
       await act(async () => {
-        dispatchNotification("ui/notifications/host-context-changed", {
+        await dispatchNotification("ui/notifications/host-context-changed", {
           theme: "light",
-          styles: { variables: { "--bg": "#fff", "--text": "#000" } },
+          styles: {
+            variables: { "--color-background-primary": "#fff", "--color-text-primary": "#000" },
+          },
         });
       });
 
       expect(result.current).toEqual({
         mode: "light",
-        tokens: { "--bg": "#fff", "--text": "#000" },
+        tokens: { "--color-background-primary": "#fff", "--color-text-primary": "#000" },
       });
     });
   });
@@ -200,7 +224,7 @@ describe("React integration", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
       rerender();
@@ -213,7 +237,7 @@ describe("React integration", () => {
       let toolResult: unknown;
       await act(async () => {
         const promise = appInstance.callTool("search", { query: "test" });
-        respondToLastRequest({
+        await respondToLastRequest({
           content: [{ type: "text", text: '{"results":["a","b"]}' }],
         });
         toolResult = await promise;
@@ -235,7 +259,7 @@ describe("React integration", () => {
       });
 
       await act(async () => {
-        respondToInitialize();
+        await respondToInitialize();
         await new Promise((r) => setTimeout(r, 0));
       });
       rerender();
@@ -247,7 +271,7 @@ describe("React integration", () => {
       postMessageSpy.mockClear();
       await act(async () => {
         const callPromise = result.current.call({ text: "hello" });
-        respondToLastRequest({
+        await respondToLastRequest({
           content: [{ type: "text", text: '{"echo":"hello"}' }],
         });
         await callPromise;

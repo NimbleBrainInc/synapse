@@ -1,6 +1,6 @@
-import type { McpUiHostContext, McpUiInitializeResult } from "@modelcontextprotocol/ext-apps";
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { normalizeFontFaces } from "./theme-defaults.js";
-import type { FontFaceDescriptor, HostInfo, Theme } from "./types";
+import type { FontFaceDescriptor, Theme } from "./types";
 
 /**
  * Host-context key carrying `@font-face` descriptors.
@@ -18,28 +18,6 @@ const DEFAULT_THEME: Theme = {
   mode: "light",
   tokens: {},
 };
-
-/**
- * Detect the host environment from the ext-apps `ui/initialize` response.
- *
- * Reports identity only (host name, protocol version). Theme lives in the
- * unified host-context state and is read via `extractTheme(hostContext)`
- * — no parallel `theme` field on `HostInfo`.
- *
- * Handles missing or malformed fields gracefully — never throws.
- */
-export function detectHost(initResponse: unknown): HostInfo {
-  const resp = initResponse as Partial<McpUiInitializeResult> | null | undefined;
-
-  const hostName = resp?.hostInfo?.name ?? "unknown";
-  const protocolVersion = resp?.protocolVersion ?? "unknown";
-
-  return {
-    isNimbleBrain: hostName === "nimblebrain",
-    serverName: hostName,
-    protocolVersion,
-  };
-}
 
 export function extractTheme(ctx: Partial<McpUiHostContext> | undefined): Theme {
   if (!ctx) return { ...DEFAULT_THEME };

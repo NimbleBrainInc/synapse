@@ -55,6 +55,17 @@ const CANCELLED_STATUS: TaskStatus = "cancelled";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
+/**
+ * Let the client send, and let a dispatched frame reach its handler. Both
+ * cross a microtask: the spec's client sends and dispatches asynchronously.
+ */
+async function flush(): Promise<void> {
+  // Microtasks only, never a timer: a test driving fake timers would otherwise
+  // wait on one that never fires. Everything the client does between a frame
+  // arriving and a handler running is a microtask.
+  for (let i = 0; i < 5; i += 1) await Promise.resolve();
+}
+
 const HOST_TASKS_CAPABILITY: TasksCapability = {
   cancel: {},
   requests: { tools: { call: {} } },
@@ -95,30 +106,37 @@ function findAllCalls(method: string): Record<string, unknown>[] {
  * pick the newest un-answered call, not the first matching call. */
 const answeredIds = new Set<string>();
 
-function respondToRequest(method: string, result: unknown): void {
+async function respondToRequest(method: string, result: unknown): Promise<void> {
+  await flush();
   const calls = findAllCalls(method);
   const msg = [...calls].reverse().find((m) => {
     const id = m.id;
-    return typeof id === "string" && !answeredIds.has(id);
+    return id !== undefined && !answeredIds.has(String(id));
   });
-  if (!msg || typeof msg.id !== "string") {
+  if (!msg || msg.id === undefined) {
     throw new Error(`No pending ${method} request`);
   }
-  answeredIds.add(msg.id);
+  answeredIds.add(String(msg.id));
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id: msg.id, result },
     }),
   );
+  await flush();
 }
 
-function completeHandshake(initResult = makeInitResult()): void {
-  respondToRequest("ui/initialize", initResult);
+async function completeHandshake(initResult = makeInitResult()): Promise<void> {
+  await respondToRequest("ui/initialize", initResult);
 }
 
-function dispatchNotification(method: string, params?: Record<string, unknown>): void {
+async function dispatchNotification(
+  method: string,
+  params?: Record<string, unknown>,
+): Promise<void> {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: {
         jsonrpc: "2.0",
         method,
@@ -126,6 +144,7 @@ function dispatchNotification(method: string, params?: Record<string, unknown>):
       },
     }),
   );
+  await flush();
 }
 
 /** Build a spec-shaped `Task` with the given overrides. */
@@ -152,7 +171,7 @@ async function startTask(
   options?: CallToolAsTaskOptions,
 ): Promise<TaskHandle> {
   const pending = callToolAsTask(app, toolName, args, options);
-  respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult(taskId));
+  await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult(taskId));
   return pending;
 }
 
@@ -184,7 +203,7 @@ afterEach(() => {
 
 describe("callToolAsTask — tools/call wire shape", () => {
   it("sends tools/call with task.ttl when ttl is provided", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "do_research", { query: "mcp" }, { ttl: 300_000 });
@@ -198,12 +217,12 @@ describe("callToolAsTask — tools/call wire shape", () => {
     expect(params.task).toEqual({ ttl: 300_000 });
 
     // Respond so the pending promise doesn't dangle across tests.
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ttl"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ttl"));
     await pending;
   });
 
   it("sends tools/call with task: {} when ttl is omitted (still augmented)", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "do_research", { query: "mcp" });
@@ -217,7 +236,7 @@ describe("callToolAsTask — tools/call wire shape", () => {
     expect(params.task).toBeDefined();
     expect(params.task).toEqual({});
 
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_notll"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_notll"));
     await pending;
   });
 
@@ -225,7 +244,7 @@ describe("callToolAsTask — tools/call wire shape", () => {
     // A task-augmented call is an app calling its own server, same as a plain
     // one. `task` is the only addition the spec makes to the params, and there
     // is no way here to name another source.
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "do_research", { query: "mcp" });
@@ -236,12 +255,12 @@ describe("callToolAsTask — tools/call wire shape", () => {
     expect(params._meta).toBeUndefined();
     expect(Object.hasOwn(params, "server")).toBe(false);
 
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_external"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_external"));
     await pending;
   });
 
   it("sends empty arguments when none provided", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "ping");
@@ -250,7 +269,7 @@ describe("callToolAsTask — tools/call wire shape", () => {
     const params = call!.params as CallToolRequest["params"];
     expect(params.arguments).toEqual({});
 
-    respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ping"));
+    await respondToRequest(TOOLS_CALL_METHOD, makeCreateTaskResult("tsk_ping"));
     await pending;
   });
 });
@@ -261,7 +280,7 @@ describe("callToolAsTask — tools/call wire shape", () => {
 
 describe("callToolAsTask — capability negotiation", () => {
   it("throws when host did not advertise tasks at all", async () => {
-    completeHandshake(makeInitResult({ hostTasks: null }));
+    await completeHandshake(makeInitResult({ hostTasks: null }));
     app = await appPromise;
 
     await expect(callToolAsTask(app, "do_thing", {})).rejects.toThrow(
@@ -272,7 +291,7 @@ describe("callToolAsTask — capability negotiation", () => {
   });
 
   it("throws when host advertises tasks but NOT tools/call specifically", async () => {
-    completeHandshake(
+    await completeHandshake(
       makeInitResult({
         hostTasks: {
           // tasks declared, but tools.call is not — requestor MUST NOT
@@ -290,7 +309,7 @@ describe("callToolAsTask — capability negotiation", () => {
   });
 
   it("succeeds when host advertises tasks.requests.tools.call", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_ok");
@@ -304,7 +323,7 @@ describe("callToolAsTask — capability negotiation", () => {
 
 describe("TaskHandle — initial state from CreateTaskResult", () => {
   it("populates handle.task with the CreateTaskResult.task fields", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "do_thing", {});
@@ -318,7 +337,7 @@ describe("TaskHandle — initial state from CreateTaskResult", () => {
         pollInterval: 2_000,
       },
     };
-    respondToRequest(TOOLS_CALL_METHOD, createResult);
+    await respondToRequest(TOOLS_CALL_METHOD, createResult);
     const handle = await pending;
 
     expect(handle.task).toEqual(createResult.task);
@@ -327,13 +346,13 @@ describe("TaskHandle — initial state from CreateTaskResult", () => {
   });
 
   it("throws when receiver returns a response without task (protocol violation)", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const pending = callToolAsTask(app, "do_thing", {});
     // Simulate a broken receiver that advertises the capability but
     // returns a bare CallToolResult instead of a CreateTaskResult.
-    respondToRequest(TOOLS_CALL_METHOD, {
+    await respondToRequest(TOOLS_CALL_METHOD, {
       content: [{ type: "text", text: "oops" }],
     });
 
@@ -347,7 +366,7 @@ describe("TaskHandle — initial state from CreateTaskResult", () => {
 
 describe("TaskHandle.result()", () => {
   it("sends tasks/result { taskId } and resolves with parsed CallToolResult", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", { q: 1 }, "tsk_a");
@@ -362,7 +381,7 @@ describe("TaskHandle.result()", () => {
     const terminal: CallToolResult = {
       content: [{ type: "text", text: '{"answer":42}' }],
     };
-    respondToRequest(TASKS_RESULT_METHOD, terminal);
+    await respondToRequest(TASKS_RESULT_METHOD, terminal);
 
     const result = await resultPromise;
     expect(result.isError).toBe(false);
@@ -370,7 +389,7 @@ describe("TaskHandle.result()", () => {
   });
 
   it("preserves _meta['io.modelcontextprotocol/related-task'] from the response", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_meta");
@@ -383,7 +402,7 @@ describe("TaskHandle.result()", () => {
         "vendor.namespace/extra": { some: "data" },
       },
     } satisfies GetTaskPayloadResult;
-    respondToRequest(TASKS_RESULT_METHOD, terminal);
+    await respondToRequest(TASKS_RESULT_METHOD, terminal);
 
     const result = await resultPromise;
 
@@ -393,13 +412,13 @@ describe("TaskHandle.result()", () => {
   });
 
   it("surfaces isError: true from terminal CallToolResult", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_err");
 
     const resultPromise = handle.result();
-    respondToRequest(TASKS_RESULT_METHOD, {
+    await respondToRequest(TASKS_RESULT_METHOD, {
       isError: true,
       content: [{ type: "text", text: "bang" }],
     });
@@ -410,7 +429,7 @@ describe("TaskHandle.result()", () => {
   });
 
   it("does not depend on notifications/tasks/status for correctness", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_noevents");
@@ -419,7 +438,7 @@ describe("TaskHandle.result()", () => {
     // off the tasks/result response. Spec: status notifications are
     // OPTIONAL; requestors MUST NOT rely on them.
     const resultPromise = handle.result();
-    respondToRequest(TASKS_RESULT_METHOD, {
+    await respondToRequest(TASKS_RESULT_METHOD, {
       content: [{ type: "text", text: '{"ok":true}' }],
     });
 
@@ -434,7 +453,7 @@ describe("TaskHandle.result()", () => {
 
 describe("TaskHandle.refresh()", () => {
   it("sends tasks/get { taskId } and resolves with the current Task", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_refresh");
@@ -454,7 +473,7 @@ describe("TaskHandle.refresh()", () => {
       lastUpdatedAt: "2026-04-22T00:00:10.000Z",
       pollInterval: 1_500,
     };
-    respondToRequest(TASKS_GET_METHOD, flatTask);
+    await respondToRequest(TASKS_GET_METHOD, flatTask);
 
     const task = await refreshPromise;
     expect(task.taskId).toBe("tsk_refresh");
@@ -470,7 +489,7 @@ describe("TaskHandle.refresh()", () => {
 
 describe("TaskHandle.cancel()", () => {
   it("sends tasks/cancel { taskId } and resolves with cancelled Task", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_cancel");
@@ -489,7 +508,7 @@ describe("TaskHandle.cancel()", () => {
       createdAt: "2026-04-22T00:00:00.000Z",
       lastUpdatedAt: "2026-04-22T00:00:05.000Z",
     };
-    respondToRequest(TASKS_CANCEL_METHOD, cancelledTask);
+    await respondToRequest(TASKS_CANCEL_METHOD, cancelledTask);
 
     const task = await cancelPromise;
     expect(task.status).toBe(CANCELLED_STATUS);
@@ -497,7 +516,7 @@ describe("TaskHandle.cancel()", () => {
   });
 
   it("propagates -32602 error when cancelling a terminal task", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_term");
@@ -506,6 +525,7 @@ describe("TaskHandle.cancel()", () => {
     const call = findCall(TASKS_CANCEL_METHOD);
     window.dispatchEvent(
       new MessageEvent("message", {
+        source: window.parent,
         data: {
           jsonrpc: "2.0",
           id: (call as Record<string, unknown>).id,
@@ -524,14 +544,14 @@ describe("TaskHandle.cancel()", () => {
 
 describe("TaskHandle.onStatus()", () => {
   it("receives notifications/tasks/status events for matching taskId", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_match");
     const cb = vi.fn();
     handle.onStatus(cb);
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_match",
       status: COMPLETED_STATUS,
     });
@@ -543,14 +563,14 @@ describe("TaskHandle.onStatus()", () => {
   });
 
   it("does NOT receive events for other taskIds", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_a");
     const cb = vi.fn();
     handle.onStatus(cb);
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_OTHER",
       status: FAILED_STATUS,
     });
@@ -559,21 +579,21 @@ describe("TaskHandle.onStatus()", () => {
   });
 
   it("returns an unsubscribe that stops further delivery", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_unsub");
     const cb = vi.fn();
     const unsub = handle.onStatus(cb);
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_unsub",
       status: WORKING_STATUS,
     });
     expect(cb).toHaveBeenCalledTimes(1);
 
     unsub();
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_unsub",
       status: COMPLETED_STATUS,
     });
@@ -583,7 +603,7 @@ describe("TaskHandle.onStatus()", () => {
   });
 
   it("two handles with different taskIds each receive their own notifications", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handleA = await startTask(app, "do_a", {}, "tsk_A");
@@ -594,15 +614,15 @@ describe("TaskHandle.onStatus()", () => {
     handleA.onStatus(cbA);
     handleB.onStatus(cbB);
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_A",
       status: WORKING_STATUS,
     });
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_B",
       status: COMPLETED_STATUS,
     });
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_A",
       status: COMPLETED_STATUS,
     });
@@ -615,7 +635,7 @@ describe("TaskHandle.onStatus()", () => {
   });
 
   it("multiple subscribers on the same handle all fire", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_multi");
@@ -624,7 +644,7 @@ describe("TaskHandle.onStatus()", () => {
     handle.onStatus(cb1);
     handle.onStatus(cb2);
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_multi",
       status: COMPLETED_STATUS,
     });
@@ -634,7 +654,7 @@ describe("TaskHandle.onStatus()", () => {
   });
 
   it("ignores status notifications with no params or non-string taskId", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_defensive");
@@ -642,11 +662,11 @@ describe("TaskHandle.onStatus()", () => {
     handle.onStatus(cb);
 
     // No params at all.
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD);
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD);
     // taskId missing.
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, { status: WORKING_STATUS });
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, { status: WORKING_STATUS });
     // taskId wrong type.
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: 123,
       status: WORKING_STATUS,
     });
@@ -664,7 +684,7 @@ describe("transport-level status subscription", () => {
     // We observe indirectly: create many handles, then destroy() and
     // verify the single shared subscription is cleaned up in one shot.
     // (Internals aren't exposed; behavior is what we assert.)
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handleA = await startTask(app, "do_a", {}, "tsk_x1");
@@ -683,15 +703,15 @@ describe("transport-level status subscription", () => {
     // single transport-level subscription.
     app.destroy();
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_x1",
       status: COMPLETED_STATUS,
     });
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_x2",
       status: COMPLETED_STATUS,
     });
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_x3",
       status: COMPLETED_STATUS,
     });
@@ -707,7 +727,7 @@ describe("transport-level status subscription", () => {
     // Regression guard: a broken impl might add a new listener-set
     // per-subscribe and accidentally call each wire subscriber more
     // than once per notification.
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     const handle = await startTask(app, "do_thing", {}, "tsk_dedup");
@@ -715,7 +735,7 @@ describe("transport-level status subscription", () => {
     const unsub1 = handle.onStatus(cb);
     const unsub2 = handle.onStatus(cb); // same fn, two registrations
 
-    dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
+    await dispatchNotification(TASKS_STATUS_NOTIFICATION_METHOD, {
       taskId: "tsk_dedup",
       status: COMPLETED_STATUS,
     });
@@ -729,7 +749,7 @@ describe("transport-level status subscription", () => {
   });
 
   it("sends at most one subscription-worthy tools/call per startTask — sanity", async () => {
-    completeHandshake();
+    await completeHandshake();
     app = await appPromise;
 
     await startTask(app, "do_thing", {}, "tsk_once");

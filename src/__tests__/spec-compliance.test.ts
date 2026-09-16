@@ -701,7 +701,7 @@ describe("tasks capability advertisement", () => {
 
   // The host's half travels in `hostCapabilities.experimental`, keyed by
   // extension identifier, because that is the slot a spec client's handshake
-  // parse preserves. The key is a wire string no type checks, so it is pinned
+  // parse preserves. The key is a wire string that no type checks, so it is pinned
   // literally here.
   it("reads the host's capability under the MCP Tasks extension identifier", async () => {
     expect(TASKS_EXTENSION_ID).toBe("io.modelcontextprotocol/tasks");

@@ -58,10 +58,9 @@ the extension the client is missing.
 
 Not every host supports tasks. A host that does advertises
 `tasks.requests.tools.call` in
-`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]` (or, from a
-NimbleBrain host, `"ai.nimblebrain/tasks"`). Hosts that do not advertise it get
-a `callToolAsTask` that throws. Wrap
-it and fall back to a blocking `callTool` if you want graceful degradation:
+`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`. Hosts that do not
+advertise it get a `callToolAsTask` that throws. Wrap it and fall back to a
+blocking `callTool` if you want graceful degradation:
 
 ```typescript
 try {

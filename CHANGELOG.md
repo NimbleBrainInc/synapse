@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-16
+
 ### Breaking
 
 - **The `HostInfo` type is gone.** It described the result of detecting a host from the handshake response, which this package no longer does: the spec's client parses the handshake, and identity is read from it (`app.hostInfo`, `app.isNimbleBrainHost`). Nothing produced a `HostInfo` any more.

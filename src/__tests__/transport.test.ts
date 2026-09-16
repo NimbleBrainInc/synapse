@@ -3,15 +3,14 @@ import { SynapseTransport } from "../transport.js";
 
 function dispatchResponse(id: string, result: unknown) {
   window.dispatchEvent(
-    new MessageEvent("message", {
-      data: { jsonrpc: "2.0", id, result },
-    }),
+    new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", id, result } }),
   );
 }
 
 function dispatchError(id: string, code: number, message: string) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", id, error: { code, message } },
     }),
   );
@@ -20,6 +19,7 @@ function dispatchError(id: string, code: number, message: string) {
 function dispatchNotification(method: string, params?: Record<string, unknown>) {
   window.dispatchEvent(
     new MessageEvent("message", {
+      source: window.parent,
       data: { jsonrpc: "2.0", method, ...(params !== undefined && { params }) },
     }),
   );

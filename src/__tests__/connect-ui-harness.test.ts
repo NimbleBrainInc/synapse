@@ -174,6 +174,7 @@ describe("harness — mcp-ui bridge", () => {
       // Host pushes a theme via render-data.
       window.dispatchEvent(
         new MessageEvent("message", {
+          source: window.parent,
           data: { type: "ui-lifecycle-iframe-render-data", payload: { theme: mode } },
         }),
       );

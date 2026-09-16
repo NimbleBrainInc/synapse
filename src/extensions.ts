@@ -39,11 +39,9 @@ export async function pickFile(app: App, options?: RequestFileOptions): Promise<
   if (!app.isNimbleBrainHost) {
     throw new Error("pickFile is not supported in this host");
   }
-  const result = await requestFile(app, options, false);
-  if (result === null) return null;
-  // The host may return an array even for a single pick — take the first
-  // entry to preserve the documented `FileResult | null` shape.
-  return Array.isArray(result) ? (result[0] ?? null) : result;
+  const files = await requestFile(app, options, false);
+  // One pick, so the first entry is the answer; an empty list is a cancel.
+  return files[0] ?? null;
 }
 
 /**
@@ -55,38 +53,44 @@ export async function pickFiles(app: App, options?: RequestFileOptions): Promise
   if (!app.isNimbleBrainHost) {
     throw new Error("pickFiles is not supported in this host");
   }
-  const result = await requestFile(app, options, true);
-  if (result === null) return [];
-  return Array.isArray(result) ? result : [result];
+  return await requestFile(app, options, true);
 }
 
 /**
- * Shared request path for `pickFile` / `pickFiles`. Centralizes:
+ * Shared request path for `pickFile` / `pickFiles`.
  *
- * - The wire method name (which is what the NimbleBrain bridge actually
- *   handles — earlier SDK versions sent `synapse/pick-file` and the call would
- *   silently time out).
- * - Runtime shape validation. Older hosts (pre-`POST /v1/resources`) still
- *   respond but return the legacy `{ base64Data, … }` shape. The TS type
- *   promises a string `id`; without this guard, consumers would silently get
- *   `undefined.id` and fail downstream in confusing ways. Failing loud at the
- *   boundary tells the developer exactly which side is mismatched.
+ * The host answers with `{ files }` — an empty array when the user cancelled.
+ * A JSON-RPC result is an object by definition, and MCP types it as one, so the
+ * files travel under a field rather than as a bare array or a bare `null`: a
+ * spec client refuses to parse anything else, and the call would hang rather
+ * than resolve.
+ *
+ * Entries are shape-checked here. The type promises a string `id`, and without
+ * the guard a consumer reads `undefined.id` three frames later, where nothing
+ * says which side is mismatched.
  */
 async function requestFile(
   app: App,
   options: RequestFileOptions | undefined,
   multiple: boolean,
-): Promise<FileResult | FileResult[] | null> {
+): Promise<FileResult[]> {
   const result = await internalsFor(app).request(REQUEST_FILE_METHOD, {
     accept: options?.accept,
     maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
     multiple,
   });
-  if (result == null) return null;
-  if (Array.isArray(result)) {
-    return result.map(validateFileResult);
+  const files = (result as { files?: unknown } | null | undefined)?.files;
+  if (files === undefined) {
+    throw new Error(
+      "synapse/request-file returned no `files`. The host is older than this " +
+        "SDK targets: it answers the picker with a bare array or `null`, which " +
+        "a spec-compliant client cannot parse.",
+    );
   }
-  return validateFileResult(result);
+  if (!Array.isArray(files)) {
+    throw new Error("synapse/request-file returned a `files` field that is not an array.");
+  }
+  return files.map(validateFileResult);
 }
 
 function validateFileResult(value: unknown): FileResult {

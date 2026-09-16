@@ -34,7 +34,6 @@ export type {
   FileResult,
   FontDisplayValue,
   FontFaceDescriptor,
-  HostInfo,
   KeyForwardConfig,
   McpUiHostContext,
   ModelContext,

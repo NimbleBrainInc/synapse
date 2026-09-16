@@ -8,6 +8,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
+- **The `HostInfo` type is gone.** It described the result of detecting a host from the handshake response, which this package no longer does: the spec's client parses the handshake, and identity is read from it (`app.hostInfo`, `app.isNimbleBrainHost`). Nothing produced a `HostInfo` any more.
+
+  **Migration:** read `app.hostInfo` (`{ name, version }`) and `app.isNimbleBrainHost`. An import of the type now fails to compile.
+
+- **This package no longer ships a transport of its own.** `src/transport.ts` and the `JsonRpc*` types that existed to describe its frames are deleted; the spec's client owns the wire. Neither was exported, so nothing outside could name them.
+
 - **`connect()` runs on the spec's own client.** `@modelcontextprotocol/ext-apps`'s `App` owns the transport, the handshake and the wire schemas; this package is the framework on top of it — theme injection, parsed payloads, multi-subscriber events, resize, and the NimbleBrain extensions. The public API is unchanged: `connect`, `AppProvider`, every method on the `App` object, all sixteen React exports, `callToolAsTask`, `pickFile`/`pickFiles`, `action` and `downloadFile` keep their names and call shapes.
 
   What changes is what reaches the wire, and what the wire is allowed to say:

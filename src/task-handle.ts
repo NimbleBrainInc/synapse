@@ -214,8 +214,8 @@ export async function callToolAsTask<TOutput = unknown>(
 
   const taskId = initialTask.taskId;
 
-  // Preserve the Set-semantic dedup contract on `onStatus` (matches
-  // `SynapseTransport.onMessage`): registering the same callback twice
+  // Preserve the Set-semantic dedup contract on `onStatus` (matches the
+  // subscribe contract in `connect()`): registering the same callback twice
   // collapses to one wire subscription, and either returned unsub
   // releases it. Without this, every `onStatus(cb)` would create a
   // fresh wrapper that the router treats as distinct.

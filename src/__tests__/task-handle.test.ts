@@ -741,7 +741,7 @@ describe("transport-level status subscription", () => {
     });
 
     // Set-semantics: registering the same callback twice collapses to
-    // one (matches existing `onMessage` contract in SynapseTransport).
+    // one (matches the subscribe contract in connect()).
     expect(cb).toHaveBeenCalledTimes(1);
 
     unsub1();

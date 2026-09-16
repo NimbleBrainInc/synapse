@@ -1,3 +1,4 @@
+import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import type {
   CallToolRequest,
   CancelTaskRequest,
@@ -22,10 +23,41 @@ import type {
   TaskHandle,
   TaskStatusRouter,
   TaskStatusUpdate,
+  TasksCapability,
   ToolCallResult,
 } from "./types.js";
 
 export type { TaskStatusRouter, TaskStatusUpdate };
+
+// -----------------------------------------------------------------------------
+// Host capability
+// -----------------------------------------------------------------------------
+
+/** The MCP Tasks extension identifier. */
+export const TASKS_EXTENSION_ID = "io.modelcontextprotocol/tasks";
+
+/**
+ * The host's tasks capability, from the `ui/initialize` result.
+ *
+ * It lives in `hostCapabilities.experimental`, under the MCP Tasks extension
+ * identifier. The ext-apps host capability type has no `tasks` field, so a client that
+ * validates the handshake against the spec's schema strips a top-level `tasks`;
+ * `experimental` is the one slot whose contents survive that parse (ext-apps
+ * 1.7.5 and later). A top-level `tasks` is therefore not read at all — reading
+ * it would make a capability visible here that no spec client can see.
+ *
+ * One key, and only that one: the identifier is the extension registry's, and a
+ * host publishing the capability under any other name is not advertising this
+ * extension.
+ */
+export function readHostTasksCapability(
+  capabilities: McpUiHostCapabilities | undefined,
+): TasksCapability | undefined {
+  const entry = capabilities?.experimental?.[TASKS_EXTENSION_ID];
+  return entry && typeof entry === "object" && !Array.isArray(entry)
+    ? (entry as TasksCapability)
+    : undefined;
+}
 
 // -----------------------------------------------------------------------------
 // Spec method constants

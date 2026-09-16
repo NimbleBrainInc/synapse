@@ -61,7 +61,7 @@ function makeInitResult() {
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: "nimblebrain", version: "1.0.0" },
-    hostCapabilities: { tasks: HOST_TASKS_CAPABILITY },
+    hostCapabilities: { experimental: { "io.modelcontextprotocol/tasks": HOST_TASKS_CAPABILITY } },
     hostContext: {
       theme: "dark",
       styles: { variables: {} },

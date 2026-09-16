@@ -6,10 +6,12 @@
  * `connect.test.ts` covers the handshake and the ext-apps message shapes; this
  * file covers what an app can do once connected.
  */
+import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { action, pickFile, pickFiles } from "../extensions.js";
+import { readHostTasksCapability, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
 
 // --- Helpers ---
@@ -649,13 +651,48 @@ describe("connect() capabilities", () => {
       });
     });
 
-    it("supportsTasks is true when the host advertised tasks.requests.tools.call", async () => {
-      const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
+    const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
+    const withExperimental = (experimental: Record<string, unknown>) =>
+      makeInitResult("nimblebrain", { hostCapabilities: { experimental } });
+
+    it("supportsTasks is true when the host advertised it under the extension identifier", async () => {
+      app = await connectAndHandshake(
+        {},
+        withExperimental({ "io.modelcontextprotocol/tasks": tasks }),
+      );
+      expect(app.supportsTasks).toBe(true);
+    });
+
+    it("a key other than the extension identifier is not read", async () => {
+      // One key. A host publishing the capability under some other name is not
+      // advertising this extension, and reading it anyway would make the
+      // identifier decorative.
+      app = await connectAndHandshake({}, withExperimental({ "ai.nimblebrain/tasks": tasks }));
+      expect(app.supportsTasks).toBe(false);
+    });
+
+    it("a malformed experimental entry reads as no capability", () => {
+      // Read directly rather than driven through a handshake: `experimental` is
+      // typed as a record of records, so a client that validates the result
+      // against the spec's schema refuses this shape upstream and it never
+      // reaches the read over the wire. What the guard prevents is a stored
+      // capability that contradicts its own type — both callers ask only
+      // `?.requests?.tools?.call`, so it is not visible in `supportsTasks`.
+      expect(
+        readHostTasksCapability({
+          experimental: { [TASKS_EXTENSION_ID]: "yes" },
+        } as unknown as McpUiHostCapabilities),
+      ).toBeUndefined();
+    });
+
+    it("a top-level hostCapabilities.tasks is not read", async () => {
+      // A spec client's handshake parse strips it, so honouring it here would
+      // show a capability that no client validating the handshake can see.
       app = await connectAndHandshake(
         {},
         makeInitResult("nimblebrain", { hostCapabilities: { tasks } }),
       );
-      expect(app.supportsTasks).toBe(true);
+      expect(app.supportsTasks).toBe(false);
     });
 
     it("supportsTasks is false when the host advertised none", async () => {
@@ -666,7 +703,7 @@ describe("connect() capabilities", () => {
     it("supportsTasks is false when the host advertised tasks but not tools/call", async () => {
       app = await connectAndHandshake(
         {},
-        makeInitResult("nimblebrain", { hostCapabilities: { tasks: { cancel: {} } } }),
+        withExperimental({ "io.modelcontextprotocol/tasks": { cancel: {} } }),
       );
       expect(app.supportsTasks).toBe(false);
     });

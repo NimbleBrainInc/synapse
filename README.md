@@ -35,7 +35,7 @@ Synapse handles the plumbing so you can focus on the UI. See **[Why Synapse?](do
 npm install @nimblebrain/synapse
 ```
 
-**Peer dependency:** `@modelcontextprotocol/ext-apps@^1.3.1`
+**Peer dependency:** `@modelcontextprotocol/ext-apps@^1.7.5`
 
 **Building a Python MCP server?** The server half — one self-contained `ui://`
 component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
@@ -367,6 +367,11 @@ action(app, "navigate", { entity: "board", id: "b1" });
 `tools/call`. `callToolAsTask` throws when it is false, so read it to decide
 whether to offer a long-running action at all rather than to discover the answer
 from an exception.
+
+A host advertises the capability in
+`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, the MCP Tasks
+extension identifier, and nowhere else. A top-level `hostCapabilities.tasks` is
+not read, because a spec client's handshake parse strips it.
 
 ## React Hooks
 

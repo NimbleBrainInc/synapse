@@ -64,7 +64,7 @@ import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { resolveEventMethod } from "../event-map.js";
 import { parseToolResult } from "../result-parser.js";
-import { callToolAsTask } from "../task-handle.js";
+import { callToolAsTask, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
 
 // ---------------------------------------------------------------------------
@@ -676,6 +676,24 @@ describe("tasks capability advertisement", () => {
       tasks: { cancel: {}, requests: { tools: { call: {} } } },
     });
   });
+
+  // The host's half travels in `hostCapabilities.experimental`, keyed by
+  // extension identifier, because that is the slot a spec client's handshake
+  // parse preserves. The key is a wire string that no type checks, so it is pinned
+  // literally here.
+  it("reads the host's capability under the MCP Tasks extension identifier", async () => {
+    expect(TASKS_EXTENSION_ID).toBe("io.modelcontextprotocol/tasks");
+
+    app = await connectAndHandshake(
+      {},
+      makeSpecInitResult({
+        hostCapabilities: {
+          experimental: { [TASKS_EXTENSION_ID]: { requests: { tools: { call: {} } } } },
+        },
+      }),
+    );
+    expect(app.supportsTasks).toBe(true);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -818,10 +836,8 @@ describe("task-augmented tools/call wire shape", () => {
       hostInfo: { name: "test-host", version: "1.0.0" },
       hostCapabilities: {
         openLinks: {},
-        tasks: hostTasks,
-        // biome-ignore lint/suspicious/noExplicitAny: host caps
-        // widening — `McpUiHostCapabilities` doesn't yet model tasks.
-      } as any,
+        experimental: { "io.modelcontextprotocol/tasks": hostTasks },
+      } satisfies McpUiHostCapabilities,
       hostContext: {
         theme: "dark",
         styles: { variables: {} },

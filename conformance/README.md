@@ -36,16 +36,20 @@ first thing this suite caught was a stale vendored copy.
 
 ## Rows that pin a boundary rather than a goal
 
-Most rows assert something we want. Two record something we merely need to know:
+Most rows assert something we want. One records something we merely need to know:
 
 - **`a task-augmented tools/call is refused by a spec host`.** The spec's
   `AppBridge` throws on `params.task` outright, so `callToolAsTask` works
   against the NimbleBrain bridge and nowhere else. When this row starts
   *failing*, ext-apps has opened the door and the tasks helper can go portable.
-- **The host advertises `tasks` outside the ext-apps capability type.** A client
-  that parses the handshake result against the spec's schema drops it. Our own
-  client reads the field raw and therefore sees it; an `App`-based client would
-  not.
+
+It leans on the row before it, **`the host's tasks capability survives the
+handshake`**. `callToolAsTask` refuses to send unless it can read the host's
+capability, and a refusal on our side would satisfy the boundary row without the
+host ever being asked. The capability travels in
+`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, because the
+ext-apps capability type has no `tasks` field and `experimental` is the only slot
+a spec client's handshake parse keeps.
 
 ## Two logs, and which one to assert against
 

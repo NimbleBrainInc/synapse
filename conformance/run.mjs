@@ -359,6 +359,13 @@ try {
           },
         ],
         [
+          "the host's tasks capability survives the handshake",
+          "a host publishes it in `hostCapabilities.experimental`, the one slot a spec client's handshake parse keeps. If `connect()` cannot read it there, `callToolAsTask` refuses to send on every host — and the row below passes without the host ever being asked",
+          (app) =>
+            app?.supportsTasks === true ||
+            `supportsTasks was ${JSON.stringify(app?.supportsTasks)}`,
+        ],
+        [
           "a task-augmented tools/call is refused by a spec host",
           "pinned, not desired: the spec's AppBridge throws on `params.task`, so `callToolAsTask` is a NimbleBrain-host capability today. If this row starts failing, ext-apps has opened the door and the tasks helper can go portable.",
           (app) => {

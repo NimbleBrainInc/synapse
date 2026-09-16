@@ -18,7 +18,8 @@ export type { CreateTaskResult, Task, TaskStatus };
 
 /**
  * Shape of the `tasks` capability advertised in `appCapabilities` on the
- * iframe side (and mirrored back by the host in `hostCapabilities.tasks`).
+ * iframe side, and mirrored back by the host in `hostCapabilities.experimental`
+ * under the MCP Tasks extension identifier (see `readHostTasksCapability`).
  *
  * Matches the MCP 2025-11-25 tasks utility: empty objects (`{}`) are used
  * as presence flags — NOT booleans — so future sub-fields can be added

@@ -163,51 +163,51 @@ afterEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("method name constants", () => {
-  it("INITIALIZE_METHOD is ui/initialize", async () => {
+  it("INITIALIZE_METHOD is ui/initialize", () => {
     expect(INITIALIZE_METHOD).toBe("ui/initialize");
   });
 
-  it("INITIALIZED_METHOD is ui/notifications/initialized", async () => {
+  it("INITIALIZED_METHOD is ui/notifications/initialized", () => {
     expect(INITIALIZED_METHOD).toBe("ui/notifications/initialized");
   });
 
-  it("TOOL_RESULT_METHOD is ui/notifications/tool-result", async () => {
+  it("TOOL_RESULT_METHOD is ui/notifications/tool-result", () => {
     expect(TOOL_RESULT_METHOD).toBe("ui/notifications/tool-result");
   });
 
-  it("TOOL_INPUT_METHOD is ui/notifications/tool-input", async () => {
+  it("TOOL_INPUT_METHOD is ui/notifications/tool-input", () => {
     expect(TOOL_INPUT_METHOD).toBe("ui/notifications/tool-input");
   });
 
-  it("TOOL_INPUT_PARTIAL_METHOD is ui/notifications/tool-input-partial", async () => {
+  it("TOOL_INPUT_PARTIAL_METHOD is ui/notifications/tool-input-partial", () => {
     expect(TOOL_INPUT_PARTIAL_METHOD).toBe("ui/notifications/tool-input-partial");
   });
 
-  it("TOOL_CANCELLED_METHOD is ui/notifications/tool-cancelled", async () => {
+  it("TOOL_CANCELLED_METHOD is ui/notifications/tool-cancelled", () => {
     expect(TOOL_CANCELLED_METHOD).toBe("ui/notifications/tool-cancelled");
   });
 
-  it("HOST_CONTEXT_CHANGED_METHOD is ui/notifications/host-context-changed", async () => {
+  it("HOST_CONTEXT_CHANGED_METHOD is ui/notifications/host-context-changed", () => {
     expect(HOST_CONTEXT_CHANGED_METHOD).toBe("ui/notifications/host-context-changed");
   });
 
-  it("MESSAGE_METHOD is ui/message", async () => {
+  it("MESSAGE_METHOD is ui/message", () => {
     expect(MESSAGE_METHOD).toBe("ui/message");
   });
 
-  it("OPEN_LINK_METHOD is ui/open-link", async () => {
+  it("OPEN_LINK_METHOD is ui/open-link", () => {
     expect(OPEN_LINK_METHOD).toBe("ui/open-link");
   });
 
-  it("SIZE_CHANGED_METHOD is ui/notifications/size-changed", async () => {
+  it("SIZE_CHANGED_METHOD is ui/notifications/size-changed", () => {
     expect(SIZE_CHANGED_METHOD).toBe("ui/notifications/size-changed");
   });
 
-  it("RESOURCE_TEARDOWN_METHOD is ui/resource-teardown", async () => {
+  it("RESOURCE_TEARDOWN_METHOD is ui/resource-teardown", () => {
     expect(RESOURCE_TEARDOWN_METHOD).toBe("ui/resource-teardown");
   });
 
-  it("DOWNLOAD_FILE_METHOD is ui/download-file", async () => {
+  it("DOWNLOAD_FILE_METHOD is ui/download-file", () => {
     expect(DOWNLOAD_FILE_METHOD).toBe("ui/download-file");
   });
 });
@@ -217,15 +217,15 @@ describe("method name constants", () => {
 // ---------------------------------------------------------------------------
 
 describe("event map uses spec constants", () => {
-  it("tool-result resolves to TOOL_RESULT_METHOD", async () => {
+  it("tool-result resolves to TOOL_RESULT_METHOD", () => {
     expect(resolveEventMethod("tool-result")).toBe(TOOL_RESULT_METHOD);
   });
 
-  it("tool-input resolves to TOOL_INPUT_METHOD", async () => {
+  it("tool-input resolves to TOOL_INPUT_METHOD", () => {
     expect(resolveEventMethod("tool-input")).toBe(TOOL_INPUT_METHOD);
   });
 
-  it("tool-cancelled resolves to TOOL_CANCELLED_METHOD", async () => {
+  it("tool-cancelled resolves to TOOL_CANCELLED_METHOD", () => {
     expect(resolveEventMethod("tool-cancelled")).toBe(TOOL_CANCELLED_METHOD);
   });
 
@@ -255,7 +255,7 @@ describe("event map uses spec constants", () => {
     expect(ctx).toHaveBeenCalledTimes(1);
   });
 
-  it("teardown resolves to RESOURCE_TEARDOWN_METHOD", async () => {
+  it("teardown resolves to RESOURCE_TEARDOWN_METHOD", () => {
     expect(resolveEventMethod("teardown")).toBe(RESOURCE_TEARDOWN_METHOD);
   });
 });
@@ -596,7 +596,7 @@ describe("outbound message shapes", () => {
 // ---------------------------------------------------------------------------
 
 describe("compile-time type assertions", () => {
-  it("McpUiInitializeRequest.params has appInfo, not clientInfo", async () => {
+  it("McpUiInitializeRequest.params has appInfo, not clientInfo", () => {
     // This test exists as a compile-time guard. If someone changes the
     // import or field name, TypeScript will error before tests even run.
     const params: McpUiInitializeRequest["params"] = {
@@ -607,7 +607,7 @@ describe("compile-time type assertions", () => {
     expect(params.appInfo.name).toBe("test");
   });
 
-  it("McpUiInitializeResult has hostInfo, not serverInfo", async () => {
+  it("McpUiInitializeResult has hostInfo, not serverInfo", () => {
     const result: McpUiInitializeResult = {
       protocolVersion: LATEST_PROTOCOL_VERSION,
       hostInfo: { name: "host", version: "1.0" },
@@ -617,7 +617,7 @@ describe("compile-time type assertions", () => {
     expect(result.hostInfo.name).toBe("host");
   });
 
-  it("McpUiHostContext.theme is a string, not an object", async () => {
+  it("McpUiHostContext.theme is a string, not an object", () => {
     const ctx: McpUiHostContext = {
       theme: "dark",
       styles: { variables: {} },
@@ -625,7 +625,7 @@ describe("compile-time type assertions", () => {
     expect(ctx.theme).toBe("dark");
   });
 
-  it("McpUiHostContext.styles.variables holds CSS tokens", async () => {
+  it("McpUiHostContext.styles.variables holds CSS tokens", () => {
     const ctx: McpUiHostContext = {
       theme: "light",
       styles: {
@@ -638,7 +638,7 @@ describe("compile-time type assertions", () => {
     expect(ctx.styles?.variables?.["--color-background-primary"]).toBe("#fff");
   });
 
-  it("McpUiMessageRequest.params has role and content array", async () => {
+  it("McpUiMessageRequest.params has role and content array", () => {
     const params: McpUiMessageRequest["params"] = {
       role: "user",
       content: [{ type: "text", text: "hello" }],
@@ -647,19 +647,19 @@ describe("compile-time type assertions", () => {
     expect(params.content[0]).toMatchObject({ type: "text" });
   });
 
-  it("McpUiToolResultNotification.params is a CallToolResult", async () => {
+  it("McpUiToolResultNotification.params is a CallToolResult", () => {
     const params: McpUiToolResultNotification["params"] = {
       content: [{ type: "text", text: '{"data":true}' }],
     };
     expect(Array.isArray(params.content)).toBe(true);
   });
 
-  it("ReadResourceRequest.params has uri", async () => {
+  it("ReadResourceRequest.params has uri", () => {
     const params: ReadResourceRequest["params"] = { uri: "foo://bar" };
     expect(params.uri).toBe("foo://bar");
   });
 
-  it("ReadResourceResult has contents array with text or blob variants", async () => {
+  it("ReadResourceResult has contents array with text or blob variants", () => {
     const result: ReadResourceResult = {
       contents: [
         { uri: "foo://text", mimeType: "text/plain", text: "hi" },
@@ -723,7 +723,7 @@ describe("tasks capability advertisement", () => {
 // ---------------------------------------------------------------------------
 
 describe("parseToolResult preserves _meta", () => {
-  it("preserves _meta['io.modelcontextprotocol/related-task'] on parsed result", async () => {
+  it("preserves _meta['io.modelcontextprotocol/related-task'] on parsed result", () => {
     const taskId = "tsk_01abc123";
     const raw = {
       content: [{ type: "text", text: '{"ok":true}' }],
@@ -740,7 +740,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId });
   });
 
-  it("preserves arbitrary _meta keys (key-preserving passthrough, not selective copy)", async () => {
+  it("preserves arbitrary _meta keys (key-preserving passthrough, not selective copy)", () => {
     const raw = {
       content: [{ type: "text", text: '"hello"' }],
       _meta: {
@@ -759,7 +759,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.progressToken).toBe("prog-42");
   });
 
-  it("does not add a _meta field when the source has no _meta (backward compat)", async () => {
+  it("does not add a _meta field when the source has no _meta (backward compat)", () => {
     const raw = {
       content: [{ type: "text", text: '{"id":"tsk_legacy"}' }],
     };
@@ -772,7 +772,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(Object.hasOwn(result, "_meta")).toBe(false);
   });
 
-  it("preserves _meta on error results (isError: true)", async () => {
+  it("preserves _meta on error results (isError: true)", () => {
     const raw = {
       isError: true,
       content: [{ type: "text", text: "boom" }],
@@ -788,7 +788,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_failed" });
   });
 
-  it("preserves _meta when content array is empty", async () => {
+  it("preserves _meta when content array is empty", () => {
     const raw = {
       content: [] as unknown[],
       _meta: {
@@ -802,7 +802,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_empty" });
   });
 
-  it("preserves _meta when no text blocks are present", async () => {
+  it("preserves _meta when no text blocks are present", () => {
     const raw = {
       content: [{ type: "image", data: "AAAA", mimeType: "image/png" }],
       _meta: {
@@ -815,7 +815,7 @@ describe("parseToolResult preserves _meta", () => {
     expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_image" });
   });
 
-  it("ignores malformed _meta (non-object) without throwing", async () => {
+  it("ignores malformed _meta (non-object) without throwing", () => {
     // Defensive: a bridge that forwards a stringly-typed meta should not
     // crash the parser. Spec-compliant meta is always an object.
     const raw = {
@@ -829,7 +829,7 @@ describe("parseToolResult preserves _meta", () => {
 });
 
 describe("RELATED_TASK_META_KEY constant matches spec", () => {
-  it("is io.modelcontextprotocol/related-task", async () => {
+  it("is io.modelcontextprotocol/related-task", () => {
     expect(RELATED_TASK_META_KEY).toBe("io.modelcontextprotocol/related-task");
   });
 });
@@ -892,7 +892,7 @@ describe("task-augmented tools/call wire shape", () => {
     return { app: ready, cleanup: () => ready.destroy() };
   }
 
-  async function respondTo(method: string, result: unknown): void {
+  async function respondTo(method: string, result: unknown): Promise<void> {
     const call = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === method,
     );

@@ -22,9 +22,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   - **`ui/message` and `ui/update-model-context` travel as requests**, which is what the spec defines them as. They were notifications. `ui/resource-teardown` is a request too, and is now answered rather than only observed.
   - **Request ids are numbers**, counted from zero, because that is how the MCP SDK numbers them. The spec allows a string or a number; a host that accepts only strings drops these.
   - **Every request this SDK sends carries no deadline.** The MCP SDK's default is 60 seconds, which is wrong for a picker waiting on a person, a blocking `tasks/result`, or a slow tool, so each request passes the longest timer a browser accepts instead.
+  - **`callTool()` validates the result against the spec's `CallToolResult`**, and rejects instead of resolving when it does not match — most visibly, a content block whose `type` is not one the spec defines. `_meta` survives, on the result and on each block, and a result carrying only `structuredContent` is valid.
   - **`destroy()` rejects whatever is in flight** with the client's own `Connection closed`, where it used to say `Transport destroyed`.
 
-  **Migration:** a host must answer the handshake exactly as the spec defines it, accept a numeric request id, and answer `ui/message` and `ui/open-link`. For NimbleBrain that means a release after v0.26.0.
+  **Migration:** a host must answer the handshake exactly as the spec defines it — including sending no `styles.variables` key outside the spec's list, since one such key leaves the app blank — accept a numeric request id, and answer `ui/message` and `ui/open-link`. For NimbleBrain that means a release after v0.26.0.
 
 - **The file picker's result is an object: `synapse/request-file` answers `{ files }`.** `pickFile` resolves the first entry or `null`, and `pickFiles` resolves the array, as before — but the host now answers `{ files: [...] }`, with `{ files: [] }` for a cancel, rather than a bare object, a bare array, or `null`.
 
@@ -63,6 +64,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   **Migration:** the arguments are unchanged. Handle the promise, with `await` or a `.catch`, because it rejects on a host that did not advertise `downloadFile`. A NimbleBrain host needs v0.25.0 or later, the first to answer `ui/download-file`. Check `isError` if the app should tell the user a file was not saved.
 
 ### Fixed
+
+- **The Vite dev preview answers the resource methods its handshake announces.** It declares `serverResources`, whose spec meaning is that the host proxies resource reads to the MCP server, but `resources/read` and `resources/list` reached the preview page and were logged rather than answered — so an app that took the capability at its word waited on a reply nobody would send, and `readServerResource()` had nothing on the other end in `synapse dev`. Both now proxy to the server over `POST /__mcp`, alongside the tool call that already did.
+
+  The set of proxied methods is one allowlist, read by the page and enforced again at `/__mcp`, so a method the host never announced cannot reach the server through it. Declaring a capability and backing it are now the same edit.
 
 - **Neither client reports its size before the handshake.** `connect()` sent `ui/notifications/size-changed` ahead of `ui/initialize`, and the cross-host client sent one ahead of `ui/notifications/initialized`. A host may drop anything that arrives before the handshake opens, and a strict one does — leaving the frame hidden, which presents as a component that never rendered rather than as a protocol error. `ui/initialize` is now the first frame either client sends, and the spec's own client does the same.
 

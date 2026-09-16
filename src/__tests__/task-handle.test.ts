@@ -126,7 +126,7 @@ async function respondToRequest(method: string, result: unknown): Promise<void> 
   await flush();
 }
 
-async function completeHandshake(initResult = makeInitResult()): void {
+async function completeHandshake(initResult = makeInitResult()): Promise<void> {
   await respondToRequest("ui/initialize", initResult);
 }
 

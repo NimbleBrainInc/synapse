@@ -28,7 +28,9 @@ Everything defined by ext-apps is available in every conforming host:
 - `useDataSync`, on a host that forwards your server's
   `notifications/resources/list_changed` to its views (capability
   `serverResources.listChanged`) — it depends on your server announcing its
-  writes, not on the host;
+  writes, not on the host. The SDK does not read that capability, so unlike
+  `downloadFile` there is nothing to check in advance: on a host that does not
+  forward, the hook simply stays quiet;
 - teardown notification when the host removes the view.
 
 If your app only uses these, it behaves identically across hosts. This is the

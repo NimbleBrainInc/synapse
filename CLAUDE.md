@@ -18,9 +18,15 @@ both as separate jobs. Run it by hand whenever you touch a transport, a
 handshake, an adapter, or the preview host — see `conformance/README.md` for
 what it covers and how to add a row.
 
-**Re-vendor the Python client asset after any change under `src/host/`.** The
-build writes `dist/synapse-ui.iife.global.js`; the copy the Python package ships
-is a committed file that nothing updates for you:
+**Re-vendor the Python client asset whenever the build output moves.** The
+trigger is not "a change under `src/host/`": the bundle reaches outside it —
+`src/host/adapters/mcpapps.ts` imports `foldFontFaces` from `src/detection.ts` —
+and esbuild assigns minified names across the whole output, so deleting an
+unrelated export from a module it touches re-mangles the bundle at an unchanged
+size. Diff it rather than reasoning about which files matter, and never take a
+byte count as evidence the bundle is unchanged. The build writes
+`dist/synapse-ui.iife.global.js`; the copy the Python package ships is a
+committed file that nothing updates for you:
 
 ```bash
 npm run build && cp dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js

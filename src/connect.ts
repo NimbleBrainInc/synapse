@@ -4,7 +4,6 @@ import type {
   AppRequest,
   McpUiHostCapabilities,
   McpUiHostContext,
-  McpUiHostContextChangedNotification,
   McpUiInitializeRequest,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
@@ -30,16 +29,12 @@ import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/ty
 
 import { parseToolResultParams } from "./content-parser.js";
 import { extractTheme, foldFontFaces } from "./detection.js";
-import { resolveEventMethod } from "./event-map.js";
+import { resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
-import {
-  createTaskStatusRouter,
-  readHostTasksCapability,
-  TOOLS_CALL_METHOD,
-} from "./task-handle.js";
+import { createTaskStatusRouter, readHostTasksCapability } from "./task-handle.js";
 import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import type {
   App,
@@ -270,8 +265,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // Teardown is a *request* in the spec, not a notification: the host asks, and
   // the view is expected to answer. Subscribers see it as the `teardown` event;
   // answering it is this SDK's job, not theirs.
-  client.onteardown = () => {
-    if (!destroyed) fanOut(RESOURCE_TEARDOWN_METHOD, undefined);
+  client.onteardown = (params) => {
+    if (!destroyed) fanOut(RESOURCE_TEARDOWN_METHOD, params);
     return {};
   };
 

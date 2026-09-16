@@ -106,6 +106,16 @@ describe("preview host HTML", () => {
     expect(html).toContain('fetch("/__mcp"');
   });
 
+  it("proxies every method the handshake announces, not just tools/call", () => {
+    const html = getPreviewHtml("hello");
+    // The page's allowlist is the dev server's, serialized, so the two cannot
+    // drift apart. The dev server's own rows cannot see this half: `/__mcp` can
+    // forward a method correctly while the page never sends it there, leaving a
+    // capability the handshake announces with nothing behind it.
+    expect(html).toContain('var PROXIED = ["tools/call","resources/read","resources/list"]');
+    expect(html).toContain("PROXIED.indexOf(msg.method) !== -1");
+  });
+
   it("includes theme toggle that emits spec-compliant host-context-changed", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("Toggle Theme");
@@ -172,6 +182,9 @@ describe("preview host HTML", () => {
   it("posts the server's notifications from /__events into the app", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain('new EventSource("/__events")');
+    // The capability that says a host forwards a server's notifications to its
+    // views. The page does forward, so the handshake has to say so.
+    expect(html).toContain("serverResources:{listChanged:true}");
     // Forwarded under the method the server sent, not one the page spells.
     expect(html).toContain("method:n.method,params:n.params");
   });

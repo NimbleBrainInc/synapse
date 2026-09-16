@@ -14,6 +14,7 @@ import type {
   TaskStatusNotificationParams,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { TOOLS_CALL_METHOD } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
 import type {
@@ -65,13 +66,13 @@ export function readHostTasksCapability(
 // The MCP SDK publishes task-method strings only inside Zod `z.literal(...)`s,
 // not as top-level `*_METHOD` constants. Derive each from its request's
 // `method` type so an upstream rename surfaces here as a compile error
-// (same pattern as `READ_RESOURCE_METHOD` in core.ts / connect.ts).
+// (same pattern as `READ_RESOURCE_METHOD` in event-map.ts, where the core-MCP
+// method constants live).
 //
 // When adding a new method here, also mirror it in `src/_shims/ext-apps.ts`
 // per the IIFE build instructions in CLAUDE.md — the shim must export the
 // same string constants any source file consumes.
 
-export const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
 export const TASKS_GET_METHOD: GetTaskRequest["method"] = "tasks/get";
 export const TASKS_RESULT_METHOD: GetTaskPayloadRequest["method"] = "tasks/result";
 export const TASKS_CANCEL_METHOD: CancelTaskRequest["method"] = "tasks/cancel";
@@ -210,11 +211,10 @@ export async function callToolAsTask<TOutput = unknown>(
 
   const taskId = initialTask.taskId;
 
-  // Preserve the Set-semantic dedup contract on `onStatus` (matches the
-  // subscribe contract in `connect()`): registering the same callback twice
-  // collapses to one wire subscription, and either returned unsub
-  // releases it. Without this, every `onStatus(cb)` would create a
-  // fresh wrapper that the router treats as distinct.
+  // Preserve the Set-semantic dedup contract on `onStatus`: registering the
+  // same callback twice collapses to one wire subscription, and either
+  // returned unsub releases it. Without this, every `onStatus(cb)` would
+  // create a fresh wrapper that the router treats as distinct.
   const localCallbacks = new Map<(task: Task) => void, () => void>();
 
   const handle: TaskHandle<TOutput> = {

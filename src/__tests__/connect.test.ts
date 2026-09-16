@@ -306,6 +306,22 @@ describe("connect()", () => {
       expect(handler).toHaveBeenCalledTimes(1);
     });
 
+    it("answers a teardown request and hands subscribers its params", async () => {
+      app = await connectAndHandshake();
+      const handler = vi.fn();
+      app.on("teardown", handler);
+
+      // The spec defines teardown as a request: the host asks, and waits for the answer.
+      post({ jsonrpc: "2.0", id: 99, method: "ui/resource-teardown", params: {} });
+      await flush();
+
+      expect(handler).toHaveBeenCalledWith({});
+      const reply = postMessageSpy.mock.calls
+        .map((c: unknown[]) => c[0] as Record<string, unknown>)
+        .find((m) => m.id === 99 && "result" in m);
+      expect(reply?.result).toEqual({});
+    });
+
     it("multiple handlers for same event all fire", async () => {
       app = await connectAndHandshake();
       const h1 = vi.fn();

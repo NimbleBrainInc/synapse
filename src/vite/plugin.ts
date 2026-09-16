@@ -3,7 +3,30 @@ import { existsSync, readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
-import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
+import {
+  LIST_RESOURCES_METHOD,
+  READ_RESOURCE_METHOD,
+  RESOURCE_LIST_CHANGED_METHOD,
+  TOOLS_CALL_METHOD,
+} from "../event-map.js";
+
+/**
+ * The server-bound requests this host proxies, which is exactly what its
+ * handshake announces: `serverTools` for the tool call, `serverResources` for
+ * the two resource methods. An allowlist in both directions — the page sends
+ * nothing else to `/__mcp`, and `/__mcp` forwards nothing else to the server,
+ * so a method the host never announced cannot reach the server through it.
+ *
+ * Adding a method here without adding the matching capability below, or the
+ * reverse, is the bug this list exists to make obvious: a host that answers
+ * what it does not announce is unusable, and one that announces what it does
+ * not answer leaves the caller waiting on a reply nobody will send.
+ */
+const PROXIED_SERVER_METHODS: readonly string[] = [
+  TOOLS_CALL_METHOD,
+  READ_RESOURCE_METHOD,
+  LIST_RESOURCES_METHOD,
+];
 
 export interface SynapseVitePluginOptions {
   /** App name. If omitted, reads from ../manifest.json */
@@ -39,7 +62,9 @@ interface Manifest {
  * - Reads ../manifest.json to get app name and server config
  * - Spawns the MCP server as a child process (stdio mode)
  * - Serves a preview host page at /__preview that iframes your app
- * - Proxies tool calls from the iframe through POST /__mcp to the server
+ * - Proxies the iframe's tool calls and resource reads through POST /__mcp to
+ *   the server, the pair its handshake announces as `serverTools` and
+ *   `serverResources`
  * - Forwards the server's `notifications/resources/list_changed` to the iframe
  *   (over GET /__events), as an MCP Apps host does, so `useDataSync` fires
  * - Handles the ext-apps handshake so Synapse hooks work
@@ -163,20 +188,15 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
     serverProcess.stdin.write(`${JSON.stringify(msg)}\n`);
   }
 
-  function callServerTool(name: string, args: Record<string, unknown>): Promise<unknown> {
+  function callServer(method: string, params: Record<string, unknown>): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = `preview-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       pendingRequests.set(id, { resolve, reject });
-      sendToServer({
-        jsonrpc: "2.0",
-        id,
-        method: "tools/call",
-        params: { name, arguments: args },
-      });
+      sendToServer({ jsonrpc: "2.0", id, method, params });
       setTimeout(() => {
         if (pendingRequests.has(id)) {
           pendingRequests.delete(id);
-          reject(new Error("Tool call timed out (10s)"));
+          reject(new Error(`${method} timed out (10s)`));
         }
       }, 10000);
     });
@@ -244,7 +264,7 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
           return;
         }
 
-        // POST /__mcp — tool call proxy
+        // POST /__mcp — the server-bound request proxy
         if (req.method === "POST" && req.url === "/__mcp") {
           let body = "";
           req.on("data", (chunk: Buffer) => {
@@ -253,7 +273,10 @@ export function synapseVite(options: SynapseVitePluginOptions = {}): Plugin {
           req.on("end", async () => {
             try {
               const msg = JSON.parse(body);
-              const result = await callServerTool(msg.params.name, msg.params.arguments || {});
+              if (!PROXIED_SERVER_METHODS.includes(msg.method)) {
+                throw new Error(`${msg.method} is not a method this host proxies`);
+              }
+              const result = await callServer(msg.method, msg.params ?? {});
               res.writeHead(200, { "Content-Type": "application/json" });
               res.end(JSON.stringify(result));
             } catch (err) {
@@ -323,6 +346,7 @@ export function vitePreviewHostHtml(appName: string): string {
   <script>
     var iframe = document.getElementById("app");
     var dark = true;
+    var PROXIED = ${JSON.stringify(PROXIED_SERVER_METHODS)};
 
     // Every key here is one the spec's style-variable enum names. That enum is
     // a strict record, so a single extra key makes a spec client reject the
@@ -366,20 +390,22 @@ export function vitePreviewHostHtml(appName: string): string {
         post({ jsonrpc:"2.0", id:msg.id, result: {
           protocolVersion:"2026-01-26",
           hostInfo:{name:"nimblebrain",version:"preview"},
-          hostCapabilities:{openLinks:{},serverTools:{}},
+          hostCapabilities:{openLinks:{},serverTools:{},serverResources:{listChanged:true}},
           hostContext:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}
         }});
         return;
       }
       if (msg.method === "ui/notifications/initialized") return;
 
-      // Tool calls — proxy via Vite middleware
-      if (msg.method === "tools/call" && isRequest(msg)) {
+      // Server-bound requests — proxied via the Vite middleware. The set is
+      // exactly what \`serverTools\` and \`serverResources\` above announce, so
+      // neither is declared without something on the other end.
+      if (PROXIED.indexOf(msg.method) !== -1 && isRequest(msg)) {
         var originalId = msg.id;
         try {
           var r = await fetch("/__mcp", {
             method:"POST", headers:{"Content-Type":"application/json"},
-            body: JSON.stringify({jsonrpc:"2.0",id:msg.id,method:"tools/call",params:{name:msg.params.name,arguments:msg.params.arguments||{}}})
+            body: JSON.stringify({jsonrpc:"2.0",id:msg.id,method:msg.method,params:msg.params||{}})
           });
           var response = await r.json();
           response.id = originalId;

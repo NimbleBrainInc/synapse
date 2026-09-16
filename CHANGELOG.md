@@ -40,6 +40,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- **The Vite dev preview answers the resource methods its handshake announces.** It declares `serverResources`, whose spec meaning is that the host proxies resource reads to the MCP server, but `resources/read` and `resources/list` reached the preview page and were logged rather than answered — so an app that took the capability at its word waited on a reply nobody would send, and `readServerResource()` had nothing on the other end in `synapse dev`. Both now proxy to the server over `POST /__mcp`, alongside the tool call that already did.
+
+  The set of proxied methods is one allowlist, read by the page and enforced again at `/__mcp`, so a method the host never announced cannot reach the server through it. Declaring a capability and backing it are now the same edit.
+
 - **Neither client reports its size before the handshake.** `connect()` sent `ui/notifications/size-changed` ahead of `ui/initialize`, and the cross-host client sent one ahead of `ui/notifications/initialized`. A host may drop anything that arrives before the handshake opens, and a strict one does — leaving the frame hidden, which presents as a component that never rendered rather than as a protocol error. `ui/initialize` is now the first frame either client sends, and the spec's own client does the same.
 
   The cross-host client still emits its *legacy* size frame immediately, because a pre-standard host never answers the handshake at all and needs a size now. Exactly one dialect is ever in flight: legacy before the handshake, spec after.

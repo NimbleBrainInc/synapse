@@ -26,7 +26,7 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { resolveEventMethod } from "./event-map.js";
+import { READ_RESOURCE_METHOD, resolveEventMethod } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -52,7 +52,6 @@ import type {
 // METHOD constants for ext-apps specific ui/* methods. Typing the literal
 // with the spec's request `method` field still produces a compile error if
 // upstream renames it.
-const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/read";
 const UPDATE_MODEL_CONTEXT_METHOD: McpUiUpdateModelContextRequest["method"] =
   "ui/update-model-context";
 

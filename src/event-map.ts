@@ -6,16 +6,34 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { ResourceListChangedNotification } from "@modelcontextprotocol/sdk/types.js";
+import type {
+  CallToolRequest,
+  ListResourcesRequest,
+  ReadResourceRequest,
+  ResourceListChangedNotification,
+} from "@modelcontextprotocol/sdk/types.js";
 
 /**
- * A server's own `notifications/resources/list_changed`, which an MCP Apps host
- * forwards to that server's views (host capability `serverResources.listChanged`).
- * A core MCP method, so ext-apps exports no constant for it; typing the literal
- * with the SDK's notification `method` still breaks the build if it is renamed.
+ * A server's own `tools/call`. Core MCP, so the same reasoning as the resource
+ * methods below: no constant to import, and typing the literal with the SDK's
+ * own `method` field still breaks the build if it is renamed.
+ */
+export const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
+
+/**
+ * A server's own resource methods. Core MCP rather than ext-apps, so there are
+ * no constants to import; typing each literal with the SDK's own `method` field
+ * still breaks the build if one is renamed.
+ *
+ * `serverResources` in a host's `hostCapabilities` is the promise to carry all
+ * three: the object itself says the host proxies resource reads, and its
+ * `listChanged` says the host forwards the notification to that server's views.
+ * A host announcing it owes an answer to every method here.
  */
 export const RESOURCE_LIST_CHANGED_METHOD: ResourceListChangedNotification["method"] =
   "notifications/resources/list_changed";
+export const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/read";
+export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/list";
 
 /**
  * NimbleBrain extension methods. No spec equivalent, so no constant to import

@@ -2,7 +2,7 @@ import { EventEmitter } from "node:events";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, type Mock, vi } from "vitest";
 
 /**
  * The dev server's half of forwarding a server notification: a line the MCP
@@ -57,7 +57,8 @@ function startPreview() {
   const res = { setHeader: vi.fn(), writeHead: vi.fn(), write: vi.fn() };
   (handler as (...a: unknown[]) => void)(req, res, vi.fn());
 
-  const stdout = (fakeServer.current as { stdout: EventEmitter }).stdout;
+  const proc = fakeServer.current as { stdout: EventEmitter; stdin: { write: Mock } };
+  const stdout = proc.stdout;
   const serverSays = (msg: unknown) => stdout.emit("data", Buffer.from(`${JSON.stringify(msg)}\n`));
   const frames = () =>
     res.write.mock.calls
@@ -65,7 +66,44 @@ function startPreview() {
       .filter((s) => s.startsWith("data: "))
       .map((s) => JSON.parse(s.slice("data: ".length)));
 
-  return { req, res, serverSays, frames };
+  /**
+   * Drive `POST /__mcp` the way the preview page does: fire the request, let
+   * the dev server write to the MCP server's stdin, then answer as the server
+   * would so the proxy's pending promise resolves. Returns what the dev server
+   * forwarded and what it handed back to the page.
+   */
+  async function postToMcp(body: unknown) {
+    let payload: unknown;
+    const mcpReq = {
+      url: "/__mcp",
+      method: "POST",
+      on: (event: string, cb: (chunk?: Buffer) => void) => {
+        if (event === "data") cb(Buffer.from(JSON.stringify(body)));
+        if (event === "end") cb();
+      },
+    };
+    const mcpRes = {
+      setHeader: vi.fn(),
+      writeHead: vi.fn(),
+      end: (p?: string) => {
+        payload = p ? JSON.parse(p) : undefined;
+      },
+    };
+    (handler as (...a: unknown[]) => void)(mcpReq, mcpRes, vi.fn());
+    await Promise.resolve();
+
+    const forwarded = proc.stdin.write.mock.calls
+      .map((c) => JSON.parse(c[0] as string))
+      .filter((m) => m.method !== "initialize");
+
+    // Answer as the server, so the proxy resolves rather than timing out.
+    for (const sent of forwarded) serverSays({ jsonrpc: "2.0", id: sent.id, result: { ok: true } });
+    await Promise.resolve();
+
+    return { forwarded, sent: forwarded[0], payload };
+  }
+
+  return { req, res, serverSays, frames, postToMcp, proc };
 }
 
 describe("GET /__events", () => {
@@ -96,5 +134,45 @@ describe("GET /__events", () => {
     res.write.mockClear();
     serverSays({ jsonrpc: "2.0", method: "notifications/resources/list_changed" });
     expect(res.write).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /__mcp", () => {
+  /**
+   * The handshake announces `serverResources`, whose spec meaning is that the
+   * host proxies resource reads. These are the answer behind that claim — a
+   * host that announces a capability and then never replies leaves the app
+   * waiting on its own request until the timeout.
+   */
+  it.each(["resources/read", "resources/list"])("proxies %s to the server", async (method) => {
+    const { postToMcp } = startPreview();
+    const { sent } = await postToMcp({ jsonrpc: "2.0", id: "1", method, params: { uri: "x://y" } });
+    expect(sent).toMatchObject({ method, params: { uri: "x://y" } });
+  });
+
+  it("proxies tools/call with the call's own params", async () => {
+    const { postToMcp } = startPreview();
+    const { sent } = await postToMcp({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "tools/call",
+      params: { name: "save", arguments: { a: 1 } },
+    });
+    expect(sent).toMatchObject({
+      method: "tools/call",
+      params: { name: "save", arguments: { a: 1 } },
+    });
+  });
+
+  it("forwards nothing the handshake does not announce", async () => {
+    const { postToMcp } = startPreview();
+    const { forwarded, payload } = await postToMcp({
+      jsonrpc: "2.0",
+      id: "1",
+      method: "resources/subscribe",
+      params: {},
+    });
+    expect(forwarded).toEqual([]);
+    expect(payload).toMatchObject({ error: { code: -32000 } });
   });
 });

@@ -7,10 +7,18 @@ import {
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
 import type {
+  CallToolRequest,
   ListResourcesRequest,
   ReadResourceRequest,
   ResourceListChangedNotification,
 } from "@modelcontextprotocol/sdk/types.js";
+
+/**
+ * A server's own `tools/call`. Core MCP, so the same reasoning as the resource
+ * methods below: no constant to import, and typing the literal with the SDK's
+ * own `method` field still breaks the build if it is renamed.
+ */
+export const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
 
 /**
  * A server's own resource methods. Core MCP rather than ext-apps, so there are

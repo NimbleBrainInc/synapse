@@ -2,15 +2,13 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import type { ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
-import type { CallToolRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { Plugin, ViteDevServer } from "vite";
 import {
   LIST_RESOURCES_METHOD,
   READ_RESOURCE_METHOD,
   RESOURCE_LIST_CHANGED_METHOD,
+  TOOLS_CALL_METHOD,
 } from "../event-map.js";
-
-const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
 
 /**
  * The server-bound requests this host proxies, which is exactly what its
@@ -399,9 +397,9 @@ export function vitePreviewHostHtml(appName: string): string {
       }
       if (msg.method === "ui/notifications/initialized") return;
 
-      // Server-bound requests — proxied via the Vite middleware. The set is the
-      // one the handshake above announces, so every capability it declares has
-      // something on the other end.
+      // Server-bound requests — proxied via the Vite middleware. The set is
+      // exactly what \`serverTools\` and \`serverResources\` above announce, so
+      // neither is declared without something on the other end.
       if (PROXIED.indexOf(msg.method) !== -1 && isRequest(msg)) {
         var originalId = msg.id;
         try {

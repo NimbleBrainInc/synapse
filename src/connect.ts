@@ -26,16 +26,12 @@ import type {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { detectHost, extractTheme, foldFontFaces } from "./detection.js";
-import { READ_RESOURCE_METHOD, resolveEventMethod } from "./event-map.js";
+import { READ_RESOURCE_METHOD, resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
-import {
-  createTaskStatusRouter,
-  readHostTasksCapability,
-  TOOLS_CALL_METHOD,
-} from "./task-handle.js";
+import { createTaskStatusRouter, readHostTasksCapability } from "./task-handle.js";
 import { applyTheme, fontFacesKey } from "./theme-defaults.js";
 import { SynapseTransport } from "./transport.js";
 import type {

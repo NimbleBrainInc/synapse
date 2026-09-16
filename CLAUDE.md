@@ -123,6 +123,8 @@ Releases are public and provenance-attested — published artifacts carry a sign
 
 5. **Test helpers must use spec field names.** `hostInfo` not `serverInfo`. `hostCapabilities` not `capabilities`. `hostContext.theme` is a string (`"dark"`), not an object. Tokens are at `hostContext.styles.variables`, not `hostContext.theme.tokens`.
 
+6. **No AI attribution.** Commit messages, PR titles and PR bodies carry no AI attribution — no AI co-author or session trailers, no "generated with" footers. The `No AI attribution` check (`.github/workflows/no-ai-attribution.yml`) enforces it on every PR, reading the commits as well as the title and body because a squash merge builds its message from them.
+
 ## Where spec types are used
 
 | File | Types |

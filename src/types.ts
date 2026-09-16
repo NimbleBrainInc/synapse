@@ -231,30 +231,6 @@ export interface KeyForwardConfig {
   alt?: boolean;
 }
 
-// ---------- Transport (internal) ----------
-
-export interface JsonRpcRequest {
-  jsonrpc: "2.0";
-  method: string;
-  params?: Record<string, unknown>;
-  id?: string;
-}
-
-export interface JsonRpcResponse {
-  jsonrpc: "2.0";
-  id: string;
-  result?: unknown;
-  error?: { code: number; message: string; data?: unknown };
-}
-
-export interface JsonRpcNotification {
-  jsonrpc: "2.0";
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-export type JsonRpcMessage = JsonRpcRequest | JsonRpcResponse | JsonRpcNotification;
-
 // ---------- Codegen ----------
 
 export interface ToolDefinition {
@@ -262,14 +238,6 @@ export interface ToolDefinition {
   description?: string;
   inputSchema: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
-}
-
-// ---------- Host Detection ----------
-
-export interface HostInfo {
-  isNimbleBrain: boolean;
-  serverName: string;
-  protocolVersion: string;
 }
 
 // ---------- Connect API ----------

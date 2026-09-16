@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The ESM and CJS builds no longer carry a private copy of `@modelcontextprotocol/sdk` and `zod`.** `connect()` imports two runtime schemas from `@modelcontextprotocol/sdk/types.js`, and the SDK was not external, so the build inlined the SDK's types module and zod v4 into this package's own chunk. An app bundling this package then shipped two copies of each: this package's, and the one `@modelcontextprotocol/ext-apps` imports. The SDK is now external and a peer dependency, at the range `@modelcontextprotocol/ext-apps` already requires, so an app that installs that peer has it. A single-file app built with Vite is about 114 KB smaller raw, 32 KB gzipped. The IIFE builds are self-contained by design and unchanged.
+
 ## [0.19.0] - 2026-09-16
 
 ### Breaking

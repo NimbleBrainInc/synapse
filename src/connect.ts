@@ -4,7 +4,6 @@ import type {
   AppRequest,
   McpUiHostCapabilities,
   McpUiHostContext,
-  McpUiHostContextChangedNotification,
   McpUiInitializeRequest,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
@@ -270,8 +269,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // Teardown is a *request* in the spec, not a notification: the host asks, and
   // the view is expected to answer. Subscribers see it as the `teardown` event;
   // answering it is this SDK's job, not theirs.
-  client.onteardown = () => {
-    if (!destroyed) fanOut(RESOURCE_TEARDOWN_METHOD, undefined);
+  client.onteardown = (params) => {
+    if (!destroyed) fanOut(RESOURCE_TEARDOWN_METHOD, params);
     return {};
   };
 

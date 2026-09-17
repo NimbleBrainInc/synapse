@@ -1,11 +1,16 @@
 import { selectAdapter } from "./detect.js";
 import { applyHostTheme } from "./theme.js";
-import type { ConnectUIOptions, SynapseUIClient } from "./types.js";
+import {
+  type ConnectUIOptions,
+  isToolError,
+  type SynapseUIClient,
+  ToolCallError,
+} from "./types.js";
 
 /**
- * Connect a Synapse-authored component to whatever host it renders in — ChatGPT
- * (OpenAI Apps SDK), Claude (MCP Apps standard), or a plain/standalone page — behind one
- * push-first API. Feature-detects the host, selects an adapter, and applies the
+ * Connect a Synapse-authored component to whatever host it renders in — any MCP
+ * Apps host, or a plain/standalone page — behind one push-first API. Detects
+ * whether it is framed, selects an adapter, and applies the
  * host theme to the DOM before returning.
  *
  * Synchronous: `data()` is populated from baked-in data (where present) on
@@ -35,7 +40,13 @@ export function connectUI(options: ConnectUIOptions = {}): SynapseUIClient {
     onData: <T>(cb: (data: T) => void) => adapter.onData<T>(cb),
     theme: () => adapter.getTheme(),
     onTheme: (cb) => adapter.onTheme(cb),
-    callTool: <O>(name: string, args?: Record<string, unknown>) => adapter.callTool<O>(name, args),
+    // Decided here rather than per adapter: every host reports a failed or
+    // refused call inside the result, because that is how MCP defines one.
+    async callTool<O>(name: string, args?: Record<string, unknown>): Promise<O> {
+      const result = await adapter.callTool<O>(name, args);
+      if (isToolError(result)) throw new ToolCallError(name, result);
+      return result;
+    },
     sendPrompt: (text: string) => adapter.sendPrompt(text),
     openLink: (url: string) => adapter.openLink(url),
     resize: (height?: number) => adapter.resize(height),

@@ -6,8 +6,8 @@ import type { SynapseUIClient } from "../host/types.js";
  * Simulated-host harness. Renders a small, data-driven report — the same shape a
  * real Synapse component (Bassethound's dossier) uses: read `synapse.data()`,
  * subscribe to `onData`/`onTheme`, wire a link and a follow-up — then drives it
- * under a fake ChatGPT bridge and a fake mcp-ui bridge, in light and dark. This
- * is the cross-host proof: identical component code, both bridges, no host leak.
+ * under a fake MCP Apps host, in light and dark. Every host that frames a
+ * component speaks that one bridge, so this is the cross-host proof.
  */
 
 interface Report {
@@ -73,78 +73,31 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  (window as unknown as { openai?: unknown }).openai = undefined;
   consoleErrorSpy.mockRestore();
   document.body.innerHTML = "";
 });
 
 // ---------------------------------------------------------------------------
 
-describe("harness — ChatGPT bridge", () => {
-  interface FakeOpenAi {
-    toolOutput?: unknown;
-    theme?: string;
-    sendFollowUpMessage: ReturnType<typeof vi.fn>;
-    openExternal: ReturnType<typeof vi.fn>;
-  }
-
-  function installOpenAi(toolOutput: unknown, theme: "light" | "dark"): FakeOpenAi {
-    const openai: FakeOpenAi = {
-      toolOutput,
-      theme,
-      sendFollowUpMessage: vi.fn(),
-      openExternal: vi.fn(),
-    };
-    (window as unknown as { openai: FakeOpenAi }).openai = openai;
-    return openai;
-  }
-
-  for (const mode of ["light", "dark"] as const) {
-    it(`renders the report and themes correctly (${mode})`, () => {
-      installOpenAi({ domain: "stripe.com", company: { name: "Stripe" } }, mode);
-      const synapse = connectUI();
-      mountReport(synapse);
-
-      expect(document.querySelector(".domain")?.textContent).toBe("stripe.com");
-      expect(document.querySelector(".company")?.textContent).toBe("Stripe");
-      expect(document.documentElement.getAttribute("data-theme")).toBe(mode);
-      expect(consoleErrorSpy).not.toHaveBeenCalled();
-      synapse.destroy();
-    });
-  }
-
-  it("re-renders on a pushed data update and follow-up reaches the host", () => {
-    const openai = installOpenAi({ domain: "a.com" }, "light");
-    const synapse = connectUI();
-    mountReport(synapse);
-    expect(document.querySelector(".domain")?.textContent).toBe("a.com");
-
-    window.dispatchEvent(
-      new CustomEvent("openai:set_globals", {
-        detail: { globals: { toolOutput: { domain: "b.com" } } },
-      }),
-    );
-    expect(document.querySelector(".domain")?.textContent).toBe("b.com");
-
-    (document.querySelector(".dig") as HTMLButtonElement).click();
-    expect(openai.sendFollowUpMessage).toHaveBeenCalledWith({ prompt: "Dig deeper on b.com" });
-
-    (document.querySelector(".site") as HTMLAnchorElement).click();
-    expect(openai.openExternal).toHaveBeenCalledWith({ href: "https://b.com" });
-    expect(consoleErrorSpy).not.toHaveBeenCalled();
-    synapse.destroy();
-  });
-});
-
-// ---------------------------------------------------------------------------
-
-describe("harness — mcp-ui bridge", () => {
+describe("harness — MCP Apps bridge", () => {
   let postMessageSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     postMessageSpy = vi.fn();
     window.parent.postMessage = postMessageSpy as typeof window.parent.postMessage;
   });
+
+  function outbound(method: string): Array<Record<string, unknown>> {
+    return postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .filter((m) => m && m.method === method);
+  }
+
+  function fromHost(data: Record<string, unknown>): void {
+    window.dispatchEvent(
+      new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", ...data } }),
+    );
+  }
 
   function bake(data: unknown): void {
     const app = document.getElementById("app");
@@ -155,56 +108,53 @@ describe("harness — mcp-ui bridge", () => {
     app?.parentElement?.insertBefore(script, app);
   }
 
-  function messagesOfType(type: string): Array<Record<string, unknown>> {
-    return postMessageSpy.mock.calls
-      .map((c) => c[0] as Record<string, unknown>)
-      .filter((m) => m && m.type === type);
-  }
+  const flush = () => new Promise((r) => setTimeout(r, 0));
 
   for (const mode of ["light", "dark"] as const) {
-    it(`renders the report from baked-in data and themes on render-data (${mode})`, () => {
-      bake({ domain: "claude.ai", company: { name: "Anthropic" } });
-      const synapse = connectUI({ host: "claude", autoResize: false });
+    it(`renders pushed data and themes from the handshake (${mode})`, async () => {
+      const synapse = connectUI({ host: "mcp-apps", autoResize: false });
       mountReport(synapse);
+      expect(document.querySelector(".empty")).not.toBeNull();
 
-      // Baked-in data renders immediately.
-      expect(document.querySelector(".domain")?.textContent).toBe("claude.ai");
-      expect(document.querySelector(".company")?.textContent).toBe("Anthropic");
-
-      // Host pushes a theme via render-data.
-      window.dispatchEvent(
-        new MessageEvent("message", {
-          source: window.parent,
-          data: { type: "ui-lifecycle-iframe-render-data", payload: { theme: mode } },
-        }),
-      );
+      fromHost({ id: outbound("ui/initialize")[0].id, result: { hostContext: { theme: mode } } });
+      await flush();
       expect(document.documentElement.getAttribute("data-theme")).toBe(mode);
+      expect(outbound("ui/notifications/initialized").length).toBe(1);
 
+      fromHost({
+        method: "ui/notifications/tool-result",
+        params: { structuredContent: { domain: "stripe.com", company: { name: "Stripe" } } },
+      });
+      expect(document.querySelector(".domain")?.textContent).toBe("stripe.com");
+      expect(document.querySelector(".company")?.textContent).toBe("Stripe");
       // A size report reached the host after render.
-      expect(messagesOfType("ui-size-change").length).toBeGreaterThan(0);
-      // Ready handshake was sent.
-      expect(messagesOfType("ui-lifecycle-iframe-ready").length).toBe(1);
+      expect(outbound("ui/notifications/size-changed").length).toBeGreaterThan(0);
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       synapse.destroy();
     });
   }
 
-  it("routes link + follow-up through mcp-ui postMessage", () => {
+  it("renders baked-in data before the handshake", () => {
+    bake({ domain: "baked.com" });
+    const synapse = connectUI({ host: "mcp-apps", autoResize: false });
+    mountReport(synapse);
+    expect(document.querySelector(".domain")?.textContent).toBe("baked.com");
+    synapse.destroy();
+  });
+
+  it("routes link + follow-up through ui/open-link and ui/message", () => {
     bake({ domain: "x.com" });
-    const synapse = connectUI({ host: "claude", autoResize: false });
+    const synapse = connectUI({ host: "mcp-apps", autoResize: false });
     mountReport(synapse);
 
     (document.querySelector(".site") as HTMLAnchorElement).click();
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      { type: "link", payload: { url: "https://x.com" } },
-      "*",
-    );
+    expect(outbound("ui/open-link").at(-1)?.params).toEqual({ url: "https://x.com" });
 
     (document.querySelector(".dig") as HTMLButtonElement).click();
-    expect(postMessageSpy).toHaveBeenCalledWith(
-      { type: "prompt", payload: { prompt: "Dig deeper on x.com" } },
-      "*",
-    );
+    expect(outbound("ui/message").at(-1)?.params).toEqual({
+      role: "user",
+      content: [{ type: "text", text: "Dig deeper on x.com" }],
+    });
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     synapse.destroy();
   });

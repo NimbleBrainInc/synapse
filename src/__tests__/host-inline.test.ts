@@ -8,7 +8,6 @@ describe("connectUI — inline / standalone adapter", () => {
   beforeEach(() => {
     document.documentElement.removeAttribute("data-theme");
     document.body.innerHTML = "";
-    (window as unknown as { openai?: unknown }).openai = undefined;
   });
 
   afterEach(() => {

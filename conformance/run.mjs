@@ -50,11 +50,14 @@ ${scripts.map((s) => `    <script type="module" src="${s}"></script>`).join("\n"
 
 // The connectUI page loads the vendored bundle as a classic script first, so
 // `window.SynapseUI` exists before the module runs — exactly the order a
-// self-contained component uses.
+// self-contained component uses. It defines `window.openai` before either,
+// because ChatGPT injects it into every frame it serves, spec-only components
+// included; a client that keys on it picks a bridge nobody answers.
 const connectUiPage = `<!DOCTYPE html>
 <html>
   <head><meta charset="utf-8" /><title>app-connectui</title></head>
   <body style="margin:0">
+    <script>window.openai = { toolOutput: null, theme: "light" };</script>
     <script src="synapse-ui.iife.js"></script>
     <script type="module" src="app-connectui.js"></script>
   </body>
@@ -457,9 +460,17 @@ try {
         app?.themeChanged === "dark" || `themeChanged was ${JSON.stringify(app?.themeChanged)}`,
       extra: [
         [
-          "detects a framed host without an override",
-          "a component ships one build and must place itself",
-          (app) => app?.host === "claude" || `host() returned ${JSON.stringify(app?.host)}`,
+          "detects a framed host without an override, whatever window.openai says",
+          "a component ships one build and must place itself; ChatGPT injects window.openai into every frame, so a client that keys on it never speaks the standard bridge ChatGPT answers",
+          (app) => app?.host === "mcp-apps" || `host() returned ${JSON.stringify(app?.host)}`,
+        ],
+        [
+          "posts nothing but JSON-RPC",
+          "the bridge is JSON-RPC; any other frame is a second dialect a host has to ignore, and one that understands it acts on the same size, link or prompt twice",
+          () => {
+            const foreign = report?.foreign ?? [];
+            return foreign.length === 0 || `foreign frames: ${JSON.stringify(foreign)}`;
+          },
         ],
         [
           "tool-result arrives as data",
@@ -467,6 +478,20 @@ try {
           (app) => app?.data?.answer === 42 || `data was ${JSON.stringify(app?.data)}`,
         ],
         ["callTool resolves", "the pull path", (app) => stepOk(app, "callTool")],
+        [
+          "a refused tools/call rejects",
+          "MCP reports a failed or refused call inside the result, as `isError: true`; a client that resolves it hands the app an error as if it were data, and the app cannot tell a refusal from an empty result",
+          (app) => {
+            const ok = stepOk(app, "callToolRefused");
+            if (ok !== true) return ok;
+            const outcome = app.callToolRefused.value;
+            if (outcome?.name !== "ToolCallError") return `outcome was ${JSON.stringify(outcome)}`;
+            return (
+              outcome.rejected.includes("Tool is not visible to app") ||
+              `rejected with ${JSON.stringify(outcome.rejected)}`
+            );
+          },
+        ],
         ["ui/open-link reaches the host", "the link path", (app) => stepOk(app, "openLink")],
         [
           "ui/message reaches the host",

@@ -1,10 +1,11 @@
 ---
 title: CLI
-description: The synapse CLI for generating TypeScript types (codegen) and previewing an app locally (preview).
+description: The synapse CLI for generating TypeScript types (codegen), previewing an app locally (preview), and checking a server against host requirements (check).
 ---
 
 The `synapse` CLI ships with `@nimblebrain/synapse`. Run it with `npx synapse`.
-It generates TypeScript types from your tool surface and previews an app locally.
+It generates TypeScript types from your tool surface, previews an app locally, and
+checks a running server against what each host requires.
 
 ## `synapse codegen`
 
@@ -39,6 +40,49 @@ theming, and tool calls without deploying to a host.
 ```bash
 npx synapse preview
 ```
+
+## `synapse check`
+
+Connect to a running MCP server over Streamable HTTP and check what a host sees
+of it: the UI resources and their metadata, the MCP Apps extension declaration,
+and the OAuth discovery surface a host signs in through.
+
+```bash
+npx synapse check --target claude,chatgpt https://example.com/mcp
+
+# A server that requires auth: pass a bearer token to run the checks that need a session
+SYNAPSE_CHECK_TOKEN=... npx synapse check --target chatgpt https://example.com/mcp
+```
+
+| Flag | Argument | Description |
+| --- | --- | --- |
+| `--target` | `<list>` | Comma-separated profiles: `nimblebrain`, `claude`, `chatgpt` |
+| `--token` | `<token>` | Bearer token for a server that requires auth. Defaults to `$SYNAPSE_CHECK_TOKEN` |
+| `--json` | | Print the report as JSON |
+
+Every check runs once. Each target's profile decides which checks count for it,
+and whether a failure is an **error** (the command exits non-zero) or a
+**warning** (reported; a requirement the host documents but is not known to
+enforce). A server that cannot be reached, or rejects the given token, exits
+non-zero without a report.
+
+| Check | What it verifies | nimblebrain | claude | chatgpt |
+| --- | --- | --- | --- | --- |
+| `extension-declared` | The server declares `io.modelcontextprotocol/ui` in `capabilities.extensions` | warn | error | error |
+| `ui-resource-mime` | Every `ui://` resource is listed and served as `text/html;profile=mcp-app` | error | error | error |
+| `tool-resource-uri` | Some tool binds a UI through `_meta.ui.resourceUri`, and every binding reads | error | error | error |
+| `tool-ui-meta` | `ui.visibility` is a non-empty subset of `model`/`app`; no `csp` or `permissions` on a tool | error | error | error |
+| `resource-csp` | Every UI resource declares `ui.csp` as lists of origins | — | warn | error |
+| `resource-data-fonts` | No `data:` font in the HTML unless `ui.csp.resourceDomains` includes `data:` | — | error | warn |
+| `auth-challenge` | An unauthenticated request's `401` carries `resource_metadata` in `WWW-Authenticate` | warn | error | error |
+| `auth-resource-metadata` | The protected-resource metadata's `resource` equals the server URL exactly | warn | error | error |
+| `auth-issuer` | The first authorization server's metadata `issuer` equals the advertised string exactly | warn | warn | error |
+| `tool-security-schemes` | Every tool declares `securitySchemes` when the server requires auth | — | — | error |
+
+The auth checks run only when the server answers an unauthenticated request with
+`401`. When it does and no token is given, the checks that need a session are
+skipped rather than failed. The URL is compared exactly, so pass the connector
+URL a host is given, including or omitting a trailing slash as it does.
 
 ## See also
 

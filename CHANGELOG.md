@@ -21,6 +21,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   **Migration:** a component that passed `host: "claude"` or `host: "nimblebrain"` passes `host: "mcp-apps"`, or omits it. Any other value throws a `TypeError` from `connectUI`, rather than rendering standalone inside a frame. One that compared `host()` against a product name uses `capabilities()`. A host that fed a component only through the mcp-ui frames must answer `ui/initialize` and send `ui/notifications/tool-result`.
 
+### Added
+
+- **`synapse check --target <nimblebrain|claude|chatgpt> <server-url>`.** Connects to a running server and checks what a host sees of it: that `ui://` resources are served as `text/html;profile=mcp-app`, that every `ui.resourceUri` reads, that `ui.visibility` and `ui.csp` are well-formed, that the server declares `io.modelcontextprotocol/ui`, that no `data:` font is loaded without being declared, and — when the server answers `401` — that the challenge names `resource_metadata`, the metadata's `resource` equals the server URL exactly, the authorization server's `issuer` equals the advertised string exactly, and every tool declares `securitySchemes`. Each target's profile sets which checks apply and whether a failure is an error or a warning; any error exits non-zero, so the command can gate a server's CI. `--token` (or `SYNAPSE_CHECK_TOKEN`) runs the session checks against a server that requires auth.
+
 ### Fixed
 
 - **The ESM and CJS builds no longer carry a private copy of `@modelcontextprotocol/sdk` and `zod`.** `connect()` imports two runtime schemas from `@modelcontextprotocol/sdk/types.js`, and the SDK was not external, so the build inlined the SDK's types module and zod v4 into this package's own chunk. An app bundling this package then shipped two copies of each: this package's, and the one `@modelcontextprotocol/ext-apps` imports. The SDK is now external and a peer dependency, at the range `@modelcontextprotocol/ext-apps` already requires, so an app that installs that peer has it. A single-file app built with Vite is about 114 KB smaller raw, 32 KB gzipped. The IIFE builds are self-contained by design and unchanged.

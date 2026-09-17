@@ -30,6 +30,7 @@ import type {
   ServerCapabilities,
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import { ListToolsResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { type CheckId, PROFILES, type Severity, type TargetName } from "./profiles.js";
 
 export { type CheckId, isTargetName, PROFILES, type Profile, type TargetName } from "./profiles.js";
@@ -189,7 +190,20 @@ async function openSession(
     let cursor: string | undefined;
     if (capabilities?.tools) {
       do {
-        const page = await client.listTools({ cursor });
+        // Requested raw rather than through `listTools()`: the SDK's tool schema
+        // strips fields it does not model, and ChatGPT documents `securitySchemes`
+        // at the tool's top level as well as in `_meta`. The one field is copied
+        // back onto each parsed tool so `hasSecuritySchemes` can see either place.
+        const raw = await client.request(
+          { method: "tools/list", params: cursor ? { cursor } : {} },
+          ResultSchema,
+        );
+        const page = ListToolsResultSchema.parse(raw);
+        const rawTools = (raw as { tools?: Array<Record<string, unknown>> }).tools ?? [];
+        page.tools.forEach((tool, i) => {
+          const schemes = rawTools[i]?.securitySchemes;
+          if (schemes !== undefined) (tool as Record<string, unknown>).securitySchemes = schemes;
+        });
         tools.push(...page.tools);
         cursor = page.nextCursor;
       } while (cursor);

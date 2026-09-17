@@ -4,6 +4,7 @@ import type { McpUiResourceCsp } from "@modelcontextprotocol/ext-apps";
 import { EXTENSION_ID, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * A small MCP server over Streamable HTTP whose every host-visible property
@@ -18,6 +19,12 @@ export interface FixtureOptions {
   /** The URI the UI resource is registered at. */
   resourceUri?: string;
   visibility?: unknown;
+  /** Extra keys merged into the tool's `_meta.ui`. */
+  toolUi?: Record<string, unknown>;
+  /** Bind the tool only through the deprecated flat `ui/resourceUri` key. */
+  legacyBinding?: boolean;
+  /** Serve no UI at all: no resource, and no binding on the tool. */
+  noUi?: boolean;
   /** The resource's `ui.csp`; `null` omits it. */
   csp?: McpUiResourceCsp | null;
   html?: string;
@@ -32,6 +39,10 @@ export interface FixtureOptions {
     /** The `issuer` the authorization server metadata reports. */
     issuer?: (origin: string) => string;
     securitySchemes?: boolean;
+    /** Where `securitySchemes` is declared on the tool. Default `"meta"`. */
+    securitySchemesAt?: "meta" | "tool";
+    /** The metadata lists an authorization server. Default true. */
+    authorizationServers?: boolean;
   };
 }
 
@@ -65,7 +76,9 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
       res.end(
         JSON.stringify({
           resource: auth.resource ? auth.resource(mcpUrl) : mcpUrl,
-          authorization_servers: [auth.advertisedIssuer ? auth.advertisedIssuer(origin) : origin],
+          ...(auth.authorizationServers !== false && {
+            authorization_servers: [auth.advertisedIssuer ? auth.advertisedIssuer(origin) : origin],
+          }),
         }),
       );
       return;
@@ -103,25 +116,47 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
       { name: "fixture", version: "1.0.0" },
       { capabilities: declareExtension ? { extensions: { [EXTENSION_ID]: {} } } : {} },
     );
-    const ui: Record<string, unknown> = {};
-    if (toolResourceUri !== null) ui.resourceUri = toolResourceUri;
+    const ui: Record<string, unknown> = { ...options.toolUi };
+    if (toolResourceUri !== null && !options.legacyBinding && !options.noUi) {
+      ui.resourceUri = toolResourceUri;
+    }
     if (options.visibility !== undefined) ui.visibility = options.visibility;
     const toolMeta: Record<string, unknown> = { ui };
-    if (auth?.securitySchemes !== false && auth) {
-      toolMeta.securitySchemes = [{ type: "oauth2", scopes: [] }];
+    if (options.legacyBinding) toolMeta["ui/resourceUri"] = UI_URI;
+    const schemes = [{ type: "oauth2", scopes: [] }];
+    const schemesAt = auth?.securitySchemesAt ?? "meta";
+    if (auth && auth.securitySchemes !== false && schemesAt === "meta") {
+      toolMeta.securitySchemes = schemes;
     }
     server.registerTool("show", { description: "Show the view", _meta: toolMeta }, async () => ({
       content: [{ type: "text", text: "shown" }],
     }));
-    const resourceMeta = csp === null ? {} : { ui: { csp } };
-    server.registerResource(
-      "view",
-      resourceUri,
-      { mimeType: mime, _meta: resourceMeta },
-      async (uri) => ({
-        contents: [{ uri: uri.href, mimeType: mime, text: html, _meta: resourceMeta }],
-      }),
-    );
+    if (auth && auth.securitySchemes !== false && schemesAt === "tool") {
+      // `McpServer` builds the descriptor from fixed fields, so a top-level
+      // `securitySchemes` has to come from a raw handler.
+      server.server.setRequestHandler(ListToolsRequestSchema, async () => ({
+        tools: [
+          {
+            name: "show",
+            description: "Show the view",
+            inputSchema: { type: "object" as const },
+            _meta: toolMeta,
+            securitySchemes: schemes,
+          },
+        ],
+      }));
+    }
+    if (!options.noUi) {
+      const resourceMeta = csp === null ? {} : { ui: { csp } };
+      server.registerResource(
+        "view",
+        resourceUri,
+        { mimeType: mime, _meta: resourceMeta },
+        async (uri) => ({
+          contents: [{ uri: uri.href, mimeType: mime, text: html, _meta: resourceMeta }],
+        }),
+      );
+    }
 
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,

@@ -160,6 +160,36 @@ describe("synapse check", () => {
     expect(failures(results)).toEqual(["tool-security-schemes"]);
   });
 
+  it("passes securitySchemes declared at the tool's top level", async () => {
+    const results = await check({ auth: { ...AUTH, securitySchemesAt: "tool" } }, AUTH.token);
+    expect(status(results, "tool-security-schemes")).toBe("pass");
+  });
+
+  it("fails a tool bound only through the deprecated flat key", async () => {
+    const results = await check({ legacyBinding: true });
+    expect(status(results, "tool-resource-uri")).toBe("fail");
+    expect(detail(results, "tool-resource-uri")).toMatch(/deprecated flat key/);
+  });
+
+  it("skips the UI checks on a server that exposes no UI", async () => {
+    const results = await check({ noUi: true });
+    expect(failures(results)).toEqual([]);
+    expect(status(results, "ui-resource-mime")).toBe("skip");
+    expect(detail(results, "ui-resource-mime")).toMatch(/exposes no UI/);
+  });
+
+  it.each(["csp", "permissions"])("fails ui.%s set on a tool", async (key) => {
+    const results = await check({ toolUi: { [key]: {} } });
+    expect(status(results, "tool-ui-meta")).toBe("fail");
+    expect(detail(results, "tool-ui-meta")).toMatch(new RegExp(`ui\\.${key} is on the tool`));
+  });
+
+  it("fails protected-resource metadata that lists no authorization server", async () => {
+    const results = await check({ auth: { ...AUTH, authorizationServers: false } });
+    expect(status(results, "auth-issuer")).toBe("fail");
+    expect(detail(results, "auth-issuer")).toMatch(/no authorization_servers/);
+  });
+
   it("reports one line per check for each target, with the reason under a failure", async () => {
     const results = await check({ mime: "text/html" });
     const text = formatReport(fixture?.url ?? "", applyProfiles(results, ["claude"]));

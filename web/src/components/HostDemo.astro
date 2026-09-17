@@ -35,7 +35,7 @@
       </article>
     </div>
 
-    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">Synapse API</code><span id="hdFootPost">.</span></p>
+    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">ui/* protocol + synapse/*</code><span id="hdFootPost">.</span></p>
   </div>
 </div>
 
@@ -242,10 +242,10 @@
   const footPost = document.getElementById("hdFootPost");
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>(".hd-tab"));
   const cfg: Record<string, { pre: string; bridge: string; post: string }> = {
-    chatgpt: { pre: "In ChatGPT, Synapse renders your app via ", bridge: "window.openai", post: "." },
+    chatgpt: { pre: "In ChatGPT, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
     claude: { pre: "In Claude, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
     vscode: { pre: "In VS Code, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
-    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "Synapse API", post: "." },
+    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "ui/* protocol + synapse/*", post: "." },
   };
   const order = ["yourapp", "chatgpt", "claude", "vscode"];
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

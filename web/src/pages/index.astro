@@ -73,12 +73,11 @@ import HostDemo from "../components/HostDemo.astro";
   <!-- ===================== POV BEAT : the thesis ===================== -->
   <section class="beat tint">
     <div class="wrap">
-      <h2 class="statement reveal fade d1">Every host speaks a <span class="hl">different protocol.</span></h2>
-      <p class="say-sub reveal fade d2">Build your app's UI for one host, and you've built it for one. Each speaks a different way.</p>
+      <h2 class="statement reveal fade d1">Every host speaks <span class="hl">one protocol.</span></h2>
+      <p class="say-sub reveal fade d2">ChatGPT, Claude and VS Code all render apps over MCP Apps. What differs is what each host offers, and your UI has to handle both.</p>
       <div class="bridges-row reveal fade d2">
-        <span class="brdg"><code>window.openai</code><span class="who">ChatGPT</span></span>
-        <span class="brdg"><code>ui/* protocol</code><span class="who">Claude, VS Code</span></span>
-        <span class="brdg you"><code>Synapse API</code><span class="who">your runtime</span></span>
+        <span class="brdg"><code>ui/* protocol</code><span class="who">ChatGPT, Claude, VS Code</span></span>
+        <span class="brdg you"><code>ui/* + synapse/*</code><span class="who">your runtime</span></span>
       </div>
     </div>
   </section>

@@ -15,9 +15,9 @@ Synapse is an optional enhancement layer over `@modelcontextprotocol/ext-apps`. 
 
 - **Zero-config handshake** — `await connect()` resolves when the host is ready. You never see `ui/initialize`.
 - **Typed tool calls** — call MCP tools with full TypeScript input/output types
-- **Reactive data sync** — subscribe to data change events from the agent
+- **Reactive data sync** — refresh when your server announces its data changed (`notifications/resources/list_changed`)
 - **Theme tracking** — automatic light/dark mode and custom design tokens
-- **State store** — Redux-like store with optional persistence and LLM visibility
+- **Agent context** — push what the user is looking at to the model with `useModelContext`
 - **Keyboard forwarding** — forward shortcuts from sandboxed iframes to the host
 - **Code generation** — generate TypeScript types from manifests, running servers, or JSON schemas
 

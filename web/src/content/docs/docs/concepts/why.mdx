@@ -1,6 +1,6 @@
 ---
 title: Why Synapse
-description: "The gap between raw MCP ext-apps and a UI that actually collaborates with an agent, and the six pieces of plumbing Synapse handles so you don't have to."
+description: "The gap between raw MCP ext-apps and a UI that actually collaborates with an agent, and the five pieces of plumbing Synapse handles so you don't have to."
 ---
 
 The [MCP ext-apps protocol](https://modelcontextprotocol.io/specification/2025-06-18/user-interaction/ext-apps)
@@ -14,7 +14,7 @@ written once and shared. It is an optional enhancement layer over ext-apps, not 
 replacement for it. You still get the iframe and the protocol. You just stop
 hand-rolling the parts that are the same in every app.
 
-Here is the gap, told as the six problems you hit in order.
+Here is the gap, told as the five problems you hit in order.
 
 ## The UI goes stale when the agent acts
 
@@ -22,10 +22,12 @@ The user asks the agent to change something. The agent calls a tool on your MCP
 server and the data changes. Your iframe has no idea. It keeps showing the old
 value until the user reloads.
 
-Raw ext-apps has no standard channel for "the agent just mutated the thing you are
-displaying," so you reach for a polling loop or a bespoke event. Synapse turns
-that into a push: subscribe once, and the host tells the iframe whenever the agent
-calls a tool on the same server. You refresh on a signal instead of a timer.
+MCP has a signal for this: a server that changes its data sends
+`notifications/resources/list_changed`, and a host that supports it forwards it to
+that server's views. Wiring it up by hand means a notification handler and a fan-out to every
+component that cares. Synapse turns it into one hook, `useDataSync`, which runs
+whenever your server announces a change, whether the agent, a webhook or another
+view made it. You refresh on a signal instead of a timer.
 
 ## The agent can't see what the user is doing
 
@@ -72,15 +74,6 @@ Synapse ships a Vite plugin that stands the whole thing up. Running the dev serv
 spawns your MCP server, serves a preview host, proxies tool calls, and completes
 the handshake. Hot module reload works inside the iframe, so you edit a file and
 see the change immediately.
-
-## State doesn't survive iframe reloads
-
-The host can reload or remount your iframe at any time: navigation, a resize, a tab
-switch. When it does, your component state is gone.
-
-Rather than negotiating storage with the host over `postMessage` or reaching for
-`localStorage`, Synapse offers a small reactive store you can mark as persistent.
-The host holds the state, and the iframe gets it back on remount.
 
 ## The through-line
 

@@ -131,7 +131,7 @@ const theme = useTheme();
 }}>
 ```
 
-Reactive. Re-renders on change. Fallbacks for non-NimbleBrain hosts built in.
+Reactive. Re-renders on change. Neutral defaults back any token the host does not send.
 
 ---
 

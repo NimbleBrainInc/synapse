@@ -72,7 +72,7 @@ These are the durable decisions behind the library; they rarely change.
 - **That includes typography — the SDK ships no fonts.** Font fallbacks are
   web-safe system stacks, so an app renders correctly with no host, no network,
   and no font files. A host that wants its own typeface sends `@font-face`
-  descriptors on the theme; the library fetches nothing on its own. See
+  CSS in the host context (`styles.css.fonts`); the library fetches nothing on its own. See
   [Host fonts](#host-fonts).
 - **Theme via CSS, not React.** Components style with token-driven inline-style
   objects whose values are those `var()` refs, so theming — including light/dark —
@@ -98,32 +98,26 @@ These are the durable decisions behind the library; they rarely change.
 A CSS custom property can *name* a font family but cannot *load* one, and an app
 iframe is its own document — it inherits no `@font-face` from the host page. So a
 host that sends only tokens is naming a typeface the app has no way to render.
-`Theme.fontFaces` closes that gap: the host sends the faces alongside the
-tokens, and the SDK loads them into the app document.
+The MCP Apps spec closes that gap with `styles.css.fonts`: the host sends
+`@font-face` CSS in the host context, and the SDK loads it into the app document.
 
 ```ts
-// Host side — sent as the `synapse/fontFaces` host-context extension.
+// Host side — the hostContext of ui/initialize.
 {
-  mode: "dark",
-  tokens: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
-  fontFaces: [
-    { family: "Your Sans", src: "url('/fonts/your-sans.woff2') format('woff2')", weight: "400 700" },
-  ],
+  theme: "dark",
+  styles: {
+    variables: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
+    css: {
+      fonts: "@font-face { font-family: 'Your Sans'; src: url('/fonts/your-sans.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }",
+    },
+  },
 }
 ```
-
-| Field | Notes |
-|---|---|
-| `family` | Must match the family named in the host's `--font-*` token value. |
-| `src` | Any CSS `src` descriptor — relative (`url('/fonts/x.woff2')`), absolute (`url('https://cdn.example/x.woff2')`), or `data:`. |
-| `weight` | Single weight (`400`) or a variable range (`400 700`). Optional. |
-| `style` | `normal`, `italic`, … Optional. |
-| `display` | Defaults to `swap`, so text paints in the fallback rather than blocking. Optional. |
 
 Three things worth knowing:
 
 - **Sending no fonts is a supported configuration, not a degraded one.** Omit
-  `fontFaces` and the app renders in the web-safe fallbacks (`system-ui` for
+  `styles.css.fonts` and the app renders in the web-safe fallbacks (`system-ui` for
   both body and headings, `ui-monospace` for code).
 - **Give every `--font-*` token value a web-safe tail.** A bare family name with
   no matching face falls through to the browser default, not to your intended

@@ -116,38 +116,28 @@ describe("connectUI — MCP Apps standard adapter", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
-  it("carries host font faces through to the resolved theme", () => {
-    // The cross-host client must be able to receive host typography, not just
-    // colour: a token names a family, only a face loads it. This is the one
-    // adapter that can carry them — ChatGPT supplies a mode string alone.
+  it("loads the host's font CSS from styles.css.fonts", () => {
+    // A token names a family; only an @font-face rule loads it. The spec carries
+    // the rules as CSS text, and this client injects them itself, since it
+    // cannot import the ext-apps runtime.
+    document.getElementById("__mcp-host-fonts")?.remove();
     synapse = connectUI({ host: "mcp-apps", autoResize: false });
-    const onTheme = vi.fn();
-    synapse.onTheme(onTheme);
+    const css = "@font-face { font-family: 'Brand'; src: url('/brand.woff2'); }";
 
-    notify(MCPAPP_HOST_CONTEXT_CHANGED, {
-      theme: "dark",
-      "synapse/fontFaces": [{ family: "Brand", src: "url('/brand.woff2')" }],
-    });
+    notify(MCPAPP_HOST_CONTEXT_CHANGED, { theme: "dark", styles: { css: { fonts: css } } });
 
-    expect(synapse.theme().fontFaces).toEqual([{ family: "Brand", src: "url('/brand.woff2')" }]);
-    expect(onTheme).toHaveBeenCalledWith(
-      expect.objectContaining({
-        mode: "dark",
-        fontFaces: [{ family: "Brand", src: "url('/brand.woff2')" }],
-      }),
-    );
+    expect(document.getElementById("__mcp-host-fonts")?.textContent).toBe(css);
   });
 
-  it("keeps host font faces when a later context change omits them", () => {
+  it("keeps the host's font CSS when a later context change carries none", () => {
+    document.getElementById("__mcp-host-fonts")?.remove();
     synapse = connectUI({ host: "mcp-apps", autoResize: false });
-    notify(MCPAPP_HOST_CONTEXT_CHANGED, {
-      theme: "dark",
-      "synapse/fontFaces": [{ family: "Brand", src: "url('/brand.woff2')" }],
-    });
+    const css = "@font-face { font-family: 'Brand'; src: url('/brand.woff2'); }";
+    notify(MCPAPP_HOST_CONTEXT_CHANGED, { theme: "dark", styles: { css: { fonts: css } } });
 
-    notify(MCPAPP_HOST_CONTEXT_CHANGED, { theme: "light" });
+    notify(MCPAPP_HOST_CONTEXT_CHANGED, { theme: "light", styles: { variables: {} } });
 
-    expect(synapse.theme().fontFaces).toEqual([{ family: "Brand", src: "url('/brand.woff2')" }]);
+    expect(document.getElementById("__mcp-host-fonts")?.textContent).toBe(css);
   });
 
   it("reads baked-in data synchronously for first paint", () => {

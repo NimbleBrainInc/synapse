@@ -471,7 +471,7 @@ describe("connect()", () => {
       ]);
     });
 
-    // `_meta.context` is a NimbleBrain convention, so it rides only on a
+    // The chat context is a NimbleBrain host field, so it rides only on a
     // NimbleBrain host — and this harness's host is `test-host`. Both branches
     // are covered in connect-capabilities.test.ts.
     it("sendMessage() omits context off a NimbleBrain host", async () => {

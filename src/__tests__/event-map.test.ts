@@ -57,18 +57,21 @@ describe("RESOURCE_LIST_CHANGED_METHOD", () => {
 
 describe("NIMBLEBRAIN_EXTENSIONS", () => {
   // The table is the one place the extensions are listed, and the gate reads it.
-  // A `synapse/` method exported without an entry would be sent ungated.
-  it("lists every synapse/ method this package sends", () => {
+  // An `ai.nimblebrain/` method constant exported without an entry would be sent
+  // ungated.
+  it("lists every ai.nimblebrain/ method constant in event-map.ts", () => {
     const methods = Object.values(eventMap).filter(
-      (v): v is string => typeof v === "string" && v.startsWith("synapse/"),
+      (v): v is string => typeof v === "string" && v.startsWith("ai.nimblebrain/"),
     );
     const listed = Object.values(NIMBLEBRAIN_EXTENSIONS).map((e) => e.method);
     expect([...listed].sort()).toEqual([...methods].sort());
   });
 
-  it("declares each under a vendor identifier, not the method name", () => {
-    for (const { capability } of Object.values(NIMBLEBRAIN_EXTENSIONS)) {
-      expect(capability).toMatch(/^ai\.nimblebrain\/[a-z-]+$/);
+  // One name per extension: a host declares exactly the method it serves.
+  it("names each extension once, as both method and declared identifier", () => {
+    for (const { method, capability } of Object.values(NIMBLEBRAIN_EXTENSIONS)) {
+      expect(capability).toBe(method);
+      expect(method).toMatch(/^ai\.nimblebrain\/[a-z-]+$/);
     }
   });
 });

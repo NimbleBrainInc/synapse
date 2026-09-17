@@ -3,7 +3,6 @@ export type {
   ReadResourceResult,
 } from "@modelcontextprotocol/sdk/types.js";
 export { connect } from "./connect.js";
-export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
 // ext-apps `ui/download-file`, composable over `App`.
 export { downloadFile } from "./download-file.js";
 export { HostCapabilityError } from "./errors.js";
@@ -35,8 +34,6 @@ export type {
   CreateTaskResult,
   Dimensions,
   FileResult,
-  FontDisplayValue,
-  FontFaceDescriptor,
   KeyForwardConfig,
   McpUiHostContext,
   ModelContext,

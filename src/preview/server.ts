@@ -145,20 +145,14 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
         return;
       }
 
-      // synapse/chat — log to console
-      if (msg.method === "synapse/chat") {
-        console.log("[chat]", msg.params?.message);
-        return;
-      }
-
-      // synapse/action — log to console
-      if (msg.method === "synapse/action") {
+      // ai.nimblebrain/action — log to console
+      if (msg.method === "ai.nimblebrain/action") {
         console.log("[action]", msg.params?.action, msg.params);
         return;
       }
 
-      // synapse/keydown — ignore in preview
-      if (msg.method === "synapse/keydown") return;
+      // ai.nimblebrain/keydown — ignore in preview
+      if (msg.method === "ai.nimblebrain/keydown") return;
 
       // ui/update-model-context — log (ext-apps spec)
       if (msg.method === "ui/update-model-context") {

@@ -1,6 +1,6 @@
 /**
  * Capability coverage for `connect()` — the host identity gate, the
- * `tools/call` wire shape, the `synapse/*` extensions, the host-context and
+ * `tools/call` wire shape, the NimbleBrain host extensions, the host-context and
  * theme views, and the tasks handshake.
  *
  * `connect.test.ts` covers the handshake and the ext-apps message shapes; this
@@ -224,12 +224,12 @@ describe("connect() capabilities", () => {
       size: 12,
     };
 
-    it("pickFile sends synapse/request-file with multiple: false", async () => {
+    it("pickFile sends ai.nimblebrain/request-file with multiple: false", async () => {
       app = await connectAndHandshake();
       const p = pickFile(app, { accept: ".csv" });
 
       const msg = lastRequest();
-      expect(msg.method).toBe("synapse/request-file");
+      expect(msg.method).toBe("ai.nimblebrain/request-file");
       expect(msg.params).toMatchObject({ accept: ".csv", multiple: false });
 
       await respondToLastRequest({ files: [fileResult] });
@@ -282,7 +282,7 @@ describe("connect() capabilities", () => {
         expect(error).toBeInstanceOf(HostCapabilityError);
         expect((error as HostCapabilityError).capability).toBe("ai.nimblebrain/request-file");
       }
-      expect(sentByMethod("synapse/request-file")).toHaveLength(0);
+      expect(sentByMethod("ai.nimblebrain/request-file")).toHaveLength(0);
     });
 
     it("works on any host that declares it", async () => {
@@ -330,11 +330,11 @@ describe("connect() capabilities", () => {
   });
 
   describe("action", () => {
-    it("sends synapse/action on a NimbleBrain host", async () => {
+    it("sends ai.nimblebrain/action on a NimbleBrain host", async () => {
       app = await connectAndHandshake();
       action(app, "navigate", { entity: "board", id: "b1" });
 
-      const sent = sentNotifications("synapse/action");
+      const sent = sentNotifications("ai.nimblebrain/action");
       expect(sent).toHaveLength(1);
       expect(sent[0].params).toEqual({ action: "navigate", entity: "board", id: "b1" });
     });
@@ -343,19 +343,19 @@ describe("connect() capabilities", () => {
       app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
       action(app, "navigate", { id: "b1" });
       await flush();
-      expect(sentNotifications("synapse/action")).toHaveLength(0);
+      expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(0);
     });
 
     it("sends on any host that declares it", async () => {
       app = await connectAndHandshake({}, makeInitResult("another-host"));
       action(app, "navigate", { id: "b1" });
       await flush();
-      expect(sentNotifications("synapse/action")).toHaveLength(1);
+      expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(1);
     });
   });
 
   describe("sendMessage", () => {
-    it("attaches _meta.context on a NimbleBrain host", async () => {
+    it('attaches the chat context under _meta["ai.nimblebrain/context"] on a NimbleBrain host', async () => {
       app = await connectAndHandshake();
       app.sendMessage("hello", { action: "open", entity: "board" });
       await flush();
@@ -364,7 +364,11 @@ describe("connect() capabilities", () => {
       expect(sent[0].params).toEqual({
         role: "user",
         content: [
-          { type: "text", text: "hello", _meta: { context: { action: "open", entity: "board" } } },
+          {
+            type: "text",
+            text: "hello",
+            _meta: { "ai.nimblebrain/context": { action: "open", entity: "board" } },
+          },
         ],
       });
     });
@@ -786,13 +790,13 @@ describe("connect() capabilities", () => {
     it("is off unless asked for", async () => {
       app = await connectAndHandshake();
       pressEscape();
-      expect(sentNotifications("synapse/keydown")).toHaveLength(0);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(0);
     });
 
     it("forwards the default set when enabled on a NimbleBrain host", async () => {
       app = await connectAndHandshake({ forwardKeys: true });
       pressEscape();
-      expect(sentNotifications("synapse/keydown")).toHaveLength(1);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(1);
     });
 
     it("forwards exactly the listed combos when given an array", async () => {
@@ -801,11 +805,11 @@ describe("connect() capabilities", () => {
       document.dispatchEvent(
         new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }),
       );
-      expect(sentNotifications("synapse/keydown")).toHaveLength(1);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(1);
 
       // Escape is in the default set but not in this one.
       pressEscape();
-      expect(sentNotifications("synapse/keydown")).toHaveLength(1);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(1);
     });
 
     it("stays off where the host did not declare it, whatever the host is called", async () => {
@@ -816,14 +820,14 @@ describe("connect() capabilities", () => {
         }),
       );
       pressEscape();
-      expect(sentNotifications("synapse/keydown")).toHaveLength(0);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(0);
     });
 
     it("destroy() removes the listener", async () => {
       app = await connectAndHandshake({ forwardKeys: true });
       app.destroy();
       pressEscape();
-      expect(sentNotifications("synapse/keydown")).toHaveLength(0);
+      expect(sentNotifications("ai.nimblebrain/keydown")).toHaveLength(0);
     });
   });
 

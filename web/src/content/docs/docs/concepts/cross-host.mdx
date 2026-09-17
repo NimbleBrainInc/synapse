@@ -67,7 +67,7 @@ does not depend on `@modelcontextprotocol/*`, and specifically it avoids pulling
 Zod. That keeps the `window.SynapseUI` IIFE that a self-contained `ui://` component
 inlines small, which matters when the whole component ships as one inlined asset.
 
-One rule falls out of the shared adapters: keep the NimbleBrain-private `synapse/*`
+One rule falls out of the shared adapters: keep NimbleBrain-private `ai.nimblebrain/*`
 fields out of the `mcpapps` payloads. And remember the handshake
 gotcha from [the protocol page](/docs/concepts/ext-apps): a host keeps the iframe
 hidden until it gets `ui/initialize` and a size report, so call `resize()`.

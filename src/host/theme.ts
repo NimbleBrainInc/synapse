@@ -16,15 +16,37 @@ import type { SynapseUITheme } from "./types.js";
  * Setting both means an app can use either convention (and a host that supplies
  * only a mode string still themes correctly). SSR-safe.
  *
- * Any `fontFaces` the host supplies are loaded here too — a token can name a
- * family but not load it, so the two travel together. A host that sends none
- * leaves the web-safe fallbacks in force.
+ * Fonts travel separately, as the host's `@font-face` CSS: see
+ * {@link injectHostFonts}.
  */
 export function applyHostTheme(theme: SynapseUITheme): void {
   if (typeof document !== "undefined") {
     document.documentElement.setAttribute("data-theme", theme.mode);
   }
-  applyTheme(theme.mode, theme.tokens, theme.fontFaces);
+  applyTheme(theme.mode, theme.tokens);
+}
+
+/** The style element the host's font CSS goes in — the same id the spec's
+ *  `applyHostFonts` uses, so both clients agree on one element. */
+export const HOST_FONTS_STYLE_ID = "__mcp-host-fonts";
+
+/**
+ * Load the host's `@font-face` CSS (the spec's `hostContext.styles.css.fonts`)
+ * into the document.
+ *
+ * Mirrors ext-apps `applyHostFonts`, which this client cannot import without
+ * pulling the ext-apps runtime into its IIFE: the CSS is injected once and left
+ * in place, so a later host-context change without `css` keeps the typeface
+ * loaded. A host that sends none leaves the web-safe fallbacks in force.
+ * SSR-safe.
+ */
+export function injectHostFonts(css: string): void {
+  if (typeof document === "undefined") return;
+  if (document.getElementById(HOST_FONTS_STYLE_ID)) return;
+  const style = document.createElement("style");
+  style.id = HOST_FONTS_STYLE_ID;
+  style.textContent = css;
+  document.head.appendChild(style);
 }
 
 /** Read the OS-level color scheme as a sane default for hosts that don't push a

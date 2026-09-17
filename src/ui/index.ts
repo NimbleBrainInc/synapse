@@ -8,9 +8,9 @@
  *
  * That includes typography. The fallbacks are web-safe system stacks, so an app
  * renders correctly with no host, no network, and no font files. A host that
- * wants its own typeface sends `@font-face` descriptors on the theme
- * (`Theme.fontFaces`) and the SDK loads them — the SDK itself ships no
- * font data and fetches nothing.
+ * wants its own typeface sends `@font-face` CSS in the host context
+ * (`styles.css.fonts`, per the MCP Apps spec) and the SDK loads it — the SDK
+ * itself ships no font data and fetches nothing.
  */
 
 // Tier C — components

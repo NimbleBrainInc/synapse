@@ -10,6 +10,7 @@ import type {
   McpUiUpdateModelContextRequest,
 } from "@modelcontextprotocol/ext-apps";
 import {
+  applyHostFonts,
   App as ExtAppsApp,
   HOST_CONTEXT_CHANGED_METHOD,
   RESOURCE_TEARDOWN_METHOD,
@@ -28,7 +29,7 @@ import type {
 import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
-import { extractTheme, foldFontFaces } from "./detection.js";
+import { extractHostFontCss, extractTheme } from "./detection.js";
 import { HostCapabilityError } from "./errors.js";
 import { NIMBLEBRAIN_EXTENSIONS, resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
@@ -36,12 +37,11 @@ import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
 import { createTaskStatusRouter, readHostTasksCapability } from "./task-handle.js";
-import { applyTheme, fontFacesKey } from "./theme-defaults.js";
+import { applyTheme } from "./theme-defaults.js";
 import type {
   App,
   ConnectOptions,
   Dimensions,
-  FontFaceDescriptor,
   TasksCapability,
   Theme,
   ToolCallResult,
@@ -49,9 +49,12 @@ import type {
 
 /**
  * The host name that identifies a NimbleBrain host in the handshake. Identity
- * only: the `synapse/*` extensions are gated on the host declaring each one.
+ * only: the NimbleBrain host extensions are gated on the host declaring each one.
  */
 const NIMBLEBRAIN_HOST = "nimblebrain";
+
+/** The `_meta` key a `ui/message` text block carries the NimbleBrain chat context under. */
+const CHAT_CONTEXT_META_KEY = "ai.nimblebrain/context";
 
 /**
  * Requests this SDK sends carry no deadline.
@@ -114,14 +117,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
   let hostTasksCapability: TasksCapability | undefined;
   let keyboard: KeyboardForwarder | null = null;
 
-  // Font faces are the one derived value that must NOT be recomputed from a
-  // replaced context. A `host-context-changed` carries only the fields that
-  // changed, so a bare `{ theme: "dark" }` toggle would otherwise re-derive
-  // "no fonts" and unload the host's typeface mid-session — far more visible
-  // than the equivalent for a colour token. Sticky here, cleared only by an
-  // explicit empty list from the host.
-  let fontFaces: FontFaceDescriptor[] | undefined;
-
   // The theme currently applied to the document. Tracked rather than derived at
   // dispatch time, because `App` merges a host-context delta into the context it
   // holds *before* it calls listeners — so by the time this SDK hears about a
@@ -156,20 +151,31 @@ export async function connect(options: ConnectOptions): Promise<App> {
   }
 
   /**
-   * The theme as reported to consumers: derived from the context, with the
-   * sticky faces folded back in. Every public view goes through here — the
-   * `theme` getter, the `theme-changed` payload, and its equality filter — so
-   * they cannot disagree with each other or with what is actually loaded.
+   * The theme as reported to consumers, derived from the context. Every public
+   * view goes through here — the `theme` getter, the `theme-changed` payload,
+   * and its equality filter — so they cannot disagree with each other or with
+   * what is actually applied.
    */
   function resolveTheme(): Theme {
-    const theme = extractTheme(currentContext());
-    return fontFaces ? { ...theme, fontFaces } : theme;
+    return extractTheme(currentContext());
+  }
+
+  /**
+   * Load the host's `@font-face` CSS (`styles.css.fonts`) into the document.
+   *
+   * The spec's helper injects it once and leaves it in place, so a later
+   * host-context change that carries no `css` — a theme toggle, say — keeps the
+   * host's typeface loaded rather than unloading it.
+   */
+  function applyFontsFrom(ctx: Partial<McpUiHostContext> | undefined): void {
+    const css = extractHostFontCss(ctx);
+    if (css !== undefined && typeof document !== "undefined") applyHostFonts(css);
   }
 
   /** Apply the current theme to the document, and record what was applied. */
   function applyResolvedTheme(): Theme {
     const theme = resolveTheme();
-    applyTheme(theme.mode, theme.tokens, theme.fontFaces);
+    applyTheme(theme.mode, theme.tokens);
     appliedTheme = theme;
     return theme;
   }
@@ -192,7 +198,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
   }
 
   /**
-   * Send a notification `App` does not model. The `synapse/*` extensions have
+   * Send a notification `App` does not model. The NimbleBrain host extensions have
    * no spec equivalent and so no place in its notification union; the cast is
    * the one place that is admitted, and the method still comes from a constant
    * rather than a literal spelled at the call site.
@@ -237,14 +243,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
     // `App` has already merged this delta into the context it holds — shallowly,
     // which is what the spec asks for: `styles.variables` is a complete map when
     // the host sends one, so a deep merge would leave a host no way to remove a
-    // variable.
-    //
-    // Fonts keep their own fold even so, because it encodes a rule the merge
-    // cannot: a batch whose entries are ALL malformed reads as `undefined` and
-    // must leave the loaded faces alone. Deriving from the merged context would
-    // instead see the key present, find nothing usable in it, and unload the
-    // host's typeface.
-    fontFaces = foldFontFaces(fontFaces, params as Partial<McpUiHostContext>);
+    // variable. Fonts are read from the delta as sent, because a merged
+    // context loses `styles.css` whenever the host sends `styles.variables`
+    // alone.
+    applyFontsFrom(params as Partial<McpUiHostContext>);
     const nextTheme = applyResolvedTheme();
 
     // Subscribers to the short event get the merged snapshot, because that is
@@ -271,7 +273,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
     return {};
   };
 
-  // Everything else the host sends: the `synapse/*` extensions, the server's
+  // Everything else the host sends: vendor extension notifications, the server's
   // `notifications/resources/list_changed`, and `notifications/tasks/status`.
   // `App` routes a notification here when no typed handler claims its method,
   // and one handler with a fan-out under it is the only safe shape —
@@ -334,8 +336,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
   const initialContext = client.getHostContext();
   if (initialContext) {
-    fontFaces = foldFontFaces(fontFaces, initialContext);
-
     if (initialContext.toolInfo && typeof initialContext.toolInfo === "object") {
       toolInfo = {
         tool: (initialContext.toolInfo.tool as unknown as Record<string, unknown>) ?? {},
@@ -350,9 +350,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
     // Inject the theme into the DOM: the host's values go inline, and the
     // neutral defaults for the mode go in a cascade layer, where they back any
-    // var nobody declares and lose to every var that is declared. Any
-    // host-supplied font faces load alongside — a token names a family, it
-    // cannot load one.
+    // var nobody declares and lose to every var that is declared. The host's
+    // `@font-face` CSS loads alongside — a token names a family, it cannot load
+    // one.
+    applyFontsFrom(initialContext);
     applyResolvedTheme();
   }
 
@@ -477,9 +478,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
       const textBlock: TextContent = {
         type: "text",
         text,
-        // `_meta.context` is a NimbleBrain convention; other hosts ignore it,
+        // The chat context is a NimbleBrain host field; other hosts ignore it,
         // but there is no reason to spend the bytes off one.
-        ...(isNimbleBrainHost && context && { _meta: { context } }),
+        ...(isNimbleBrainHost && context && { _meta: { [CHAT_CONTEXT_META_KEY]: context } }),
       };
       const params: McpUiMessageRequest["params"] = {
         role: "user",
@@ -523,13 +524,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
 /**
  * Shallow equality for `Theme` — used to filter host-context changes that
  * don't actually move the theme (e.g. a workspace switch that leaves
- * theme/styles untouched). Cheap; tokens are ~40 entries. Typography counts:
- * a host can swap typeface without touching mode or tokens, and that must
- * still reach subscribers.
+ * theme/styles untouched). Cheap; tokens are ~40 entries.
  */
 function themesEqual(a: Theme, b: Theme): boolean {
   if (a.mode !== b.mode) return false;
-  if (fontFacesKey(a.fontFaces) !== fontFacesKey(b.fontFaces)) return false;
   const aKeys = Object.keys(a.tokens);
   const bKeys = Object.keys(b.tokens);
   if (aKeys.length !== bKeys.length) return false;

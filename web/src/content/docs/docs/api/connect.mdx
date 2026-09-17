@@ -41,7 +41,7 @@ Available synchronously once the promise resolves.
 | `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus whatever the host publishes alongside |
 | `hostCapabilities` | `McpUiHostCapabilities` | What the host declared in `ui/initialize`. Every method and helper checks it before sending; see the [portable-app contract](/docs/concepts/degradation/). |
-| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain. Nothing is gated on it except `sendMessage`'s `_meta.context`. |
+| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain. Nothing is gated on it except `sendMessage`'s chat context, sent under `_meta["ai.nimblebrain/context"]`. |
 | `destroyed` | `boolean` | True after `destroy()` |
 | `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call`. `callToolAsTask` throws when this is false. |
 

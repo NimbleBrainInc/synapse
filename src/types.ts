@@ -121,47 +121,9 @@ export type { McpUiHostContext };
 
 // ---------- Theme ----------
 
-/**
- * One `@font-face` a host asks the app to load.
- *
- * The token contract can name a font (`--font-sans: 'Hanken Grotesk', system-ui`)
- * but cannot *load* one — a CSS custom property carries a family name, never the
- * `@font-face` rule behind it. An app iframe is its own document and inherits no
- * `@font-face` from the host page, so a host that only sends tokens is naming a
- * family the app has no way to render. This descriptor is the missing half.
- *
- * The SDK ships **no font data** — it applies what the host sends. A host that
- * sends none leaves the web-safe fallbacks in `ui/tokens.ts` in force.
- */
-export interface FontFaceDescriptor {
-  /** Family name, matching the one used in the host's `--font-*` token value. */
-  family: string;
-  /**
-   * CSS `src` descriptor. Local and absolute URLs work identically —
-   * `url('/fonts/x.woff2') format('woff2')` or `url('https://cdn.example/x.woff2')`.
-   * Whatever origin this names must satisfy the app iframe's `font-src` CSP.
-   */
-  src: string;
-  /** `font-weight` descriptor — a single weight (`400`) or a variable range (`400 700`). */
-  weight?: string;
-  /** `font-style` descriptor (`normal`, `italic`, …). */
-  style?: string;
-  /** `font-display` descriptor. Defaults to `swap` so text paints in the fallback first. */
-  display?: FontDisplayValue;
-}
-
-/** The CSS `font-display` values. Closed set — anything else is ignored. */
-export type FontDisplayValue = "auto" | "block" | "swap" | "fallback" | "optional";
-
 export interface Theme {
   mode: "light" | "dark";
   tokens: Record<string, string>;
-  /**
-   * Font faces the host wants loaded into the app document. Optional — a host
-   * that omits them leaves the web-safe fallbacks in force. Arrives over the
-   * wire as the `synapse/fontFaces` host-context extension.
-   */
-  fontFaces?: FontFaceDescriptor[];
 }
 
 export interface ToolCallResult<T = unknown> {
@@ -257,8 +219,8 @@ export interface ConnectOptions {
    * the clipboard keys the browser must handle itself); an array forwards
    * exactly the listed combos. Absent means no forwarding.
    *
-   * Only a NimbleBrain host consumes `synapse/keydown`, so forwarding stays
-   * off everywhere else — a `preventDefault` on a host that does nothing with
+   * Forwarding is on only where the host declares `ai.nimblebrain/keydown`, and
+   * stays off everywhere else — a `preventDefault` on a host that does nothing with
    * the key would swallow it for no one's benefit.
    */
   forwardKeys?: boolean | KeyForwardConfig[];
@@ -374,7 +336,7 @@ export interface App {
   /**
    * True when the host identified itself as NimbleBrain in the handshake.
    * Identity, not capability: nothing is gated on it except the NimbleBrain
-   * `_meta.context` field on `sendMessage`, which other hosts ignore.
+   * chat context on `sendMessage` (`_meta["ai.nimblebrain/context"]`), which other hosts ignore.
    */
   readonly isNimbleBrainHost: boolean;
   /** True after `destroy()` has been called. */

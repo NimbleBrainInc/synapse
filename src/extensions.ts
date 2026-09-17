@@ -1,8 +1,9 @@
 /**
  * NimbleBrain host extensions — composable functions over {@link App}.
  *
- * These are not ext-apps spec surface. They ride the `synapse/` method prefix,
- * and `NIMBLEBRAIN_EXTENSIONS` in `event-map.ts` is the complete list. They
+ * These are not ext-apps spec surface. They are the NimbleBrain host's own
+ * `ai.nimblebrain/*` methods, which this package implements a client for, and
+ * `NIMBLEBRAIN_EXTENSIONS` in `event-map.ts` is the complete list. They
  * live here rather than on the `App` object so the object stays the spec
  * surface plus the handshake state, and so an app that never picks a file
  * never pulls this code in.
@@ -98,13 +99,13 @@ async function requestFile(
   const files = (result as { files?: unknown } | null | undefined)?.files;
   if (files === undefined) {
     throw new Error(
-      "synapse/request-file returned no `files`. The host is older than this " +
+      "ai.nimblebrain/request-file returned no `files`. The host is older than this " +
         "SDK targets: it answers the picker with a bare array or `null`, which " +
         "a spec-compliant client cannot parse.",
     );
   }
   if (!Array.isArray(files)) {
-    throw new Error("synapse/request-file returned a `files` field that is not an array.");
+    throw new Error("ai.nimblebrain/request-file returned a `files` field that is not an array.");
   }
   return files.map(validateFileResult);
 }
@@ -116,7 +117,7 @@ function validateFileResult(value: unknown): FileResult {
     typeof (value as { id?: unknown }).id !== "string"
   ) {
     throw new Error(
-      "synapse/request-file returned a result without a string `id`. " +
+      "ai.nimblebrain/request-file returned a result without a string `id`. " +
         "The host appears to be on a version older than this SDK targets — " +
         "@nimblebrain/synapse 0.8.0+ requires a host with POST /v1/resources " +
         "(NimbleBrain ≥ the version that ships PR #93).",

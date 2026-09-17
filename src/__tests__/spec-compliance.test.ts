@@ -467,7 +467,7 @@ describe("outbound message shapes", () => {
     );
     const params = (call![0] as Record<string, unknown>).params as McpUiMessageRequest["params"];
     const block = params.content[0] as TextContent;
-    expect(block._meta).toEqual({ context: { action: "search" } });
+    expect(block._meta).toEqual({ "ai.nimblebrain/context": { action: "search" } });
   });
 
   it("sendMessage omits _meta entirely on a non-NimbleBrain host", async () => {

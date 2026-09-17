@@ -356,22 +356,22 @@ try {
           (app) => app?.resourcesListChanged === true || "the notification never arrived",
         ],
         [
-          "a custom synapse/* request survives, app to host",
+          "a vendor extension request survives, app to host",
           "an extension method must pass through a spec host's transport",
           // Asserted on the wire, not on the call's return: `pickFile` goes on
           // to negotiate a whole upload protocol the harness does not
           // implement, and what this row claims is that the method reached a
           // spec host at all.
           (_app, handled) =>
-            handled.some((f) => f.method === "synapse/request-file") ||
-            "synapse/request-file never reached the host",
+            handled.some((f) => f.method === "ai.nimblebrain/request-file") ||
+            "ai.nimblebrain/request-file never reached the host",
         ],
         [
-          "a custom synapse/* notification survives, host to app",
+          "a vendor notification survives, host to app",
           "the other direction, which uses a different code path",
           (app) =>
-            app?.dataChanged?.source === "agent" ||
-            `dataChanged was ${JSON.stringify(app?.dataChanged)}`,
+            app?.vendorNotice?.source === "host" ||
+            `vendorNotice was ${JSON.stringify(app?.vendorNotice)}`,
         ],
         [
           "tasks/get and tasks/result work over generic request",

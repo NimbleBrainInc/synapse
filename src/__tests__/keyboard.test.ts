@@ -34,7 +34,7 @@ describe("KeyboardForwarder", () => {
     forwarder = new KeyboardForwarder(send);
     fireKeydown("k", { ctrlKey: true });
 
-    expect(send).toHaveBeenCalledWith("synapse/keydown", {
+    expect(send).toHaveBeenCalledWith("ai.nimblebrain/keydown", {
       key: "k",
       ctrlKey: true,
       metaKey: false,
@@ -47,7 +47,7 @@ describe("KeyboardForwarder", () => {
     forwarder = new KeyboardForwarder(send);
     fireKeydown("k", { metaKey: true });
 
-    expect(send).toHaveBeenCalledWith("synapse/keydown", {
+    expect(send).toHaveBeenCalledWith("ai.nimblebrain/keydown", {
       key: "k",
       ctrlKey: false,
       metaKey: true,
@@ -83,7 +83,7 @@ describe("KeyboardForwarder", () => {
     fireKeydown("Escape");
 
     expect(send).toHaveBeenCalledWith(
-      "synapse/keydown",
+      "ai.nimblebrain/keydown",
       expect.objectContaining({
         key: "Escape",
       }),

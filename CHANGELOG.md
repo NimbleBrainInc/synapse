@@ -12,6 +12,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`.
 
+- **The cross-host client speaks MCP Apps only.** ChatGPT, Claude and NimbleBrain all implement the standard, so `connectUI` has one bridge for a framed component and one for a standalone page.
+
+  - **The `chatgpt` adapter is gone**, with `createChatGPTAdapter`. A framed component uses the MCP Apps bridge in ChatGPT too: ChatGPT answers `ui/initialize`, delivers `ui/notifications/tool-result` and answers `tools/call`.
+  - **Detection no longer reads `window.openai`.** ChatGPT injects it into every frame it serves, spec-only components included, so a component that found it selected an adapter speaking a bridge other than the standard one ChatGPT answers. A frame is now always `"mcp-apps"`.
+  - **`HostKind` is `"mcp-apps" | "generic"`**, naming the bridge rather than the product. `"chatgpt"`, `"claude"` and `"nimblebrain"` are gone, from `host()` and from the `host` option.
+  - **The mcp-ui dialect is gone.** The client no longer posts `ui-lifecycle-iframe-ready`, `ui-size-change`, `link` or `prompt`, and ignores `ui-lifecycle-iframe-render-data`. A size is reported once the handshake completes, never before.
+
+  **Migration:** a component that passed `host: "claude"` or `host: "nimblebrain"` passes `host: "mcp-apps"`, or omits it. One that compared `host()` against a product name uses `capabilities()`. A host that fed a component only through the mcp-ui frames must answer `ui/initialize` and send `ui/notifications/tool-result`.
+
 ### Fixed
 
 - **The ESM and CJS builds no longer carry a private copy of `@modelcontextprotocol/sdk` and `zod`.** `connect()` imports two runtime schemas from `@modelcontextprotocol/sdk/types.js`, and the SDK was not external, so the build inlined the SDK's types module and zod v4 into this package's own chunk. An app bundling this package then shipped two copies of each: this package's, and the one `@modelcontextprotocol/ext-apps` imports. The SDK is now external and a peer dependency, at the range `@modelcontextprotocol/ext-apps` already requires, so an app that installs that peer has it. A single-file app built with Vite is about 114 KB smaller raw, 32 KB gzipped. The IIFE builds are self-contained by design and unchanged.

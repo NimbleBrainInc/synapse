@@ -135,30 +135,32 @@ Releases are public and provenance-attested — published artifacts carry a sign
 
 ## Cross-host UI client (`connectUI` / `src/host/`)
 
-A third, **push-first** path that renders one Synapse component across hosts that
-each speak a different bridge — ChatGPT (OpenAI Apps SDK), Claude (the **MCP Apps
-standard**, SEP-1865), and standalone — behind `synapse.data()/onData()/theme()/
+A third, **push-first** path that renders one Synapse component in any host that
+speaks the **MCP Apps standard** (SEP-1865) — ChatGPT, Claude and NimbleBrain all
+do — and standalone, behind `synapse.data()/onData()/theme()/
 resize()/openLink()/sendPrompt()/callTool()`. It is deliberately **decoupled from
-`@modelcontextprotocol/*`** (pure `window.openai` + JSON-RPC over `postMessage`), so
+`@modelcontextprotocol/*`** (hand-spoken JSON-RPC over `postMessage`), so
 the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays small
 (no Zod). This is additive — the ext-apps `connect` path below is unchanged.
 
-- Adapters live in `src/host/adapters/` (`chatgpt`, `mcpapps`, `inline`); detection
-  in `src/host/detect.ts`; the façade in `src/host/connect.ts`. Add a host by
-  adding an adapter + a detection branch — apps never change.
-- **`mcpapps` is the convergence adapter** (MCP Apps standard / SEP-1865): the `ui/*`
-  JSON-RPC bridge — `ui/initialize` → `ui/notifications/initialized` → `tool-result`
-  / `host-context-changed`, plus `size-changed`, `ui/open-link`, `ui/message`, and
-  `tools/call` (pull). `claude` and `nimblebrain` both route through it; the legacy
-  mcp-ui dialect is folded in as a compat shim, suppressed once the handshake
-  confirms a standard host. A dedicated `nimblebrain` adapter over the
-  `synapse/*` extension is still P3.
+- Two adapters live in `src/host/adapters/`: `mcpapps` for a framed component and
+  `inline` for a standalone one. Detection (`src/host/detect.ts`) asks only whether
+  the document is framed. **It must never key on `window.openai`**: ChatGPT injects
+  it into every frame, spec-only components included, so it names no bridge.
+- **`mcpapps` speaks the `ui/*` JSON-RPC bridge and nothing else**: `ui/initialize`
+  → `ui/notifications/initialized` → `tool-result` / `host-context-changed`, plus
+  `size-changed`, `ui/open-link`, `ui/message`, and `tools/call` (pull). Nothing
+  goes out before `ui/initialize`, a size included, and no non-JSON-RPC frame goes
+  out at all; the conformance suite asserts both.
+- **`callTool` rejects with `ToolCallError` on an `isError` result**, in the
+  façade rather than the adapter: MCP reports a failed or refused call inside the
+  result, and ChatGPT reports a refusal that way.
 - **Gotchas.** A host keeps the iframe hidden until it receives `ui/initialize` **and**
   a `size-changed` — a spec-correct component that never runs the handshake renders
   blank (looks like "nothing happened"). And `ui/notifications/tool-result` `params`
   **is** the `CallToolResult` (data at `params.structuredContent`), not wrapped in
   `params.result`. Keep `synapse/*` NimbleBrain-private fields out of the
-  chatgpt/mcpapps payloads. A component that renders in one host but shows a generic
+  `mcpapps` payloads. A component that renders in one host but shows a generic
   error in another ("There was a problem displaying content" on Claude) is usually a
   rejected `_meta.ui.*` field, not broken HTML — `_meta.ui.domain` is a *host-validated*
   sandbox origin (Claude derives `sha256(<connectorURL>)[:32] + ".claudemcpcontent.com"`

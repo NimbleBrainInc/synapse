@@ -28,6 +28,8 @@ interface Frame {
 
 interface Conformance {
   wire: Frame[];
+  /** Frames the app posted that are not JSON-RPC at all. */
+  foreign: unknown[];
   handled: Frame[];
   hostEvents: string[];
   app: unknown;
@@ -35,7 +37,14 @@ interface Conformance {
   done: boolean;
 }
 
-const state: Conformance = { wire: [], handled: [], hostEvents: [], app: null, done: false };
+const state: Conformance = {
+  wire: [],
+  foreign: [],
+  handled: [],
+  hostEvents: [],
+  app: null,
+  done: false,
+};
 (window as unknown as { __conformance: Conformance }).__conformance = state;
 
 let seq = 0;
@@ -58,8 +67,16 @@ document.body.appendChild(iframe);
 // before the app document loads, so the handshake itself is in the log.
 window.addEventListener("message", (ev) => {
   if (ev.source !== iframe.contentWindow) return;
-  const msg = ev.data as { method?: string; params?: unknown; id?: unknown } | null;
-  if (!msg || typeof msg !== "object") return;
+  const msg = ev.data as {
+    jsonrpc?: unknown;
+    method?: string;
+    params?: unknown;
+    id?: unknown;
+  } | null;
+  if (!msg || typeof msg !== "object" || msg.jsonrpc !== "2.0") {
+    state.foreign.push(msg);
+    return;
+  }
   // A response carries no method. Recording it as one would put "response" in
   // the ordering log and break the "initialize is frame 0" claim.
   if (typeof msg.method !== "string") return;

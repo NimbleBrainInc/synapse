@@ -1,12 +1,11 @@
 ---
 title: Cross-host client
-description: connectUI(options) renders one Synapse component across ChatGPT, Claude, NimbleBrain, and standalone hosts behind a single push-first façade.
+description: connectUI(options) renders one Synapse component in any MCP Apps host (ChatGPT, Claude, NimbleBrain) and standalone behind a single push-first façade.
 ---
 
 `connectUI(options)` is the push-first, cross-host path. It renders one Synapse
-component across hosts that each speak a different bridge (ChatGPT via the OpenAI
-Apps SDK, Claude via the MCP Apps standard, NimbleBrain, and standalone) behind a
-single façade. It is decoupled from `@modelcontextprotocol/*` so the
+component in any host that speaks the MCP Apps standard (ChatGPT, Claude,
+NimbleBrain) and standalone, behind a single façade. It is decoupled from `@modelcontextprotocol/*` so the
 `window.SynapseUI` IIFE stays small.
 
 ```typescript
@@ -32,10 +31,12 @@ function connectUI(options: ConnectUIOptions): SynapseUIClient;
 | `autoResize` | `boolean?` | Observe content and auto-send height. Default `true` |
 | `window` | `Window?` | Target window. Defaults to the current global. |
 
-`HostKind` is the set of adapters the façade detects:
+`HostKind` names the bridge, not the product. A framed component gets
+`"mcp-apps"` in every host, because every host speaks that bridge; a top-level
+document gets `"generic"`:
 
 ```typescript
-type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
+type HostKind = "mcp-apps" | "generic";
 ```
 
 ## `SynapseUIClient` methods

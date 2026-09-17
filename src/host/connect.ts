@@ -8,9 +8,9 @@ import {
 } from "./types.js";
 
 /**
- * Connect a Synapse-authored component to whatever host it renders in — ChatGPT
- * (OpenAI Apps SDK), Claude (MCP Apps standard), or a plain/standalone page — behind one
- * push-first API. Feature-detects the host, selects an adapter, and applies the
+ * Connect a Synapse-authored component to whatever host it renders in — any MCP
+ * Apps host, or a plain/standalone page — behind one push-first API. Detects
+ * whether it is framed, selects an adapter, and applies the
  * host theme to the DOM before returning.
  *
  * Synchronous: `data()` is populated from baked-in data (where present) on

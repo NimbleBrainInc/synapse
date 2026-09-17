@@ -52,10 +52,11 @@ export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
  * app sends is spec.
  *
  * Each extension has one name, used both as its method and as the identifier a
- * host declares in `hostCapabilities.experimental` to offer it. The ext-apps host capability type has no field for extensions,
- * and a spec client parses the `ui/initialize` result against that type, so
- * `experimental` is the one slot whose contents reach the app. The MCP tasks
- * capability travels the same way, for the same reason.
+ * host declares in `hostCapabilities.experimental` to offer it. The ext-apps
+ * host capability type has no field for extensions, and a spec client parses
+ * the `ui/initialize` result against that type, so `experimental` is the one
+ * slot whose contents reach the app. The MCP tasks capability travels the same
+ * way, for the same reason.
  *
  * The gate is the declaration, not the host's name. A host that implements an
  * extension says so; a host that does not is never sent it.

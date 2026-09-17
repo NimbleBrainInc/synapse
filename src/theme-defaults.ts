@@ -27,7 +27,8 @@
  * Font *faces* are the one part of theming CSS variables cannot carry — a token
  * names a family, it cannot load one. The spec carries them separately, as
  * `@font-face` CSS in `hostContext.styles.css.fonts`, and each client applies
- * that string itself.
+ * that string itself. The CSS is injected as the host sent it: it is trusted,
+ * because the host already controls the frame it renders into.
  *
  * Only theme-sensitive (color) vars are listed here. Theme-invariant vars
  * (radii, type scale, shadows, font stacks, weights, border widths) look the

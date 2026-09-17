@@ -10,23 +10,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The NimbleBrain host extension methods are renamed under the `ai.nimblebrain/` prefix.** `synapse/action` is `ai.nimblebrain/action`, `synapse/request-file` is `ai.nimblebrain/request-file`, and `synapse/keydown` is `ai.nimblebrain/keydown`. Each name is both the method and the identifier a host declares in `hostCapabilities.experimental`, so `NIMBLEBRAIN_EXTENSIONS` lists one name per extension. The prefix names the owner: these are the NimbleBrain host's extensions, and this package implements a client for them.
 
-  **Migration:** apps change nothing in code. A host handles the new method names and declares them under the same names, in the release its apps move to this one.
+  **Migration:** apps change nothing in code. A host handles the new method names and declares the extensions under them. Apps pin this package independently, so a host serving apps built on an earlier release keeps handling `synapse/action`, `synapse/request-file` and `synapse/keydown` as well, until none of its apps is on one. The two sets of names do not collide, so handling both is safe.
 
 - **`sendMessage`'s chat context moves to `_meta["ai.nimblebrain/context"]`.** It was sent as `_meta.context`. It is still sent only to a host that identifies as NimbleBrain, and the `sendMessage(text, context)` signature is unchanged.
 
-  **Migration:** a host reads the context from `_meta["ai.nimblebrain/context"]` on the `ui/message` text block.
+  **Migration:** a host reads the context from `_meta["ai.nimblebrain/context"]` on the `ui/message` text block, and from `_meta.context` while it serves apps built on an earlier release.
 
 - **Host fonts arrive as the spec's `styles.css.fonts`, and the font-descriptor API is gone.** A host sends `@font-face` CSS in `hostContext.styles.css.fonts`; `connect()` loads it with ext-apps `applyHostFonts`, and the cross-host client injects it into the same `__mcp-host-fonts` style element. The CSS is loaded once and stays in place across later host-context changes. Removed: the `synapse/fontFaces` host-context key, `FONT_FACES_CONTEXT_KEY`, `Theme.fontFaces`, `SynapseUITheme.fontFaces`, `FontFaceDescriptor` and `FontDisplayValue`.
 
-  **Migration:** a host builds `@font-face` rules from its descriptors and sends them as `styles.css.fonts`, e.g. `@font-face { font-family: 'Your Sans'; src: url('/fonts/your-sans.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }`, in the handshake: a mid-session change of typeface is not applied. An app that read `theme.fontFaces` reads nothing; the typeface is loaded for it.
+  **Migration:** a host builds `@font-face` rules from its descriptors and sends them as `styles.css.fonts`, e.g. `@font-face { font-family: 'Your Sans'; src: url('/fonts/your-sans.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }`, in the handshake: a mid-session change of typeface is not applied. A host serving apps built on an earlier release keeps sending the `synapse/fontFaces` host-context key beside it, until none of its apps is on one. An app that read `theme.fontFaces` reads nothing; the typeface is loaded for it.
 
 - **The NimbleBrain extensions are gated on the host declaring them, not on the host's name.** `action`/`useAction`, `pickFile`/`pickFiles`/`useFileUpload` and `forwardKeys` work only on a host whose `ui/initialize` result declares `ai.nimblebrain/action`, `ai.nimblebrain/request-file` or `ai.nimblebrain/keydown` in `hostCapabilities.experimental`. Where it is not declared, `action` sends nothing, the picker rejects, and keys are not captured, whatever the host calls itself. `NIMBLEBRAIN_EXTENSIONS` lists all three.
 
-  **Migration:** apps change nothing in code. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too. The host and its apps move together: a host serving these extensions must understand the new method names below and declare them in the same release.
+  **Migration:** apps change nothing in code. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too. Declaring is safe ahead of the apps: an app built on an earlier release ignores the declaration.
 
 - **Spec calls check the host's declaration before sending.** `callTool` and `useCallTool` reject with `HostCapabilityError` when the host did not declare `serverTools`, and `readServerResource` does the same without `serverResources`. `sendMessage`/`useSendMessage` send nothing without `message`, and `updateModelContext`/`useModelContext` send nothing without `updateModelContext`. `openLink` opens the URL with `window.open` without `openLinks`. Before this change, each of these was sent regardless. A host that did not implement the request might never answer it, and a request has no deadline, so the call could wait forever.
 
-  **Migration:** a host declares what it serves, in the same release its apps move to this one. An app that wants to hide a control reads `app.hostCapabilities` first.
+  **Migration:** a host declares what it serves before its apps move to this release; an app built on an earlier release ignores the declaration. An app that wants to hide a control reads `app.hostCapabilities` first.
 
 - **Capability failures throw `HostCapabilityError`.** `downloadFile`, `pickFile`, `pickFiles` and `callToolAsTask` throw it in place of a plain `Error`, with a new message. Its `capability` field names what the host did not declare.
 

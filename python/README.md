@@ -7,11 +7,11 @@ The **server half** of the Synapse cross-host UI framework. Pairs with the
 pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
 ```
 
-One `SynapseUI` declaration wires a self-contained HTML component into every host
-bridge a Synapse app renders in — **ChatGPT** (OpenAI Apps SDK), **Claude** (MCP
-Apps), and the **NimbleBrain** runtime — replacing the per-app hand-rolled shim.
+One `SynapseUI` declaration serves a self-contained HTML component to every MCP
+Apps host — **ChatGPT**, **Claude**, and the **NimbleBrain** runtime — replacing the
+per-app hand-rolled shim.
 It is an MCP extension (SEP-2133): hand the instance to `MCPServer` and it
-contributes its resources and its result binding.
+contributes its `ui://` resource and its `tools/call` interceptor.
 
 ```python
 from mcp.server.mcpserver import MCPServer
@@ -22,8 +22,6 @@ report_ui = SynapseUI(
     template=load_template(),            # data-free HTML (carries the SDK + data markers)
     preferred_size=("100%", "auto"),
 )
-report_ui.bind("analyze_domain", should_render=lambda d: "domain" in d)
-
 mcp = MCPServer("bassethound", extensions=[report_ui])
 
 @mcp.tool(meta=report_ui.tool_meta(invoking="Picking up the scent…", invoked="Dossier ready"))
@@ -31,41 +29,46 @@ async def analyze_domain(domain: str) -> Dossier:
     ...
 ```
 
-Passing the instance in `extensions=` serves the host-facing `ui://` resources
-(data-free) and installs the `tools/call` interceptor. `tool_meta` on the tool
-descriptor carries the binding pointers (`openai/outputTemplate` for ChatGPT,
-`ui.resourceUri` for SEP-1865 hosts). `bind` names a tool whose result carries the
-binding: by default the interceptor mirrors the ChatGPT `openai/outputTemplate`
-pointer into the result `_meta`, so a standard host renders the contributed
-component from `structuredContent` with no UI HTML in the result content. Pass
-`embed_resource=True` to also bake the legacy mcp-ui embedded copy (dossier in a
-`<script>`) into the content — off by default so that `audience: ["user"]` HTML
-can't leak into a client that won't render it. Plain MCP clients ignore the `_meta`
-and still read `structuredContent`.
+Passing the instance in `extensions=` serves one data-free `ui://` resource under
+`text/html;profile=mcp-app` and installs the `tools/call` interceptor. `tool_meta` on
+the tool descriptor carries the binding, `ui.resourceUri`; ChatGPT and Claude both
+resolve it, read the resource and render the component from the result's
+`structuredContent`, with no UI HTML in the result content. Plain MCP clients ignore
+the `_meta` and still read `structuredContent`.
 
-`bind` may be called before or after the server is constructed; the resources are
-built at construction, so a `SynapseUI` is fully formed before `MCPServer` reads it.
+`bind(tool, embed_resource=True)` additionally bakes the rendered component (dossier
+in a `<script>`) into that tool's result content, for a host that renders solely
+from an embedded copy. It is off by default so that `audience: ["user"]` HTML can't
+leak into a client that won't render it. `bind` may be called before or after the
+server is constructed; the resource is built at construction, so a `SynapseUI` is
+fully formed before `MCPServer` reads it.
 
-## One declaration, every host's keys
+## The keys each input reaches
 
-Each input is declared once and emitted under every key a host reads it from. The
-ext-apps `ui.*` key is the one the spec defines. ChatGPT reads those keys too and
-documents each `openai/*` key as a compatibility alias for one of them, so both are
-emitted and a caller never picks.
+Each input is declared once. The ext-apps `ui.*` key is the one the spec defines, and
+the one every host reads.
 
-| Input | ext-apps key | ChatGPT alias |
+| Input | ext-apps key | ChatGPT key |
 |---|---|---|
-| the component | tool `ui.resourceUri` (the MCP Apps copy) | `openai/outputTemplate` (the skybridge copy) |
+| the component | tool `ui.resourceUri` | — |
 | `tool_meta(visibility=)` | tool `ui.visibility` | `openai/widgetAccessible`; `openai/visibility: "private"` when `"model"` is absent |
-| `connect_domains`, `resource_domains` | resource `ui.csp` | `openai/widgetCSP` |
-| always `true` | resource `ui.prefersBorder` | `openai/widgetPrefersBorder` |
-| `widget_domain` | skybridge resource `ui.domain` | `openai/widgetDomain` |
-| `mcp_app_domain` | MCP Apps resource `ui.domain` | — |
+| `connect_domains`, `resource_domains` | resource `ui.csp` | — |
+| always `true` | resource `ui.prefersBorder` | — |
+| `mcp_app_domain` | resource `ui.domain` | — |
+| `widget_domain` | — | resource `openai/widgetDomain`, only when given |
+| `tool_meta(invoking=, invoked=)` | — | tool `openai/toolInvocation/*`, only when given |
+
+ChatGPT enforces `ui.visibility` in developer mode. The visibility aliases stay
+because whether a reviewed, directory-listed app enforces it the same way has not
+been measured, and they are derived from `ui.visibility`, so they cannot disagree
+with it.
 
 The two origins stay separate inputs because the hosts disagree on the value:
 ChatGPT takes an origin the developer declares, while Claude derives
 `sha256(<connector URL>)[:32] + ".claudemcpcontent.com"` and rejects anything else.
-Leave both unset unless the component needs a stable origin.
+Leave both unset unless the component needs a stable origin. Every host reads
+`ui.domain` from the one resource, so `mcp_app_domain` reaches ChatGPT too: set it
+only when each host the server targets accepts that value.
 
 `tool_meta(widget_accessible=)` still works and warns: it is
 `visibility=["model", "app"]` or `visibility=["model"]`.
@@ -113,11 +116,10 @@ defense) — framework-owned and on by default.
 ## Relationship to the SDK's own MCP Apps extension
 
 `SynapseUI` advertises the spec's MCP Apps identifier, `io.modelcontextprotocol/ui`
-— that *is* the extension it implements, and the ChatGPT dialect rides alongside in
-`_meta` keys the spec does not claim. So a server uses `SynapseUI` **instead of**
-`mcp.server.apps.Apps`, not next to it: two extensions cannot share an identifier,
-and `Apps` serves only `text/html;profile=mcp-app`, so it cannot carry the
-skybridge resource that makes the component render in ChatGPT.
+— that *is* the extension it implements, and the few ChatGPT keys above ride
+alongside in `_meta` keys the spec does not claim. So a server uses `SynapseUI`
+**instead of** `mcp.server.apps.Apps`, not next to it: two extensions cannot share
+an identifier.
 
 One consequence: **one `SynapseUI` per server.** A second instance fails at server
 construction with `Extension 'io.modelcontextprotocol/ui' is already registered`.
@@ -141,12 +143,11 @@ recorded in `nimblebrain_synapse.__client_version__` (and, per release, in the
 [CHANGELOG](https://github.com/NimbleBrainInc/synapse/blob/main/python/CHANGELOG.md));
 CI keeps it equal to the sibling `package.json` at HEAD.
 
-What both halves share is the **wire protocol** — the `ui://` resource MIMEs, the
-`_meta` dialects, and the data-element contract:
+What both halves share is the **wire protocol** — the `ui://` resource MIME, the
+`_meta` keys, and the data-element contract:
 
 - ext-apps `2026-01-26`
 - MCP Apps (SEP-1865)
-- OpenAI Apps SDK
 
 ### MCP SDK compatibility
 

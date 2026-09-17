@@ -74,7 +74,11 @@ export function useHostContext<T extends McpUiHostContext = McpUiHostContext>():
   return ctx;
 }
 
-/** The latest tool result pushed by the host, or `null` before one arrives. */
+/**
+ * The latest tool result pushed by the host, or `null` before one arrives. A
+ * host that mounts the app without a tool call never sends one, so `null` is a
+ * state to render, not only a loading state.
+ */
 export function useToolResult(): ToolResultData | null {
   const app = useAppContext();
   const [data, setData] = useState<ToolResultData | null>(null);
@@ -86,7 +90,7 @@ export function useToolResult(): ToolResultData | null {
   return data;
 }
 
-/** The arguments the host is calling the bound tool with, as they arrive. */
+/** The arguments the host is calling the bound tool with, or `null` until it sends them. */
 export function useToolInput(): Record<string, unknown> | null {
   const app = useAppContext();
   const [input, setInput] = useState<Record<string, unknown> | null>(null);
@@ -98,7 +102,7 @@ export function useToolInput(): Record<string, unknown> | null {
   return input;
 }
 
-/** Ask the host to resize this app's frame. */
+/** Report this app's frame size to the host. Every host accepts it; the spec has no capability for it. */
 export function useResize(): (width?: number, height?: number) => void {
   const app = useAppContext();
   return useCallback((width?: number, height?: number) => app.resize(width, height), [app]);
@@ -115,7 +119,12 @@ export interface UseCallToolResult<TOutput> {
   data: TOutput | null;
 }
 
-/** Call one tool, with pending/error/data state for the latest call. */
+/**
+ * Call one tool, with pending/error/data state for the latest call.
+ *
+ * Where the host did not declare `serverTools`, `call` rejects with
+ * `HostCapabilityError` without sending, and `error` holds it.
+ */
 export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolResult<TOutput> {
   const app = useAppContext();
   const [isPending, setIsPending] = useState(false);
@@ -161,6 +170,10 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
  * notification's params as the spec defines them, or `{}` when the host sends
  * none. They name no server and no tool: the notification only ever comes from
  * this app's own server, and a change need not come from a tool call at all.
+ *
+ * Where the host did not declare `serverResources.listChanged`, the callback
+ * never runs. Nothing fails: the app shows what it last loaded until the user
+ * or the app reloads it.
  */
 export function useDataSync(
   callback: (params: NonNullable<ResourceListChangedNotification["params"]>) => void,
@@ -203,6 +216,8 @@ const MODEL_CONTEXT_DEBOUNCE_MS = 250;
  * The debounce lives here rather than on `app.updateModelContext`, which
  * sends immediately: the rapid-change problem is a React one, and the plain
  * method should do what it says.
+ *
+ * A no-op where the host did not declare `updateModelContext`.
  */
 export function useModelContext(): (state: Record<string, unknown>, summary?: string) => void;
 export function useModelContext(factory: () => ModelContext, deps: unknown[]): void;
@@ -243,7 +258,11 @@ export function useModelContext(
   if (!factory) return push;
 }
 
-/** Send a user message into the agent conversation. */
+/**
+ * Send a user message into the agent conversation. A no-op where the host did
+ * not declare `message`; check `app.hostCapabilities.message` to decide whether
+ * to offer the control at all.
+ */
 export function useSendMessage(): (
   text: string,
   context?: { action?: string; entity?: string },
@@ -260,7 +279,7 @@ export function useSendMessage(): (
 // NimbleBrain host extensions
 // -----------------------------------------------------------------------------
 
-/** Trigger a host-side action. No-op off a NimbleBrain host. */
+/** Trigger a host-side action. A no-op where the host did not declare `ai.nimblebrain/action`. */
 export function useAction(): (name: string, params?: Record<string, unknown>) => void {
   const app = useAppContext();
   return useCallback(
@@ -275,7 +294,12 @@ export interface UseFileUploadResult {
   isPending: boolean;
 }
 
-/** The host's native file picker, with a pending flag. NimbleBrain only. */
+/**
+ * The host's native file picker, with a pending flag. Both functions reject
+ * with `HostCapabilityError` where the host did not declare
+ * `ai.nimblebrain/request-file`; `hostSupports(app, "requestFile")` says so up
+ * front.
+ */
 export function useFileUpload(): UseFileUploadResult {
   const app = useAppContext();
   const [isPending, setIsPending] = useState(false);
@@ -392,6 +416,10 @@ export interface UseCallToolAsTaskResult<TInput, TOutput> {
  *  4. Awaits `handle.result()` in the background — resolves to either
  *     `result` (success / `isError: false`) or `error` (network reject
  *     OR `result.isError === true`).
+ *
+ * Where the host did not declare the tasks capability, `fire` rejects with
+ * `HostCapabilityError` and `error` holds it; `app.supportsTasks` says so up
+ * front.
  *
  * Cleanup (unmount or re-fire) unsubscribes from status events and
  * clears the poll timer, but does NOT cancel the server-side task —

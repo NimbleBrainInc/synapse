@@ -10,9 +10,11 @@ import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
-import { action, pickFile, pickFiles } from "../extensions.js";
+import { HostCapabilityError } from "../errors.js";
+import { action, hostSupports, pickFile, pickFiles } from "../extensions.js";
 import { readHostTasksCapability, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
+import { FULL_HOST_CAPABILITIES } from "./helpers/host-capabilities.js";
 
 // --- Helpers ---
 
@@ -33,7 +35,7 @@ function makeInitResult(hostName = "nimblebrain", overrides?: Record<string, unk
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: hostName, version: "1.0.0" },
-    hostCapabilities: {},
+    hostCapabilities: FULL_HOST_CAPABILITIES,
     hostContext: {
       theme: "dark",
       styles: { variables: {} },
@@ -272,10 +274,23 @@ describe("connect() capabilities", () => {
       await expect(p).rejects.toThrow(/without a string `id`/);
     });
 
-    it("throws off a NimbleBrain host rather than hanging", async () => {
-      app = await connectAndHandshake({}, makeInitResult("claude"));
-      await expect(pickFile(app)).rejects.toThrow(/not supported in this host/);
-      await expect(pickFiles(app)).rejects.toThrow(/not supported in this host/);
+    it("rejects without sending where the host did not declare it, whatever the host is called", async () => {
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
+      expect(hostSupports(app, "requestFile")).toBe(false);
+      for (const pick of [pickFile, pickFiles]) {
+        const error = await pick(app).catch((e: unknown) => e);
+        expect(error).toBeInstanceOf(HostCapabilityError);
+        expect((error as HostCapabilityError).capability).toBe("ai.nimblebrain/request-file");
+      }
+      expect(sentByMethod("synapse/request-file")).toHaveLength(0);
+    });
+
+    it("works on any host that declares it", async () => {
+      app = await connectAndHandshake({}, makeInitResult("another-host"));
+      expect(hostSupports(app, "requestFile")).toBe(true);
+      const p = pickFile(app);
+      await respondToLastRequest({ files: [] });
+      await expect(p).resolves.toBeNull();
     });
   });
 
@@ -324,10 +339,18 @@ describe("connect() capabilities", () => {
       expect(sent[0].params).toEqual({ action: "navigate", entity: "board", id: "b1" });
     });
 
-    it("is a no-op off a NimbleBrain host", async () => {
-      app = await connectAndHandshake({}, makeInitResult("claude"));
+    it("is a no-op where the host did not declare it, whatever the host is called", async () => {
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
       action(app, "navigate", { id: "b1" });
+      await flush();
       expect(sentNotifications("synapse/action")).toHaveLength(0);
+    });
+
+    it("sends on any host that declares it", async () => {
+      app = await connectAndHandshake({}, makeInitResult("another-host"));
+      action(app, "navigate", { id: "b1" });
+      await flush();
+      expect(sentNotifications("synapse/action")).toHaveLength(1);
     });
   });
 
@@ -441,10 +464,10 @@ describe("connect() capabilities", () => {
     it("rejects without sending when the host did not advertise downloadFile", async () => {
       // A host that does not implement the request may never answer it, and a
       // request has no deadline — sending would leave the promise pending forever.
-      app = await connectAndHandshake();
-      await expect(downloadFile(app, "a.txt", "x")).rejects.toThrow(
-        "downloadFile is not supported in this host",
-      );
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
+      const error = await downloadFile(app, "a.txt", "x").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HostCapabilityError);
+      expect((error as HostCapabilityError).capability).toBe("downloadFile");
       const sent = postMessageSpy.mock.calls.some(
         (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/download-file",
       );
@@ -785,8 +808,13 @@ describe("connect() capabilities", () => {
       expect(sentNotifications("synapse/keydown")).toHaveLength(1);
     });
 
-    it("stays off on a host that does not implement synapse/keydown", async () => {
-      app = await connectAndHandshake({ forwardKeys: true }, makeInitResult("claude"));
+    it("stays off where the host did not declare it, whatever the host is called", async () => {
+      app = await connectAndHandshake(
+        { forwardKeys: true },
+        makeInitResult("nimblebrain", {
+          hostCapabilities: { ...FULL_HOST_CAPABILITIES, experimental: {} },
+        }),
+      );
       pressEscape();
       expect(sentNotifications("synapse/keydown")).toHaveLength(0);
     });
@@ -796,6 +824,63 @@ describe("connect() capabilities", () => {
       app.destroy();
       pressEscape();
       expect(sentNotifications("synapse/keydown")).toHaveLength(0);
+    });
+  });
+
+  // The portable-app contract: what each call does on a host that declares
+  // nothing. Requests with an answer reject before sending, because a host that
+  // does not implement one may never answer and requests carry no deadline.
+  // Fire-and-forget calls send nothing. Each row is documented on the method.
+  describe("on a host that declares no capabilities", () => {
+    beforeEach(async () => {
+      app = await connectAndHandshake({}, makeInitResult("another-host", { hostCapabilities: {} }));
+      postMessageSpy.mockClear();
+    });
+
+    it("exposes the declaration it read", () => {
+      expect(app.hostCapabilities).toEqual({});
+    });
+
+    it("callTool rejects with HostCapabilityError and sends nothing", async () => {
+      const error = await app.callTool("list").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HostCapabilityError);
+      expect((error as HostCapabilityError).capability).toBe("serverTools");
+      expect(sentByMethod("tools/call")).toHaveLength(0);
+    });
+
+    it("readServerResource rejects with HostCapabilityError and sends nothing", async () => {
+      const error = await app.readServerResource({ uri: "x://a" }).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HostCapabilityError);
+      expect((error as HostCapabilityError).capability).toBe("serverResources");
+      expect(sentByMethod("resources/read")).toHaveLength(0);
+    });
+
+    it("sendMessage and updateModelContext send nothing", async () => {
+      app.sendMessage("hello");
+      app.updateModelContext({ a: 1 }, "summary");
+      await flush();
+      expect(sentByMethod("ui/message")).toHaveLength(0);
+      expect(sentByMethod("ui/update-model-context")).toHaveLength(0);
+    });
+
+    it("openLink opens the URL itself instead of asking the host", async () => {
+      const open = vi.spyOn(window, "open").mockReturnValue(null);
+      app.openLink("https://example.com/");
+      await flush();
+      expect(open).toHaveBeenCalledWith("https://example.com/", "_blank", "noopener");
+      expect(sentByMethod("ui/open-link")).toHaveLength(0);
+    });
+
+    it("resize still reports, because the spec gates it on nothing", async () => {
+      app.resize(100, 200);
+      await flush();
+      expect(sentNotifications("ui/notifications/size-changed")).toHaveLength(1);
+    });
+
+    it("reports no NimbleBrain extension", () => {
+      expect(hostSupports(app, "action")).toBe(false);
+      expect(hostSupports(app, "requestFile")).toBe(false);
+      expect(hostSupports(app, "keydown")).toBe(false);
     });
   });
 

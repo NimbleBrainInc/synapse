@@ -221,11 +221,36 @@ and `src/task-handle.ts`, reaching the transport through `internalsFor(app)`. Ad
 method on the object — the whole point of collapsing the old two-API fork was a
 smaller object, and it grows back one convenience method at a time.
 
+## The portable-app contract
+
+Every method on `App` and every helper beside it reads `hostCapabilities` from
+the `ui/initialize` result before it sends, and does one documented thing when
+the capability is absent:
+
+- a request with an answer rejects with `HostCapabilityError` **without
+  sending** — a host that does not implement it may never answer, and requests
+  have no deadline;
+- a fire-and-forget call sends nothing;
+- a hook that waits for the host keeps its initial value.
+
+The per-hook table is `web/src/content/docs/docs/concepts/degradation.mdx`; the
+same rule is on each method's doc comment. A new method or helper picks one of
+the three and says which. Nothing is gated on the host's name.
+
 ## NimbleBrain extensions (`synapse/` prefix)
 
-No spec equivalent — degrade to no-ops in other hosts:
+No spec equivalent. `NIMBLEBRAIN_EXTENSIONS` in `src/event-map.ts` is the
+complete list, each method paired with the identifier a host declares in
+`hostCapabilities.experimental` to offer it (`experimental` is the one slot a
+spec client's handshake parse keeps):
 
-`synapse/action`, `synapse/keydown`, `synapse/request-file`
+| Method | Declared as |
+|---|---|
+| `synapse/action` | `ai.nimblebrain/action` |
+| `synapse/request-file` | `ai.nimblebrain/request-file` |
+| `synapse/keydown` | `ai.nimblebrain/keydown` |
+
+A `synapse/` method without an entry fails `event-map.test.ts`.
 
 ## IIFE build for MCP server widgets
 

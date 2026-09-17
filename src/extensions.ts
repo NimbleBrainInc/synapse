@@ -2,19 +2,31 @@
  * NimbleBrain host extensions — composable functions over {@link App}.
  *
  * These are not ext-apps spec surface. They ride the `synapse/` method prefix,
- * which `McpUiHostContext`'s open index signature makes legal, and only a
- * NimbleBrain host implements them. They live here rather than on the `App`
- * object so the object stays the spec surface plus the handshake state, and
- * so an app that never picks a file never pulls this code in.
+ * and `NIMBLEBRAIN_EXTENSIONS` in `event-map.ts` is the complete list. They
+ * live here rather than on the `App` object so the object stays the spec
+ * surface plus the handshake state, and so an app that never picks a file
+ * never pulls this code in.
  *
- * Every one of them is gated on the host identity established by the
- * handshake: off a NimbleBrain host, the fire-and-forget ones are no-ops and
- * the ones with a return value throw, because a picker that silently resolves
- * `null` forever is worse than one that says it isn't there.
+ * Every one of them is gated on the host declaring it in `ui/initialize`: where
+ * it is not declared, the fire-and-forget ones are no-ops and the ones with a
+ * return value throw `HostCapabilityError`, because a picker that silently
+ * resolves `null` forever is worse than one that says it isn't there.
+ * `keydown` has no function here; `connect({ forwardKeys })` applies the same
+ * gate.
  */
-import { ACTION_METHOD, REQUEST_FILE_METHOD } from "./event-map.js";
+import { HostCapabilityError } from "./errors.js";
+import { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import type { App, FileResult, RequestFileOptions } from "./types.js";
+
+/**
+ * Whether the host declared a NimbleBrain extension. Use it to decide what to
+ * offer, e.g. to hide an upload button on a host with no file picker.
+ */
+export function hostSupports(app: App, extension: NimbleBrainExtension): boolean {
+  const { capability } = NIMBLEBRAIN_EXTENSIONS[extension];
+  return app.hostCapabilities.experimental?.[capability] !== undefined;
+}
 
 /** 25 MB — the host's default cap on a single picked file. */
 const DEFAULT_MAX_FILE_SIZE = 26_214_400;
@@ -22,23 +34,22 @@ const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 /**
  * Trigger a host-side action.
  *
- * Sends a command *to* the host (navigate, open a panel). No-op off a
- * NimbleBrain host.
+ * Sends a command *to* the host (navigate, open a panel). A no-op when the host
+ * did not declare `ai.nimblebrain/action`.
  */
 export function action(app: App, name: string, params?: Record<string, unknown>): void {
-  if (!app.isNimbleBrainHost) return;
-  internalsFor(app).send(ACTION_METHOD, { action: name, ...params });
+  if (!hostSupports(app, "action")) return;
+  internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.action.method, { action: name, ...params });
 }
 
 /**
  * Request one file from the user via the host's native file picker.
  *
- * Resolves `null` if the user cancels. Throws off a NimbleBrain host.
+ * Resolves `null` if the user cancels. Rejects with `HostCapabilityError` when
+ * the host did not declare `ai.nimblebrain/request-file`.
  */
 export async function pickFile(app: App, options?: RequestFileOptions): Promise<FileResult | null> {
-  if (!app.isNimbleBrainHost) {
-    throw new Error("pickFile is not supported in this host");
-  }
+  requireRequestFile("pickFile", app);
   const files = await requestFile(app, options, false);
   // One pick, so the first entry is the answer; an empty list is a cancel.
   return files[0] ?? null;
@@ -47,13 +58,18 @@ export async function pickFile(app: App, options?: RequestFileOptions): Promise<
 /**
  * Request several files from the user.
  *
- * Resolves `[]` if the user cancels. Throws off a NimbleBrain host.
+ * Resolves `[]` if the user cancels. Rejects with `HostCapabilityError` when
+ * the host did not declare `ai.nimblebrain/request-file`.
  */
 export async function pickFiles(app: App, options?: RequestFileOptions): Promise<FileResult[]> {
-  if (!app.isNimbleBrainHost) {
-    throw new Error("pickFiles is not supported in this host");
-  }
+  requireRequestFile("pickFiles", app);
   return await requestFile(app, options, true);
+}
+
+function requireRequestFile(feature: string, app: App): void {
+  if (!hostSupports(app, "requestFile")) {
+    throw new HostCapabilityError(feature, NIMBLEBRAIN_EXTENSIONS.requestFile.capability);
+  }
 }
 
 /**
@@ -74,7 +90,7 @@ async function requestFile(
   options: RequestFileOptions | undefined,
   multiple: boolean,
 ): Promise<FileResult[]> {
-  const result = await internalsFor(app).request(REQUEST_FILE_METHOD, {
+  const result = await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.requestFile.method, {
     accept: options?.accept,
     maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
     multiple,

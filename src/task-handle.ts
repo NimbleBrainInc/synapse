@@ -14,6 +14,7 @@ import type {
   TaskStatusNotificationParams,
 } from "@modelcontextprotocol/sdk/types.js";
 
+import { HostCapabilityError } from "./errors.js";
 import { TOOLS_CALL_METHOD } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
@@ -156,9 +157,10 @@ export function createTaskStatusRouter(subscribe: SubscribeFn): TaskStatusRouter
  * const result = await handle.result();
  * ```
  *
- * Throws if the host did not advertise `tasks.requests.tools.call` — per spec
- * a requestor MUST NOT task-augment without matching receiver capability.
- * Fall back to `app.callTool`.
+ * Rejects with `HostCapabilityError` if the host did not advertise
+ * `tasks.requests.tools.call` — per spec a requestor MUST NOT task-augment
+ * without matching receiver capability. Check `app.supportsTasks` first, and
+ * fall back to `app.callTool`.
  */
 export async function callToolAsTask<TOutput = unknown>(
   app: App,
@@ -169,10 +171,9 @@ export async function callToolAsTask<TOutput = unknown>(
   const deps = internalsFor(app);
   const hostTasks = deps.hostTasksCapability;
   if (!hostTasks?.requests?.tools?.call) {
-    throw new Error(
-      "callToolAsTask: host did not advertise tasks.requests.tools.call in its capabilities. " +
-        "Per MCP 2025-11-25 §, requestors MUST NOT task-augment a tools/call without " +
-        "matching receiver capability. Fall back to `app.callTool`.",
+    throw new HostCapabilityError(
+      "callToolAsTask",
+      `${TASKS_EXTENSION_ID} with requests.tools.call`,
     );
   }
 

@@ -6,9 +6,11 @@ export { connect } from "./connect.js";
 export { FONT_FACES_CONTEXT_KEY } from "./detection.js";
 // ext-apps `ui/download-file`, composable over `App`.
 export { downloadFile } from "./download-file.js";
-// NimbleBrain host extensions — composable over `App`, no-ops or throws off a
-// NimbleBrain host. Not ext-apps spec surface.
-export { action, pickFile, pickFiles } from "./extensions.js";
+export { HostCapabilityError } from "./errors.js";
+export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
+// NimbleBrain host extensions — composable over `App`, each a no-op or a
+// `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
+export { action, hostSupports, pickFile, pickFiles } from "./extensions.js";
 // Cross-host UI client (push-first; any MCP Apps host, or standalone). A
 // different axis from `connect()`, and unaffected by it.
 export { connectUI } from "./host/connect.js";

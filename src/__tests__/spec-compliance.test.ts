@@ -92,6 +92,9 @@ function makeSpecInitResult(overrides?: Partial<McpUiInitializeResult>): McpUiIn
     hostCapabilities: {
       openLinks: {},
       serverTools: {},
+      serverResources: {},
+      updateModelContext: { text: {}, structuredContent: {} },
+      message: { text: {} },
       logging: {},
     },
     hostContext: {

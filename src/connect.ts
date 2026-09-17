@@ -29,7 +29,8 @@ import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/ty
 
 import { parseToolResultParams } from "./content-parser.js";
 import { extractTheme, foldFontFaces } from "./detection.js";
-import { resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
+import { HostCapabilityError } from "./errors.js";
+import { NIMBLEBRAIN_EXTENSIONS, resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
@@ -47,8 +48,8 @@ import type {
 } from "./types.js";
 
 /**
- * The host name that identifies a NimbleBrain host in the handshake. The
- * `synapse/*` extensions are gated on it.
+ * The host name that identifies a NimbleBrain host in the handshake. Identity
+ * only: the `synapse/*` extensions are gated on the host declaring each one.
  */
 const NIMBLEBRAIN_HOST = "nimblebrain";
 
@@ -109,8 +110,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
   let isNimbleBrainHost = false;
   let toolInfo: { tool: Record<string, unknown> } | null = null;
   let containerDimensions: Dimensions | null = null;
+  let hostCapabilities: McpUiHostCapabilities = {};
   let hostTasksCapability: TasksCapability | undefined;
-  let hostDownloadFileCapability: McpUiHostCapabilities["downloadFile"];
   let keyboard: KeyboardForwarder | null = null;
 
   // Font faces are the one derived value that must NOT be recomputed from a
@@ -326,9 +327,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
   };
   isNimbleBrainHost = hostInfo.name === NIMBLEBRAIN_HOST;
 
-  const hostCapabilities = client.getHostCapabilities();
+  // Everything an app may ask of the host is decided here, once: each method
+  // below and each helper beside `App` checks the declaration before sending.
+  hostCapabilities = client.getHostCapabilities() ?? {};
   hostTasksCapability = readHostTasksCapability(hostCapabilities);
-  hostDownloadFileCapability = hostCapabilities?.downloadFile;
 
   const initialContext = client.getHostContext();
   if (initialContext) {
@@ -354,11 +356,13 @@ export async function connect(options: ConnectOptions): Promise<App> {
     applyResolvedTheme();
   }
 
-  // Keyboard forwarding is a NimbleBrain extension: only a NimbleBrain host
-  // consumes `synapse/keydown`. Forwarding elsewhere would `preventDefault` a
-  // key for a host that does nothing with it, so the gate is on identity, not
-  // just on the option.
-  if (forwardKeys && isNimbleBrainHost) {
+  // Keyboard forwarding is a NimbleBrain extension. Forwarding to a host that
+  // did not declare it would `preventDefault` a key for a host that does
+  // nothing with it, so the gate is on the declaration, not just the option.
+  if (
+    forwardKeys &&
+    hostCapabilities.experimental?.[NIMBLEBRAIN_EXTENSIONS.keydown.capability] !== undefined
+  ) {
     keyboard = new KeyboardForwarder(sendRaw, forwardKeys === true ? undefined : forwardKeys);
   }
 
@@ -384,6 +388,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
     },
     get hostContext() {
       return currentContext();
+    },
+    get hostCapabilities() {
+      return hostCapabilities;
     },
     get isNimbleBrainHost() {
       return isNimbleBrainHost;
@@ -411,6 +418,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
 
     openLink(url: string): void {
       if (destroyed) return;
+      if (!hostCapabilities.openLinks) {
+        window.open(url, "_blank", "noopener");
+        return;
+      }
       const params: McpUiOpenLinkRequest["params"] = { url };
       client.openLink(params, NO_DEADLINE).catch(() => {
         // The host refused or does not serve it: open directly instead.
@@ -419,7 +430,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
     },
 
     updateModelContext(state: Record<string, unknown>, summary?: string): void {
-      if (destroyed) return;
+      if (destroyed || !hostCapabilities.updateModelContext) return;
       const params: McpUiUpdateModelContextRequest["params"] = {
         structuredContent: state,
         ...(summary !== undefined && {
@@ -433,6 +444,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
       toolName: string,
       args?: Record<string, unknown>,
     ): Promise<ToolCallResult<TOutput>> {
+      if (!hostCapabilities.serverTools) {
+        throw new HostCapabilityError("callTool", "serverTools");
+      }
       // No target. A host scopes an app's call to the server that mounted it,
       // so `params` carries what the spec names and nothing else.
       const params: CallToolRequest["params"] = {
@@ -452,11 +466,14 @@ export async function connect(options: ConnectOptions): Promise<App> {
     },
 
     async readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult> {
+      if (!hostCapabilities.serverResources) {
+        throw new HostCapabilityError("readServerResource", "serverResources");
+      }
       return await client.readServerResource(params, NO_DEADLINE);
     },
 
     sendMessage(text: string, context?: { action?: string; entity?: string }): void {
-      if (destroyed) return;
+      if (destroyed || !hostCapabilities.message) return;
       const textBlock: TextContent = {
         type: "text",
         text,
@@ -497,9 +514,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     taskRouter,
     get hostTasksCapability() {
       return hostTasksCapability;
-    },
-    get hostDownloadFileCapability() {
-      return hostDownloadFileCapability;
     },
   });
 

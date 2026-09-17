@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { RESOURCE_LIST_CHANGED_METHOD, resolveEventMethod } from "../event-map.js";
+import * as eventMap from "../event-map.js";
+import {
+  NIMBLEBRAIN_EXTENSIONS,
+  RESOURCE_LIST_CHANGED_METHOD,
+  resolveEventMethod,
+} from "../event-map.js";
 
 describe("resolveEventMethod", () => {
   it("maps tool-result to full MCP method", () => {
@@ -47,5 +52,23 @@ describe("resolveEventMethod", () => {
 describe("RESOURCE_LIST_CHANGED_METHOD", () => {
   it("is the core MCP notification a host forwards to a server's views", () => {
     expect(RESOURCE_LIST_CHANGED_METHOD).toBe("notifications/resources/list_changed");
+  });
+});
+
+describe("NIMBLEBRAIN_EXTENSIONS", () => {
+  // The table is the one place the extensions are listed, and the gate reads it.
+  // A `synapse/` method exported without an entry would be sent ungated.
+  it("lists every synapse/ method this package sends", () => {
+    const methods = Object.values(eventMap).filter(
+      (v): v is string => typeof v === "string" && v.startsWith("synapse/"),
+    );
+    const listed = Object.values(NIMBLEBRAIN_EXTENSIONS).map((e) => e.method);
+    expect([...listed].sort()).toEqual([...methods].sort());
+  });
+
+  it("declares each under a vendor identifier, not the method name", () => {
+    for (const { capability } of Object.values(NIMBLEBRAIN_EXTENSIONS)) {
+      expect(capability).toMatch(/^ai\.nimblebrain\/[a-z-]+$/);
+    }
   });
 });

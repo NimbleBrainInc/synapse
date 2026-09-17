@@ -5,6 +5,7 @@
  * `useModelContext` owns the 250 ms debounce — `app.updateModelContext` sends
  * immediately — so the timing is asserted here and nowhere else.
  */
+import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,6 +17,7 @@ import {
   useModelContext,
   useSendMessage,
 } from "../../react/hooks.js";
+import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
@@ -30,16 +32,16 @@ async function flush(): Promise<void> {
   for (let i = 0; i < 5; i += 1) await Promise.resolve();
 }
 
-function makeInitResult(hostName = "nimblebrain") {
+function makeInitResult(hostName = "nimblebrain", hostCapabilities = FULL_HOST_CAPABILITIES) {
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: hostName, version: "1.0.0" },
-    hostCapabilities: {},
+    hostCapabilities,
     hostContext: { theme: "light", styles: { variables: {} } },
   };
 }
 
-async function respondToInitialize(hostName?: string) {
+async function respondToInitialize(hostName?: string, hostCapabilities?: McpUiHostCapabilities) {
   await flush();
   const initCall = postMessageSpy.mock.calls.find(
     (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",
@@ -49,7 +51,7 @@ async function respondToInitialize(hostName?: string) {
   window.dispatchEvent(
     new MessageEvent("message", {
       source: window.parent,
-      data: { jsonrpc: "2.0", id, result: makeInitResult(hostName) },
+      data: { jsonrpc: "2.0", id, result: makeInitResult(hostName, hostCapabilities) },
     }),
   );
   await flush();
@@ -82,9 +84,9 @@ function createWrapper() {
 }
 
 /** `<AppProvider>` renders nothing until `connect()` resolves. */
-async function settle(hostName?: string) {
+async function settle(hostName?: string, hostCapabilities?: McpUiHostCapabilities) {
   await act(async () => {
-    await respondToInitialize(hostName);
+    await respondToInitialize(hostName, hostCapabilities);
     await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
@@ -269,9 +271,9 @@ describe("useAction", () => {
     expect(sent("synapse/action")[0].params).toEqual({ action: "navigate", id: "b1" });
   });
 
-  it("is a no-op elsewhere", async () => {
+  it("is a no-op where the host did not declare it", async () => {
     const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
-    await settle("claude");
+    await settle("nimblebrain", {});
 
     await act(async () => {
       result.current("navigate", { id: "b1" });

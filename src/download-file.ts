@@ -15,6 +15,7 @@ import {
   type McpUiDownloadFileResult,
 } from "@modelcontextprotocol/ext-apps";
 import type { EmbeddedResource } from "@modelcontextprotocol/sdk/types.js";
+import { HostCapabilityError } from "./errors.js";
 import { internalsFor } from "./internals.js";
 import type { App } from "./types.js";
 
@@ -36,9 +37,9 @@ const BASE64_CHUNK = 0x8000;
  * embedded resource has no name field of its own.
  *
  * Resolves with the host's result: `{ isError: true }` when the host declined
- * or the user cancelled. Rejects, without sending, when the host did not
- * advertise the `downloadFile` capability — a host that does not implement the
- * request may never answer it, and a request has no deadline.
+ * or the user cancelled. Rejects with `HostCapabilityError`, without sending,
+ * when the host did not declare `downloadFile` — a host that does not implement
+ * the request may never answer it, and a request has no deadline.
  */
 export async function downloadFile(
   app: App,
@@ -46,10 +47,10 @@ export async function downloadFile(
   content: string | Blob,
   mimeType?: string,
 ): Promise<McpUiDownloadFileResult> {
-  const internals = internalsFor(app);
-  if (internals.hostDownloadFileCapability === undefined) {
-    throw new Error("downloadFile is not supported in this host");
+  if (!app.hostCapabilities.downloadFile) {
+    throw new HostCapabilityError("downloadFile", "downloadFile");
   }
+  const internals = internalsFor(app);
   const resolvedMime =
     mimeType || (content instanceof Blob ? content.type : "") || "application/octet-stream";
   const uri = `file:///${filename}`;

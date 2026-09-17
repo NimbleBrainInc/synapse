@@ -27,6 +27,7 @@ import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connect } from "../connect.js";
+import { HostCapabilityError } from "../errors.js";
 import { callToolAsTask } from "../task-handle.js";
 import type { App, CallToolAsTaskOptions, TaskHandle, TasksCapability } from "../types.js";
 
@@ -283,9 +284,9 @@ describe("callToolAsTask — capability negotiation", () => {
     await completeHandshake(makeInitResult({ hostTasks: null }));
     app = await appPromise;
 
-    await expect(callToolAsTask(app, "do_thing", {})).rejects.toThrow(
-      /did not advertise tasks\.requests\.tools\.call/,
-    );
+    const error = await callToolAsTask(app, "do_thing", {}).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(HostCapabilityError);
+    expect((error as HostCapabilityError).capability).toMatch(/^io\.modelcontextprotocol\/tasks/);
     // And nothing should have been sent on the wire.
     expect(findCall(TOOLS_CALL_METHOD)).toBeUndefined();
   });
@@ -303,9 +304,7 @@ describe("callToolAsTask — capability negotiation", () => {
     );
     app = await appPromise;
 
-    await expect(callToolAsTask(app, "do_thing", {})).rejects.toThrow(
-      /tasks\.requests\.tools\.call/,
-    );
+    await expect(callToolAsTask(app, "do_thing", {})).rejects.toBeInstanceOf(HostCapabilityError);
   });
 
   it("succeeds when host advertises tasks.requests.tools.call", async () => {

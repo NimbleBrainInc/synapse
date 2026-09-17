@@ -8,6 +8,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Breaking
 
+- **The NimbleBrain extensions are gated on the host declaring them, not on the host's name.** `action`/`useAction`, `pickFile`/`pickFiles`/`useFileUpload` and `forwardKeys` work only on a host whose `ui/initialize` result declares `ai.nimblebrain/action`, `ai.nimblebrain/request-file` or `ai.nimblebrain/keydown` in `hostCapabilities.experimental`. Where it is not declared, `action` sends nothing, the picker rejects, and keys are not captured, whatever the host calls itself. `NIMBLEBRAIN_EXTENSIONS` lists all three.
+
+  **Migration:** apps change nothing in code. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too. The gate runs in each app's own bundled copy of this package, so the host's declarations must be live before an app ships on this release; an older app ignores keys it does not read, so declaring first is safe.
+
+- **Spec calls check the host's declaration before sending.** `callTool` and `useCallTool` reject with `HostCapabilityError` when the host did not declare `serverTools`, and `readServerResource` does the same without `serverResources`. `sendMessage`/`useSendMessage` send nothing without `message`, and `updateModelContext`/`useModelContext` send nothing without `updateModelContext`. `openLink` opens the URL with `window.open` without `openLinks`. Before this change, each of these was sent regardless. A host that did not implement the request might never answer it, and a request has no deadline, so the call could wait forever.
+
+  **Migration:** a host declares what it serves, before apps built on this release run against it. An app that wants to hide a control reads `app.hostCapabilities` first.
+
+- **Capability failures throw `HostCapabilityError`.** `downloadFile`, `pickFile`, `pickFiles` and `callToolAsTask` throw it in place of a plain `Error`, with a new message. Its `capability` field names what the host did not declare.
+
+  **Migration:** check `error instanceof HostCapabilityError` or read `error.capability` instead of matching the message.
+
 - **`connectUI`'s `callTool()` rejects when the tool result reports failure.** MCP carries a tool failure inside the result (`isError: true`), not as a JSON-RPC error, and a host reports a refusal the same way: ChatGPT answers a call to a tool the app may not see with `isError: true` and the text `Tool is not visible to app`. The promise used to resolve with that result, typed as the caller's success type. It now rejects with `ToolCallError`, whose `message` is the result's first text block and whose `result` is the whole result. The React path (`connect()`) is unchanged: it already parses `isError` onto its result.
 
   **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`. A component on the `window.SynapseUI` script, which exposes only `connect`, checks `error.name === "ToolCallError"`.
@@ -23,6 +35,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`app.hostCapabilities`**: the `hostCapabilities` the host declared in `ui/initialize`.
+- **`hostSupports(app, extension)`**: whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`).
+- **`HostCapabilityError`** and **`NIMBLEBRAIN_EXTENSIONS`**, exported from the package root. The `connect` IIFE exposes `HostCapabilityError` and `hostSupports`.
+- **Both dev preview hosts declare what they answer** (`synapse preview` and the Vite plugin's `/__preview`): `serverTools`, `openLinks`, `updateModelContext`, `ai.nimblebrain/action` and `ai.nimblebrain/keydown`, plus `serverResources` where the Vite preview proxies it.
 - **`synapse check --target <nimblebrain|claude|chatgpt> <server-url>`.** Connects to a running server and checks what a host sees of it: that `ui://` resources are served as `text/html;profile=mcp-app`, that every `ui.resourceUri` reads, that `ui.visibility` and `ui.csp` are well-formed, that the server declares `io.modelcontextprotocol/ui`, that no `data:` font is loaded without being declared, and — when the server answers `401` — that the challenge names `resource_metadata`, the metadata's `resource` equals the server URL exactly, the authorization server's `issuer` equals the advertised string exactly, and every tool declares `securitySchemes`. Each target's profile sets which checks apply and whether a failure is an error or a warning; any error exits non-zero, so the command can gate a server's CI. `--token` (or `SYNAPSE_CHECK_TOKEN`) runs the session checks against a server that requires auth.
 
 ### Fixed

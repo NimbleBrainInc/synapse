@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
 import { useHostContext, useTheme } from "../../react/hooks.js";
+import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
 
 // --- Helpers ---
 
@@ -23,7 +24,7 @@ function makeInitResult(hostContext?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: "nimblebrain", version: "1.0.0" },
-    hostCapabilities: {},
+    hostCapabilities: FULL_HOST_CAPABILITIES,
     hostContext: hostContext ?? { theme: "dark", styles: { variables: {} } },
   };
 }

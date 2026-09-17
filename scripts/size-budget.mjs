@@ -23,7 +23,9 @@ const BUDGETS = [
     // (they are peers, so the app's bundler pulls them in) and React left out,
     // since the app ships React whether or not it uses Synapse. Everything is
     // re-exported, so this is the ceiling for any app, not a typical one.
-    // Measured 115.5 KB.
+    // The peers resolve from this repo's devDependencies, so bumping one can
+    // fail this budget with no change to Synapse. Those bytes still land in
+    // the app because of Synapse, so the budget counts them.
     name: "React path (connect + AppProvider + hooks, React external)",
     limit: 120_000,
     measure: () =>
@@ -33,7 +35,7 @@ const BUDGETS = [
   },
   {
     // `dist/connect.iife.global.js`, the `window.Synapse` script tag. It bundles
-    // ext-apps' `App` and its schemas by design. Measured 116.6 KB.
+    // ext-apps' `App` and its schemas by design.
     name: "connect IIFE (dist/connect.iife.global.js)",
     limit: 121_000,
     measure: () => readFileSync(resolve(root, "dist/connect.iife.global.js")),
@@ -42,11 +44,12 @@ const BUDGETS = [
     // The cross-host `window.SynapseUI` client that a self-contained `ui://`
     // resource inlines, and that the Python package vendors. Its size is the
     // reason it is hand-written rather than built on `App`, so it has the
-    // tightest limit. Measured 3.8 KB.
-    name: "cross-host IIFE (python/nimblebrain_synapse/_assets/synapse-ui.iife.js)",
+    // tightest limit. This reads the build output, not the vendored copy, so a
+    // local run sees the size before anyone re-vendors; CI's drift check holds
+    // the two byte-identical.
+    name: "cross-host IIFE (dist/synapse-ui.iife.global.js)",
     limit: 4_100,
-    measure: () =>
-      readFileSync(resolve(root, "python/nimblebrain_synapse/_assets/synapse-ui.iife.js")),
+    measure: () => readFileSync(resolve(root, "dist/synapse-ui.iife.global.js")),
   },
 ];
 

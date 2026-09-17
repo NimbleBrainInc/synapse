@@ -321,13 +321,6 @@ export interface AppInternals {
    * task-augment a call unless this carries `requests.tools.call`.
    */
   readonly hostTasksCapability: TasksCapability | undefined;
-  /**
-   * The host's declared `downloadFile` capability from the `ui/initialize`
-   * response. `undefined` when the host advertised none — then
-   * `ui/download-file` is not sent, because nothing obliges such a host to
-   * answer it and a request has no deadline.
-   */
-  readonly hostDownloadFileCapability: McpUiHostCapabilities["downloadFile"];
 }
 
 /**
@@ -369,7 +362,20 @@ export interface App {
    * host-specific fields as optional; another host will not send them.
    */
   readonly hostContext: McpUiHostContext;
-  /** True when the host identified itself as NimbleBrain in the handshake. */
+  /**
+   * What the host declared it supports, from the `ui/initialize` result. Every
+   * method here and every helper beside it checks this before it sends, and
+   * degrades in a documented way when the capability is absent. Read it to
+   * decide what to offer at all, rather than to find out from a no-op or an
+   * exception. NimbleBrain extensions are declared under `experimental`; see
+   * `hostSupports`.
+   */
+  readonly hostCapabilities: McpUiHostCapabilities;
+  /**
+   * True when the host identified itself as NimbleBrain in the handshake.
+   * Identity, not capability: nothing is gated on it except the NimbleBrain
+   * `_meta.context` field on `sendMessage`, which other hosts ignore.
+   */
   readonly isNimbleBrainHost: boolean;
   /** True after `destroy()` has been called. */
   readonly destroyed: boolean;
@@ -393,7 +399,12 @@ export interface App {
   on(event: "teardown", handler: () => void): () => void;
   on(event: string, handler: (params: any) => void): () => void;
 
+  /** Report the frame's size (`ui/notifications/size-changed`). Every host accepts it. */
   resize(width?: number, height?: number): void;
+  /**
+   * Open a URL through the host (`ui/open-link`). Without `openLinks`, or when
+   * the host refuses, opens it with `window.open` instead.
+   */
   openLink(url: string): void;
   /**
    * Push the app's visible state to the agent (ext-apps
@@ -401,7 +412,8 @@ export interface App {
    * `state` rides along as `structuredContent` for tools that need the ids.
    *
    * Sends immediately. Callers that push on every keystroke or selection
-   * change want `useModelContext`, which debounces.
+   * change want `useModelContext`, which debounces. A no-op when the host did
+   * not declare `updateModelContext`.
    */
   updateModelContext(state: Record<string, unknown>, summary?: string): void;
   /**
@@ -411,6 +423,9 @@ export interface App {
    * to the server that mounted the app, so there is no target to name and no
    * option to pass — cross-source work belongs to the agent, which can call
    * two servers and hand one's result to the other.
+   *
+   * Rejects with `HostCapabilityError`, without sending, when the host did not
+   * declare `serverTools`.
    */
   callTool<TOutput = unknown>(
     name: string,
@@ -420,9 +435,15 @@ export interface App {
    * Read an MCP resource from the originating server via the host bridge
    * (ext-apps `resources/read`). Named to mirror the ext-apps spec's
    * `App.readServerResource`.
+   *
+   * Rejects with `HostCapabilityError`, without sending, when the host did not
+   * declare `serverResources`.
    */
   readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult>;
-  /** Send a user message into the agent conversation (ext-apps `ui/message`). */
+  /**
+   * Send a user message into the agent conversation (ext-apps `ui/message`).
+   * A no-op when the host did not declare `message`.
+   */
   sendMessage(text: string, context?: { action?: string; entity?: string }): void;
   destroy(): void;
 }

@@ -21,7 +21,7 @@ Synapse is an optional enhancement layer over `@modelcontextprotocol/ext-apps`. 
 - **Keyboard forwarding** — forward shortcuts from sandboxed iframes to the host
 - **Code generation** — generate TypeScript types from manifests, running servers, or JSON schemas
 
-In non-NimbleBrain hosts (Claude Desktop, VS Code, ChatGPT), NB-specific features degrade gracefully to no-ops while ext-apps baseline behavior is preserved.
+Every call checks what the host declared in `ui/initialize`. Where a capability is missing, the call does a documented thing: it sends nothing, it keeps its initial value, or it rejects with `HostCapabilityError` without sending. See [the portable-app contract](https://synapse.nimblebrain.ai/docs/concepts/degradation/).
 
 ## Why Synapse?
 
@@ -358,9 +358,10 @@ action(app, "navigate", { entity: "board", id: "b1" });
 | Function | Description |
 |----------|-------------|
 | `callToolAsTask(app, name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
-| `action(app, name, params?)` | Trigger a NimbleBrain host action. No-op off a NimbleBrain host. |
-| `pickFile(app, options?)` | Native file picker, single file. Throws off a NimbleBrain host. |
-| `pickFiles(app, options?)` | Native file picker, multiple files. Throws off a NimbleBrain host. |
+| `action(app, name, params?)` | Trigger a NimbleBrain host action. No-op unless the host declares `ai.nimblebrain/action`. |
+| `pickFile(app, options?)` | Native file picker, single file. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
+| `pickFiles(app, options?)` | Native file picker, multiple files. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
+| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`). |
 | `downloadFile(app, name, content, mime?)` | Hand the user a file to save, over the spec's `ui/download-file`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
 `app.supportsTasks` says whether the host negotiated the tasks utility for

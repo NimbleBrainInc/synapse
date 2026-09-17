@@ -68,11 +68,11 @@ window.addEventListener("message", (ev) => {
 
 const bridge = new AppBridge(
   null,
-  // The wire is the spec's; the identity is ours. `connect()` gates the
-  // `synapse/*` extensions on the host naming itself `nimblebrain`, so a
-  // neutral identity here would leave the extension rows untested — which is
-  // the opposite of what this suite is for. How those same calls degrade off a
-  // NimbleBrain host is a separate contract, asserted in the unit suite.
+  // The wire is the spec's; the identity is ours. `connect()` gates each
+  // `synapse/*` extension on the host declaring it, so the extensions are
+  // declared below — leaving them out would leave the extension rows untested,
+  // which is the opposite of what this suite is for. How those same calls
+  // degrade on a host that declares nothing is asserted in the unit suite.
   { name: "nimblebrain", version: "0.0.0" },
   {
     openLinks: {},
@@ -87,6 +87,9 @@ const bridge = new AppBridge(
     // the only slot a spec client's handshake parse keeps.
     experimental: {
       "io.modelcontextprotocol/tasks": { cancel: {}, requests: { tools: { call: {} } } },
+      "ai.nimblebrain/action": {},
+      "ai.nimblebrain/request-file": {},
+      "ai.nimblebrain/keydown": {},
     },
   },
   {

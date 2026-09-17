@@ -26,7 +26,7 @@ function connect(options: ConnectOptions): Promise<App>;
 | `name` | `string` | App name (must match registered bundle name) |
 | `version` | `string` | Semver version |
 | `autoResize` | `boolean?` | Observe `document.body` and auto-send `size-changed`. Default `false` |
-| `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host so its own shortcuts fire while focus is in the app. `true` is Escape plus every Ctrl/Cmd combo except the clipboard keys. Only a NimbleBrain host consumes these, so forwarding stays off everywhere else. |
+| `forwardKeys` | `boolean \| KeyForwardConfig[]?` | Forward keyboard shortcuts to the host so its own shortcuts fire while focus is in the app. `true` is Escape plus every Ctrl/Cmd combo except the clipboard keys. Forwarding is on only when the host declares `ai.nimblebrain/keydown`. Otherwise keys are not captured. |
 | `on` | `Record<string, (data) => void>?` | Pre-register event handlers before the handshake, so no early messages are lost |
 
 ## `App` properties
@@ -40,7 +40,8 @@ Available synchronously once the promise resolves.
 | `toolInfo` | `{ tool } \| null` | Tool context if launched from a tool call |
 | `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus whatever the host publishes alongside |
-| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
+| `hostCapabilities` | `McpUiHostCapabilities` | What the host declared in `ui/initialize`. Every method and helper checks it before sending; see the [portable-app contract](/docs/concepts/degradation/). |
+| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain. Nothing is gated on it except `sendMessage`'s `_meta.context`. |
 | `destroyed` | `boolean` | True after `destroy()` |
 | `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call`. `callToolAsTask` throws when this is false. |
 
@@ -50,11 +51,11 @@ Available synchronously once the promise resolves.
 | --- | --- |
 | `on(event, handler)` | Subscribe to events. Returns an unsubscribe function. |
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
-| `openLink(url)` | Open a URL (host-aware) |
-| `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result. An app reaches its own server and nothing else — cross-source work belongs to the agent. |
-| `readServerResource({ uri })` | Read an MCP resource from the originating server |
-| `sendMessage(text, context?)` | Send a message into the agent conversation |
+| `openLink(url)` | Open a URL through the host. Without `openLinks`, or when the host refuses, opens it with `window.open`. |
+| `updateModelContext(state, summary?)` | Push LLM-visible state. No-op without `updateModelContext`. |
+| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result. An app reaches its own server and nothing else — cross-source work belongs to the agent. Rejects with `HostCapabilityError` without `serverTools`. |
+| `readServerResource({ uri })` | Read an MCP resource from the originating server. Rejects with `HostCapabilityError` without `serverResources`. |
+| `sendMessage(text, context?)` | Send a message into the agent conversation. No-op without `message`. |
 | `destroy()` | Clean up all listeners, observers, and timers |
 
 That is the whole object. It is deliberately this small: NimbleBrain's own
@@ -64,10 +65,11 @@ picker.
 
 | Function | Description |
 | --- | --- |
-| `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). |
-| `action(app, name, params?)` | Trigger a host-side action. No-op off a NimbleBrain host. |
-| `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Throws off a NimbleBrain host. |
-| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
+| `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). Rejects with `HostCapabilityError` when `supportsTasks` is false. |
+| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension: `"action"`, `"requestFile"` or `"keydown"`. |
+| `action(app, name, params?)` | Trigger a host-side action. No-op unless the host declares `ai.nimblebrain/action`. |
+| `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
+| `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects with `HostCapabilityError`, without sending, when the host did not declare `downloadFile`. |
 
 ## See also
 

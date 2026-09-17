@@ -6,6 +6,27 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **The NimbleBrain extensions are gated on the host declaring them, not on the host's name.** `action`/`useAction`, `pickFile`/`pickFiles`/`useFileUpload` and `forwardKeys` work only on a host whose `ui/initialize` result declares `ai.nimblebrain/action`, `ai.nimblebrain/request-file` or `ai.nimblebrain/keydown` in `hostCapabilities.experimental`. Where it is not declared, `action` sends nothing, the picker rejects, and keys are not captured, whatever the host calls itself. `NIMBLEBRAIN_EXTENSIONS` lists all three.
+
+  **Migration:** apps change nothing. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too.
+
+- **Spec calls check the host's declaration before sending.** `callTool` and `useCallTool` reject with `HostCapabilityError` when the host did not declare `serverTools`, and `readServerResource` does the same without `serverResources`. `sendMessage`/`useSendMessage` send nothing without `message`, and `updateModelContext`/`useModelContext` send nothing without `updateModelContext`. `openLink` opens the URL with `window.open` without `openLinks`. Before this change, each of these was sent regardless. A host that did not implement the request might never answer it, and a request has no deadline, so the call could wait forever.
+
+  **Migration:** a host declares what it serves. An app that wants to hide a control reads `app.hostCapabilities` first.
+
+- **Capability failures throw `HostCapabilityError`.** `downloadFile`, `pickFile`, `pickFiles` and `callToolAsTask` throw it in place of a plain `Error`, with a new message. Its `capability` field names what the host did not declare.
+
+  **Migration:** check `error instanceof HostCapabilityError` or read `error.capability` instead of matching the message.
+
+### Added
+
+- **`app.hostCapabilities`**: the `hostCapabilities` the host declared in `ui/initialize`.
+- **`hostSupports(app, extension)`**: whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`).
+- **`HostCapabilityError`** and **`NIMBLEBRAIN_EXTENSIONS`**, exported from the package root and from the `connect` IIFE.
+- **The dev preview host declares what it answers:** `serverTools`, `openLinks`, `updateModelContext`, `ai.nimblebrain/action` and `ai.nimblebrain/keydown`.
+
 ### Fixed
 
 - **The ESM and CJS builds no longer carry a private copy of `@modelcontextprotocol/sdk` and `zod`.** `connect()` imports two runtime schemas from `@modelcontextprotocol/sdk/types.js`, and the SDK was not external, so the build inlined the SDK's types module and zod v4 into this package's own chunk. An app bundling this package then shipped two copies of each: this package's, and the one `@modelcontextprotocol/ext-apps` imports. The SDK is now external and a peer dependency, at the range `@modelcontextprotocol/ext-apps` already requires, so an app that installs that peer has it. A single-file app built with Vite is about 114 KB smaller raw, 32 KB gzipped. The IIFE builds are self-contained by design and unchanged.

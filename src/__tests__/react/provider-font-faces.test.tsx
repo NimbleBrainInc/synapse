@@ -17,6 +17,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FONT_FACES_CONTEXT_KEY } from "../../detection.js";
 import { AppProvider } from "../../react/app-provider.js";
 import { resetAppliedFontFaces } from "../../theme-defaults.js";
+import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 
@@ -72,7 +73,7 @@ async function respondToInitialize() {
         result: {
           protocolVersion: "2026-01-26",
           hostInfo: { name: "nimblebrain", version: "1.0.0" },
-          hostCapabilities: {},
+          hostCapabilities: FULL_HOST_CAPABILITIES,
           hostContext: {
             theme: "light",
             styles: { variables: {} },

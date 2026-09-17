@@ -15,6 +15,7 @@ import { connect } from "../connect.js";
 import { FONT_FACES_CONTEXT_KEY } from "../detection.js";
 import { applyTheme, resetAppliedFontFaces } from "../theme-defaults.js";
 import type { App } from "../types.js";
+import { FULL_HOST_CAPABILITIES } from "./helpers/host-capabilities.js";
 
 let postMessageSpy: ReturnType<typeof vi.fn>;
 let loaded: Set<FakeFontFace>;
@@ -55,7 +56,7 @@ function makeInitResult() {
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: "nimblebrain", version: "1.0.0" },
-    hostCapabilities: {},
+    hostCapabilities: FULL_HOST_CAPABILITIES,
     hostContext: {
       theme: "light",
       styles: { variables: {} },

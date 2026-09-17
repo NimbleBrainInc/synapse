@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import type { App } from "../types.js";
+import { FULL_HOST_CAPABILITIES } from "./helpers/host-capabilities.js";
 
 /**
  * Let the client send, and let a dispatched frame reach its handler. Both
@@ -99,7 +100,7 @@ class MockHost {
     return {
       protocolVersion: "2026-01-26",
       hostInfo: { name: "test-host", version: "2.0.0" },
-      hostCapabilities: {},
+      hostCapabilities: FULL_HOST_CAPABILITIES,
       hostContext: {
         theme: "dark",
         styles: { variables: { "--color-background-primary": "#111" } },
@@ -145,7 +146,7 @@ describe("connect() integration", () => {
     return {
       protocolVersion: "2026-01-26",
       hostInfo: { name: "nimblebrain", version: "2.0.0" },
-      hostCapabilities: {},
+      hostCapabilities: FULL_HOST_CAPABILITIES,
       hostContext: { theme: "dark", styles: { variables: {} } },
     };
   }

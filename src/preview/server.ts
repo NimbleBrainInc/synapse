@@ -110,7 +110,12 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
           result: {
             protocolVersion: "2026-01-26",
             hostInfo: { name: "nimblebrain", version: "preview" },
-            hostCapabilities: { openLinks: {}, serverTools: {} },
+            hostCapabilities: {
+              openLinks: {},
+              serverTools: {},
+              updateModelContext: { text: {}, structuredContent: {} },
+              experimental: { "ai.nimblebrain/action": {}, "ai.nimblebrain/keydown": {} }
+            },
             hostContext: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } }
           }
         });

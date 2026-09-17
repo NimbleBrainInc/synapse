@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import type { App } from "../types.js";
+import { FULL_HOST_CAPABILITIES } from "./helpers/host-capabilities.js";
 
 // --- Helpers ---
 
@@ -29,7 +30,7 @@ function makeInitResult(overrides?: Record<string, unknown>) {
   return {
     protocolVersion: "2026-01-26",
     hostInfo: { name: "test-host", version: "2.0.0" },
-    hostCapabilities: {},
+    hostCapabilities: FULL_HOST_CAPABILITIES,
     hostContext: {
       theme: "dark",
       // A key the spec's style-variable enum names: that enum is a strict
@@ -187,7 +188,7 @@ describe("connect()", () => {
     const bareHost = {
       protocolVersion: "2026-01-26",
       hostInfo: { name: "bare", version: "1.0.0" },
-      hostCapabilities: {},
+      hostCapabilities: FULL_HOST_CAPABILITIES,
       hostContext: {},
     };
 

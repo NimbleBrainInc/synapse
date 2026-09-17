@@ -11,7 +11,7 @@ One `SynapseUI` declaration serves a self-contained HTML component to every MCP
 Apps host — **ChatGPT**, **Claude**, and the **NimbleBrain** runtime — replacing the
 per-app hand-rolled shim.
 It is an MCP extension (SEP-2133): hand the instance to `MCPServer` and it
-contributes its resources and its result binding.
+contributes its `ui://` resource and its `tools/call` interceptor.
 
 ```python
 from mcp.server.mcpserver import MCPServer
@@ -66,7 +66,9 @@ with it.
 The two origins stay separate inputs because the hosts disagree on the value:
 ChatGPT takes an origin the developer declares, while Claude derives
 `sha256(<connector URL>)[:32] + ".claudemcpcontent.com"` and rejects anything else.
-Leave both unset unless the component needs a stable origin.
+Leave both unset unless the component needs a stable origin. Every host reads
+`ui.domain` from the one resource, so `mcp_app_domain` reaches ChatGPT too: set it
+only when each host the server targets accepts that value.
 
 `tool_meta(widget_accessible=)` still works and warns: it is
 `visibility=["model", "app"]` or `visibility=["model"]`.

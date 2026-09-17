@@ -271,7 +271,7 @@ def test_attach_default_leaves_the_result_alone():
     assert all(not isinstance(c, types.EmbeddedResource) for c in out.content)
 
 
-def test_attach_embed_resource_injects_embedded_and_meta():
+def test_attach_embed_resource_injects_embedded():
     """Opt-in (embed=True): the mcp-ui copy is baked into the content."""
     ui = _ui()
     ui.bind("analyze", embed_resource=True)

@@ -21,6 +21,7 @@ export {
   SYNAPSE_DATA_ELEMENT_ID,
   type SynapseUIClient,
   type SynapseUITheme,
+  ToolCallError,
 } from "./host/types.js";
 // MCP 2025-11-25 tasks utility, composable over `App`.
 export { callToolAsTask } from "./task-handle.js";

@@ -71,7 +71,7 @@ export class ToolCallError extends Error {
 }
 
 function toolErrorText(result: unknown): string | undefined {
-  const content = (result as { content?: unknown }).content;
+  const content = (result as { content?: unknown } | null)?.content;
   if (!Array.isArray(content)) return undefined;
   for (const block of content) {
     const b = block as { type?: unknown; text?: unknown } | null;

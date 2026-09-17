@@ -50,12 +50,12 @@ listeners.
 three vary, which is why you feature-detect with `capabilities()`. It returns
 whether the host supports `pull` (so `callTool` can reach the server), `sendPrompt`,
 and `openLink`. Calling `callTool()` on a host with no pull rejects with a
-`HostUnsupportedError`, so gate it on `capabilities().pull` first. A call the host
-makes but the tool fails or refuses rejects with a `ToolCallError`: MCP reports that
-failure inside the result, as `isError: true`, and the error carries the result on
-`result`. Use `host()`
-only as an escape hatch (it returns `"mcp-apps"` in a frame and `"generic"`
-standalone, whichever product the frame belongs to); prefer `capabilities()` so your component stays host-agnostic.
+`HostUnsupportedError`, so gate it on `capabilities().pull` first. When the host
+makes the call but the tool fails or refuses it, `callTool()` rejects with a
+`ToolCallError`: MCP reports that failure inside the result, as `isError: true`, and
+the error carries the whole result on `result`. Use `host()` only as an escape hatch
+(it returns `"mcp-apps"` in a frame and `"generic"` standalone, whichever product the
+frame belongs to); prefer `capabilities()` so your component stays host-agnostic.
 
 ## Related
 

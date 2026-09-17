@@ -200,6 +200,10 @@ describe("connectUI — MCP Apps standard adapter", () => {
     await expect(p).rejects.toThrow('tool "broken" returned an error');
   });
 
+  it("ToolCallError builds from a result that is not an object", () => {
+    expect(new ToolCallError("broken", null).message).toBe('tool "broken" returned an error');
+  });
+
   it("resize before the handshake posts nothing", () => {
     // `ui/initialize` is the app's first word on this bridge, so a
     // `size-changed` cannot precede the host's answer — a strict host drops it

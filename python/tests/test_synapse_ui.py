@@ -2,7 +2,7 @@
 
 Covers HTML preparation (SDK inlining + data baking), the `<script>`-safe escape
 (the XSS defense), the mcp-ui embedded resource, the `_meta` emitters, the
-extension wiring (dual-MIME resource contribution + the bound `tools/call`
+extension wiring (the one resource it contributes + the bound `tools/call`
 interception), and the sign-in error result.
 """
 
@@ -61,7 +61,7 @@ def _result(data: dict | None = None, *, is_error: bool = False) -> types.CallTo
 
 
 def _contributed(ui: SynapseUI) -> dict[str, Any]:
-    """The two resources the extension contributes, keyed by URI."""
+    """The resources the extension contributes, keyed by URI."""
     return {str(binding.resource.uri): binding.resource for binding in ui.resources()}
 
 
@@ -107,21 +107,24 @@ def test_embedded_resource_shape():
     assert res.meta == {"mcpui.dev/ui-preferred-frame-size": ["100%", "auto"]}
 
 
-def test_tool_and_result_meta():
+def test_tool_meta():
     ui = _ui()
     tm = ui.tool_meta(invoking="Working…", invoked="Done")
-    # MCP Apps standard: nested resourceUri points at the sibling mcp-app resource,
-    # and visibility is explicit at the spec's own default.
-    assert tm["ui"] == {"resourceUri": f"{UI_URI}-mcp-app", "visibility": ["model", "app"]}
-    # ChatGPT's aliases for the same two declarations.
-    assert tm["openai/outputTemplate"] == UI_URI
+    # MCP Apps standard: nested resourceUri points at the one resource, and
+    # visibility is explicit at the spec's own default.
+    assert tm["ui"] == {"resourceUri": UI_URI, "visibility": ["model", "app"]}
+    # ChatGPT resolves ui.resourceUri itself, so no template alias is emitted.
+    assert "openai/outputTemplate" not in tm
     assert tm["openai/widgetAccessible"] is True
     assert "openai/visibility" not in tm
     assert tm["openai/toolInvocation/invoking"] == "Working…"
     assert tm["openai/toolInvocation/invoked"] == "Done"
     # No auth declared, so none emitted.
     assert "securitySchemes" not in tm
-    assert ui.result_meta() == {"openai/outputTemplate": UI_URI}
+
+
+def test_status_text_is_emitted_only_when_declared():
+    assert not any(key.startswith("openai/toolInvocation/") for key in _ui().tool_meta())
 
 
 @pytest.mark.parametrize(
@@ -132,7 +135,7 @@ def test_tool_and_result_meta():
         (["app"], True, "private"),
     ],
 )
-def test_one_visibility_reaches_the_spec_key_and_every_chatgpt_alias(
+def test_one_visibility_reaches_the_spec_key_and_both_chatgpt_aliases(
     visibility: list[str], widget_accessible: bool, openai_visibility: str | None
 ):
     """The caller states who may call the tool once; the spec key and both ChatGPT
@@ -176,95 +179,60 @@ def test_advertises_the_mcp_apps_extension_identifier():
     assert SynapseUI.identifier == EXTENSION_ID == "io.modelcontextprotocol/ui"
 
 
-def test_contributes_both_host_resources():
+def test_contributes_one_resource_under_the_mcp_apps_mime():
     contributed = _contributed(_ui())
-    # ChatGPT skybridge + the MCP Apps standard resource for Claude, same HTML.
-    assert contributed[UI_URI].mime_type == "text/html+skybridge"
-    assert contributed[f"{UI_URI}-mcp-app"].mime_type == "text/html;profile=mcp-app"
-    assert contributed[UI_URI].text == contributed[f"{UI_URI}-mcp-app"].text
-    assert "window.SynapseUI" in contributed[UI_URI].text
-
-
-def test_each_origin_routes_to_its_own_host_resource():
-    """The two origins are distinct inputs: the OpenAI widget domain reaches only the
-    ChatGPT resource (as ``ui.domain`` and its ``openai/widgetDomain`` alias), the
-    ext-apps origin only the MCP Apps resource's ``ui.domain`` — never the same value
-    fed to both (an OpenAI origin in a Claude-read ``ui.domain`` fails the host's
-    validation and the component does not render)."""
-    contributed = _contributed(
-        _ui(widget_domain="https://example.com", mcp_app_domain="abc123.claudemcpcontent.com")
-    )
-
-    # ChatGPT (skybridge) — the spec's ui.* keys beside the flat openai/* aliases.
-    sky = contributed[UI_URI].meta
-    assert sky is not None
-    assert sky["ui"] == {
-        "prefersBorder": True,
-        "domain": "https://example.com",
-        "csp": {"connectDomains": [], "resourceDomains": []},
+    assert list(contributed) == [UI_URI]
+    resource = contributed[UI_URI]
+    assert resource.mime_type == "text/html;profile=mcp-app"
+    assert "window.SynapseUI" in resource.text
+    assert resource.meta == {
+        "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}}
     }
-    assert sky["openai/widgetPrefersBorder"] is True
-    assert sky["openai/widgetDomain"] == "https://example.com"
-    assert sky["openai/widgetCSP"] == {"connect_domains": [], "resource_domains": []}
 
-    # MCP Apps standard — the ui.* keys only.
-    app_meta = contributed[f"{UI_URI}-mcp-app"].meta
-    assert app_meta == {
+
+def test_each_origin_reaches_only_its_own_key():
+    """The two origins are distinct inputs: the OpenAI widget domain reaches only
+    ``openai/widgetDomain``, the ext-apps origin only ``ui.domain`` — never the same
+    value fed to both (an OpenAI origin in a Claude-read ``ui.domain`` fails the
+    host's validation and the component does not render)."""
+    meta = _contributed(
+        _ui(widget_domain="https://example.com", mcp_app_domain="abc123.claudemcpcontent.com")
+    )[UI_URI].meta
+    assert meta == {
         "ui": {
             "prefersBorder": True,
             "domain": "abc123.claudemcpcontent.com",
             "csp": {"connectDomains": [], "resourceDomains": []},
-        }
+        },
+        "openai/widgetDomain": "https://example.com",
     }
 
 
-def test_widget_domain_never_leaks_into_ext_apps_ui_domain():
-    """Regression: `widget_domain` alone must not populate the MCP Apps resource's
-    `ui.domain`. The OpenAI origin is not a valid sandbox origin there, so an
-    ext-apps host would reject it — the omission lets the host default the origin."""
-    contributed = _contributed(_ui(widget_domain="https://example.com"))
-
-    sky = contributed[UI_URI].meta
-    app_meta = contributed[f"{UI_URI}-mcp-app"].meta
-    assert sky is not None and app_meta is not None
-    assert sky["openai/widgetDomain"] == "https://example.com"
-    assert "domain" not in app_meta["ui"]
+def test_widget_domain_never_leaks_into_ui_domain():
+    """Regression: `widget_domain` alone must not populate `ui.domain`. The OpenAI
+    origin is not a valid sandbox origin there, so an ext-apps host would reject it —
+    the omission lets the host default the origin."""
+    meta = _contributed(_ui(widget_domain="https://example.com"))[UI_URI].meta
+    assert meta is not None
+    assert meta["openai/widgetDomain"] == "https://example.com"
+    assert "domain" not in meta["ui"]
 
 
-def test_one_allowlist_reaches_ui_csp_on_both_copies_and_the_chatgpt_alias():
-    contributed = _contributed(
+def test_one_allowlist_reaches_ui_csp():
+    meta = _contributed(
         _ui(
             connect_domains=["https://api.example.com"],
             resource_domains=["https://cdn.example.com"],
         )
-    )
-
-    sky = contributed[UI_URI].meta
-    app_meta = contributed[f"{UI_URI}-mcp-app"].meta
-    assert sky is not None and app_meta is not None
-    spec_csp = {
+    )[UI_URI].meta
+    assert meta is not None
+    assert meta["ui"]["csp"] == {
         "connectDomains": ["https://api.example.com"],
         "resourceDomains": ["https://cdn.example.com"],
     }
-    assert sky["ui"]["csp"] == spec_csp
-    assert app_meta["ui"]["csp"] == spec_csp
-    assert sky["openai/widgetCSP"] == {
-        "connect_domains": ["https://api.example.com"],
-        "resource_domains": ["https://cdn.example.com"],
-    }
     # CSP is always present (a self-contained default); each origin only when provided.
-    assert "openai/widgetDomain" not in sky
-    assert "domain" not in sky["ui"]
-    assert "domain" not in app_meta["ui"]
-
-
-def test_resource_meta_merges_onto_the_skybridge_resource():
-    """Host keys this class does not model still reach the ChatGPT resource."""
-    contributed = _contributed(_ui(resource_meta={"openai/widgetDescription": "A report"}))
-    sky = contributed[UI_URI].meta
-    assert sky is not None
-    assert sky["openai/widgetDescription"] == "A report"
-    assert sky["openai/widgetPrefersBorder"] is True  # modelled keys survive the merge
+    assert "domain" not in meta["ui"]
+    assert not any(key.startswith("openai/") for key in meta)
 
 
 def test_auth_error_result_carries_the_challenge_chatgpt_reads():
@@ -292,27 +260,23 @@ def test_auth_error_result_quotes_cannot_end_a_parameter_early():
     assert challenge.endswith('error_description="expired\\", error=\\"invalid_request \\\\"')
 
 
-def test_attach_default_is_pointer_only_no_embedded():
-    """Default (no embed): the result carries the `_meta` template pointer so a
-    standard host renders the contributed component, but NO embedded UI HTML rides
-    in the content — that `audience: ["user"]` blob must not reach a plain client's
-    model context."""
+def test_attach_default_leaves_the_result_alone():
+    """Default (no embed): a host renders from the descriptor binding, so the result
+    gains nothing — no `_meta`, and NO embedded UI HTML in the content, where that
+    `audience: ["user"]` blob would reach a plain client's model context."""
     ui = _ui()
     ui.bind("analyze")
     out = ui._attach(_result(_dossier()), ui._bound["analyze"])
-    assert out.meta is not None
-    assert out.meta["openai/outputTemplate"] == UI_URI  # pointer emitted
-    assert all(not isinstance(c, types.EmbeddedResource) for c in out.content)  # no blob
+    assert out.meta is None
+    assert all(not isinstance(c, types.EmbeddedResource) for c in out.content)
 
 
 def test_attach_embed_resource_injects_embedded_and_meta():
-    """Opt-in (embed=True): the legacy mcp-ui copy is baked into the content in
-    addition to the `_meta` pointer."""
+    """Opt-in (embed=True): the mcp-ui copy is baked into the content."""
     ui = _ui()
     ui.bind("analyze", embed_resource=True)
     out = ui._attach(_result(_dossier()), ui._bound["analyze"])
-    assert out.meta is not None
-    assert out.meta["openai/outputTemplate"] == UI_URI
+    assert out.meta is None
     embedded = [c for c in out.content if isinstance(c, types.EmbeddedResource)]
     assert len(embedded) == 1
     assert "example.com" in embedded[0].resource.text
@@ -320,7 +284,7 @@ def test_attach_embed_resource_injects_embedded_and_meta():
 
 def test_attach_skips_errors_and_empty_results():
     ui = _ui()
-    ui.bind("analyze")
+    ui.bind("analyze", embed_resource=True)
     binding = ui._bound["analyze"]
 
     err = _result(None, is_error=True)
@@ -334,7 +298,7 @@ def test_attach_skips_errors_and_empty_results():
 
 def test_attach_respects_should_render_predicate():
     ui = _ui()
-    ui.bind("analyze", should_render=lambda d: "domain" in d)
+    ui.bind("analyze", should_render=lambda d: "domain" in d, embed_resource=True)
     out = ui._attach(_result({"unrelated": True}), ui._bound["analyze"])
     # Predicate rejects → no injection.
     assert out.meta is None
@@ -346,7 +310,6 @@ def test_rebinding_a_tool_replaces_its_options():
     ui.bind("analyze", embed_resource=True)
     ui.bind("analyze")  # same tool, new options
     out = ui._attach(_result(_dossier()), ui._bound["analyze"])
-    assert out.meta is not None
     assert all(not isinstance(c, types.EmbeddedResource) for c in out.content)
 
 
@@ -368,11 +331,9 @@ async def test_interceptor_dispatches_by_tool_name():
         return out
 
     hit = await call("analyze")
-    assert hit.meta is not None and hit.meta["openai/outputTemplate"] == UI_URI
     assert any(isinstance(c, types.EmbeddedResource) for c in hit.content)
 
     miss = await call("other")
-    assert miss.meta is None
     assert all(not isinstance(c, types.EmbeddedResource) for c in miss.content)
 
 
@@ -398,7 +359,7 @@ async def test_against_a_real_server_over_a_real_client():
     the SDK composes and installs interceptors, nor in how it serializes what one
     returns — exactly the seam this package now depends on.
 
-    Covers both the shipped default (pointer only) and the embed_resource opt-in on
+    Covers both the shipped default (nothing added) and the embed_resource opt-in on
     the same server, so the production path is anchored end-to-end — not just the
     opt-in — and the per-tool flag is proven to survive the composed chain.
 
@@ -407,7 +368,7 @@ async def test_against_a_real_server_over_a_real_client():
     so nothing but this test stops a later refactor from snapshotting `_bound` too
     and silently dropping the after case."""
     ui = _ui()
-    ui.bind("analyze")  # shipped default: pointer only — bound BEFORE construction
+    ui.bind("analyze")  # shipped default: nothing added — bound BEFORE construction
     mcp = MCPServer("test", extensions=[ui])
     schemes = [{"type": "oauth2", "scopes": ["report.read"]}]
 
@@ -423,32 +384,29 @@ async def test_against_a_real_server_over_a_real_client():
     def plain(domain: str) -> _IntegrationReport:
         return _IntegrationReport(domain=domain, company={})
 
-    # Opt-in legacy embed — bound AFTER construction, and after the tools exist.
+    # Opt-in embed — bound AFTER construction, and after the tools exist.
     ui.bind("analyze_embed", embed_resource=True)
 
     async with Client(mcp) as client:
-        # The extension's resources reached the server through `extensions=[...]`,
-        # each with its MIME and its `_meta`: `ui.csp` on both copies, and ChatGPT's
-        # alias only on the copy served under ChatGPT's MIME.
-        served = {str(r.uri): r for r in (await client.list_resources()).resources}
-        sky, app = served[UI_URI], served[f"{UI_URI}-mcp-app"]
-        assert sky.mime_type == "text/html+skybridge"
-        assert app.mime_type == "text/html;profile=mcp-app"
-        assert sky.meta is not None and app.meta is not None
-        for meta in (sky.meta, app.meta):
-            assert meta["ui"]["csp"] == {"connectDomains": [], "resourceDomains": []}
-            assert meta["ui"]["prefersBorder"] is True
-        assert sky.meta["openai/widgetCSP"] == {"connect_domains": [], "resource_domains": []}
-        assert not any(key.startswith("openai/") for key in app.meta)
+        # The extension's one resource reached the server through `extensions=[...]`,
+        # with its MIME and its `_meta`, and reads back as the inlined component.
+        (served,) = (await client.list_resources()).resources
+        assert str(served.uri) == UI_URI
+        assert served.mime_type == "text/html;profile=mcp-app"
+        assert served.meta == {
+            "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}}
+        }
+        (read,) = (await client.read_resource(UI_URI)).contents
+        assert isinstance(read, types.TextResourceContents)
+        assert read.mime_type == "text/html;profile=mcp-app"
+        assert "window.SynapseUI" in read.text
 
         # The descriptor `_meta` a host binds on rode `tools/list` intact.
         listed = {t.name: t.meta for t in (await client.list_tools()).tools}
         assert listed["analyze"] is not None
-        assert listed["analyze"]["ui"] == {
-            "resourceUri": f"{UI_URI}-mcp-app",
-            "visibility": ["model", "app"],
-        }
+        assert listed["analyze"]["ui"] == {"resourceUri": UI_URI, "visibility": ["model", "app"]}
         assert listed["analyze"]["openai/widgetAccessible"] is True
+        assert "openai/outputTemplate" not in listed["analyze"]
         assert listed["analyze"]["securitySchemes"] == schemes
 
         async def call(name: str) -> types.CallToolResult:
@@ -456,24 +414,24 @@ async def test_against_a_real_server_over_a_real_client():
             assert not result.is_error
             return result
 
-        # Shipped default: the server built structuredContent the real way; the
-        # interceptor mirrored the pointer and appended NO UI blob.
+        # Shipped default: the server built structuredContent the real way, and the
+        # interceptor added no `_meta` and NO UI blob.
         default = await call("analyze")
-        assert default.meta is not None
-        assert default.meta["openai/outputTemplate"] == UI_URI
+        assert default.structured_content == {
+            "domain": "example.com",
+            "company": {"name": "Example Co"},
+        }
         assert all(not isinstance(c, types.EmbeddedResource) for c in default.content)
 
-        # Opt-in: the same pointer, plus the embedded copy carrying the server-built data.
+        # Opt-in: the embedded copy carrying the server-built data.
         embed = await call("analyze_embed")
-        assert embed.meta is not None
-        assert embed.meta["openai/outputTemplate"] == UI_URI
         embedded = [c for c in embed.content if isinstance(c, types.EmbeddedResource)]
         assert len(embedded) == 1
         assert "example.com" in embedded[0].resource.text
 
         # An unbound tool on the same server is untouched by the interceptor.
-        unbound = (await call("plain")).meta or {}
-        assert "openai/outputTemplate" not in unbound
+        unbound = await call("plain")
+        assert all(not isinstance(c, types.EmbeddedResource) for c in unbound.content)
 
 
 async def test_auth_error_result_reaches_the_client_through_a_real_server():
@@ -496,7 +454,6 @@ async def test_auth_error_result_reaches_the_client_through_a_real_server():
         assert refused.is_error
         assert refused.meta is not None
         assert refused.meta["mcp/www_authenticate"] == [_CHALLENGE]
-        assert "openai/outputTemplate" not in refused.meta
 
 
 async def test_auth_error_result_from_a_structured_tool():
@@ -522,7 +479,6 @@ async def test_auth_error_result_from_a_structured_tool():
         assert refused.is_error
         assert refused.meta is not None
         assert refused.meta["mcp/www_authenticate"] == [_CHALLENGE]
-        assert "openai/outputTemplate" not in refused.meta
 
         allowed = await client.call_tool("analyze", {"domain": "example.com"})
         assert not allowed.is_error

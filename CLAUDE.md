@@ -167,13 +167,15 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   (`host=generic`) and in a sandboxed iframe (`host=claude`), reading the console.
 - The server half is the Python `nimblebrain-synapse` package (`python/`). `SynapseUI`
   is an MCP extension (SEP-2133): handed to `MCPServer(extensions=[...])`, it
-  contributes the component as **two `ui://` resources** — `text/html+skybridge`
-  (ChatGPT) and `text/html;profile=mcp-app` (Claude/MCP Apps) — emits the tool `_meta`
-  (every input under its ext-apps `ui.*` key *and* ChatGPT's `openai/*` alias for it;
-  every ChatGPT alias and the skybridge resource live in one marked section of
-  `server.py`, whose comment lists what goes with it), the `<script>`-safe embed (XSS
-  defense), and the `tools/call` interceptor that mirrors the template pointer into a
-  bound tool's result `_meta`. Its vendored client IIFE
+  contributes the component as **one `ui://` resource** under
+  `text/html;profile=mcp-app`, which every host renders (ChatGPT resolves
+  `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
+  `ui.visibility`, plus ChatGPT's `openai/widgetAccessible` visibility alias, kept
+  in one marked section of `server.py` whose comment says why), the `<script>`-safe
+  embed (XSS defense), and the `tools/call` interceptor that bakes the component into
+  a bound tool's result when `embed_resource=True`. Never add a second copy of the
+  resource under another MIME, and emit a host-specific key only when the app
+  declares the input it carries (`widget_domain`, `invoking`/`invoked`). Its vendored client IIFE
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
   `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the CI
   freshness gate enforces the copy). A **version bump** to `package.json` also requires

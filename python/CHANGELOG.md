@@ -8,17 +8,40 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-Every input `SynapseUI` takes is now emitted under the ext-apps `ui.*` key as well as
-ChatGPT's `openai/*` alias for it, and a server can declare the auth a tool needs.
-Nothing is removed and no existing key changes value.
+`SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
+takes is emitted under its ext-apps `ui.*` key. A server can declare the auth a tool
+needs.
+
+### Breaking
+
+- **One `ui://` resource, under `text/html;profile=mcp-app`, at `uri`.** The
+  `text/html+skybridge` copy is gone. ChatGPT renders the MCP Apps resource and
+  resolves `ui.resourceUri` itself, and Claude could not render the skybridge copy at
+  all. `tool_meta()["ui"]["resourceUri"]` is now `uri` itself; the `-mcp-app` sibling
+  URI and the `mcp_app_uri` attribute are gone.
+
+  **Migration:** read the resource at `uri`. A test that looked up `f"{uri}-mcp-app"`
+  or asserted two resources looks up `uri` and expects one.
+
+- **`openai/outputTemplate` is gone, from the tool descriptor and from results, and
+  so is `result_meta()`.** `ui.resourceUri` is the binding every host reads. `bind`
+  now matters only with `embed_resource=True`; without it the result is left as the
+  tool returned it.
+
+  **Migration:** delete calls to `result_meta()`. A `bind(tool)` without
+  `embed_resource=True` can be deleted.
+
+- **`resource_meta` is gone**, with the skybridge copy it merged onto. So are the
+  resource's `openai/widgetCSP` and `openai/widgetPrefersBorder` aliases: `ui.csp`
+  and `ui.prefersBorder` carry both.
+
+- **`SKYBRIDGE_MIME` is no longer exported.**
+
+- **`widget_domain` moves to the one resource**, still as `openai/widgetDomain` and
+  only when given. `ui.domain` takes `mcp_app_domain` alone.
 
 ### Added
 
-- **`ui.csp`, `ui.prefersBorder` and `ui.domain` on the ChatGPT (skybridge) resource**,
-  beside the `openai/widgetCSP`, `openai/widgetPrefersBorder` and `openai/widgetDomain`
-  aliases it already carried. ChatGPT documents the `ui.*` keys as preferred. There,
-  `ui.domain` takes `widget_domain`; the MCP Apps resource still takes only
-  `mcp_app_domain`.
 - **`tool_meta(visibility=...)`**, emitted as `ui.visibility` on every tool (the spec's
   default, `["model", "app"]`, when not given) and as ChatGPT's
   `openai/widgetAccessible`, plus `openai/visibility: "private"` when the model may not

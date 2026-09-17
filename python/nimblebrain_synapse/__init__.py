@@ -13,7 +13,6 @@ from .server import (
     DEFAULT_DATA_ELEMENT_ID,
     MCPAPP_MIME,
     MCPUI_MIME,
-    SKYBRIDGE_MIME,
     SynapseUI,
 )
 
@@ -21,7 +20,6 @@ __all__ = [
     "SynapseUI",
     "auth_error_result",
     "BearerError",
-    "SKYBRIDGE_MIME",
     "MCPUI_MIME",
     "MCPAPP_MIME",
     "DEFAULT_DATA_ELEMENT_ID",

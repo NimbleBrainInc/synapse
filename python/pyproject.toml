@@ -1,6 +1,6 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.6.0"
+version = "0.7.0"
 description = "Server half of the Synapse cross-host UI framework: declare one self-contained ui:// component as an MCP extension and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"

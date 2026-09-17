@@ -19,7 +19,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   - **`HostKind` is `"mcp-apps" | "generic"`**, naming the bridge rather than the product. `"chatgpt"`, `"claude"` and `"nimblebrain"` are gone, from `host()` and from the `host` option.
   - **The mcp-ui dialect is gone.** The client no longer posts `ui-lifecycle-iframe-ready`, `ui-size-change`, `link` or `prompt`, and ignores `ui-lifecycle-iframe-render-data`. A size is reported once the handshake completes, never before.
 
-  **Migration:** a component that passed `host: "claude"` or `host: "nimblebrain"` passes `host: "mcp-apps"`, or omits it. One that compared `host()` against a product name uses `capabilities()`. A host that fed a component only through the mcp-ui frames must answer `ui/initialize` and send `ui/notifications/tool-result`.
+  **Migration:** a component that passed `host: "claude"` or `host: "nimblebrain"` passes `host: "mcp-apps"`, or omits it. Any other value throws a `TypeError` from `connectUI`, rather than rendering standalone inside a frame. One that compared `host()` against a product name uses `capabilities()`. A host that fed a component only through the mcp-ui frames must answer `ui/initialize` and send `ui/notifications/tool-result`.
 
 ### Fixed
 

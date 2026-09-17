@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { connectUI } from "../host/connect.js";
 import { detectHostKind } from "../host/detect.js";
 
 describe("detectHostKind", () => {
@@ -32,5 +33,15 @@ describe("detectHostKind", () => {
     const topLevel: { openai?: unknown; parent?: unknown } = { openai: {} };
     topLevel.parent = topLevel;
     expect(detectHostKind(topLevel)).toBe("generic");
+  });
+});
+
+describe("connectUI host option", () => {
+  it("throws on a value outside HostKind instead of rendering standalone", () => {
+    for (const host of ["claude", "nimblebrain", "chatgpt"]) {
+      expect(() => connectUI({ host: host as never, autoResize: false })).toThrow(
+        `unknown host "${host}"`,
+      );
+    }
   });
 });

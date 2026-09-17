@@ -47,6 +47,7 @@ tool call fails.
   `message` is the result's first text block and whose `result` is the whole result.
   A component that checked `isError` on the resolved value catches the rejection
   instead.
+
 - **The bundled client loads host fonts from `styles.css.fonts`.** It no longer reads the
   `synapse/fontFaces` host-context key, so a host that sends only that key leaves the
   component in its fallback font stacks. A host sends `@font-face` CSS in

@@ -13,8 +13,8 @@ import type { SynapseUITheme } from "./types.js";
  *    `@nimblebrain/synapse/ui` token components consume theme, backed by the
  *    SDK's neutral defaults so every referenced var resolves in both modes.
  *
- * Setting both means an app can use either convention (or a host that supplies
- * only a mode string, like the OpenAI Apps SDK, still themes correctly). SSR-safe.
+ * Setting both means an app can use either convention (and a host that supplies
+ * only a mode string still themes correctly). SSR-safe.
  *
  * Any `fontFaces` the host supplies are loaded here too — a token can name a
  * family but not load it, so the two travel together. A host that sends none
@@ -28,7 +28,7 @@ export function applyHostTheme(theme: SynapseUITheme): void {
 }
 
 /** Read the OS-level color scheme as a sane default for hosts that don't push a
- *  theme until later (mcp-ui) or ever (standalone). */
+ *  theme until the handshake completes, or ever (standalone). */
 export function preferredMode(win: Window | undefined): "light" | "dark" {
   try {
     if (win?.matchMedia?.("(prefers-color-scheme: dark)").matches) return "dark";

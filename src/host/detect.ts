@@ -1,4 +1,3 @@
-import { createChatGPTAdapter } from "./adapters/chatgpt.js";
 import { createInlineAdapter } from "./adapters/inline.js";
 import { createMcpAppsAdapter } from "./adapters/mcpapps.js";
 import type { ConnectUIOptions, HostAdapter, HostKind } from "./types.js";
@@ -8,29 +7,27 @@ import type { ConnectUIOptions, HostAdapter, HostKind } from "./types.js";
  * unit-testable with a plain object — no full `Window` fake required.
  */
 interface DetectableWindow {
-  openai?: unknown;
   parent?: unknown;
-  self?: unknown;
 }
 
 /**
- * Feature-detect the host from the browsing context.
+ * Detect the bridge from the browsing context.
  *
- *  - `window.openai` present → **chatgpt** (OpenAI Apps SDK).
- *  - otherwise, a nested browsing context (`parent !== self`, or a cross-origin
- *    access that throws) → **claude** (MCP Apps standard postMessage host).
+ *  - a nested browsing context (`parent !== self`, or a cross-origin access that
+ *    throws) → **mcp-apps**: every host that frames a component speaks the MCP
+ *    Apps standard.
  *  - top-level document → **generic** (inline / standalone).
  *
- * Returns the host *kind*; `chooseAdapter` maps it to a concrete adapter and
- * honors an explicit `options.host` override for previews/SSR/tests.
+ * Nothing on the window names the host. `window.openai` in particular does not:
+ * ChatGPT injects it into every frame it serves, whatever the component is.
+ * Which host answered is in the handshake, not here.
  */
 export function detectHostKind(win: DetectableWindow): HostKind {
-  if (win.openai != null) return "chatgpt";
   try {
-    if (win.parent != null && win.parent !== win) return "claude";
+    if (win.parent != null && win.parent !== win) return "mcp-apps";
   } catch {
     // Cross-origin parent access throws → we are framed by another origin.
-    return "claude";
+    return "mcp-apps";
   }
   return "generic";
 }
@@ -41,17 +38,12 @@ export function adapterForKind(
   win: Window & typeof globalThis,
   options: ConnectUIOptions,
 ): HostAdapter {
-  switch (kind) {
-    case "chatgpt":
-      return createChatGPTAdapter(win, options);
-    case "claude":
-    case "nimblebrain":
-      // Both speak the MCP Apps standard (SEP-1865). `nimblebrain` shares it for
-      // now; a dedicated adapter over the `synapse/*` extension lands in P3.
-      return createMcpAppsAdapter(win, options);
-    default:
-      return createInlineAdapter(win, options);
-  }
+  if (kind === "mcp-apps") return createMcpAppsAdapter(win, options);
+  if (kind === "generic") return createInlineAdapter(win, options);
+  // A script-tag caller has no compiler to reject a value outside `HostKind`, and
+  // treating one as standalone inside a frame sends no handshake: the host keeps
+  // the frame hidden and the component is blank with nothing to say why.
+  throw new TypeError(`unknown host "${String(kind)}": expected "mcp-apps" or "generic"`);
 }
 
 /** Select and construct the host adapter, honoring `options.host` when set. */

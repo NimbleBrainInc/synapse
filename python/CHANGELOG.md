@@ -10,8 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 Every input `SynapseUI` takes is now emitted under the ext-apps `ui.*` key as well as
 ChatGPT's `openai/*` alias for it, and a server can declare the auth a tool needs.
-Nothing is removed and no existing key changes value. The bundled client has one
-breaking change, below.
+Nothing is removed and no existing key changes value. The bundled client has breaking
+changes, below.
 
 ### Breaking
 
@@ -21,6 +21,13 @@ breaking change, below.
   `message` is the result's first text block and whose `result` is the whole result.
   A component that checked `isError` on the resolved value catches the rejection
   instead.
+- **The bundled client speaks MCP Apps only.** Inside a frame it uses the MCP Apps
+  bridge in every host, ChatGPT included, and no longer reads `window.openai`. It no
+  longer posts the mcp-ui frames (`ui-lifecycle-iframe-ready`, `ui-size-change`, `link`,
+  `prompt`) and reports a size only after the handshake. `host()` returns `"mcp-apps"`
+  or `"generic"`, and a `host` option outside those two throws a `TypeError`.
+  A component that passed `host: "claude"` or `host: "nimblebrain"` passes
+  `host: "mcp-apps"`, or omits it.
 
 ### Added
 

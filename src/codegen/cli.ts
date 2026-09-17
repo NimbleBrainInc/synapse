@@ -11,10 +11,13 @@ if (command === "codegen") {
   runCodegen(args.slice(1));
 } else if (command === "preview") {
   runPreview(args.slice(1));
+} else if (command === "check") {
+  runCheck(args.slice(1));
 } else {
   console.log("Usage:");
   console.log("  synapse codegen   Generate TypeScript types from tool schemas");
   console.log("  synapse preview   Run a standalone preview of an MCP app with UI");
+  console.log("  synapse check     Check a running server against host store requirements");
   process.exit(command === "--help" || command === "-h" ? 0 : 1);
 }
 
@@ -103,6 +106,50 @@ async function runPreview(args: string[]): Promise<void> {
     uiPort: Number(flags["ui-port"] ?? 5173),
     previewPort: Number(flags.port ?? 5180),
   });
+}
+
+// ---------------------------------------------------------------------------
+// check
+// ---------------------------------------------------------------------------
+
+async function runCheck(args: string[]): Promise<void> {
+  const { applyProfiles, formatReport, isTargetName, PROFILES, runChecks } = await import(
+    "../check/index.js"
+  );
+
+  const flags = parseFlags(args, ["target", "token"]);
+  const json = args.includes("--json");
+  const positional = args.filter(
+    (arg, i) => !arg.startsWith("--") && !["--target", "--token"].includes(args[i - 1]),
+  );
+  const url = positional[0];
+  const targets = (flags.target ?? "").split(",").filter(Boolean);
+  const unknown = targets.filter((t) => !isTargetName(t));
+
+  if (!url || targets.length === 0 || unknown.length > 0) {
+    if (unknown.length > 0) console.error(`Unknown target: ${unknown.join(", ")}`);
+    console.error("Usage:");
+    console.error("  synapse check --target claude,chatgpt https://example.com/mcp");
+    console.error("");
+    console.error("Options:");
+    console.error(`  --target <list>  Comma-separated: ${Object.keys(PROFILES).join(", ")}`);
+    console.error("  --token <token>  Bearer token for a server that requires auth");
+    console.error("                   (default: $SYNAPSE_CHECK_TOKEN)");
+    console.error("  --json           Print the report as JSON");
+    process.exit(1);
+  }
+
+  try {
+    const results = await runChecks(url, {
+      token: flags.token ?? process.env.SYNAPSE_CHECK_TOKEN,
+    });
+    const reports = applyProfiles(results, targets.filter(isTargetName));
+    console.log(json ? JSON.stringify({ url, reports }, null, 2) : formatReport(url, reports));
+    process.exit(reports.some((r) => r.failed) ? 1 : 0);
+  } catch (err) {
+    console.error(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
 }
 
 // ---------------------------------------------------------------------------

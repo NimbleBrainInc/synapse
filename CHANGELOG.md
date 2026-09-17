@@ -39,6 +39,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 - **`hostSupports(app, extension)`**: whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`).
 - **`HostCapabilityError`** and **`NIMBLEBRAIN_EXTENSIONS`**, exported from the package root. The `connect` IIFE exposes `HostCapabilityError` and `hostSupports`.
 - **Both dev preview hosts declare what they answer** (`synapse preview` and the Vite plugin's `/__preview`): `serverTools`, `openLinks`, `updateModelContext`, `ai.nimblebrain/action` and `ai.nimblebrain/keydown`, plus `serverResources` where the Vite preview proxies it.
+- **`synapse check --target <nimblebrain|claude|chatgpt> <server-url>`.** Connects to a running server and checks what a host sees of it: that `ui://` resources are served as `text/html;profile=mcp-app`, that every `ui.resourceUri` reads, that `ui.visibility` and `ui.csp` are well-formed, that the server declares `io.modelcontextprotocol/ui`, that no `data:` font is loaded without being declared, and — when the server answers `401` — that the challenge names `resource_metadata`, the metadata's `resource` equals the server URL exactly, the authorization server's `issuer` equals the advertised string exactly, and every tool declares `securitySchemes`. Each target's profile sets which checks apply and whether a failure is an error or a warning; any error exits non-zero, so the command can gate a server's CI. `--token` (or `SYNAPSE_CHECK_TOKEN`) runs the session checks against a server that requires auth.
 
 ### Fixed
 

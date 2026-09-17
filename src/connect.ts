@@ -359,7 +359,10 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // Keyboard forwarding is a NimbleBrain extension. Forwarding to a host that
   // did not declare it would `preventDefault` a key for a host that does
   // nothing with it, so the gate is on the declaration, not just the option.
-  if (forwardKeys && hostCapabilities.experimental?.[NIMBLEBRAIN_EXTENSIONS.keydown.capability]) {
+  if (
+    forwardKeys &&
+    hostCapabilities.experimental?.[NIMBLEBRAIN_EXTENSIONS.keydown.capability] !== undefined
+  ) {
     keyboard = new KeyboardForwarder(sendRaw, forwardKeys === true ? undefined : forwardKeys);
   }
 

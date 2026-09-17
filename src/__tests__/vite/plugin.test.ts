@@ -140,6 +140,13 @@ describe("preview host HTML", () => {
     expect(html).toContain("function isRequest(msg)");
   });
 
+  it("declares the capabilities it answers, since every call is gated on them", () => {
+    const html = getPreviewHtml("hello");
+    expect(html).toContain("updateModelContext:");
+    expect(html).toContain('"ai.nimblebrain/action"');
+    expect(html).toContain('"ai.nimblebrain/keydown"');
+  });
+
   it("publishes only style variables the spec's enum names", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("--color-background-primary");

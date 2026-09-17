@@ -10,11 +10,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The NimbleBrain extensions are gated on the host declaring them, not on the host's name.** `action`/`useAction`, `pickFile`/`pickFiles`/`useFileUpload` and `forwardKeys` work only on a host whose `ui/initialize` result declares `ai.nimblebrain/action`, `ai.nimblebrain/request-file` or `ai.nimblebrain/keydown` in `hostCapabilities.experimental`. Where it is not declared, `action` sends nothing, the picker rejects, and keys are not captured, whatever the host calls itself. `NIMBLEBRAIN_EXTENSIONS` lists all three.
 
-  **Migration:** apps change nothing. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too.
+  **Migration:** apps change nothing in code. A host that implements an extension declares it, e.g. `experimental: { "ai.nimblebrain/request-file": {} }`, and a test double standing in for such a host declares it too. The gate runs in each app's own bundled copy of this package, so the host's declarations must be live before an app ships on this release; an older app ignores keys it does not read, so declaring first is safe.
 
 - **Spec calls check the host's declaration before sending.** `callTool` and `useCallTool` reject with `HostCapabilityError` when the host did not declare `serverTools`, and `readServerResource` does the same without `serverResources`. `sendMessage`/`useSendMessage` send nothing without `message`, and `updateModelContext`/`useModelContext` send nothing without `updateModelContext`. `openLink` opens the URL with `window.open` without `openLinks`. Before this change, each of these was sent regardless. A host that did not implement the request might never answer it, and a request has no deadline, so the call could wait forever.
 
-  **Migration:** a host declares what it serves. An app that wants to hide a control reads `app.hostCapabilities` first.
+  **Migration:** a host declares what it serves, before apps built on this release run against it. An app that wants to hide a control reads `app.hostCapabilities` first.
 
 - **Capability failures throw `HostCapabilityError`.** `downloadFile`, `pickFile`, `pickFiles` and `callToolAsTask` throw it in place of a plain `Error`, with a new message. Its `capability` field names what the host did not declare.
 
@@ -37,8 +37,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`app.hostCapabilities`**: the `hostCapabilities` the host declared in `ui/initialize`.
 - **`hostSupports(app, extension)`**: whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`).
-- **`HostCapabilityError`** and **`NIMBLEBRAIN_EXTENSIONS`**, exported from the package root and from the `connect` IIFE.
-- **The dev preview host declares what it answers:** `serverTools`, `openLinks`, `updateModelContext`, `ai.nimblebrain/action` and `ai.nimblebrain/keydown`.
+- **`HostCapabilityError`** and **`NIMBLEBRAIN_EXTENSIONS`**, exported from the package root. The `connect` IIFE exposes `HostCapabilityError` and `hostSupports`.
+- **Both dev preview hosts declare what they answer** (`synapse preview` and the Vite plugin's `/__preview`): `serverTools`, `openLinks`, `updateModelContext`, `ai.nimblebrain/action` and `ai.nimblebrain/keydown`, plus `serverResources` where the Vite preview proxies it.
 
 ### Fixed
 

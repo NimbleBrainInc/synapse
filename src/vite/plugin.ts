@@ -390,7 +390,9 @@ export function vitePreviewHostHtml(appName: string): string {
         post({ jsonrpc:"2.0", id:msg.id, result: {
           protocolVersion:"2026-01-26",
           hostInfo:{name:"nimblebrain",version:"preview"},
-          hostCapabilities:{openLinks:{},serverTools:{},serverResources:{listChanged:true}},
+          hostCapabilities:{openLinks:{},serverTools:{},serverResources:{listChanged:true},
+            updateModelContext:{text:{},structuredContent:{}},
+            experimental:{"ai.nimblebrain/action":{},"ai.nimblebrain/keydown":{}}},
           hostContext:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}
         }});
         return;

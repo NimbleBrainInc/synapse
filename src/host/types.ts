@@ -53,6 +53,42 @@ export class HostUnsupportedError extends Error {
   }
 }
 
+/**
+ * Thrown by `callTool()` when the tool result says the call failed
+ * (`isError: true`). MCP reports a tool failure inside the result rather than as
+ * a JSON-RPC error, and a host reports a refusal the same way — ChatGPT answers a
+ * call to a tool the app may not see with an `isError` result — so without this a
+ * failure would resolve as if it were data. The message is the result's first
+ * text block; the whole result is on `result`.
+ */
+export class ToolCallError extends Error {
+  readonly result: unknown;
+  constructor(name: string, result: unknown) {
+    super(toolErrorText(result) ?? `tool "${name}" returned an error`);
+    this.name = "ToolCallError";
+    this.result = result;
+  }
+}
+
+function toolErrorText(result: unknown): string | undefined {
+  const content = (result as { content?: unknown } | null)?.content;
+  if (!Array.isArray(content)) return undefined;
+  for (const block of content) {
+    const b = block as { type?: unknown; text?: unknown } | null;
+    if (b?.type === "text" && typeof b.text === "string" && b.text !== "") return b.text;
+  }
+  return undefined;
+}
+
+/** True when a tool result reports failure, as MCP defines it. */
+export function isToolError(result: unknown): boolean {
+  return (
+    result != null &&
+    typeof result === "object" &&
+    (result as { isError?: unknown }).isError === true
+  );
+}
+
 export interface ConnectUIOptions {
   /** App name — informational; forwarded to hosts that accept an appInfo. */
   name?: string;
@@ -102,8 +138,10 @@ export interface SynapseUIClient {
    *  (`data-theme` attribute + CSS variables) before this fires. */
   onTheme(cb: (theme: SynapseUITheme) => void): () => void;
 
-  /** Widget→server tool call. Rejects with {@link HostUnsupportedError} where the
-   *  host advertises no pull (`capabilities().pull === false`). */
+  /** Widget→server tool call. Resolves with the tool result. Rejects with
+   *  {@link ToolCallError} when the result reports failure (`isError: true`), and
+   *  with {@link HostUnsupportedError} where the host advertises no pull
+   *  (`capabilities().pull === false`). */
   callTool<O = unknown>(name: string, args?: Record<string, unknown>): Promise<O>;
   /** Send a follow-up message to the agent conversation. No-op where unsupported. */
   sendPrompt(text: string): void;

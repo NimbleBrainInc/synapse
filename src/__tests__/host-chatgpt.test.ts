@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectUI } from "../host/connect.js";
-import type { SynapseUIClient } from "../host/types.js";
+import { type SynapseUIClient, ToolCallError } from "../host/types.js";
 
 /**
  * Simulated ChatGPT (OpenAI Apps SDK) host: a fake `window.openai` plus the
@@ -105,6 +105,18 @@ describe("connectUI — ChatGPT adapter", () => {
     const out = await synapse.callTool("refresh", { domain: "x.com" });
     expect(openai.callTool).toHaveBeenCalledWith("refresh", { domain: "x.com" });
     expect(out).toEqual({ ok: true });
+  });
+
+  it("callTool rejects with ToolCallError when window.openai.callTool reports isError", async () => {
+    const refused = {
+      content: [{ type: "text", text: "Tool is not visible to app" }],
+      isError: true,
+    };
+    installFakeOpenAi({ toolOutput: {}, callTool: vi.fn().mockResolvedValue(refused) });
+    synapse = connectUI();
+    const error = await synapse.callTool("hidden_tool").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ToolCallError);
+    expect((error as ToolCallError).result).toEqual(refused);
   });
 
   it("advertises sendPrompt + openLink + pull capabilities", () => {

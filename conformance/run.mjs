@@ -467,6 +467,20 @@ try {
           (app) => app?.data?.answer === 42 || `data was ${JSON.stringify(app?.data)}`,
         ],
         ["callTool resolves", "the pull path", (app) => stepOk(app, "callTool")],
+        [
+          "a refused tools/call rejects",
+          "MCP reports a failed or refused call inside the result, as `isError: true`; a client that resolves it hands the app an error as if it were data, and the app cannot tell a refusal from an empty result",
+          (app) => {
+            const ok = stepOk(app, "callToolRefused");
+            if (ok !== true) return ok;
+            const outcome = app.callToolRefused.value;
+            if (outcome?.name !== "ToolCallError") return `outcome was ${JSON.stringify(outcome)}`;
+            return (
+              outcome.rejected.includes("Tool is not visible to app") ||
+              `rejected with ${JSON.stringify(outcome.rejected)}`
+            );
+          },
+        ],
         ["ui/open-link reaches the host", "the link path", (app) => stepOk(app, "openLink")],
         [
           "ui/message reaches the host",

@@ -109,22 +109,65 @@ describe("synapse check", () => {
   });
 
   it("fails a UI resource with no ui.csp", async () => {
-    const results = await check({ csp: null });
+    const results = await check({ csp: null, openaiCsp: { resource_domains: [] } });
     expect(failures(results)).toEqual(["resource-csp"]);
+    // The spec key is what the other hosts read; ChatGPT reads its own.
+    const [claude, chatgpt] = applyProfiles(results, ["claude", "chatgpt"]);
+    expect(claude.failed).toBe(false);
+    expect(chatgpt.failed).toBe(false);
+    // Reported at warn, not dropped from the profile: OpenAI documents ui.csp as
+    // preferred for new UI, and ChatGPT was not observed applying it. `failed`
+    // alone holds either way, so the severity is asserted directly.
+    expect(chatgpt.results.find((r) => r.id === "resource-csp")?.severity).toBe("warn");
+  });
+
+  it("fails a UI resource with no openai/widgetCSP", async () => {
+    const results = await check({ openaiCsp: null });
+    expect(failures(results)).toEqual(["resource-openai-csp"]);
+    expect(detail(results, "resource-openai-csp")).toMatch(/declares no openai\/widgetCSP/);
+    // A ChatGPT frame with no policy at all; no other host reads the key.
     const [claude, chatgpt] = applyProfiles(results, ["claude", "chatgpt"]);
     expect(claude.failed).toBe(false);
     expect(chatgpt.failed).toBe(true);
   });
 
-  it("fails a data: font the security policy does not declare", async () => {
+  it("fails an openai/widgetCSP whose origin lists use the spec's camelCase keys", async () => {
+    // The spelling is the whole difference between the dialects: origins under a
+    // key ChatGPT does not read are origins it does not allow, so a declared-looking
+    // alias leaves the component unable to reach them.
+    const results = await check({ openaiCsp: { connectDomains: [], resourceDomains: ["data:"] } });
+    expect(failures(results)).toEqual(["resource-openai-csp"]);
+    expect(detail(results, "resource-openai-csp")).toMatch(
+      /names connectDomains, resourceDomains, which ChatGPT does not read/,
+    );
+  });
+
+  it("fails a data: font the security policy does not declare, in each dialect", async () => {
     const html =
       "<style>@font-face{font-family:F;src:url(data:font/woff2;base64,AAAA)}</style><p>x</p>";
     const results = await check({ html });
-    expect(failures(results)).toEqual(["resource-data-fonts"]);
+    expect(failures(results)).toEqual(["resource-data-fonts", "resource-openai-data-fonts"]);
+    expect(detail(results, "resource-openai-data-fonts")).toMatch(
+      /openai\/widgetCSP\.resource_domains omits data:/,
+    );
     expect(applyProfiles(results, ["claude"])[0].failed).toBe(true);
   });
 
-  it("passes a data: font the security policy declares", async () => {
+  it("fails a data: font declared only in the dialect the target ignores", async () => {
+    const html = "<style>@font-face{font-family:F;src:url(data:font/woff2;base64,AAAA)}</style>";
+    const results = await check({
+      html,
+      csp: { resourceDomains: ["data:"] },
+      openaiCsp: { connect_domains: [], resource_domains: [] },
+    });
+    expect(failures(results)).toEqual(["resource-openai-data-fonts"]);
+    const [claude, chatgpt] = applyProfiles(results, ["claude", "chatgpt"]);
+    expect(claude.failed).toBe(false);
+    // ChatGPT is warned, not failed: the policy is declared, the font is not in it.
+    expect(chatgpt.failed).toBe(false);
+  });
+
+  it("passes a data: font both dialects declare", async () => {
     const html = "<style>@font-face{font-family:F;src:url(data:font/woff2;base64,AAAA)}</style>";
     const results = await check({ html, csp: { resourceDomains: ["data:"] } });
     expect(failures(results)).toEqual([]);

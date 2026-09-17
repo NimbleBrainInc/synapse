@@ -172,12 +172,22 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   contributes the component as **one `ui://` resource** under
   `text/html;profile=mcp-app`, which every host renders (ChatGPT resolves
   `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
-  `ui.visibility`, plus ChatGPT's `openai/widgetAccessible` visibility alias, kept
-  in one marked section of `server.py` whose comment says why), the `<script>`-safe
-  embed (XSS defense), and the `tools/call` interceptor that bakes the component into
-  a bound tool's result when `embed_resource=True`. Never add a second copy of the
-  resource under another MIME, and emit a host-specific key only when the app
-  declares the input it carries (`widget_domain`, `invoking`/`invoked`). Its vendored client IIFE
+  `ui.visibility`) and the resource `_meta` (`ui.csp`, `ui.prefersBorder`), each with
+  ChatGPT's alias for it, kept in one marked section of `server.py` whose comment says
+  why; plus the `<script>`-safe embed (XSS defense), and the `tools/call` interceptor
+  that bakes the component into a bound tool's result when `embed_resource=True`.
+  Never add a second copy of the resource under another MIME. **A host-specific key
+  that mirrors a spec value is emitted always, derived from that value** — ChatGPT was
+  measured (2026-09-17, developer mode) applying *no policy* to a frame carrying
+  `ui.csp` alone, and its documented default for a missing `openai/widgetAccessible`
+  is *not app-accessible*, so an omitted alias is a silent change of behaviour rather
+  than a fallback. OpenAI documents `ui.csp` as generally preferred for new UI and
+  `openai/widgetCSP` as a legacy compatibility key: emit both, and state what was
+  measured rather than a property of the host. A host-specific key carrying a **developer-declared
+  input** (`widget_domain`, `invoking`/`invoked`) is emitted only when that input is
+  given. Mind the dialects: `openai/widgetCSP` spells its origin lists
+  `connect_domains`/`resource_domains`, and a camelCase alias is ignored exactly as a
+  missing key is. `synapse check --target chatgpt` asserts both. Its vendored client IIFE
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
   `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the CI
   freshness gate enforces the copy). A **version bump** to `package.json` also requires

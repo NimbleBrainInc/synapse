@@ -8,6 +8,33 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1]
+
+### Fixed
+
+- **The `ui://` resource declares the frame's security policy in both dialects.**
+  Beside the spec's `ui.csp` and `ui.prefersBorder` it carries `openai/widgetCSP` and
+  `openai/widgetPrefersBorder`, derived from the same `connect_domains` /
+  `resource_domains` / border preference so the two cannot name different origins.
+  ChatGPT was measured (2026-09-17, developer mode) applying **no policy** to a frame
+  whose resource carried `ui.csp` alone — turning an empty allowlist ("reach nothing")
+  into unrestricted egress; the key it read is `openai/widgetCSP`. OpenAI documents
+  that key as a legacy compatibility surface and `ui.csp` as generally preferred for
+  new UI, so both are emitted. The spelling is part of it — ChatGPT's keys are
+  `connect_domains` and `resource_domains`, and a camelCase alias is ignored exactly
+  as a missing key is.
+
+  **Both dialects carry only the two origin lists `SynapseUI` takes**, as they have
+  since the key was first emitted. The spec's `ui.csp` also defines `frameDomains` and
+  `baseUriDomains`; `openai/widgetCSP` also defines `frame_domains` and
+  `redirect_domains`, the last being the only way to allowlist a
+  `window.openai.openExternal()` target. `SynapseUI` exposes none of the four, so a
+  component that frames a third-party origin or opens an external link cannot declare
+  it — and where 0.7.0 left the ChatGPT frame unpoliced, that omission now has
+  whatever weight the host gives an absent list, which is not documented and has not
+  been measured. Self-contained components, which frame nothing and open nothing, are
+  unaffected. Tracked in #101.
+
 ## [0.7.0]
 
 `SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
@@ -34,9 +61,9 @@ tool call fails.
   **Migration:** delete calls to `result_meta()`. A `bind(tool)` without
   `embed_resource=True` can be deleted.
 
-- **`resource_meta` is gone**, with the skybridge copy it merged onto. So are the
-  resource's `openai/widgetCSP` and `openai/widgetPrefersBorder` aliases: `ui.csp`
-  and `ui.prefersBorder` carry both.
+- **`resource_meta` is gone**, with the skybridge copy it merged onto. The one
+  resource's `_meta` is built by the extension, from `connect_domains`,
+  `resource_domains`, `mcp_app_domain` and `widget_domain`.
 
 - **`SKYBRIDGE_MIME` is no longer exported.**
 

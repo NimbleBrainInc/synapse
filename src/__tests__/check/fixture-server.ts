@@ -27,6 +27,12 @@ export interface FixtureOptions {
   noUi?: boolean;
   /** The resource's `ui.csp`; `null` omits it. */
   csp?: McpUiResourceCsp | null;
+  /**
+   * The resource's `openai/widgetCSP`; `null` omits it. Defaults to `csp` in
+   * ChatGPT's dialect, which is what an emitter deriving one from the other
+   * produces.
+   */
+  openaiCsp?: Record<string, string[]> | null;
   html?: string;
   auth?: {
     token: string;
@@ -54,6 +60,13 @@ export interface Fixture {
 const UI_URI = "ui://fixture/view";
 const PRM_PATH = "/.well-known/oauth-protected-resource/mcp";
 const AS_PATH = "/.well-known/oauth-authorization-server";
+
+/** The same origins in ChatGPT's dialect: a sibling of `ui`, snake_case keys. */
+function toOpenAiCsp(csp: McpUiResourceCsp | null): Record<string, string[]> | null {
+  return csp === null
+    ? null
+    : { connect_domains: csp.connectDomains ?? [], resource_domains: csp.resourceDomains ?? [] };
+}
 
 export async function startFixture(options: FixtureOptions = {}): Promise<Fixture> {
   const {
@@ -147,7 +160,10 @@ export async function startFixture(options: FixtureOptions = {}): Promise<Fixtur
       }));
     }
     if (!options.noUi) {
-      const resourceMeta = csp === null ? {} : { ui: { csp } };
+      const resourceMeta: Record<string, unknown> = {};
+      if (csp !== null) resourceMeta.ui = { csp };
+      const openaiCsp = options.openaiCsp === undefined ? toOpenAiCsp(csp) : options.openaiCsp;
+      if (openaiCsp !== null) resourceMeta["openai/widgetCSP"] = openaiCsp;
       server.registerResource(
         "view",
         resourceUri,

@@ -158,7 +158,9 @@ const SESSION_CHECKS: CheckId[] = [
   "tool-resource-uri",
   "tool-ui-meta",
   "resource-csp",
+  "resource-openai-csp",
   "resource-data-fonts",
+  "resource-openai-data-fonts",
   "tool-security-schemes",
 ];
 
@@ -338,9 +340,11 @@ function checkSession(
       badMeta.length ? badMeta.join("; ") : "tool ui metadata is well-formed",
     );
 
-    // resource-csp and resource-data-fonts, per UI resource read.
+    // The frame's security policy, in each dialect a host reads, per UI resource.
     const noCsp: string[] = [];
+    const noOpenAiCsp: string[] = [];
     const dataFonts: string[] = [];
+    const openAiDataFonts: string[] = [];
     for (const [uri, contents] of s.reads) {
       if (contents instanceof Error) continue;
       for (const c of contents) {
@@ -350,13 +354,32 @@ function checkSession(
         const csp = ui?.csp as unknown;
         if (csp === undefined) {
           noCsp.push(`${uri} declares no ui.csp`);
-        } else if (!isCsp(csp)) {
+        } else if (!isOriginLists(csp)) {
           noCsp.push(`${uri}: ui.csp is not a map of origin lists`);
         }
+        const openAi = openAiCsp(c) ?? openAiCsp(listed);
+        if (openAi === undefined) {
+          noOpenAiCsp.push(`${uri} declares no ${OPENAI_CSP_KEY}`);
+        } else if (!isOriginLists(openAi)) {
+          noOpenAiCsp.push(`${uri}: ${OPENAI_CSP_KEY} is not a map of origin lists`);
+        } else {
+          const camel = SPEC_CSP_KEYS.filter((k) => k in openAi);
+          if (camel.length) {
+            noOpenAiCsp.push(
+              `${uri}: ${OPENAI_CSP_KEY} names ${camel.join(", ")}, which ChatGPT does not read`,
+            );
+          }
+        }
         const html = "text" in c ? c.text : Buffer.from(c.blob, "base64").toString("utf-8");
-        const declaresData = isCsp(csp) && (csp.resourceDomains ?? []).includes("data:");
-        if (hasDataFont(html) && !declaresData) {
-          dataFonts.push(`${uri} loads a data: font, and ui.csp.resourceDomains omits data:`);
+        if (hasDataFont(html)) {
+          if (!declaresData(csp, "resourceDomains")) {
+            dataFonts.push(`${uri} loads a data: font, and ui.csp.resourceDomains omits data:`);
+          }
+          if (!declaresData(openAi, "resource_domains")) {
+            openAiDataFonts.push(
+              `${uri} loads a data: font, and ${OPENAI_CSP_KEY}.resource_domains omits data:`,
+            );
+          }
         }
       }
     }
@@ -366,9 +389,19 @@ function checkSession(
       noCsp.length ? noCsp.join("; ") : "every UI resource declares ui.csp",
     );
     add(
+      "resource-openai-csp",
+      noOpenAiCsp.length ? "fail" : "pass",
+      noOpenAiCsp.length ? noOpenAiCsp.join("; ") : `every UI resource declares ${OPENAI_CSP_KEY}`,
+    );
+    add(
       "resource-data-fonts",
       dataFonts.length ? "fail" : "pass",
-      dataFonts.length ? dataFonts.join("; ") : "no undeclared data: fonts",
+      dataFonts.length ? dataFonts.join("; ") : "no data: font ui.csp omits",
+    );
+    add(
+      "resource-openai-data-fonts",
+      openAiDataFonts.length ? "fail" : "pass",
+      openAiDataFonts.length ? openAiDataFonts.join("; ") : `no data: font ${OPENAI_CSP_KEY} omits`,
     );
   }
 
@@ -478,13 +511,37 @@ function resourceUi(item: { _meta?: Record<string, unknown> } | undefined): unkn
   return ui && typeof ui === "object" ? ui : undefined;
 }
 
-function isCsp(value: unknown): value is NonNullable<McpUiResourceMeta["csp"]> {
+/**
+ * ChatGPT's dialect of the frame's security policy. It is a sibling of `ui`
+ * in the resource's `_meta`, not a key inside it, and its origin lists are
+ * spelled `connect_domains`/`resource_domains`. OpenAI documents it as a legacy
+ * compatibility key and `ui.csp` as generally preferred for new UI; measured
+ * 2026-09-17 in developer mode, ChatGPT applied no policy from `ui.csp` alone.
+ * So the two are checked separately, and a target's profile names the one its
+ * host was observed to read.
+ */
+const OPENAI_CSP_KEY = "openai/widgetCSP";
+
+/** The spec's spellings, which under `openai/widgetCSP` name origins nothing reads. */
+const SPEC_CSP_KEYS = ["connectDomains", "resourceDomains"];
+
+function openAiCsp(item: { _meta?: Record<string, unknown> } | undefined): unknown {
+  return item?._meta?.[OPENAI_CSP_KEY];
+}
+
+/** The `{ name: [origin, ...] }` shape both CSP dialects have. */
+function isOriginLists(value: unknown): value is Record<string, string[]> {
   return (
     typeof value === "object" &&
     value !== null &&
     !Array.isArray(value) &&
     Object.values(value).every((v) => Array.isArray(v) && v.every((o) => typeof o === "string"))
   );
+}
+
+/** Whether `csp` allows `data:` under the key naming static assets in its dialect. */
+function declaresData(csp: unknown, key: "resourceDomains" | "resource_domains"): boolean {
+  return isOriginLists(csp) && (csp[key] ?? []).includes("data:");
 }
 
 function hasSecuritySchemes(tool: Tool): boolean {

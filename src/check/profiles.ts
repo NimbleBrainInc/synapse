@@ -13,7 +13,9 @@ export type CheckId =
   | "tool-resource-uri"
   | "tool-ui-meta"
   | "resource-csp"
+  | "resource-openai-csp"
   | "resource-data-fonts"
+  | "resource-openai-data-fonts"
   | "auth-challenge"
   | "auth-resource-metadata"
   | "auth-issuer"
@@ -45,6 +47,8 @@ const PRM_RESOURCE =
   "The protected-resource metadata's resource must equal the connector URL exactly.";
 const ISSUER =
   "The authorization server's metadata issuer must equal the advertised authorization server exactly (RFC 8414).";
+const SPEC_CSP =
+  "ui.csp is the frame's security policy for Claude and the NimbleBrain host, and OpenAI documents it as generally preferred for new UI; measured 2026-09-17 in ChatGPT developer mode, a resource carrying it alone got no policy.";
 
 export const PROFILES: Record<TargetName, Profile> = {
   nimblebrain: {
@@ -94,11 +98,14 @@ export const PROFILES: Record<TargetName, Profile> = {
       "tool-resource-uri": { severity: "error", why: RESOLVES },
       "tool-ui-meta": { severity: "error", why: UI_META },
       "extension-declared": { severity: "error", why: EXTENSION },
-      "resource-csp": {
+      // A requirement the vendor documents and the host was not observed to
+      // enforce is what `warn` is for. openai/widgetCSP is what was measured.
+      "resource-csp": { severity: "warn", why: SPEC_CSP },
+      "resource-openai-csp": {
         severity: "error",
-        why: "ChatGPT reads the frame's security policy from ui.csp, and app submission requires it.",
+        why: "ChatGPT reads the frame's security policy from openai/widgetCSP (snake_case origin lists); measured 2026-09-17 in developer mode, a resource without it got no policy on the frame at all. OpenAI documents the key as a legacy compatibility surface.",
       },
-      "resource-data-fonts": {
+      "resource-openai-data-fonts": {
         severity: "warn",
         why: "A data: font is blocked by a security policy that does not declare it.",
       },

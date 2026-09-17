@@ -115,6 +115,10 @@ describe("synapse check", () => {
     const [claude, chatgpt] = applyProfiles(results, ["claude", "chatgpt"]);
     expect(claude.failed).toBe(false);
     expect(chatgpt.failed).toBe(false);
+    // Reported at warn, not dropped from the profile: OpenAI documents ui.csp as
+    // preferred for new UI, and ChatGPT was not observed applying it. `failed`
+    // alone holds either way, so the severity is asserted directly.
+    expect(chatgpt.results.find((r) => r.id === "resource-csp")?.severity).toBe("warn");
   });
 
   it("fails a UI resource with no openai/widgetCSP", async () => {

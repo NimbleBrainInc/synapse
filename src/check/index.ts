@@ -514,9 +514,11 @@ function resourceUi(item: { _meta?: Record<string, unknown> } | undefined): unkn
 /**
  * ChatGPT's dialect of the frame's security policy. It is a sibling of `ui`
  * in the resource's `_meta`, not a key inside it, and its origin lists are
- * spelled `connect_domains`/`resource_domains`. ChatGPT reads this and ignores
- * `ui.csp`; a host that reads `ui.csp` ignores this. So the two are checked
- * separately, and a target's profile names the one its host consults.
+ * spelled `connect_domains`/`resource_domains`. OpenAI documents it as a legacy
+ * compatibility key and `ui.csp` as generally preferred for new UI; measured
+ * 2026-09-17 in developer mode, ChatGPT applied no policy from `ui.csp` alone.
+ * So the two are checked separately, and a target's profile names the one its
+ * host was observed to read.
  */
 const OPENAI_CSP_KEY = "openai/widgetCSP";
 

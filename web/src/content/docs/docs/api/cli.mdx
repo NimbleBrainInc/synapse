@@ -81,11 +81,13 @@ non-zero without a report.
 | `auth-issuer` | The first authorization server's metadata `issuer` equals the advertised string exactly | warn | warn | error |
 | `tool-security-schemes` | Every tool declares `securitySchemes` when the server requires auth | — | — | error |
 
-The frame's security policy is checked once per dialect, because a host reads one
-or the other: Claude and the NimbleBrain host read the spec's nested `ui.csp`,
-ChatGPT reads the sibling `openai/widgetCSP` and ignores `ui.csp`. A ChatGPT
-frame with no `openai/widgetCSP` runs under **no policy at all**, which is why
-that check is an error there while the spec key is a portability warning.
+The frame's security policy is checked once per dialect. Claude and the
+NimbleBrain host read the spec's nested `ui.csp`. ChatGPT was measured
+(2026-09-17, developer mode) applying **no policy at all** to a frame whose
+resource carried `ui.csp` alone; the key it read is the sibling
+`openai/widgetCSP`. So that check is an error for `chatgpt`, while `ui.csp` —
+which OpenAI documents as generally preferred for new UI, and which the host was
+not observed to apply — warns there. A server should declare both.
 
 The auth checks run only when the server answers an unauthenticated request with
 `401`. When it does and no token is given, the checks that need a session are

@@ -403,12 +403,13 @@ class SynapseUI(Extension):
 # -- ChatGPT (OpenAI Apps SDK) compatibility ------------------------------------
 #
 # ChatGPT renders the one `text/html;profile=mcp-app` resource from `ui.resourceUri`
-# and enforces `ui.visibility` — measured in developer mode. It does *not* read the
-# spec's nested `ui.csp`: it reads `openai/widgetCSP`, and with no such key it applies
-# no policy to the frame at all (ChatGPT shows a "CSP off" badge beside the connector).
-# So the frame's policy and the visibility aliases both stay, each derived from the
-# `ui.*` value it mirrors so the two dialects cannot disagree. Emitting them is what
-# makes an empty allowlist mean "reach nothing" in ChatGPT rather than "no limit".
+# and enforces `ui.visibility` — measured in developer mode. The frame's policy it
+# was observed to read is `openai/widgetCSP`: measured 2026-09-17, a resource
+# carrying `ui.csp` alone got no policy at all, and ChatGPT showed a "CSP off" badge
+# beside the connector. OpenAI documents `ui.csp` as generally preferred for new UI
+# and `openai/widgetCSP` as a legacy compatibility key, so both are emitted, each
+# derived from the `ui.*` value it mirrors — which is also what makes an empty
+# allowlist mean "reach nothing" in ChatGPT rather than "no limit".
 #
 # `openai/widgetDomain` (the resource, when `widget_domain` is given) and
 # `openai/toolInvocation/*` (the tool, when given) are developer-declared values,
@@ -418,12 +419,22 @@ class SynapseUI(Extension):
 def _chatgpt_resource_aliases(ui: Mapping[str, Any]) -> dict[str, Any]:
     """ChatGPT's aliases for the resource's ``ui.csp`` and ``ui.prefersBorder``.
 
-    ChatGPT's default without ``openai/widgetCSP`` is *no policy*, so the alias is
-    always emitted rather than left to the host — the same reasoning as
+    ChatGPT's observed default without ``openai/widgetCSP`` is *no policy*, so the
+    alias is always emitted rather than left to the host — the same reasoning as
     ``openai/widgetAccessible`` below. The dialects differ in spelling
     (``connect_domains``/``resource_domains`` against the spec's camelCase), and a
     camelCase alias is ignored exactly as a missing one is, so both are derived here
     from the one ``ui`` mapping.
+
+    **Both dialects carry only the two origin lists ``SynapseUI`` takes.** The spec's
+    ``ui.csp`` also defines ``frameDomains`` and ``baseUriDomains``, and
+    ``openai/widgetCSP`` also defines ``frame_domains`` and ``redirect_domains`` —
+    the latter being the only way to allowlist a ``window.openai.openExternal()``
+    target, with no ``ui.csp`` equivalent. ``SynapseUI`` has never exposed any of the
+    four, in either dialect. That costs nothing for a self-contained component, which
+    frames nothing and opens nothing; a component that does either cannot declare it
+    here. What a host does with an omitted list is **unmeasured** — the spec's own
+    reading is a secure default (``frame-src 'none'``), and OpenAI documents neither.
     """
     csp = ui["csp"]
     return {

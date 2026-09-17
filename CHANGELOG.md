@@ -6,11 +6,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.20.1] - 2026-09-17
+## [0.21.0] - 2026-09-17
 
-### Fixed
+### Changed
 
-- **`synapse check` asserts the security policy the target's host actually reads.** A host reads one dialect or the other: Claude and the NimbleBrain host read the spec's nested `ui.csp`, ChatGPT reads the sibling `openai/widgetCSP` and ignores `ui.csp`. Two checks now cover ChatGPT's: `resource-openai-csp` (error for `chatgpt`) requires `openai/widgetCSP`, spelled with its `connect_domains` / `resource_domains` keys, because a frame with no such key runs under no policy at all; `resource-openai-data-fonts` (warn for `chatgpt`) checks a `data:` font against that allowlist. `resource-csp` and `resource-data-fonts` keep reading `ui.csp`, for the hosts that read it — so `resource-csp` is a portability warning for `chatgpt` rather than an error, and `resource-data-fonts` no longer applies to that target.
+- **`synapse check --target chatgpt` asserts the security policy that host was observed to read, and fails servers it used to pass.** Claude and the NimbleBrain host read the spec's nested `ui.csp`. ChatGPT was measured (2026-09-17, developer mode) applying no policy at all to a frame whose resource carried `ui.csp` alone; the key it read is the sibling `openai/widgetCSP`, which OpenAI documents as a legacy compatibility key while describing `ui.csp` as generally preferred for new UI. Two checks now cover ChatGPT's dialect: `resource-openai-csp` (**error**) requires `openai/widgetCSP`, spelled with its `connect_domains` / `resource_domains` keys; `resource-openai-data-fonts` (warn) checks a `data:` font against that allowlist. `resource-csp` and `resource-data-fonts` keep reading `ui.csp` for the hosts that read it — so `resource-csp` drops to **warn** for `chatgpt` and `resource-data-fonts` leaves that profile.
+
+  **This is a behaviour change, not an addition**, which is why it is a minor and not a patch: a `chatgpt` run that passed now fails for every server emitting `ui.csp` alone — which is every server on `nimblebrain-synapse` 0.7.0. Upgrade the server to `nimblebrain-synapse` 0.7.1, which emits both dialects, or pass `--target` without `chatgpt`.
 
 ## [0.20.0] - 2026-09-17
 

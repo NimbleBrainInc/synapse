@@ -177,10 +177,13 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   why; plus the `<script>`-safe embed (XSS defense), and the `tools/call` interceptor
   that bakes the component into a bound tool's result when `embed_resource=True`.
   Never add a second copy of the resource under another MIME. **A host-specific key
-  that mirrors a spec value is emitted always, derived from that value** — ChatGPT
-  ignores `ui.csp` and `ui.visibility`, and its default where the alias is missing is
-  *no policy* and *not app-accessible*, so an omitted alias is a silent change of
-  behaviour rather than a fallback. A host-specific key carrying a **developer-declared
+  that mirrors a spec value is emitted always, derived from that value** — ChatGPT was
+  measured (2026-09-17, developer mode) applying *no policy* to a frame carrying
+  `ui.csp` alone, and its documented default for a missing `openai/widgetAccessible`
+  is *not app-accessible*, so an omitted alias is a silent change of behaviour rather
+  than a fallback. OpenAI documents `ui.csp` as generally preferred for new UI and
+  `openai/widgetCSP` as a legacy compatibility key: emit both, and state what was
+  measured rather than a property of the host. A host-specific key carrying a **developer-declared
   input** (`widget_domain`, `invoking`/`invoked`) is emitted only when that input is
   given. Mind the dialects: `openai/widgetCSP` spells its origin lists
   `connect_domains`/`resource_domains`, and a camelCase alias is ignored exactly as a

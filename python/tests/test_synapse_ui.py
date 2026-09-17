@@ -240,9 +240,10 @@ def test_one_allowlist_reaches_ui_csp():
 
 
 def test_one_allowlist_reaches_both_csp_dialects():
-    """ChatGPT reads `openai/widgetCSP` and ignores the spec's nested `ui.csp`; with
-    no alias it applies no policy to the frame at all. Both are derived from the one
-    pair of attributes, so they cannot name different origins."""
+    """ChatGPT was measured (2026-09-17, developer mode) applying no policy at all to a
+    frame whose resource carried `ui.csp` alone; the key it read is `openai/widgetCSP`.
+    Both are derived from the one pair of attributes, so they cannot name different
+    origins."""
     meta = _contributed(
         _ui(
             connect_domains=["https://api.example.com"],

@@ -3,7 +3,7 @@
 // that the lean `window.SynapseUI` IIFE deliberately excludes.
 import { foldFontFaces } from "../../detection.js";
 import { fontFacesKey } from "../../theme-defaults.js";
-import { readInlineData, unwrapRenderData } from "../data.js";
+import { readInlineData } from "../data.js";
 import { coerceMode, preferredMode } from "../theme.js";
 import {
   type ConnectUIOptions,
@@ -19,11 +19,6 @@ import {
   MCPAPP_SIZE_CHANGED,
   MCPAPP_TEARDOWN,
   MCPAPP_TOOL_RESULT,
-  MCPUI_LINK,
-  MCPUI_PROMPT,
-  MCPUI_READY,
-  MCPUI_RENDER_DATA,
-  MCPUI_SIZE_CHANGE,
   SYNAPSE_DATA_ELEMENT_ID,
   type SynapseUITheme,
 } from "../types.js";
@@ -39,8 +34,8 @@ interface PendingRequest {
 }
 
 /**
- * MCP Apps standard (SEP-1865) adapter — the convergence bridge for Claude
- * Desktop and other MCP Apps hosts.
+ * MCP Apps standard (SEP-1865) adapter — the bridge for every framed host.
+ * ChatGPT, Claude and NimbleBrain all implement the standard, so there is one.
  *
  * The View iframe is an MCP client speaking JSON-RPC 2.0 to `window.parent`:
  *
@@ -52,9 +47,7 @@ interface PendingRequest {
  *     `ui/notifications/host-context-changed`.
  *
  * Actions go up as requests: `ui/open-link`, `ui/message` (follow-up), and
- * `tools/call` (pull). The legacy mcp-ui `ui-lifecycle-*` messages are sent and
- * accepted alongside so a pre-standard host still renders — a standard host drops
- * the non-JSON-RPC frames, and a legacy host ignores the JSON-RPC ones.
+ * `tools/call` (pull).
  */
 export function createMcpAppsAdapter(
   win: Window & typeof globalThis,
@@ -69,9 +62,8 @@ export function createMcpAppsAdapter(
   const dataCbs = new Set<(d: unknown) => void>();
   const themeCbs = new Set<(t: SynapseUITheme) => void>();
   let destroyed = false;
-  // Set once `ui/initialize` resolves — proof we're on an MCP Apps standard host,
-  // which lets us stop mirroring actions to the legacy shim.
-  let standardConfirmed = false;
+  // Set once the host has answered `ui/initialize` and been told `initialized`.
+  let initialized = false;
   let nextId = 1;
   const pending = new Map<number, PendingRequest>();
   let lastReportedHeight = -1;
@@ -82,17 +74,6 @@ export function createMcpAppsAdapter(
 
   function post(message: Record<string, unknown>): void {
     parent().postMessage(message, "*");
-  }
-
-  // The legacy mcp-ui frames (render-data in, size/link/prompt out) are a
-  // transitional shim for the one host that still speaks it — the NimbleBrain
-  // runtime, which shares this adapter via the `nimblebrain` kind until the P3
-  // `nimblebrain` adapter lands and this shim is removed. Once the handshake
-  // confirms a standard host we stop mirroring, so a host that understood both
-  // dialects never acts on an action twice.
-  function postLegacy(message: Record<string, unknown>): void {
-    if (standardConfirmed) return;
-    post(message);
   }
 
   function notify(method: string, params?: Record<string, unknown>): void {
@@ -119,8 +100,7 @@ export function createMcpAppsAdapter(
 
   /** Merge a full or partial host context into the resolved theme (mode, tokens,
    *  font faces). Fonts ride the `synapse/fontFaces` extension: absent means
-   *  unchanged, an explicit (possibly empty) list replaces. ChatGPT supplies
-   *  only a mode string, so this is the adapter where host typography arrives. */
+   *  unchanged, an explicit (possibly empty) list replaces. */
   function applyHostContext(ctx: Record<string, unknown> | null | undefined): void {
     if (!ctx || typeof ctx !== "object") return;
     let { mode, tokens, fontFaces } = currentTheme;
@@ -149,21 +129,14 @@ export function createMcpAppsAdapter(
   }
 
   function reportSize(height?: number): void {
-    if (destroyed) return;
+    // `ui/initialize` is the app's first word on this bridge, and a strict host
+    // drops anything that arrives before it — leaving the frame hidden. The
+    // handshake reports a size as soon as it completes, so nothing is lost.
+    if (destroyed || !initialized) return;
     const h = typeof height === "number" ? height : Math.ceil(win.document.body.scrollHeight);
     if (h === lastReportedHeight) return;
     lastReportedHeight = h;
-    // Exactly one dialect is ever in flight, and which one is decided by the
-    // handshake. The JSON-RPC notification waits for it: `ui/initialize` is the
-    // app's first word on this bridge, and a host may drop anything that
-    // arrives before it has one — a strict host does, and leaves the frame
-    // hidden, which reads as a component that never rendered. The legacy frame
-    // goes now instead, because a pre-standard host needs a size immediately
-    // and never answers the handshake at all; a standard host ignores the
-    // non-JSON-RPC frame, and `postLegacy` stops sending it once the handshake
-    // confirms one.
-    if (standardConfirmed) notify(MCPAPP_SIZE_CHANGED, { height: h });
-    postLegacy({ type: MCPUI_SIZE_CHANGE, payload: { height: h } });
+    notify(MCPAPP_SIZE_CHANGED, { height: h });
   }
 
   function handleResponse(d: Record<string, unknown>): void {
@@ -186,7 +159,7 @@ export function createMcpAppsAdapter(
     if (method === MCPAPP_TOOL_RESULT) {
       // `params` is the CallToolResult: the render data lives at structuredContent.
       const structured = params.structuredContent;
-      emitData(structured != null ? structured : unwrapRenderData(params));
+      emitData(structured != null ? structured : params);
     } else if (method === MCPAPP_HOST_CONTEXT_CHANGED) {
       applyHostContext(params);
     }
@@ -200,25 +173,12 @@ export function createMcpAppsAdapter(
     }
   }
 
-  /** Legacy mcp-ui render-data (non-JSON-RPC) — a pre-standard host's data path. */
-  function handleLegacy(d: Record<string, unknown>): void {
-    if (d.type === MCPUI_RENDER_DATA || d.type === "renderData") {
-      const { theme, ...rest } = (d.payload ?? {}) as Record<string, unknown>;
-      if (theme != null) applyHostContext({ theme });
-      if (Object.keys(rest).length > 0) emitData(unwrapRenderData(rest));
-    }
-  }
-
   const onMessage = (event: MessageEvent) => {
     if (destroyed) return;
     // Accept only frames from the host window when the browser sets a source.
     if (event.source && event.source !== parent()) return;
     const d = event.data as Record<string, unknown> | null | undefined;
-    if (!d || typeof d !== "object") return;
-    if (d.jsonrpc !== "2.0") {
-      handleLegacy(d);
-      return;
-    }
+    if (!d || typeof d !== "object" || d.jsonrpc !== "2.0") return;
     if (d.id != null && ("result" in d || "error" in d)) {
       handleResponse(d);
     } else if (typeof d.method === "string") {
@@ -237,7 +197,7 @@ export function createMcpAppsAdapter(
   }
 
   return {
-    host: "claude",
+    host: "mcp-apps",
     getData: <T>() => currentData as T | null,
     onData(cb) {
       dataCbs.add(cb as (d: unknown) => void);
@@ -252,24 +212,19 @@ export function createMcpAppsAdapter(
       return (await request(MCP_TOOLS_CALL, { name, arguments: args ?? {} })) as O;
     },
     sendPrompt(text: string) {
-      // Standard follow-up (ack ignored); legacy mirror for a pre-standard host.
       void request(MCPAPP_MESSAGE, { role: "user", content: [{ type: "text", text }] }).catch(
         () => {},
       );
-      postLegacy({ type: MCPUI_PROMPT, payload: { prompt: text } });
     },
     openLink(url: string) {
       void request(MCPAPP_OPEN_LINK, { url }).catch(() => {});
-      postLegacy({ type: MCPUI_LINK, payload: { url } });
     },
     resize(height?: number) {
       reportSize(height);
     },
     capabilities(): HostCapabilities {
-      // The MCP Apps standard host answers `tools/call` over this bridge, so pull
-      // is advertised. A legacy-only host that shares this adapter (nimblebrain,
-      // pre-P3) does not, so there callTool rejects only after REQUEST_TIMEOUT_MS
-      // rather than failing fast.
+      // An MCP Apps host answers `tools/call`, `ui/message` and `ui/open-link`
+      // over this bridge.
       return { pull: true, sendPrompt: true, openLink: true };
     },
     start() {
@@ -280,11 +235,6 @@ export function createMcpAppsAdapter(
 
       if (autoResize) setupResize();
 
-      // Legacy mcp-ui ready (a standard host drops this non-JSON-RPC frame).
-      post({ type: MCPUI_READY });
-
-      // MCP Apps standard handshake. A legacy-only host never answers, so the
-      // legacy render-data path (handleLegacy) still feeds the widget.
       request<{ hostContext?: Record<string, unknown> }>(MCPAPP_INITIALIZE, {
         appInfo: { name: options.name ?? "synapse-ui", version: options.version ?? "0.0.0" },
         appCapabilities: { availableDisplayModes: ["inline"] },
@@ -292,22 +242,17 @@ export function createMcpAppsAdapter(
       })
         .then((result) => {
           if (destroyed) return;
-          standardConfirmed = true;
           applyHostContext(result?.hostContext);
           notify(MCPAPP_INITIALIZED, {});
+          initialized = true;
           // A host keeps the frame hidden until it gets a size after init, and
-          // this is the first point at which sending one is allowed — so force
-          // one past the de-duplication in `reportSize`.
-          lastReportedHeight = -1;
+          // this is the first point at which sending one is allowed.
           reportSize();
         })
         .catch(() => {
-          // Not an MCP Apps host (or it was slow) — the legacy path covers data.
+          // The parent never answered: it is not an MCP Apps host, and nothing
+          // reaches the component over this bridge. Baked-in data still renders.
         });
-
-      // The legacy size frame, for a pre-standard host that will never answer
-      // the handshake. On a standard host this emits nothing (see `reportSize`).
-      reportSize();
     },
     destroy() {
       if (destroyed) return;

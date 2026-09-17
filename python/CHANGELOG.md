@@ -10,7 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 `SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
 takes is emitted under its ext-apps `ui.*` key. A server can declare the auth a tool
-needs, and the bundled client's `callTool()` rejects when a tool call fails.
+needs. The bundled client speaks MCP Apps only, and its `callTool()` rejects when a
+tool call fails.
 
 ### Breaking
 
@@ -46,6 +47,13 @@ needs, and the bundled client's `callTool()` rejects when a tool call fails.
   `message` is the result's first text block and whose `result` is the whole result.
   A component that checked `isError` on the resolved value catches the rejection
   instead.
+- **The bundled client speaks MCP Apps only.** Inside a frame it uses the MCP Apps
+  bridge in every host, ChatGPT included, and no longer reads `window.openai`. It no
+  longer posts the mcp-ui frames (`ui-lifecycle-iframe-ready`, `ui-size-change`, `link`,
+  `prompt`) and reports a size only after the handshake. `host()` returns `"mcp-apps"`
+  or `"generic"`, and a `host` option outside those two throws a `TypeError`.
+  A component that passed `host: "claude"` or `host: "nimblebrain"` passes
+  `host: "mcp-apps"`, or omits it.
 
 ### Added
 

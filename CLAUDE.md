@@ -159,7 +159,7 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   a `size-changed` — a spec-correct component that never runs the handshake renders
   blank (looks like "nothing happened"). And `ui/notifications/tool-result` `params`
   **is** the `CallToolResult` (data at `params.structuredContent`), not wrapped in
-  `params.result`. Keep `synapse/*` NimbleBrain-private fields out of the
+  `params.result`. Keep `ai.nimblebrain/*` NimbleBrain-private fields out of the
   `mcpapps` payloads. A component that renders in one host but shows a generic
   error in another ("There was a problem displaying content" on Claude) is usually a
   rejected `_meta.ui.*` field, not broken HTML — `_meta.ui.domain` is a *host-validated*
@@ -201,7 +201,7 @@ Four things about that seam are load-bearing:
   it. A second registration for the same method through the `on*` setters throws,
   and `App` warns when a handler for a one-shot event is registered after the
   handshake — which is when every hook subscribes. Everything `App` does not
-  model (`synapse/*`, `notifications/resources/list_changed`,
+  model (the NimbleBrain host extensions, `notifications/resources/list_changed`,
   `notifications/tasks/status`) arrives through one `fallbackNotificationHandler`,
   for the same reason: a second handler for a method would silently replace the
   first.
@@ -237,20 +237,21 @@ The per-hook table is `web/src/content/docs/docs/concepts/degradation.mdx`; the
 same rule is on each method's doc comment. A new method or helper picks one of
 the three and says which. Nothing is gated on the host's name.
 
-## NimbleBrain extensions (`synapse/` prefix)
+## NimbleBrain host extensions (`ai.nimblebrain/` prefix)
 
-No spec equivalent. `NIMBLEBRAIN_EXTENSIONS` in `src/event-map.ts` is the
-complete list, each method paired with the identifier a host declares in
-`hostCapabilities.experimental` to offer it (`experimental` is the one slot a
-spec client's handshake parse keeps):
+No spec equivalent. They are the NimbleBrain host's extensions, and this package
+implements a client for them. `NIMBLEBRAIN_EXTENSIONS` in `src/event-map.ts` is
+the complete list. Each has one name, used as its method and as the identifier a
+host declares in `hostCapabilities.experimental` to offer it (`experimental` is
+the one slot a spec client's handshake parse keeps):
 
-| Method | Declared as |
-|---|---|
-| `synapse/action` | `ai.nimblebrain/action` |
-| `synapse/request-file` | `ai.nimblebrain/request-file` |
-| `synapse/keydown` | `ai.nimblebrain/keydown` |
+- `ai.nimblebrain/action`
+- `ai.nimblebrain/request-file`
+- `ai.nimblebrain/keydown`
 
-A `synapse/` method without an entry fails `event-map.test.ts`.
+The chat context on `sendMessage` rides `_meta["ai.nimblebrain/context"]`.
+
+An `ai.nimblebrain/` method constant without an entry fails `event-map.test.ts`.
 
 ## IIFE build for MCP server widgets
 

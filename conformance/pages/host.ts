@@ -83,10 +83,13 @@ window.addEventListener("message", (ev) => {
   wire(msg.method, msg.params);
 });
 
+/** A vendor notification no spec models, to prove host → app passthrough. */
+const VENDOR_NOTIFICATION = "vendor.example/notice";
+
 const bridge = new AppBridge(
   null,
   // The wire is the spec's; the identity is ours. `connect()` gates each
-  // `synapse/*` extension on the host declaring it, so the extensions are
+  // NimbleBrain host extension on the host declaring it, so the extensions are
   // declared below — leaving them out would leave the extension rows untested,
   // which is the opposite of what this suite is for. How those same calls
   // degrade on a host that declares nothing is asserted in the unit suite.
@@ -164,7 +167,7 @@ bridge.onloggingmessage = (params) => handled("notifications/message", params);
 bridge.onsizechange = (params) => handled("ui/notifications/size-changed", params);
 bridge.onrequestteardown = (params) => handled("ui/notifications/request-teardown", params);
 
-// `synapse/*` and `tasks/*` are outside the spec surface, so the bridge has no
+// Vendor methods and `tasks/*` are outside the spec surface, so the bridge has no
 // typed setter for them — they arrive here. Answering them at all is what proves
 // a custom method survives a spec host's transport in both directions.
 type RawHandlers = {
@@ -184,7 +187,7 @@ raw.fallbackRequestHandler = async (req) => {
     };
   }
   if (req.method === "tasks/result") return { content: [{ type: "text", text: "task done" }] };
-  if (req.method === "synapse/request-file") return { files: [] };
+  if (req.method === "ai.nimblebrain/request-file") return { files: [] };
   return {};
 };
 raw.fallbackNotificationHandler = async (n) => {
@@ -210,10 +213,10 @@ bridge.oninitialized = () => {
     await bridge.sendResourceListChanged();
     state.hostEvents.push("resources/list_changed sent");
     await raw.notification({
-      method: "synapse/data-changed",
-      params: { source: "agent", server: "srv", tool: "save" },
+      method: VENDOR_NOTIFICATION,
+      params: { source: "host" },
     });
-    state.hostEvents.push("synapse/data-changed sent");
+    state.hostEvents.push(`${VENDOR_NOTIFICATION} sent`);
 
     // Let the app observe all three and finish its own script.
     setTimeout(() => {

@@ -1,10 +1,9 @@
-// `detection` and `theme-defaults` are type-only against `@modelcontextprotocol/*`,
-// so importing them keeps this adapter free of the ext-apps runtime (and Zod)
-// that the lean `window.SynapseUI` IIFE deliberately excludes.
-import { foldFontFaces } from "../../detection.js";
-import { fontFacesKey } from "../../theme-defaults.js";
+// `detection` is type-only against `@modelcontextprotocol/*`, so importing it
+// keeps this adapter free of the ext-apps runtime (and Zod) that the lean
+// `window.SynapseUI` IIFE deliberately excludes.
+import { extractHostFontCss } from "../../detection.js";
 import { readInlineData } from "../data.js";
-import { coerceMode, preferredMode } from "../theme.js";
+import { coerceMode, injectHostFonts, preferredMode } from "../theme.js";
 import {
   type ConnectUIOptions,
   type HostAdapter,
@@ -98,12 +97,13 @@ export function createMcpAppsAdapter(
     for (const cb of dataCbs) cb(next);
   }
 
-  /** Merge a full or partial host context into the resolved theme (mode, tokens,
-   *  font faces). Fonts ride the `synapse/fontFaces` extension: absent means
-   *  unchanged, an explicit (possibly empty) list replaces. */
+  /** Merge a full or partial host context into the resolved theme (mode, tokens),
+   *  and load the host's `@font-face` CSS from the spec's `styles.css.fonts`. */
   function applyHostContext(ctx: Record<string, unknown> | null | undefined): void {
     if (!ctx || typeof ctx !== "object") return;
-    let { mode, tokens, fontFaces } = currentTheme;
+    const fontCss = extractHostFontCss(ctx);
+    if (fontCss !== undefined) injectHostFonts(fontCss);
+    let { mode, tokens } = currentTheme;
     let changed = false;
     if (ctx.theme != null) {
       const next = coerceMode(ctx.theme, mode);
@@ -117,13 +117,8 @@ export function createMcpAppsAdapter(
       tokens = { ...tokens, ...styles.variables };
       changed = true;
     }
-    const nextFaces = foldFontFaces(fontFaces, ctx);
-    if (fontFacesKey(nextFaces) !== fontFacesKey(fontFaces)) {
-      fontFaces = nextFaces;
-      changed = true;
-    }
     if (changed) {
-      currentTheme = { mode, tokens, ...(fontFaces ? { fontFaces } : {}) };
+      currentTheme = { mode, tokens };
       for (const cb of themeCbs) cb(currentTheme);
     }
   }

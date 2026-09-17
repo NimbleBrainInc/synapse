@@ -12,8 +12,6 @@
  * inline stays tiny (no Zod, no ext-apps schemas).
  */
 
-import type { FontFaceDescriptor } from "../types.js";
-
 /**
  * The bridge the client resolved to, as reported by `synapse.host()`:
  * `"mcp-apps"` in a frame, `"generic"` standalone. It names the bridge, not the
@@ -29,9 +27,6 @@ export type HostKind = "mcp-apps" | "generic";
 export interface SynapseUITheme {
   mode: "light" | "dark";
   tokens: Record<string, string>;
-  /** Font faces the host wants loaded. Absent where the host sends none, which
-   *  leaves the SDK's web-safe fallbacks in force. See `FontFaceDescriptor`. */
-  fontFaces?: FontFaceDescriptor[];
 }
 
 /** What the active host actually supports. `data()`/`onData()`/`theme()`/

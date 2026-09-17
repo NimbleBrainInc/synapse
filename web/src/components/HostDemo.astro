@@ -35,7 +35,7 @@
       </article>
     </div>
 
-    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">ui/* protocol + synapse/*</code><span id="hdFootPost">.</span></p>
+    <p class="hd-foot"><span id="hdFootPre">Self-hosted, Synapse renders your app via the </span><code id="hdFootBridge">ui/* protocol + ai.nimblebrain/*</code><span id="hdFootPost">.</span></p>
   </div>
 </div>
 
@@ -245,7 +245,7 @@
     chatgpt: { pre: "In ChatGPT, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
     claude: { pre: "In Claude, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
     vscode: { pre: "In VS Code, Synapse renders your app via the ", bridge: "ui/* protocol", post: "." },
-    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "ui/* protocol + synapse/*", post: "." },
+    yourapp: { pre: "Self-hosted, Synapse renders your app via the ", bridge: "ui/* protocol + ai.nimblebrain/*", post: "." },
   };
   const order = ["yourapp", "chatgpt", "claude", "vscode"];
   const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;

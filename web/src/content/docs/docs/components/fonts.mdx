@@ -15,42 +15,34 @@ that wants its own typeface sends the faces alongside the tokens.
 
 ## Host fonts
 
-A host supplies `@font-face` descriptors on the theme, as `Theme.fontFaces`.
-They travel over the wire as the `synapse/fontFaces` host-context extension, and
-the SDK loads them into the app document.
+A host supplies its typeface as `@font-face` CSS in the host context, under the
+MCP Apps spec's `styles.css.fonts`. The SDK loads that CSS into the app document.
 
 ```ts
-// Host side
+// Host side: the ui/initialize hostContext, or a host-context-changed
 {
-  mode: "dark",
-  tokens: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
-  fontFaces: [
-    {
-      family: "Your Sans",
-      src: "url('/fonts/your-sans.woff2') format('woff2')",
-      weight: "400 700",
+  theme: "dark",
+  styles: {
+    variables: { "--font-sans": "'Your Sans', system-ui, sans-serif" },
+    css: {
+      fonts: "@font-face { font-family: 'Your Sans'; src: url('/fonts/your-sans.woff2') format('woff2'); font-weight: 400 700; font-display: swap; }",
     },
-  ],
+  },
 }
 ```
 
-| Field | Notes |
-| --- | --- |
-| `family` | Must match the family named in the host's `--font-*` token value. |
-| `src` | Any CSS `src` descriptor — relative, absolute, or `data:`. |
-| `weight` | Single weight (`400`) or a variable range (`400 700`). Optional. |
-| `style` | `normal`, `italic`, … Optional. |
-| `display` | Defaults to `swap`, so text paints in the fallback rather than blocking. Optional. |
-
-Faces are loaded through the CSS Font Loading API (`new FontFace(...)`), not by
-building `@font-face` CSS text. Family and `src` stay separate arguments, so a
-host value can never escape a rule and inject styles into the app; the browser
-also parses `src` against its own grammar, so relative paths, absolute URLs, and
-`data:` URIs behave identically.
+- The `font-family` in each rule must match the family the host names in its
+  `--font-*` variable.
+- `connect()` applies the CSS with the spec's own `applyHostFonts`; the
+  cross-host client injects it the same way. Both use one style element,
+  `__mcp-host-fonts`.
+- The browser fetches a face only when the app's CSS first uses it, so an unused
+  weight costs nothing. Set `font-display: swap` in the rule so text paints in
+  the fallback first.
 
 ### Sending no fonts is supported, not degraded
 
-Omit `fontFaces` and the app renders in the web-safe fallbacks the
+Send no `styles.css.fonts` and the app renders in the web-safe fallbacks the
 [token contract](/docs/components/tokens) defines — `system-ui` for
 `fontSans`, `ui-monospace` for `fontMono`, and the same `system-ui` stack for
 `fontHeading` — one family, hierarchy from weight and size.
@@ -75,10 +67,10 @@ stack. It just looks unbranded.
 
 ### Updates mid-session
 
-A `host-context-changed` notification carries only the fields that changed, so an
-absent `synapse/fontFaces` means "unchanged" and loaded faces stay loaded — a
-dark-mode toggle never drops the app's typeface. A host clears faces by sending
-an explicit empty list.
+The font CSS is injected once and stays loaded. A later `host-context-changed`
+without `styles.css` — a dark-mode toggle, say — leaves the typeface in place.
+A host that changes typeface mid-session is not supported; send the fonts once,
+in the handshake.
 
 ## Base reset
 

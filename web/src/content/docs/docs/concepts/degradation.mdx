@@ -61,24 +61,25 @@ declaration before you offer it.
 
 ## The NimbleBrain extensions
 
-Three features have no equivalent in the spec. They travel over `synapse/*`
-methods. A host offers one by declaring its identifier in
-`hostCapabilities.experimental`. MCP Apps has no field for extensions, and
+Three features have no equivalent in the spec. They are the NimbleBrain host's
+own extensions, which Synapse implements a client for. Each has one name, used
+as its method and as the identifier a host declares in
+`hostCapabilities.experimental` to offer it. MCP Apps has no field for extensions, and
 `experimental` is the only part of that object whose contents a spec client keeps.
 
-| Extension | Method | Direction | Declared as |
-| --- | --- | --- | --- |
-| Host actions (`action`, `useAction`) | `synapse/action` | app → host notification | `ai.nimblebrain/action` |
-| File picker (`pickFile`, `pickFiles`, `useFileUpload`) | `synapse/request-file` | app → host request, answered `{ files }` | `ai.nimblebrain/request-file` |
-| Keyboard forwarding (`forwardKeys`) | `synapse/keydown` | app → host notification | `ai.nimblebrain/keydown` |
+| Extension | Method and declared identifier | Direction |
+| --- | --- | --- |
+| Host actions (`action`, `useAction`) | `ai.nimblebrain/action` | app → host notification |
+| File picker (`pickFile`, `pickFiles`, `useFileUpload`) | `ai.nimblebrain/request-file` | app → host request, answered `{ files }` |
+| Keyboard forwarding (`forwardKeys`) | `ai.nimblebrain/keydown` | app → host notification |
 
 That is the complete list. `NIMBLEBRAIN_EXTENSIONS`, exported from the package
 root, holds the same table in code.
 
 Two NimbleBrain fields also ride inside spec messages, and other hosts ignore them:
-the `workspace` key in the host context, and `_meta.context` on a `sendMessage`
-text block. Synapse sends `_meta.context` only when the host identifies itself as
-NimbleBrain (`app.isNimbleBrainHost`).
+the workspace in the host context, and the chat context on a `sendMessage` text
+block, under `_meta["ai.nimblebrain/context"]`. Synapse sends the chat context only
+when the host identifies itself as NimbleBrain (`app.isNimbleBrainHost`).
 
 ## Deciding what to offer
 

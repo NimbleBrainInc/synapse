@@ -141,7 +141,7 @@ describe("connect() integration", () => {
     return promise;
   }
 
-  /** A NimbleBrain host — the `synapse/*` extensions only run against one. */
+  /** A NimbleBrain host — the NimbleBrain host extensions run only against one that declares them. */
   function nimblebrainInitResult() {
     return {
       protocolVersion: "2026-01-26",
@@ -278,7 +278,7 @@ describe("connect() integration", () => {
             {
               type: "text",
               text: "Summarize the board",
-              _meta: { context: { action: "summarize", entity: "board" } },
+              _meta: { "ai.nimblebrain/context": { action: "summarize", entity: "board" } },
             },
           ],
         },

@@ -36,36 +36,38 @@ export const READ_RESOURCE_METHOD: ReadResourceRequest["method"] = "resources/re
 export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/list";
 
 /**
- * NimbleBrain extension methods. No spec equivalent, so no constant to import
- * — but naming them once here means no source file spells the wire string
- * twice, and the `synapse/` prefix keeps them visibly outside the spec.
+ * NimbleBrain host extension methods. No spec equivalent, so no constant to
+ * import — but naming them once here means no source file spells the wire
+ * string twice. The `ai.nimblebrain/` prefix names the owner: these are the
+ * NimbleBrain host's extensions, which this package implements a client for.
  *
  * Each is used only when the host declares it: see {@link NIMBLEBRAIN_EXTENSIONS}.
  */
-export const ACTION_METHOD = "synapse/action";
-export const REQUEST_FILE_METHOD = "synapse/request-file";
-export const KEYDOWN_METHOD = "synapse/keydown";
+export const ACTION_METHOD = "ai.nimblebrain/action";
+export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
+export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
 
 /**
- * The NimbleBrain extensions, each paired with the capability a host declares
- * to offer it. This is the complete list; anything else an app sends is spec.
+ * The NimbleBrain host extensions. This is the complete list; anything else an
+ * app sends is spec.
  *
- * A host declares an extension in `hostCapabilities.experimental`, keyed by its
- * identifier. The ext-apps host capability type has no field for extensions,
- * and a spec client parses the `ui/initialize` result against that type, so
- * `experimental` is the one slot whose contents reach the app. The MCP tasks
- * capability travels the same way, for the same reason.
+ * Each extension has one name, used both as its method and as the identifier a
+ * host declares in `hostCapabilities.experimental` to offer it. The ext-apps
+ * host capability type has no field for extensions, and a spec client parses
+ * the `ui/initialize` result against that type, so `experimental` is the one
+ * slot whose contents reach the app. The MCP tasks capability travels the same
+ * way, for the same reason.
  *
  * The gate is the declaration, not the host's name. A host that implements an
  * extension says so; a host that does not is never sent it.
  */
 export const NIMBLEBRAIN_EXTENSIONS = {
   /** App → host notification: run a host action (navigate, open a panel). */
-  action: { method: ACTION_METHOD, capability: "ai.nimblebrain/action" },
+  action: { method: ACTION_METHOD, capability: ACTION_METHOD },
   /** App → host request: the host's file picker, answered `{ files }`. */
-  requestFile: { method: REQUEST_FILE_METHOD, capability: "ai.nimblebrain/request-file" },
+  requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },
   /** App → host notification: a keyboard shortcut pressed inside the frame. */
-  keydown: { method: KEYDOWN_METHOD, capability: "ai.nimblebrain/keydown" },
+  keydown: { method: KEYDOWN_METHOD, capability: KEYDOWN_METHOD },
 } as const;
 
 export type NimbleBrainExtension = keyof typeof NIMBLEBRAIN_EXTENSIONS;

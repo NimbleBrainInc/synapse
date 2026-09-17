@@ -423,10 +423,9 @@ export function vitePreviewHostHtml(appName: string): string {
       }
 
       // Log other messages
-      if (msg.method === "synapse/chat") console.log("[chat]", msg.params?.message);
-      else if (msg.method === "synapse/action") console.log("[action]", msg.params?.action, msg.params);
+      if (msg.method === "ai.nimblebrain/action") console.log("[action]", msg.params?.action, msg.params);
       else if (msg.method === "ui/update-model-context") { console.log("[model-context]", msg.params?.structuredContent); if (isRequest(msg)) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
-      else if (msg.method === "synapse/keydown") { /* ignore */ }
+      else if (msg.method === "ai.nimblebrain/keydown") { /* ignore */ }
       else if (msg.method) console.log("[bridge]", msg.method, msg);
     });
 

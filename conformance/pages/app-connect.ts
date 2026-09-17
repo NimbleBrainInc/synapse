@@ -51,10 +51,10 @@ if (app) {
   connected.on("host-context-changed", (ctx) => {
     results.hostContextChanged = ctx;
   });
-  // A real host-to-app extension frame: the NimbleBrain host still sends it.
-  // Subscribed by wire method, because the SDK gives it no typed view.
-  connected.on("synapse/data-changed", (params) => {
-    results.dataChanged = params;
+  // A vendor notification the spec does not model, subscribed by wire method,
+  // because the SDK gives it no typed view.
+  connected.on("vendor.example/notice", (params) => {
+    results.vendorNotice = params;
   });
   connected.on("notifications/resources/list_changed", () => {
     results.resourcesListChanged = true;
@@ -76,7 +76,8 @@ if (app) {
   await step("downloadFileBlob", () =>
     downloadFile(connected, "b.bin", new Blob([new Uint8Array([0, 1, 127, 128, 254, 255])])),
   );
-  // A `synapse/*` request, app → host, answered by the host's fallback handler.
+  // A NimbleBrain host extension request, app → host, answered by the host's
+  // fallback handler.
   await step("requestFile", () => pickFile(connected));
   // The tasks utility has no ext-apps typed surface, so its methods ride the
   // generic request path. Driving them directly is what proves that path

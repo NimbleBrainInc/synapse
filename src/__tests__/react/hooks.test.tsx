@@ -260,7 +260,7 @@ describe("useSendMessage", () => {
 });
 
 describe("useAction", () => {
-  it("sends synapse/action on a NimbleBrain host", async () => {
+  it("sends ai.nimblebrain/action on a NimbleBrain host", async () => {
     const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
     await settle();
 
@@ -268,7 +268,7 @@ describe("useAction", () => {
       result.current("navigate", { id: "b1" });
     });
 
-    expect(sent("synapse/action")[0].params).toEqual({ action: "navigate", id: "b1" });
+    expect(sent("ai.nimblebrain/action")[0].params).toEqual({ action: "navigate", id: "b1" });
   });
 
   it("is a no-op where the host did not declare it", async () => {
@@ -279,7 +279,7 @@ describe("useAction", () => {
       result.current("navigate", { id: "b1" });
     });
 
-    expect(sent("synapse/action")).toHaveLength(0);
+    expect(sent("ai.nimblebrain/action")).toHaveLength(0);
   });
 });
 
@@ -296,7 +296,7 @@ describe("useFileUpload", () => {
     });
     expect(result.current.isPending).toBe(true);
 
-    const request = sent("synapse/request-file")[0];
+    const request = sent("ai.nimblebrain/request-file")[0];
     expect(request.params).toMatchObject({ accept: ".csv", multiple: false });
 
     await act(async () => {

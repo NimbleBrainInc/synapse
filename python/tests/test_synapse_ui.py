@@ -186,7 +186,9 @@ def test_contributes_one_resource_under_the_mcp_apps_mime():
     assert resource.mime_type == "text/html;profile=mcp-app"
     assert "window.SynapseUI" in resource.text
     assert resource.meta == {
-        "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}}
+        "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}},
+        "openai/widgetCSP": {"connect_domains": [], "resource_domains": []},
+        "openai/widgetPrefersBorder": True,
     }
 
 
@@ -204,6 +206,8 @@ def test_each_origin_reaches_only_its_own_key():
             "domain": "abc123.claudemcpcontent.com",
             "csp": {"connectDomains": [], "resourceDomains": []},
         },
+        "openai/widgetCSP": {"connect_domains": [], "resource_domains": []},
+        "openai/widgetPrefersBorder": True,
         "openai/widgetDomain": "https://example.com",
     }
 
@@ -232,7 +236,45 @@ def test_one_allowlist_reaches_ui_csp():
     }
     # CSP is always present (a self-contained default); each origin only when provided.
     assert "domain" not in meta["ui"]
-    assert not any(key.startswith("openai/") for key in meta)
+    assert "openai/widgetDomain" not in meta
+
+
+def test_one_allowlist_reaches_both_csp_dialects():
+    """ChatGPT reads `openai/widgetCSP` and ignores the spec's nested `ui.csp`; with
+    no alias it applies no policy to the frame at all. Both are derived from the one
+    pair of attributes, so they cannot name different origins."""
+    meta = _contributed(
+        _ui(
+            connect_domains=["https://api.example.com"],
+            resource_domains=["https://cdn.example.com", "data:"],
+        )
+    )[UI_URI].meta
+    assert meta is not None
+    assert meta["ui"]["csp"] == {
+        "connectDomains": ["https://api.example.com"],
+        "resourceDomains": ["https://cdn.example.com", "data:"],
+    }
+    assert meta["openai/widgetCSP"] == {
+        "connect_domains": ["https://api.example.com"],
+        "resource_domains": ["https://cdn.example.com", "data:"],
+    }
+
+
+def test_the_chatgpt_csp_alias_is_snake_case():
+    """The spelling is the whole point: ChatGPT reads `connect_domains` /
+    `resource_domains`, and a camelCase alias is ignored exactly as a missing key is —
+    silently, with the frame then running under no policy."""
+    alias = _contributed(_ui(connect_domains=["https://api.example.com"]))[UI_URI].meta[
+        "openai/widgetCSP"
+    ]
+    assert sorted(alias) == ["connect_domains", "resource_domains"]
+
+
+def test_the_border_preference_reaches_both_dialects():
+    meta = _contributed(_ui())[UI_URI].meta
+    assert meta is not None
+    assert meta["ui"]["prefersBorder"] is True
+    assert meta["openai/widgetPrefersBorder"] is True
 
 
 def test_auth_error_result_carries_the_challenge_chatgpt_reads():
@@ -394,7 +436,9 @@ async def test_against_a_real_server_over_a_real_client():
         assert str(served.uri) == UI_URI
         assert served.mime_type == "text/html;profile=mcp-app"
         assert served.meta == {
-            "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}}
+            "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}},
+            "openai/widgetCSP": {"connect_domains": [], "resource_domains": []},
+            "openai/widgetPrefersBorder": True,
         }
         (read,) = (await client.read_resource(UI_URI)).contents
         assert isinstance(read, types.TextResourceContents)

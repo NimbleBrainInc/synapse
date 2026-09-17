@@ -8,7 +8,9 @@ an MCP **extension** (SEP-2133): hand the instance to
 - One data-free ``ui://`` **resource** (SDK inlined) under the MCP Apps MIME
   (``text/html;profile=mcp-app``). Every host reads it — ChatGPT and Claude both
   resolve ``ui.resourceUri`` and render this MIME — and feeds it the tool's
-  ``structuredContent``.
+  ``structuredContent``. Its ``_meta`` carries the frame's security policy in both
+  dialects, ``ui.csp`` and ChatGPT's ``openai/widgetCSP`` (see
+  ``_chatgpt_resource_aliases``).
 - **tool_meta** emits the `_meta` a host binds the component with: the ext-apps
   ``ui.resourceUri`` and ``ui.visibility``, plus ChatGPT's visibility aliases
   (see ``_chatgpt_tool_aliases``).
@@ -127,10 +129,13 @@ class SynapseUI(Extension):
             API-key allowlist) on a known target host, computed in that host's format.
             Left unset by default, which the spec resolves to the host's own default
             sandbox origin — the correct choice for a self-contained component.
-        connect_domains: Origins the component may reach via fetch/XHR (widget CSP
-            ``connect_domains``). Empty for a self-contained component.
-        resource_domains: Origins the component may load static assets from (widget
-            CSP ``resource_domains``). Empty for a self-contained component.
+        connect_domains: Origins the component may reach via fetch/XHR, emitted as
+            ``ui.csp.connectDomains`` and ``openai/widgetCSP.connect_domains``. Empty
+            for a self-contained component, which is a policy of "reach nothing" in
+            every host that reads one.
+        resource_domains: Origins the component may load static assets from, emitted as
+            ``ui.csp.resourceDomains`` and ``openai/widgetCSP.resource_domains``. A
+            component with a ``data:``-URL font declares ``"data:"`` here.
     """
 
     #: The MCP Apps extension this implements, advertised under
@@ -297,6 +302,9 @@ class SynapseUI(Extension):
     def _ui_resource_meta(self) -> dict[str, Any]:
         """The ext-apps ``ui.*`` keys for the resource, camelCase.
 
+        The one place the frame's policy and border preference are built;
+        ``_chatgpt_resource_aliases`` mirrors this mapping into ChatGPT's dialect.
+
         ``domain`` is omitted unless a stable origin was supplied — the host then
         falls back to its own default sandbox origin (the correct, portable default;
         a host that derives its own origin rejects a foreign value).
@@ -314,7 +322,8 @@ class SynapseUI(Extension):
 
     def _build_resource(self) -> ResourceBinding:
         """The ``ui://`` resource (data-free, SDK inlined) every host reads."""
-        meta: dict[str, Any] = {"ui": self._ui_resource_meta()}
+        ui = self._ui_resource_meta()
+        meta: dict[str, Any] = {"ui": ui, **_chatgpt_resource_aliases(ui)}
         if self.widget_domain is not None:
             meta["openai/widgetDomain"] = self.widget_domain
         return ResourceBinding(
@@ -394,14 +403,36 @@ class SynapseUI(Extension):
 # -- ChatGPT (OpenAI Apps SDK) compatibility ------------------------------------
 #
 # ChatGPT renders the one `text/html;profile=mcp-app` resource from `ui.resourceUri`
-# and enforces `ui.visibility` — measured in developer mode. What stays here is the
-# visibility alias whose removal rests on production behaviour nobody has measured:
-# if a reviewed, directory-listed app does not enforce `ui.visibility` the same way,
-# a spec-only app renders and then cannot call its tools. The aliases are derived
-# from `ui.visibility`, so they cannot disagree with it.
+# and enforces `ui.visibility` — measured in developer mode. It does *not* read the
+# spec's nested `ui.csp`: it reads `openai/widgetCSP`, and with no such key it applies
+# no policy to the frame at all (ChatGPT shows a "CSP off" badge beside the connector).
+# So the frame's policy and the visibility aliases both stay, each derived from the
+# `ui.*` value it mirrors so the two dialects cannot disagree. Emitting them is what
+# makes an empty allowlist mean "reach nothing" in ChatGPT rather than "no limit".
 #
 # `openai/widgetDomain` (the resource, when `widget_domain` is given) and
-# `openai/toolInvocation/*` (the tool, when given) are emitted only when declared.
+# `openai/toolInvocation/*` (the tool, when given) are developer-declared values,
+# emitted only when supplied.
+
+
+def _chatgpt_resource_aliases(ui: Mapping[str, Any]) -> dict[str, Any]:
+    """ChatGPT's aliases for the resource's ``ui.csp`` and ``ui.prefersBorder``.
+
+    ChatGPT's default without ``openai/widgetCSP`` is *no policy*, so the alias is
+    always emitted rather than left to the host — the same reasoning as
+    ``openai/widgetAccessible`` below. The dialects differ in spelling
+    (``connect_domains``/``resource_domains`` against the spec's camelCase), and a
+    camelCase alias is ignored exactly as a missing one is, so both are derived here
+    from the one ``ui`` mapping.
+    """
+    csp = ui["csp"]
+    return {
+        "openai/widgetCSP": {
+            "connect_domains": list(csp["connectDomains"]),
+            "resource_domains": list(csp["resourceDomains"]),
+        },
+        "openai/widgetPrefersBorder": ui["prefersBorder"],
+    }
 
 
 def _chatgpt_tool_aliases(visibility: Sequence[Visibility]) -> dict[str, Any]:

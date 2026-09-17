@@ -72,12 +72,20 @@ non-zero without a report.
 | `ui-resource-mime` | Every `ui://` resource is listed and served as `text/html;profile=mcp-app` | error | error | error |
 | `tool-resource-uri` | Some tool binds a UI through `_meta.ui.resourceUri`, and every binding reads | error | error | error |
 | `tool-ui-meta` | `ui.visibility` is a non-empty subset of `model`/`app`; no `csp` or `permissions` on a tool | error | error | error |
-| `resource-csp` | Every UI resource declares `ui.csp` as lists of origins | — | warn | error |
-| `resource-data-fonts` | No `data:` font in the HTML unless `ui.csp.resourceDomains` includes `data:` | — | error | warn |
+| `resource-csp` | Every UI resource declares `ui.csp` as lists of origins | — | warn | warn |
+| `resource-openai-csp` | Every UI resource declares `openai/widgetCSP`, with ChatGPT's `connect_domains`/`resource_domains` spelling | — | — | error |
+| `resource-data-fonts` | No `data:` font in the HTML unless `ui.csp.resourceDomains` includes `data:` | — | error | — |
+| `resource-openai-data-fonts` | No `data:` font in the HTML unless `openai/widgetCSP.resource_domains` includes `data:` | — | — | warn |
 | `auth-challenge` | An unauthenticated request's `401` carries `resource_metadata` in `WWW-Authenticate` | warn | error | error |
 | `auth-resource-metadata` | The protected-resource metadata's `resource` equals the server URL exactly | warn | error | error |
 | `auth-issuer` | The first authorization server's metadata `issuer` equals the advertised string exactly | warn | warn | error |
 | `tool-security-schemes` | Every tool declares `securitySchemes` when the server requires auth | — | — | error |
+
+The frame's security policy is checked once per dialect, because a host reads one
+or the other: Claude and the NimbleBrain host read the spec's nested `ui.csp`,
+ChatGPT reads the sibling `openai/widgetCSP` and ignores `ui.csp`. A ChatGPT
+frame with no `openai/widgetCSP` runs under **no policy at all**, which is why
+that check is an error there while the spec key is a portability warning.
 
 The auth checks run only when the server answers an unauthenticated request with
 `401`. When it does and no token is given, the checks that need a session are

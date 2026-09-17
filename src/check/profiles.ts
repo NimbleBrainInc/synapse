@@ -13,7 +13,9 @@ export type CheckId =
   | "tool-resource-uri"
   | "tool-ui-meta"
   | "resource-csp"
+  | "resource-openai-csp"
   | "resource-data-fonts"
+  | "resource-openai-data-fonts"
   | "auth-challenge"
   | "auth-resource-metadata"
   | "auth-issuer"
@@ -45,6 +47,7 @@ const PRM_RESOURCE =
   "The protected-resource metadata's resource must equal the connector URL exactly.";
 const ISSUER =
   "The authorization server's metadata issuer must equal the advertised authorization server exactly (RFC 8414).";
+const SPEC_CSP = "ui.csp is the frame's security policy for every host that reads the spec key.";
 
 export const PROFILES: Record<TargetName, Profile> = {
   nimblebrain: {
@@ -94,11 +97,14 @@ export const PROFILES: Record<TargetName, Profile> = {
       "tool-resource-uri": { severity: "error", why: RESOLVES },
       "tool-ui-meta": { severity: "error", why: UI_META },
       "extension-declared": { severity: "error", why: EXTENSION },
-      "resource-csp": {
+      // ChatGPT applies openai/widgetCSP and does not consult ui.csp, so the spec
+      // key is portability to the other hosts rather than a ChatGPT requirement.
+      "resource-csp": { severity: "warn", why: SPEC_CSP },
+      "resource-openai-csp": {
         severity: "error",
-        why: "ChatGPT reads the frame's security policy from ui.csp, and app submission requires it.",
+        why: "ChatGPT reads the frame's security policy from openai/widgetCSP (snake_case origin lists); with no such key it applies no policy to the frame at all.",
       },
-      "resource-data-fonts": {
+      "resource-openai-data-fonts": {
         severity: "warn",
         why: "A data: font is blocked by a security policy that does not declare it.",
       },

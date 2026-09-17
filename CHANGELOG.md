@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.1] - 2026-09-17
+
+### Fixed
+
+- **`synapse check` asserts the security policy the target's host actually reads.** A host reads one dialect or the other: Claude and the NimbleBrain host read the spec's nested `ui.csp`, ChatGPT reads the sibling `openai/widgetCSP` and ignores `ui.csp`. Two checks now cover ChatGPT's: `resource-openai-csp` (error for `chatgpt`) requires `openai/widgetCSP`, spelled with its `connect_domains` / `resource_domains` keys, because a frame with no such key runs under no policy at all; `resource-openai-data-fonts` (warn for `chatgpt`) checks a `data:` font against that allowlist. `resource-csp` and `resource-data-fonts` keep reading `ui.csp`, for the hosts that read it — so `resource-csp` is a portability warning for `chatgpt` rather than an error, and `resource-data-fonts` no longer applies to that target.
+
 ## [0.20.0] - 2026-09-17
 
 ### Breaking

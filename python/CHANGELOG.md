@@ -8,6 +8,20 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.1]
+
+### Fixed
+
+- **The `ui://` resource declares the frame's security policy in both dialects.**
+  Beside the spec's `ui.csp` and `ui.prefersBorder` it carries `openai/widgetCSP` and
+  `openai/widgetPrefersBorder`, derived from the same `connect_domains` /
+  `resource_domains` / border preference so the two cannot name different origins.
+  ChatGPT reads `openai/widgetCSP` and does not consult the nested `ui.csp`: with no
+  such key it applies **no policy** to the frame, turning an empty allowlist ("reach
+  nothing") into unrestricted egress. The spelling is part of it — ChatGPT's keys are
+  `connect_domains` and `resource_domains`, and a camelCase alias is ignored exactly
+  as a missing key is.
+
 ## [0.7.0]
 
 `SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
@@ -34,9 +48,9 @@ tool call fails.
   **Migration:** delete calls to `result_meta()`. A `bind(tool)` without
   `embed_resource=True` can be deleted.
 
-- **`resource_meta` is gone**, with the skybridge copy it merged onto. So are the
-  resource's `openai/widgetCSP` and `openai/widgetPrefersBorder` aliases: `ui.csp`
-  and `ui.prefersBorder` carry both.
+- **`resource_meta` is gone**, with the skybridge copy it merged onto. The one
+  resource's `_meta` is built by the extension, from `connect_domains`,
+  `resource_domains`, `mcp_app_domain` and `widget_domain`.
 
 - **`SKYBRIDGE_MIME` is no longer exported.**
 

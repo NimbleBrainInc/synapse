@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`connectUI`'s `callTool()` rejects when the tool result reports failure.** MCP carries a tool failure inside the result (`isError: true`), not as a JSON-RPC error, and a host reports a refusal the same way: ChatGPT answers a call to a tool the app may not see with `isError: true` and the text `Tool is not visible to app`. The promise used to resolve with that result, typed as the caller's success type. It now rejects with `ToolCallError`, whose `message` is the result's first text block and whose `result` is the whole result. The React path (`connect()`) is unchanged: it already parses `isError` onto its result.
 
-  **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`.
+  **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`. A component on the `window.SynapseUI` script, which exposes only `connect`, checks `error.name === "ToolCallError"`.
 
 ### Fixed
 

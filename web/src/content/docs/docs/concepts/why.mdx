@@ -23,8 +23,8 @@ server and the data changes. Your iframe has no idea. It keeps showing the old
 value until the user reloads.
 
 MCP has a signal for this: a server that changes its data sends
-`notifications/resources/list_changed`, and the host forwards it to that server's
-views. Wiring it up by hand means a notification handler and a fan-out to every
+`notifications/resources/list_changed`, and a host that supports it forwards it to
+that server's views. Wiring it up by hand means a notification handler and a fan-out to every
 component that cares. Synapse turns it into one hook, `useDataSync`, which runs
 whenever your server announces a change, whether the agent, a webhook or another
 view made it. You refresh on a signal instead of a timer.

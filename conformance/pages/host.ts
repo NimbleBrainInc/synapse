@@ -101,6 +101,15 @@ const bridge = new AppBridge(
 
 bridge.oncalltool = async (params) => {
   handled("tools/call", params);
+  if (params.name === "refused") {
+    // What ChatGPT answers when an app calls a tool it may not see: a tool
+    // result reporting failure, not a JSON-RPC error.
+    return {
+      content: [{ type: "text", text: "Tool is not visible to app" }],
+      isError: true,
+      _meta: { "openai/http_status": 403, "openai/tool_error_kind": "tool_not_visible_to_app" },
+    };
+  }
   return { content: [{ type: "text", text: "ok" }], structuredContent: { echo: params.name } };
 };
 bridge.onreadresource = async (params) => {

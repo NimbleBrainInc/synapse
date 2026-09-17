@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **`connectUI`'s `callTool()` rejects when the tool result reports failure.** MCP carries a tool failure inside the result (`isError: true`), not as a JSON-RPC error, and a host reports a refusal the same way: ChatGPT answers a call to a tool the app may not see with `isError: true` and the text `Tool is not visible to app`. The promise used to resolve with that result, typed as the caller's success type. It now rejects with `ToolCallError`, whose `message` is the result's first text block and whose `result` is the whole result. The React path (`connect()`) is unchanged: it already parses `isError` onto its result.
+
+  **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`. A component on the `window.SynapseUI` script, which exposes only `connect`, checks `error.name === "ToolCallError"`.
+
 ### Fixed
 
 - **The ESM and CJS builds no longer carry a private copy of `@modelcontextprotocol/sdk` and `zod`.** `connect()` imports two runtime schemas from `@modelcontextprotocol/sdk/types.js`, and the SDK was not external, so the build inlined the SDK's types module and zod v4 into this package's own chunk. An app bundling this package then shipped two copies of each: this package's, and the one `@modelcontextprotocol/ext-apps` imports. The SDK is now external and a peer dependency, at the range `@modelcontextprotocol/ext-apps` already requires, so an app that installs that peer has it. A single-file app built with Vite is about 114 KB smaller raw, 32 KB gzipped. The IIFE builds are self-contained by design and unchanged.

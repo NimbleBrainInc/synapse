@@ -46,7 +46,7 @@ type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
 | `onData(cb)` | Subscribe to data changes. Returns an unsubscribe function. |
 | `theme()` | Return the current theme |
 | `onTheme(cb)` | Subscribe to theme changes. Returns an unsubscribe function. |
-| `callTool(name, args)` | Call a host tool (pull) and get the result |
+| `callTool(name, args)` | Call a host tool (pull) and get the result. Rejects with `ToolCallError` when the result reports `isError: true` |
 | `sendPrompt(text)` | Send a prompt to the agent |
 | `openLink(url)` | Open a URL via the host |
 | `resize(height)` | Send a new height to the host |

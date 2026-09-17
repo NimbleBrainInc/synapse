@@ -62,6 +62,13 @@ if (!host.SynapseUI) {
   results.themeAfterHandshake = synapse.theme().mode;
 
   await step("callTool", () => synapse.callTool("echo", { a: 1 }));
+  await step("callToolRefused", async () => {
+    try {
+      return { resolved: await synapse.callTool("refused") };
+    } catch (e) {
+      return { rejected: String(e), name: (e as Error).name };
+    }
+  });
   await step("openLink", () => synapse.openLink("https://example.com"));
   await step("sendPrompt", () => synapse.sendPrompt("hi"));
   await step("resize", () => synapse.resize(321));

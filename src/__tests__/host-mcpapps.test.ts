@@ -8,6 +8,7 @@ import {
   MCPAPP_TOOL_RESULT,
   MCPUI_READY,
   type SynapseUIClient,
+  ToolCallError,
 } from "../host/types.js";
 
 /**
@@ -188,6 +189,40 @@ describe("connectUI — MCP Apps standard adapter", () => {
 
     respond(call?.id, { structuredContent: { domain: "x.com" } });
     await expect(p).resolves.toEqual({ structuredContent: { domain: "x.com" } });
+  });
+
+  it("callTool rejects with ToolCallError when the result reports isError", async () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+
+    const p = synapse.callTool("hidden_tool");
+    const call = outbound().find((m) => m?.method === "tools/call");
+    // The shape ChatGPT answers with when the app may not call the tool: a
+    // result, not a JSON-RPC error.
+    const refused = {
+      content: [{ type: "text", text: "Tool is not visible to app" }],
+      isError: true,
+      _meta: { "openai/http_status": 403 },
+    };
+    respond(call?.id, refused);
+
+    const error = await p.catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ToolCallError);
+    expect((error as ToolCallError).message).toBe("Tool is not visible to app");
+    expect((error as ToolCallError).result).toEqual(refused);
+  });
+
+  it("callTool names the tool when an error result carries no text", async () => {
+    synapse = connectUI({ host: "claude", autoResize: false });
+
+    const p = synapse.callTool("broken");
+    const call = outbound().find((m) => m?.method === "tools/call");
+    respond(call?.id, { content: [], isError: true });
+
+    await expect(p).rejects.toThrow('tool "broken" returned an error');
+  });
+
+  it("ToolCallError builds from a result that is not an object", () => {
+    expect(new ToolCallError("broken", null).message).toBe('tool "broken" returned an error');
   });
 
   it("resize before the handshake posts only the legacy mirror", () => {

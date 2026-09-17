@@ -10,7 +10,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 `SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
 takes is emitted under its ext-apps `ui.*` key. A server can declare the auth a tool
-needs.
+needs, and the bundled client's `callTool()` rejects when a tool call fails.
 
 ### Breaking
 
@@ -39,6 +39,13 @@ needs.
 
 - **`widget_domain` moves to the one resource**, still as `openai/widgetDomain` and
   only when given. `ui.domain` takes `mcp_app_domain` alone.
+
+- **The bundled client's `callTool()` rejects when the tool result reports failure.**
+  A result with `isError: true` (a failed call, or a host refusing one) used to resolve
+  as if it were data. It now rejects with an error named `ToolCallError`, whose
+  `message` is the result's first text block and whose `result` is the whole result.
+  A component that checked `isError` on the resolved value catches the rejection
+  instead.
 
 ### Added
 

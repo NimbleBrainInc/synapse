@@ -21,4 +21,5 @@ export {
   SYNAPSE_DATA_ELEMENT_ID,
   type SynapseUIClient,
   type SynapseUITheme,
+  ToolCallError,
 } from "./types.js";

@@ -49,7 +49,10 @@ listeners.
 three vary, which is why you feature-detect with `capabilities()`. It returns
 whether the host supports `pull` (so `callTool` can reach the server), `sendPrompt`,
 and `openLink`. Calling `callTool()` on a host with no pull rejects with a
-`HostUnsupportedError`, so gate it on `capabilities().pull` first. Use `host()`
+`HostUnsupportedError`, so gate it on `capabilities().pull` first. A call the host
+makes but the tool fails or refuses rejects with a `ToolCallError`: MCP reports that
+failure inside the result, as `isError: true`, and the error carries the result on
+`result`. Use `host()`
 only as an escape hatch (it returns `"chatgpt"`, `"claude"`, `"nimblebrain"`, or
 `"generic"`); prefer `capabilities()` so your component stays host-agnostic.
 

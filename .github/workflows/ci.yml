@@ -69,6 +69,9 @@ jobs:
           test -f dist/codegen/cli.js
           test -f dist/synapse-runtime.iife.global.js
           test -f dist/synapse-ui.iife.global.js
+      - name: Bundle-size budget
+        # Limits and the reason for each are in the script.
+        run: npm run size
       - name: Vendored Python IIFE is fresh (fail on drift from the build)
         run: diff dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
       - name: Client version pin matches the npm package

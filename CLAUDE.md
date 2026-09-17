@@ -5,7 +5,7 @@ Agent-aware app SDK for the MCP ext-apps protocol (2026-01-26).
 ## Verification
 
 ```bash
-npm run ci           # lint → typecheck → build → test
+npm run ci           # lint → typecheck → build → size budget → test
 npm run conformance  # our wire behaviour, against the spec's own implementation
 ```
 

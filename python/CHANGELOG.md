@@ -8,6 +8,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.7.0]
+
 `SynapseUI` serves the component once, under the MCP Apps MIME, and every input it
 takes is emitted under its ext-apps `ui.*` key. A server can declare the auth a tool
 needs. The bundled client speaks MCP Apps only, and its `callTool()` rejects when a

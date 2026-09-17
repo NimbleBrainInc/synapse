@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-09-17
+
 ### Breaking
 
 - **The NimbleBrain host extension methods are renamed under the `ai.nimblebrain/` prefix.** `synapse/action` is `ai.nimblebrain/action`, `synapse/request-file` is `ai.nimblebrain/request-file`, and `synapse/keydown` is `ai.nimblebrain/keydown`. Each name is both the method and the identifier a host declares in `hostCapabilities.experimental`, so `NIMBLEBRAIN_EXTENSIONS` lists one name per extension. The prefix names the owner: these are the NimbleBrain host's extensions, and this package implements a client for them.

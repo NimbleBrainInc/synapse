@@ -2,25 +2,25 @@
  * Cross-host UI client — types and wire constants.
  *
  * The cross-host client (`connectUI`) renders one Synapse-authored component in
- * hosts that each speak a different bridge: ChatGPT (OpenAI Apps SDK), Claude
- * (mcp-ui), and plain/standalone. Apps code against `synapse.*` and never touch
- * a host protocol. This is a **push-first** surface: the tool output that spawned
+ * any MCP Apps host (ChatGPT, Claude, NimbleBrain) and standalone. Apps code
+ * against `synapse.*` and never touch the bridge. This is a **push-first** surface: the tool output that spawned
  * the widget is delivered at render (`data()` / `onData()`); `callTool()` is the
  * pull escape hatch, advertised per host via `capabilities()`.
  *
  * This layer intentionally has ZERO dependency on `@modelcontextprotocol/*` — the
- * ChatGPT / mcp-ui / inline bridges are pure `window.openai` + `postMessage`, so
- * the IIFE that apps inline stays tiny (no Zod, no ext-apps schemas).
+ * bridge is JSON-RPC over `postMessage`, spoken by hand, so the IIFE that apps
+ * inline stays tiny (no Zod, no ext-apps schemas).
  */
 
-/**
- * The host the client resolved to, as reported by `synapse.host()`. An escape
- * hatch — apps should rarely branch on it; `capabilities()` is the supported way
- * to feature-detect. `"nimblebrain"` is reserved for the runtime adapter (P3).
- */
 import type { FontFaceDescriptor } from "../types.js";
 
-export type HostKind = "chatgpt" | "claude" | "nimblebrain" | "generic";
+/**
+ * The bridge the client resolved to, as reported by `synapse.host()`:
+ * `"mcp-apps"` in a frame, `"generic"` standalone. It names the bridge, not the
+ * product — every framing host speaks the same one. Apps should rarely branch on
+ * it; `capabilities()` is the supported way to feature-detect.
+ */
+export type HostKind = "mcp-apps" | "generic";
 
 /** Resolved theme. `mode` always resolves to light or dark. `tokens` are CSS
  *  custom properties the host publishes — the MCP Apps adapter reads them from
@@ -53,6 +53,42 @@ export class HostUnsupportedError extends Error {
   }
 }
 
+/**
+ * Thrown by `callTool()` when the tool result says the call failed
+ * (`isError: true`). MCP reports a tool failure inside the result rather than as
+ * a JSON-RPC error, and a host reports a refusal the same way — ChatGPT answers a
+ * call to a tool the app may not see with an `isError` result — so without this a
+ * failure would resolve as if it were data. The message is the result's first
+ * text block; the whole result is on `result`.
+ */
+export class ToolCallError extends Error {
+  readonly result: unknown;
+  constructor(name: string, result: unknown) {
+    super(toolErrorText(result) ?? `tool "${name}" returned an error`);
+    this.name = "ToolCallError";
+    this.result = result;
+  }
+}
+
+function toolErrorText(result: unknown): string | undefined {
+  const content = (result as { content?: unknown } | null)?.content;
+  if (!Array.isArray(content)) return undefined;
+  for (const block of content) {
+    const b = block as { type?: unknown; text?: unknown } | null;
+    if (b?.type === "text" && typeof b.text === "string" && b.text !== "") return b.text;
+  }
+  return undefined;
+}
+
+/** True when a tool result reports failure, as MCP defines it. */
+export function isToolError(result: unknown): boolean {
+  return (
+    result != null &&
+    typeof result === "object" &&
+    (result as { isError?: unknown }).isError === true
+  );
+}
+
 export interface ConnectUIOptions {
   /** App name — informational; forwarded to hosts that accept an appInfo. */
   name?: string;
@@ -61,18 +97,17 @@ export interface ConnectUIOptions {
   /**
    * Force a host adapter instead of auto-detecting. Used by preview harnesses,
    * SSR, and tests; production apps omit it and let the SDK feature-detect.
-   * `"claude"` → MCP Apps standard adapter, `"chatgpt"` → OpenAI Apps adapter,
-   * `"generic"` → inline adapter.
+   * `"mcp-apps"` → MCP Apps standard adapter, `"generic"` → inline adapter.
    */
   host?: HostKind;
   /**
    * `id` of the `<script type="application/json">` element carrying pushed data
-   * baked into the HTML (the mcp-ui / SSR path). Defaults to
+   * baked into the HTML (the SSR / standalone path). Defaults to
    * {@link SYNAPSE_DATA_ELEMENT_ID}.
    */
   dataElementId?: string;
   /**
-   * Auto-report content height to the host on layout changes (mcp-ui only).
+   * Auto-report content height to the host on layout changes (MCP Apps only).
    * Defaults to `true`. Set `false` to size manually via `resize()`.
    */
   autoResize?: boolean;
@@ -102,8 +137,10 @@ export interface SynapseUIClient {
    *  (`data-theme` attribute + CSS variables) before this fires. */
   onTheme(cb: (theme: SynapseUITheme) => void): () => void;
 
-  /** Widget→server tool call. Rejects with {@link HostUnsupportedError} where the
-   *  host advertises no pull (`capabilities().pull === false`). */
+  /** Widget→server tool call. Resolves with the tool result. Rejects with
+   *  {@link ToolCallError} when the result reports failure (`isError: true`), and
+   *  with {@link HostUnsupportedError} where the host advertises no pull
+   *  (`capabilities().pull === false`). */
   callTool<O = unknown>(name: string, args?: Record<string, unknown>): Promise<O>;
   /** Send a follow-up message to the agent conversation. No-op where unsupported. */
   sendPrompt(text: string): void;
@@ -142,27 +179,15 @@ export interface HostAdapter {
 }
 
 // ---------------------------------------------------------------------------
-// Wire constants — the bridge message shapes each host speaks. Centralized so a
+// Wire constants — the bridge message shapes. Centralized so a
 // host protocol tweak is a one-line change, not a grep-and-pray.
 // ---------------------------------------------------------------------------
 
 /** Default `id` of the baked-in data `<script type="application/json">`. */
 export const SYNAPSE_DATA_ELEMENT_ID = "synapse-ui-data";
 
-/** mcp-ui iframe-lifecycle messages (child → host, host → child). */
-export const MCPUI_READY = "ui-lifecycle-iframe-ready";
-export const MCPUI_RENDER_DATA = "ui-lifecycle-iframe-render-data";
-export const MCPUI_SIZE_CHANGE = "ui-size-change";
-/** mcp-ui action messages (child → host). */
-export const MCPUI_LINK = "link";
-export const MCPUI_PROMPT = "prompt";
-
-/** OpenAI Apps SDK globals-broadcast event (host → child). */
-export const OPENAI_SET_GLOBALS = "openai:set_globals";
-
 // ---------------------------------------------------------------------------
-// MCP Apps standard (SEP-1865) — the convergence bridge, primary for Claude
-// Desktop and the NimbleBrain runtime. The View iframe is an MCP client and the
+// MCP Apps standard (SEP-1865) — the bridge every framing host speaks. The View iframe is an MCP client and the
 // host an MCP server; they exchange raw JSON-RPC 2.0 objects over `postMessage`
 // (no wrapper envelope). Method names are canonical to the ext-apps spec.
 // ---------------------------------------------------------------------------

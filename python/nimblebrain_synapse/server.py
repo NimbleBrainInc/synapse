@@ -5,27 +5,23 @@ Synapse app can render in, replacing the hand-rolled per-app shim. `SynapseUI` i
 an MCP **extension** (SEP-2133): hand the instance to
 ``MCPServer(..., extensions=[ui])`` and it contributes everything below.
 
-- Two data-free ``ui://`` **resources** (SDK inlined): the ChatGPT skybridge MIME
-  (``text/html+skybridge``) and the MCP Apps standard MIME
-  (``text/html;profile=mcp-app``, Claude Desktop et al.) — so each host reads the
-  template and feeds it the tool's ``structuredContent``.
-- **tool_meta / result_meta** emit the `_meta` a host binds an output template
-  with. Each input is declared once and emitted under the ext-apps ``ui.*`` key
-  and ChatGPT's ``openai/*`` alias for it, so a caller never picks a host's key.
-- **bind** names the tools whose results carry the binding. For each, the
-  extension's ``tools/call`` interceptor mirrors the ChatGPT
-  ``openai/outputTemplate`` pointer into the result ``_meta`` (the SEP-1865
-  ``ui.resourceUri`` binding rides the descriptor ``_meta`` from ``tool_meta``).
-  Opt into ``embed_resource=True`` to also bake the component HTML into the result
-  ``content`` (the legacy mcp-ui no-round-trip copy) — off by default so that
-  ``audience: ["user"]`` HTML can't leak into a client that won't render it.
+- One data-free ``ui://`` **resource** (SDK inlined) under the MCP Apps MIME
+  (``text/html;profile=mcp-app``). Every host reads it — ChatGPT and Claude both
+  resolve ``ui.resourceUri`` and render this MIME — and feeds it the tool's
+  ``structuredContent``.
+- **tool_meta** emits the `_meta` a host binds the component with: the ext-apps
+  ``ui.resourceUri`` and ``ui.visibility``, plus ChatGPT's visibility aliases
+  (see ``_chatgpt_tool_aliases``).
+- **bind** names the tools whose results carry the component HTML baked into the
+  result ``content`` (``embed_resource=True``, the mcp-ui no-round-trip copy) —
+  off by default so that ``audience: ["user"]`` HTML can't leak into a client that
+  won't render it.
 
 The extension is advertised under the spec's MCP Apps identifier
-(``io.modelcontextprotocol/ui``), because that is the extension this implements:
-the ChatGPT dialect rides alongside in `_meta` keys the spec does not claim. A
-server therefore uses `SynapseUI` *instead of* the SDK's own ``mcp.server.apps.Apps``
-— two extensions cannot share an identifier, and ``Apps`` serves only the
-``text/html;profile=mcp-app`` MIME, so it cannot carry the skybridge resource.
+(``io.modelcontextprotocol/ui``), because that is the extension this implements;
+the few ChatGPT keys it emits ride alongside in `_meta` keys the spec does not
+claim. A server therefore uses `SynapseUI` *instead of* the SDK's own
+``mcp.server.apps.Apps`` — two extensions cannot share an identifier.
 
 The client SDK (`window.SynapseUI`) is inlined into the served + embedded HTML so
 the component is fully self-contained (no CDN, CSP-safe). Plain MCP clients ignore
@@ -58,14 +54,12 @@ __all__ = ["SynapseUI"]
 # Every audience a tool can be visible to, which is also the spec's default.
 _ALL_AUDIENCES: tuple[Visibility, ...] = ("model", "app")
 
-# ChatGPT requires this exact MIME to render an Apps SDK widget template.
-SKYBRIDGE_MIME = "text/html+skybridge"
 # mcp-ui renders a ui:// resource whose content is raw HTML as text/html.
 MCPUI_MIME = "text/html"
 # MCP Apps standard (SEP-1865): a host mounts the component in an iframe only when
-# the resource is served under this exact MIME (Claude Desktop and other MCP Apps
-# hosts). Taken from the SDK rather than spelled again here, so it cannot drift
-# from the MIME the SDK's own resource validation enforces.
+# the resource is served under this exact MIME. Taken from the SDK rather than
+# spelled again here, so it cannot drift from the MIME the SDK's own resource
+# validation enforces.
 MCPAPP_MIME = APP_MIME_TYPE
 
 # The client reads pushed data from this element by id (mcp-ui / SSR path). Keep
@@ -102,13 +96,13 @@ class _Binding:
 class SynapseUI(Extension):
     """A cross-host `ui://` component declared once and wired into every bridge.
 
-    Pass the instance to ``MCPServer(..., extensions=[ui])``. The component's two
-    resources are built here, at construction, and contributed from
+    Pass the instance to ``MCPServer(..., extensions=[ui])``. The component's
+    resource is built here, at construction, and contributed from
     :meth:`resources`; :meth:`bind` names the tools whose results carry the
     binding and may be called before or after the server is constructed.
 
     Args:
-        uri: The single ``ui://`` resource URI both hosts point at.
+        uri: The ``ui://`` resource URI every host reads.
         template: The data-free component HTML. Should carry {@link SDK_MARKER}
             (where the client SDK is inlined) and a JSON ``<script>`` holding
             {@link DATA_MARKER} with ``id`` = ``data_element_id``.
@@ -118,14 +112,14 @@ class SynapseUI(Extension):
         inline_sdk: Inline the bundled client SDK into the HTML (default). Set
             ``False`` if the template already carries the SDK.
         sdk_source: Override the inlined SDK source (defaults to the bundled IIFE).
-        widget_domain: The ChatGPT origin, emitted on the ChatGPT (skybridge) resource
-            as ``ui.domain`` and its ``openai/widgetDomain`` alias. A developer-declared
-            origin ChatGPT keys the hosted component to (rendered under
-            ``<slug>.web-sandbox.oaiusercontent.com``); required to submit an Apps SDK
-            app. It is *not* a valid origin for other MCP Apps hosts, so it never
-            reaches the MCP Apps resource (see ``mcp_app_domain``).
+        widget_domain: The ChatGPT origin, emitted on the resource as
+            ``openai/widgetDomain`` and only when given. A developer-declared origin
+            ChatGPT keys the hosted component to (rendered under
+            ``<slug>.web-sandbox.oaiusercontent.com``), which ChatGPT asks for to
+            submit an app. It is *not* a valid ``ui.domain`` for other MCP Apps hosts,
+            so it never reaches that key (see ``mcp_app_domain``).
         mcp_app_domain: The ext-apps sandbox origin, emitted as ``_meta.ui.domain`` on
-            the MCP Apps (``text/html;profile=mcp-app``) resource. The spec makes this
+            the resource. The spec makes this
             value host-validated and its format host-specific (Claude, for one, derives
             it as ``sha256(<connector URL>)[:32] + ".claudemcpcontent.com"`` and rejects
             any other value), so one value cannot satisfy every host: supply it only
@@ -137,8 +131,6 @@ class SynapseUI(Extension):
             ``connect_domains``). Empty for a self-contained component.
         resource_domains: Origins the component may load static assets from (widget
             CSP ``resource_domains``). Empty for a self-contained component.
-        resource_meta: Extra ``_meta`` keys merged onto the ChatGPT (skybridge)
-            resource, for host keys this class does not model.
     """
 
     #: The MCP Apps extension this implements, advertised under
@@ -158,20 +150,14 @@ class SynapseUI(Extension):
         mcp_app_domain: str | None = None,
         connect_domains: list[str] | None = None,
         resource_domains: list[str] | None = None,
-        resource_meta: dict[str, Any] | None = None,
     ) -> None:
         self.uri = uri
-        # The MCP Apps standard resource is a sibling URI: a resource carries a
-        # single MIME, and Claude (text/html;profile=mcp-app) and ChatGPT
-        # (text/html+skybridge) require different ones — so self.uri stays the
-        # skybridge resource and the standard resource lives alongside it.
-        self.mcp_app_uri = f"{uri}-mcp-app"
         self.data_element_id = data_element_id
         self.preferred_size = preferred_size
-        # The sandbox origin is host-owned, and the two hosts model it differently:
+        # The sandbox origin is host-owned, and the hosts model it differently:
         # `openai/widgetDomain` is a developer-declared origin (ChatGPT), while the
         # ext-apps `ui.domain` is host-validated (Claude derives it and rejects a
-        # mismatch). They are distinct fields with distinct values — never one
+        # mismatch). They are distinct keys with distinct values — never one
         # value fed to both — so each rides its own attribute.
         self.widget_domain = widget_domain
         self.mcp_app_domain = mcp_app_domain
@@ -179,7 +165,7 @@ class SynapseUI(Extension):
         self.resource_domains = resource_domains or []
         self._bound: dict[str, _Binding] = {}
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
-        self._resources = self._build_resources(resource_meta)
+        self._resources = [self._build_resource()]
 
     # -- HTML -------------------------------------------------------------
 
@@ -196,7 +182,7 @@ class SynapseUI(Extension):
         return template + script
 
     def template_html(self) -> str:
-        """Data-free HTML (served resource / ChatGPT): SDK inlined, data marker intact."""
+        """Data-free HTML (the served resource): SDK inlined, data marker intact."""
         return self._template
 
     @staticmethod
@@ -245,12 +231,12 @@ class SynapseUI(Extension):
         security_schemes: Sequence[Mapping[str, Any]] | None = None,
         widget_accessible: bool | None = None,
     ) -> dict[str, Any]:
-        """`_meta` for the tool descriptor — how a host binds the output template.
+        """`_meta` for the tool descriptor — how a host binds the component.
 
-        Each input is declared once and emitted under every key a host reads it
-        from: the ext-apps ``ui.*`` key, plus ChatGPT's alias for it (see
-        ``_chatgpt_tool_aliases``). The binding is ``ui.resourceUri``; the flat
-        ``_meta["ui/resourceUri"]`` form is deprecated in the spec and not emitted.
+        The binding is ``ui.resourceUri``; the flat ``_meta["ui/resourceUri"]`` form
+        is deprecated in the spec and not emitted. Visibility is declared once and
+        emitted as ``ui.visibility`` and ChatGPT's aliases for it (see
+        ``_chatgpt_tool_aliases``).
 
         Args:
             invoking: Status text ChatGPT shows while the tool runs.
@@ -294,8 +280,8 @@ class SynapseUI(Extension):
             )
 
         meta: dict[str, Any] = {
-            "ui": {"resourceUri": self.mcp_app_uri, "visibility": audiences},
-            **_chatgpt_tool_aliases(self.uri, audiences),
+            "ui": {"resourceUri": self.uri, "visibility": audiences},
+            **_chatgpt_tool_aliases(audiences),
         }
         if security_schemes is not None:
             meta["securitySchemes"] = [dict(scheme) for scheme in security_schemes]
@@ -306,14 +292,10 @@ class SynapseUI(Extension):
             meta["openai/toolInvocation/invoked"] = invoked
         return meta
 
-    def result_meta(self) -> dict[str, Any]:
-        """`_meta` for the tool *result* — mirrors the template pointer per call."""
-        return _chatgpt_result_aliases(self.uri)
-
     # -- Extension contributions ------------------------------------------
 
-    def _ui_resource_meta(self, domain: str | None) -> dict[str, Any]:
-        """The ext-apps ``ui.*`` keys for one copy of the component, camelCase.
+    def _ui_resource_meta(self) -> dict[str, Any]:
+        """The ext-apps ``ui.*`` keys for the resource, camelCase.
 
         ``domain`` is omitted unless a stable origin was supplied — the host then
         falls back to its own default sandbox origin (the correct, portable default;
@@ -326,38 +308,27 @@ class SynapseUI(Extension):
                 "resourceDomains": list(self.resource_domains),
             },
         }
-        if domain is not None:
-            ui["domain"] = domain
+        if self.mcp_app_domain is not None:
+            ui["domain"] = self.mcp_app_domain
         return ui
 
-    def _build_resources(self, resource_meta: dict[str, Any] | None) -> list[ResourceBinding]:
-        """Both host-facing ``ui://`` resources (data-free, SDK inlined).
-
-        The same component is served twice because a resource carries one MIME and
-        the hosts disagree: ``self.uri`` under ``text/html+skybridge`` for ChatGPT,
-        and ``self.mcp_app_uri`` under ``text/html;profile=mcp-app`` for Claude and
-        other MCP Apps hosts. Both point at the same inlined HTML and carry the same
-        ``ui.*`` keys, except ``ui.domain``: each copy takes its own host's origin,
-        because the hosts disagree on what that value is.
-        """
-        html = self.template_html()
-        return [
-            _chatgpt_resource(
-                self.uri, html, self._ui_resource_meta(self.widget_domain), resource_meta
-            ),
-            ResourceBinding(
-                resource=TextResource(
-                    uri=self.mcp_app_uri,
-                    name=self.mcp_app_uri,
-                    mime_type=MCPAPP_MIME,
-                    meta={"ui": self._ui_resource_meta(self.mcp_app_domain)},
-                    text=html,
-                )
-            ),
-        ]
+    def _build_resource(self) -> ResourceBinding:
+        """The ``ui://`` resource (data-free, SDK inlined) every host reads."""
+        meta: dict[str, Any] = {"ui": self._ui_resource_meta()}
+        if self.widget_domain is not None:
+            meta["openai/widgetDomain"] = self.widget_domain
+        return ResourceBinding(
+            resource=TextResource(
+                uri=self.uri,
+                name=self.uri,
+                mime_type=MCPAPP_MIME,
+                meta=meta,
+                text=self.template_html(),
+            )
+        )
 
     def resources(self) -> Sequence[ResourceBinding]:
-        """The two host-facing ``ui://`` resources, consumed at server construction."""
+        """The ``ui://`` resource, consumed at server construction."""
         return self._resources
 
     def bind(
@@ -367,28 +338,25 @@ class SynapseUI(Extension):
         should_render: Callable[[Any], bool] | None = None,
         embed_resource: bool = False,
     ) -> None:
-        """Render `tool`'s output through this component.
+        """Decide what `tool`'s results carry beyond the descriptor binding.
 
-        For a successful, non-error result of ``tool`` that carries
-        ``structuredContent`` (and passes ``should_render``), the extension's
-        ``tools/call`` interceptor mirrors the ChatGPT ``openai/outputTemplate``
-        pointer into the result ``_meta`` per call. That, the descriptor ``_meta``
-        from ``tool_meta`` (which also carries the SEP-1865 ``ui.resourceUri`` for
-        Claude and other MCP Apps hosts), and the contributed ``ui://`` resource are
-        what let a standard host bind the component and render it with the
-        ``structuredContent``. A plain client ignores the ``_meta`` and still reads
-        the structured JSON.
+        A host renders a tool's output through the component from the descriptor
+        ``_meta`` alone (``ui.resourceUri``, from ``tool_meta``) and the contributed
+        ``ui://`` resource, with the result's ``structuredContent``; a tool needs no
+        ``bind`` for that. A plain client ignores the ``_meta`` and still reads the
+        structured JSON.
 
-        ``embed_resource`` (default ``False``) additionally bakes the fully rendered
-        component HTML into the result ``content`` as an mcp-ui ``EmbeddedResource``
-        — the legacy "render from the content block, no ``resources/read``
-        round-trip" path. It is off by default because that HTML is
+        ``embed_resource`` (default ``False``) bakes the fully rendered component
+        HTML into a successful, non-error result's ``content`` as an mcp-ui
+        ``EmbeddedResource`` — "render from the content block, no
+        ``resources/read`` round-trip" — when the result carries
+        ``structuredContent`` that passes ``should_render``. With it off, ``bind``
+        changes nothing. It is off by default because that HTML is
         ``audience: ["user"]`` UI, not model context: a client that can't render it
         (a plain MCP client, a terminal agent) cannot negotiate it away on a
         stateless server, so the whole component — tens of KB per call — lands
-        verbatim in the model's context. The pointer path above already reaches
-        every standard host, so enable this only for a host that renders *solely*
-        from the embedded copy and not the ``ui.resourceUri`` pointer.
+        verbatim in the model's context. Enable it only for a host that renders
+        *solely* from the embedded copy and not the ``ui.resourceUri`` binding.
 
         Order does not matter: the interceptor is installed because this class
         overrides :meth:`intercept_tool_call`, not because a tool is bound, so this
@@ -406,7 +374,7 @@ class SynapseUI(Extension):
         ctx: ServerRequestContext[Any, Any],
         call_next: CallNext,
     ) -> HandlerResult:
-        """Attach the component binding to a bound tool's result (SEP-2133 hook)."""
+        """Embed the component in a bound tool's result (SEP-2133 hook)."""
         result = await call_next(ctx)
         binding = self._bound.get(params.name)
         if binding is None or not isinstance(result, types.CallToolResult):
@@ -417,75 +385,32 @@ class SynapseUI(Extension):
         if result.is_error:
             return result
         data = result.structured_content
-        if not data or not binding.should_render(data):
+        if not binding.embed_resource or not data or not binding.should_render(data):
             return result
-        # The `_meta` pointer alone is enough for a standard host: it fetches the
-        # contributed ui:// component and renders it with the structuredContent, so
-        # no UI HTML rides in the model-facing content. `embed_resource` adds the
-        # legacy mcp-ui copy (see bind) — off by default so it can't leak into a
-        # client that won't render it.
-        if binding.embed_resource:
-            result.content.append(self.embedded_resource(data))
-        result.meta = {**(result.meta or {}), **self.result_meta()}
+        result.content.append(self.embedded_resource(data))
         return result
 
 
 # -- ChatGPT (OpenAI Apps SDK) compatibility ------------------------------------
 #
-# ChatGPT documents the ext-apps `ui.*` keys as preferred and each `openai/*` key
-# below as a compatibility alias for one of them. Both are emitted until ChatGPT is
-# confirmed to render the `text/html;profile=mcp-app` copy. This section is what
-# goes then: the skybridge resource and every alias. Delete it and `ty` names each
-# call site left behind (`tool_meta`, `result_meta`, `_build_resources`); with them
-# go the `uri`/`mcp_app_uri` split, `resource_meta` (it merges onto the skybridge
-# copy only), `widget_domain`, and the exported `SKYBRIDGE_MIME`.
+# ChatGPT renders the one `text/html;profile=mcp-app` resource from `ui.resourceUri`
+# and enforces `ui.visibility` — measured in developer mode. What stays here is the
+# visibility alias whose removal rests on production behaviour nobody has measured:
+# if a reviewed, directory-listed app does not enforce `ui.visibility` the same way,
+# a spec-only app renders and then cannot call its tools. The aliases are derived
+# from `ui.visibility`, so they cannot disagree with it.
 #
-# Not in this section, because they are not aliases: `openai/toolInvocation/*` (no
-# ext-apps counterpart) and `securitySchemes` (ChatGPT reads it whichever copy
-# renders).
+# `openai/widgetDomain` (the resource, when `widget_domain` is given) and
+# `openai/toolInvocation/*` (the tool, when given) are emitted only when declared.
 
 
-def _chatgpt_tool_aliases(template_uri: str, visibility: Sequence[Visibility]) -> dict[str, Any]:
-    """ChatGPT's aliases for the tool descriptor's ``ui.resourceUri`` and ``ui.visibility``.
+def _chatgpt_tool_aliases(visibility: Sequence[Visibility]) -> dict[str, Any]:
+    """ChatGPT's aliases for the tool descriptor's ``ui.visibility``.
 
-    ``openai/outputTemplate`` names the skybridge copy, the one served under the MIME
-    that alias expects. ``openai/widgetAccessible`` defaults to ``false`` in ChatGPT,
-    so it is always emitted rather than left to disagree with ``ui.visibility``.
+    ``openai/widgetAccessible`` defaults to ``false`` in ChatGPT, so it is always
+    emitted rather than left to disagree with ``ui.visibility``.
     """
-    aliases: dict[str, Any] = {
-        "openai/outputTemplate": template_uri,
-        "openai/widgetAccessible": "app" in visibility,
-    }
+    aliases: dict[str, Any] = {"openai/widgetAccessible": "app" in visibility}
     if "model" not in visibility:
         aliases["openai/visibility"] = "private"
     return aliases
-
-
-def _chatgpt_result_aliases(template_uri: str) -> dict[str, Any]:
-    """The template pointer ChatGPT reads from a tool *result*'s ``_meta``."""
-    return {"openai/outputTemplate": template_uri}
-
-
-def _chatgpt_resource(
-    uri: str, html: str, ui_meta: dict[str, Any], resource_meta: dict[str, Any] | None
-) -> ResourceBinding:
-    """The component under ``text/html+skybridge``: the ``ui.*`` keys beside their aliases.
-
-    A CSP and the widget domain are required to submit an app; without them ChatGPT's
-    dev view flags the template as submission-incomplete.
-    """
-    csp = ui_meta["csp"]
-    meta: dict[str, Any] = {
-        "ui": ui_meta,
-        "openai/widgetPrefersBorder": ui_meta["prefersBorder"],
-        "openai/widgetCSP": {
-            "connect_domains": list(csp["connectDomains"]),
-            "resource_domains": list(csp["resourceDomains"]),
-        },
-    }
-    if "domain" in ui_meta:
-        meta["openai/widgetDomain"] = ui_meta["domain"]
-    meta.update(resource_meta or {})
-    return ResourceBinding(
-        resource=TextResource(uri=uri, name=uri, mime_type=SKYBRIDGE_MIME, meta=meta, text=html)
-    )

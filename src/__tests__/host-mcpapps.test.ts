@@ -6,8 +6,8 @@ import {
   MCPAPP_INITIALIZED,
   MCPAPP_SIZE_CHANGED,
   MCPAPP_TOOL_RESULT,
-  MCPUI_READY,
   type SynapseUIClient,
+  ToolCallError,
 } from "../host/types.js";
 
 /**
@@ -24,9 +24,6 @@ function outbound(): Array<Record<string, unknown>> {
 }
 function ofMethod(method: string): Array<Record<string, unknown>> {
   return outbound().filter((m) => m?.method === method);
-}
-function ofType(type: string): Array<Record<string, unknown>> {
-  return outbound().filter((m) => m?.type === type);
 }
 function respond(id: unknown, result: unknown): void {
   window.dispatchEvent(
@@ -60,21 +57,20 @@ describe("connectUI — MCP Apps standard adapter", () => {
     document.body.innerHTML = "";
   });
 
-  it("resolves to claude and posts ui/initialize (+ legacy ready) on start", () => {
-    synapse = connectUI({ host: "claude", autoResize: false, name: "report", version: "1.0.0" });
-    expect(synapse.host()).toBe("claude");
+  it("resolves to mcp-apps and posts ui/initialize, and nothing else, on start", () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false, name: "report", version: "1.0.0" });
+    expect(synapse.host()).toBe("mcp-apps");
 
     const init = ofMethod(MCPAPP_INITIALIZE);
     expect(init.length).toBe(1);
     const params = init[0].params as Record<string, unknown>;
     expect(params.protocolVersion).toBe("2026-01-26");
     expect(params.appInfo).toEqual({ name: "report", version: "1.0.0" });
-    // Legacy handshake goes out too, so a pre-standard mcp-ui host still renders.
-    expect(ofType(MCPUI_READY).length).toBe(1);
+    expect(outbound()).toEqual([init[0]]);
   });
 
   it("sends initialized + a size after the init result, and applies host context", async () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     const onTheme = vi.fn();
     synapse.onTheme(onTheme);
 
@@ -95,7 +91,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
   });
 
   it("delivers data via ui/notifications/tool-result (params IS the CallToolResult)", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     const onData = vi.fn();
     synapse.onData(onData);
 
@@ -110,7 +106,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
   });
 
   it("updates theme via ui/notifications/host-context-changed", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     const onTheme = vi.fn();
     synapse.onTheme(onTheme);
 
@@ -124,7 +120,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
     // The cross-host client must be able to receive host typography, not just
     // colour: a token names a family, only a face loads it. This is the one
     // adapter that can carry them — ChatGPT supplies a mode string alone.
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     const onTheme = vi.fn();
     synapse.onTheme(onTheme);
 
@@ -143,7 +139,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
   });
 
   it("keeps host font faces when a later context change omits them", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     notify(MCPAPP_HOST_CONTEXT_CHANGED, {
       theme: "dark",
       "synapse/fontFaces": [{ family: "Brand", src: "url('/brand.woff2')" }],
@@ -158,28 +154,12 @@ describe("connectUI — MCP Apps standard adapter", () => {
     document.body.innerHTML = `<script type="application/json" id="synapse-ui-data">${JSON.stringify(
       { domain: "baked.com" },
     )}</script>`;
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     expect(synapse.data<{ domain: string }>()).toEqual({ domain: "baked.com" });
   });
 
-  it("accepts legacy mcp-ui render-data as a fallback data source", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
-    const onData = vi.fn();
-    synapse.onData(onData);
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        source: window.parent,
-        data: {
-          type: "ui-lifecycle-iframe-render-data",
-          payload: { renderData: { domain: "legacy.com" } },
-        },
-      }),
-    );
-    expect(onData).toHaveBeenCalledWith({ domain: "legacy.com" });
-  });
-
   it("callTool sends tools/call and resolves with the host response (pull supported)", async () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     expect(synapse.capabilities().pull).toBe(true);
 
     const p = synapse.callTool("analyze_domain", { domain: "x.com" });
@@ -190,58 +170,83 @@ describe("connectUI — MCP Apps standard adapter", () => {
     await expect(p).resolves.toEqual({ structuredContent: { domain: "x.com" } });
   });
 
-  it("resize before the handshake posts only the legacy mirror", () => {
-    // `ui/initialize` is the app's first word on this bridge, so a JSON-RPC
-    // `size-changed` cannot precede the host's answer — a strict host drops it
-    // and leaves the frame hidden. The legacy frame still goes, because a
-    // pre-standard host never answers the handshake and needs a size now.
-    synapse = connectUI({ host: "claude", autoResize: false });
-    postMessageSpy.mockClear();
-    synapse.resize(512);
-    expect(ofMethod(MCPAPP_SIZE_CHANGED)).toEqual([]);
-    expect(ofType("ui-size-change").at(-1)).toEqual({
-      type: "ui-size-change",
-      payload: { height: 512 },
-    });
+  it("callTool rejects with ToolCallError when the result reports isError", async () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+
+    const p = synapse.callTool("hidden_tool");
+    const call = outbound().find((m) => m?.method === "tools/call");
+    // The shape ChatGPT answers with when the app may not call the tool: a
+    // result, not a JSON-RPC error.
+    const refused = {
+      content: [{ type: "text", text: "Tool is not visible to app" }],
+      isError: true,
+      _meta: { "openai/http_status": 403 },
+    };
+    respond(call?.id, refused);
+
+    const error = await p.catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ToolCallError);
+    expect((error as ToolCallError).message).toBe("Tool is not visible to app");
+    expect((error as ToolCallError).result).toEqual(refused);
   });
 
-  it("resize after the handshake posts the standard size-changed, and no legacy mirror", async () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+  it("callTool names the tool when an error result carries no text", async () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+
+    const p = synapse.callTool("broken");
+    const call = outbound().find((m) => m?.method === "tools/call");
+    respond(call?.id, { content: [], isError: true });
+
+    await expect(p).rejects.toThrow('tool "broken" returned an error');
+  });
+
+  it("ToolCallError builds from a result that is not an object", () => {
+    expect(new ToolCallError("broken", null).message).toBe('tool "broken" returned an error');
+  });
+
+  it("resize before the handshake posts nothing", () => {
+    // `ui/initialize` is the app's first word on this bridge, so a
+    // `size-changed` cannot precede the host's answer — a strict host drops it
+    // and leaves the frame hidden. The handshake reports a size when it lands.
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+    postMessageSpy.mockClear();
+    synapse.resize(512);
+    expect(outbound()).toEqual([]);
+  });
+
+  it("resize after the handshake posts size-changed", async () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     respond(ofMethod(MCPAPP_INITIALIZE)[0].id, {});
     await flush();
 
     postMessageSpy.mockClear();
     synapse.resize(512);
-    expect(ofMethod(MCPAPP_SIZE_CHANGED).at(-1)?.params).toEqual({ height: 512 });
-    // One dialect at a time: a confirmed standard host stops getting legacy
-    // frames, so it can never act on the same size twice.
-    expect(ofType("ui-size-change")).toEqual([]);
+    expect(outbound()).toEqual([
+      { jsonrpc: "2.0", method: MCPAPP_SIZE_CHANGED, params: { height: 512 } },
+    ]);
   });
 
-  it("openLink posts a ui/open-link request and a legacy mirror", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+  it("openLink posts a ui/open-link request, and nothing else", () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     postMessageSpy.mockClear();
     synapse.openLink("https://example.com");
     expect(ofMethod("ui/open-link").at(-1)?.params).toEqual({ url: "https://example.com" });
-    expect(ofType("link").at(-1)).toEqual({
-      type: "link",
-      payload: { url: "https://example.com" },
-    });
+    expect(outbound().length).toBe(1);
   });
 
-  it("sendPrompt posts a ui/message request and a legacy mirror", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+  it("sendPrompt posts a ui/message request, and nothing else", () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     postMessageSpy.mockClear();
     synapse.sendPrompt("Dig deeper");
     expect(ofMethod("ui/message").at(-1)?.params).toEqual({
       role: "user",
       content: [{ type: "text", text: "Dig deeper" }],
     });
-    expect(ofType("prompt").at(-1)).toEqual({ type: "prompt", payload: { prompt: "Dig deeper" } });
+    expect(outbound().length).toBe(1);
   });
 
   it("acknowledges a host teardown request", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     postMessageSpy.mockClear();
     window.dispatchEvent(
       new MessageEvent("message", {
@@ -253,7 +258,7 @@ describe("connectUI — MCP Apps standard adapter", () => {
   });
 
   it("stops delivering data after destroy()", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
     const onData = vi.fn();
     synapse.onData(onData);
     synapse.destroy();
@@ -261,48 +266,17 @@ describe("connectUI — MCP Apps standard adapter", () => {
     expect(onData).not.toHaveBeenCalled();
   });
 
-  // -- legacy render-data invariants (the shim's data path) -----------------
-
-  function pushLegacyRenderData(payload: Record<string, unknown>): void {
+  it("ignores frames that are not JSON-RPC", () => {
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+    const onData = vi.fn();
+    synapse.onData(onData);
     window.dispatchEvent(
       new MessageEvent("message", {
         source: window.parent,
-        data: { type: "ui-lifecycle-iframe-render-data", payload },
+        data: { type: "ui-lifecycle-iframe-render-data", payload: { domain: "x.com" } },
       }),
     );
-  }
-
-  it("a theme-only legacy render-data push applies theme without clobbering data", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
-    synapse.onData(vi.fn());
-    pushLegacyRenderData({ renderData: { domain: "pushed.com" } });
-    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
-
-    // A theme-only push carries no data — it must not wipe the populated widget.
-    pushLegacyRenderData({ theme: "dark" });
-    expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
-    expect(synapse.data<{ domain: string }>()).toEqual({ domain: "pushed.com" });
-  });
-
-  it("strips the host theme from flat legacy render-data (no leak into app data)", () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
-    const onData = vi.fn();
-    synapse.onData(onData);
-    pushLegacyRenderData({ theme: "dark", domain: "flat.com" });
-    expect(onData).toHaveBeenCalledWith({ domain: "flat.com" });
-    expect(synapse.data<Record<string, unknown>>()).toEqual({ domain: "flat.com" });
-  });
-
-  it("suppresses legacy action mirrors once the standard handshake confirms", async () => {
-    synapse = connectUI({ host: "claude", autoResize: false });
-    respond(ofMethod(MCPAPP_INITIALIZE)[0].id, { hostContext: {} });
-    await flush();
-
-    postMessageSpy.mockClear();
-    synapse.openLink("https://example.com");
-    // The standard request still goes; the legacy mirror is now suppressed, so a
-    // host that spoke both dialects can't open the link twice.
-    expect(ofMethod("ui/open-link").length).toBe(1);
-    expect(ofType("link").length).toBe(0);
+    expect(onData).not.toHaveBeenCalled();
+    expect(synapse.data()).toBeNull();
   });
 });

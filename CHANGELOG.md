@@ -6,6 +6,21 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **`connectUI`'s `callTool()` rejects when the tool result reports failure.** MCP carries a tool failure inside the result (`isError: true`), not as a JSON-RPC error, and a host reports a refusal the same way: ChatGPT answers a call to a tool the app may not see with `isError: true` and the text `Tool is not visible to app`. The promise used to resolve with that result, typed as the caller's success type. It now rejects with `ToolCallError`, whose `message` is the result's first text block and whose `result` is the whole result. The React path (`connect()`) is unchanged: it already parses `isError` onto its result.
+
+  **Migration:** a component that inspected `isError` on the resolved value catches `ToolCallError` instead, exported from `@nimblebrain/synapse/host`. A component on the `window.SynapseUI` script, which exposes only `connect`, checks `error.name === "ToolCallError"`.
+
+- **The cross-host client speaks MCP Apps only.** ChatGPT, Claude and NimbleBrain all implement the standard, so `connectUI` has one bridge for a framed component and one for a standalone page.
+
+  - **The `chatgpt` adapter is gone**, with `createChatGPTAdapter`. A framed component uses the MCP Apps bridge in ChatGPT too: ChatGPT answers `ui/initialize`, delivers `ui/notifications/tool-result` and answers `tools/call`.
+  - **Detection no longer reads `window.openai`.** ChatGPT injects it into every frame it serves, spec-only components included, so a component that found it selected an adapter speaking a bridge other than the standard one ChatGPT answers. A frame is now always `"mcp-apps"`.
+  - **`HostKind` is `"mcp-apps" | "generic"`**, naming the bridge rather than the product. `"chatgpt"`, `"claude"` and `"nimblebrain"` are gone, from `host()` and from the `host` option.
+  - **The mcp-ui dialect is gone.** The client no longer posts `ui-lifecycle-iframe-ready`, `ui-size-change`, `link` or `prompt`, and ignores `ui-lifecycle-iframe-render-data`. A size is reported once the handshake completes, never before.
+
+  **Migration:** a component that passed `host: "claude"` or `host: "nimblebrain"` passes `host: "mcp-apps"`, or omits it. Any other value throws a `TypeError` from `connectUI`, rather than rendering standalone inside a frame. One that compared `host()` against a product name uses `capabilities()`. A host that fed a component only through the mcp-ui frames must answer `ui/initialize` and send `ui/notifications/tool-result`.
+
 ### Added
 
 - **`synapse check --target <nimblebrain|claude|chatgpt> <server-url>`.** Connects to a running server and checks what a host sees of it: that `ui://` resources are served as `text/html;profile=mcp-app`, that every `ui.resourceUri` reads, that `ui.visibility` and `ui.csp` are well-formed, that the server declares `io.modelcontextprotocol/ui`, that no `data:` font is loaded without being declared, and — when the server answers `401` — that the challenge names `resource_metadata`, the metadata's `resource` equals the server URL exactly, the authorization server's `issuer` equals the advertised string exactly, and every tool declares `securitySchemes`. Each target's profile sets which checks apply and whether a failure is an error or a warning; any error exits non-zero, so the command can gate a server's CI. `--token` (or `SYNAPSE_CHECK_TOKEN`) runs the session checks against a server that requires auth.

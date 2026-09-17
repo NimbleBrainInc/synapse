@@ -9,7 +9,7 @@ export { downloadFile } from "./download-file.js";
 // NimbleBrain host extensions — composable over `App`, no-ops or throws off a
 // NimbleBrain host. Not ext-apps spec surface.
 export { action, pickFile, pickFiles } from "./extensions.js";
-// Cross-host UI client (push-first; ChatGPT / Claude / standalone). A
+// Cross-host UI client (push-first; any MCP Apps host, or standalone). A
 // different axis from `connect()`, and unaffected by it.
 export { connectUI } from "./host/connect.js";
 export { detectHostKind } from "./host/detect.js";
@@ -21,6 +21,7 @@ export {
   SYNAPSE_DATA_ELEMENT_ID,
   type SynapseUIClient,
   type SynapseUITheme,
+  ToolCallError,
 } from "./host/types.js";
 // MCP 2025-11-25 tasks utility, composable over `App`.
 export { callToolAsTask } from "./task-handle.js";

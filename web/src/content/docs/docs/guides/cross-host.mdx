@@ -1,19 +1,20 @@
 ---
 title: Render one component across hosts
-description: Write one Synapse component that runs in ChatGPT, Claude, and standalone, using connectUI to hide the fact that each host speaks a different bridge.
+description: Write one Synapse component that runs in ChatGPT, Claude, NimbleBrain, and standalone, using connectUI to speak the MCP Apps bridge for you.
 ---
 
 ## The problem
 
-The same UI component can end up in very different hosts, and each one speaks its
-own bridge. ChatGPT uses the OpenAI Apps SDK, Claude uses the MCP Apps standard,
-and a standalone page has no host at all. Branch on all three by hand and you end
-up with three code paths and a pile of postMessage details in your component.
+The same UI component can end up in very different hosts. ChatGPT, Claude and
+NimbleBrain all speak the MCP Apps standard, a JSON-RPC bridge over `postMessage`
+with a handshake a host enforces, and a standalone page has no host at all. Speak
+that bridge by hand and your component carries the handshake, sizing and theme
+plumbing itself.
 
 ## The recipe
 
-Call `connectUI` from `@nimblebrain/synapse/host`. It detects the host, picks the
-right adapter, applies the host theme to the DOM, and returns one
+Call `connectUI` from `@nimblebrain/synapse/host`. It detects whether it is
+framed, picks the adapter, applies the host theme to the DOM, and returns one
 `SynapseUIClient` façade you code against. It is synchronous, so `data()` is
 populated on return.
 
@@ -49,9 +50,12 @@ listeners.
 three vary, which is why you feature-detect with `capabilities()`. It returns
 whether the host supports `pull` (so `callTool` can reach the server), `sendPrompt`,
 and `openLink`. Calling `callTool()` on a host with no pull rejects with a
-`HostUnsupportedError`, so gate it on `capabilities().pull` first. Use `host()`
-only as an escape hatch (it returns `"chatgpt"`, `"claude"`, `"nimblebrain"`, or
-`"generic"`); prefer `capabilities()` so your component stays host-agnostic.
+`HostUnsupportedError`, so gate it on `capabilities().pull` first. When the host
+makes the call but the tool fails or refuses it, `callTool()` rejects with a
+`ToolCallError`: MCP reports that failure inside the result, as `isError: true`, and
+the error carries the whole result on `result`. Use `host()` only as an escape hatch
+(it returns `"mcp-apps"` in a frame and `"generic"` standalone, whichever product the
+frame belongs to); prefer `capabilities()` so your component stays host-agnostic.
 
 ## Related
 

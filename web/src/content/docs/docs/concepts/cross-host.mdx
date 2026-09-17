@@ -1,13 +1,12 @@
 ---
 title: Cross-host architecture
-description: "How one Synapse component runs across ChatGPT, Claude, and standalone through the adapter model (chatgpt, the mcpapps convergence adapter, inline), runtime detection, and a single façade."
+description: "How one Synapse component runs across ChatGPT, Claude, NimbleBrain, and standalone through two adapters (mcpapps, inline), framing detection, and a single façade."
 ---
 
-ChatGPT, Claude, and a host you run yourself do not speak the same bridge to an
-embedded UI. ChatGPT exposes the OpenAI Apps SDK. Claude speaks the MCP Apps
-standard ([SEP-1865](https://modelcontextprotocol.io/)). A standalone page has no
-host at all. Synapse lets you write one component that runs in all of them, without
-branching on the host in your app code.
+ChatGPT, Claude, and a host you run yourself all speak the MCP Apps standard
+([SEP-1865](https://modelcontextprotocol.io/)) to an embedded UI. A standalone page
+has no host at all. Synapse lets you write one component that runs in all of them,
+without branching on the host in your app code.
 
 This is a distinct path from the ext-apps `connect()` client.
 It is **push-first** and deliberately small, meant for a self-contained `ui://`
@@ -34,25 +33,20 @@ await synapse.callTool(name, args);
 
 ## The adapter model
 
-Behind the façade sits one adapter per bridge. There are three, and they cover
-every host by routing more than one host through the same adapter where the bridge
-is shared.
+Behind the façade sits one adapter per bridge, and there are two.
 
 | Host or context | Bridge | Adapter |
 | --- | --- | --- |
-| ChatGPT | OpenAI Apps SDK (`window.openai`) | `chatgpt` |
-| Claude | MCP Apps standard (SEP-1865) | `mcpapps` |
-| NimbleBrain | MCP Apps plus the `synapse/*` extensions | `mcpapps` |
+| ChatGPT, Claude, NimbleBrain | MCP Apps standard (SEP-1865) | `mcpapps` |
 | Standalone | none | `inline` |
 
-`mcpapps` is the **convergence adapter**. It implements the `ui/*` JSON-RPC bridge
-(`ui/initialize` then `ui/notifications/initialized`, then `tool-result` and
-`host-context-changed`, plus `size-changed`, `ui/open-link`, `ui/message`, and
-`tools/call` as a pull). Both Claude and NimbleBrain route through it. The older
-mcp-ui dialect is folded in as a compatibility shim and suppressed once the
-handshake confirms a standard host, so a legacy host still works but a modern one
-is not paying for it. A dedicated `nimblebrain` adapter over the `synapse/*`
-extensions is planned but not yet built, so today NimbleBrain rides `mcpapps` too.
+`mcpapps` implements the `ui/*` JSON-RPC bridge (`ui/initialize` then
+`ui/notifications/initialized`, then `tool-result` and `host-context-changed`, plus
+`size-changed`, `ui/open-link`, `ui/message`, and `tools/call` as a pull). It sends
+nothing before `ui/initialize`, because a strict host drops an early frame and
+leaves the component hidden. A tool result reporting `isError: true` rejects
+`callTool()` with a `ToolCallError`: MCP reports a failed or refused call inside
+the result, and ChatGPT reports a refusal that way.
 
 `inline` is the standalone adapter. With no host bridge, it renders the component
 against neutral fallbacks so a component still works in isolation (a static render,
@@ -60,20 +54,21 @@ a test, a preview).
 
 ## Detection
 
-At startup the client detects which context it is in and picks the adapter: the
-presence of `window.openai` selects `chatgpt`, an available `ui/*` handshake selects
-`mcpapps`, and neither selects `inline`. Adding support for a new host is adding an
-adapter and a detection branch. Apps never change, because they only see the façade.
+At startup the client checks whether its document is framed: a frame selects
+`mcpapps`, a top-level document selects `inline`. Nothing on the window says which
+product the frame belongs to. `window.openai` in particular does not, because
+ChatGPT injects it into every frame it serves. The host names itself in the
+handshake. Apps never change, because they only see the façade.
 
 ## Why it is decoupled from the MCP SDK
 
-The cross-host client is pure `window.openai` plus JSON-RPC over `postMessage`. It
+The cross-host client is hand-spoken JSON-RPC over `postMessage`. It
 does not depend on `@modelcontextprotocol/*`, and specifically it avoids pulling in
 Zod. That keeps the `window.SynapseUI` IIFE that a self-contained `ui://` component
 inlines small, which matters when the whole component ships as one inlined asset.
 
 One rule falls out of the shared adapters: keep the NimbleBrain-private `synapse/*`
-fields out of the `chatgpt` and `mcpapps` payloads. And remember the handshake
+fields out of the `mcpapps` payloads. And remember the handshake
 gotcha from [the protocol page](/docs/concepts/ext-apps): a host keeps the iframe
 hidden until it gets `ui/initialize` and a size report, so call `resize()`.
 
@@ -82,9 +77,9 @@ hidden until it gets `ui/initialize` and a size report, so call `resize()`.
 The component's server side is the Python
 [`nimblebrain-synapse`](/docs/quickstart-python) package. From one `SynapseUI`
 declaration — handed to the server as an MCP extension — it contributes the
-component as two `ui://` resources so each host gets the MIME it expects: `text/html+skybridge` for ChatGPT and
-`text/html;profile=mcp-app` for Claude and MCP Apps. Plain MCP clients that render
-neither still read the tool's `structuredContent`.
+component as one `ui://` resource under the MCP Apps MIME, `text/html;profile=mcp-app`,
+which ChatGPT and Claude both render. Plain MCP clients that render no UI still read
+the tool's `structuredContent`.
 
 ## Related
 

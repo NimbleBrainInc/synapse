@@ -48,7 +48,7 @@ const PRM_RESOURCE =
 const ISSUER =
   "The authorization server's metadata issuer must equal the advertised authorization server exactly (RFC 8414).";
 const SPEC_CSP =
-  "ui.csp is the frame's security policy for Claude and the NimbleBrain host, and OpenAI documents it as generally preferred for new UI; measured 2026-09-17 in ChatGPT developer mode, a resource carrying it alone got no policy.";
+  "ui.csp is the frame's security policy for Claude and the NimbleBrain host, and OpenAI documents it as generally preferred for new UI; measured 2026-09-18 in ChatGPT developer mode, the frame ran under ChatGPT's own default sandbox policy whichever dialect the resource carried.";
 
 export const PROFILES: Record<TargetName, Profile> = {
   nimblebrain: {
@@ -99,11 +99,12 @@ export const PROFILES: Record<TargetName, Profile> = {
       "tool-ui-meta": { severity: "error", why: UI_META },
       "extension-declared": { severity: "error", why: EXTENSION },
       // A requirement the vendor documents and the host was not observed to
-      // enforce is what `warn` is for. openai/widgetCSP is what was measured.
+      // enforce is what `warn` is for. Neither dialect has been observed to
+      // produce an enforced policy, so both sit at warn.
       "resource-csp": { severity: "warn", why: SPEC_CSP },
       "resource-openai-csp": {
-        severity: "error",
-        why: "ChatGPT reads the frame's security policy from openai/widgetCSP (snake_case origin lists); measured 2026-09-17 in developer mode, a resource without it got no policy on the frame at all. OpenAI documents the key as a legacy compatibility surface.",
+        severity: "warn",
+        why: "OpenAI documents openai/widgetCSP (snake_case origin lists) as a legacy compatibility surface, and it is still the only way to declare redirect_domains. Measured 2026-09-18 in developer mode, a resource carrying it beside ui.csp produced no enforced policy: the component ran under ChatGPT's default sandbox CSP either way. Declare it for the documented requirement; it is not known to change what the host enforces.",
       },
       "resource-openai-data-fonts": {
         severity: "warn",

@@ -366,7 +366,7 @@ function checkSession(
           const camel = SPEC_CSP_KEYS.filter((k) => k in openAi);
           if (camel.length) {
             noOpenAiCsp.push(
-              `${uri}: ${OPENAI_CSP_KEY} names ${camel.join(", ")}, which ChatGPT does not read`,
+              `${uri}: ${OPENAI_CSP_KEY} names ${camel.join(", ")}, which OpenAI does not document for it`,
             );
           }
         }
@@ -515,10 +515,8 @@ function resourceUi(item: { _meta?: Record<string, unknown> } | undefined): unkn
  * ChatGPT's dialect of the frame's security policy. It is a sibling of `ui`
  * in the resource's `_meta`, not a key inside it, and its origin lists are
  * spelled `connect_domains`/`resource_domains`. OpenAI documents it as a legacy
- * compatibility key and `ui.csp` as generally preferred for new UI; measured
- * 2026-09-17 in developer mode, ChatGPT applied no policy from `ui.csp` alone.
- * So the two are checked separately, and a target's profile names the one its
- * host was observed to read.
+ * compatibility key and `ui.csp` as generally preferred for new UI. The two are
+ * checked separately, and a target's profile sets each one's severity for its host.
  */
 const OPENAI_CSP_KEY = "openai/widgetCSP";
 

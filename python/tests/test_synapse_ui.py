@@ -240,10 +240,8 @@ def test_one_allowlist_reaches_ui_csp():
 
 
 def test_one_allowlist_reaches_both_csp_dialects():
-    """ChatGPT was measured (2026-09-17, developer mode) applying no policy at all to a
-    frame whose resource carried `ui.csp` alone; the key it read is `openai/widgetCSP`.
-    Both are derived from the one pair of attributes, so they cannot name different
-    origins."""
+    """Both dialects are derived from the one pair of attributes, so they cannot name
+    different origins."""
     meta = _contributed(
         _ui(
             connect_domains=["https://api.example.com"],
@@ -262,9 +260,8 @@ def test_one_allowlist_reaches_both_csp_dialects():
 
 
 def test_the_chatgpt_csp_alias_is_snake_case():
-    """The spelling is the whole point: ChatGPT reads `connect_domains` /
-    `resource_domains`, and a camelCase alias is ignored exactly as a missing key is —
-    silently, with the frame then running under no policy."""
+    """The spelling is the whole point: OpenAI documents `connect_domains` /
+    `resource_domains`, and a camelCase alias names keys nothing documents."""
     alias = _contributed(_ui(connect_domains=["https://api.example.com"]))[UI_URI].meta[
         "openai/widgetCSP"
     ]

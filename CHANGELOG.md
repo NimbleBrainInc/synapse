@@ -6,6 +6,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.21.1] - 2026-09-18
+
+### Fixed
+
+- **`resource-openai-csp` drops to `warn`: emitting `openai/widgetCSP` was not observed to change what ChatGPT enforces.** 0.21.0 made the check an **error** on the premise that `openai/widgetCSP` is the key ChatGPT reads, inferred from a frame carrying `ui.csp` alone getting no policy. A server emitting both dialects was then measured (2026-09-18, developer mode, via CDP against the live frame): the component still ran under ChatGPT's own default sandbox CSP — a boilerplate allowlist carried as a `<meta http-equiv="Content-Security-Policy">` on the sandbox shell and inherited by the frame the component is injected into, with no per-widget policy applied. So the earlier result was the host's default in both cases, not evidence about which key it reads.
+
+  This file's rule is that `error` is for a break and `warn` for "documented, not observed to enforce". Neither dialect meets the bar for `error`, so `resource-openai-csp` joins `resource-csp` at `warn`. Keep emitting both — OpenAI documents `openai/widgetCSP`, and it remains the only way to declare `redirect_domains` — but a run no longer fails on it, and servers on `nimblebrain-synapse` 0.7.0 pass `--target chatgpt` again.
+
+  Whether a custom policy is honoured at all for an unreviewed app, or whether a bare scheme-source such as `data:` is rejected by the vendor's origin-list validation, is **unmeasured**. Either would explain the observation; neither is asserted here.
+
 ## [0.21.0] - 2026-09-17
 
 ### Changed

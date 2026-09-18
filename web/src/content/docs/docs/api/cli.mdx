@@ -73,7 +73,7 @@ non-zero without a report.
 | `tool-resource-uri` | Some tool binds a UI through `_meta.ui.resourceUri`, and every binding reads | error | error | error |
 | `tool-ui-meta` | `ui.visibility` is a non-empty subset of `model`/`app`; no `csp` or `permissions` on a tool | error | error | error |
 | `resource-csp` | Every UI resource declares `ui.csp` as lists of origins | — | warn | warn |
-| `resource-openai-csp` | Every UI resource declares `openai/widgetCSP`, with ChatGPT's `connect_domains`/`resource_domains` spelling | — | — | error |
+| `resource-openai-csp` | Every UI resource declares `openai/widgetCSP`, with ChatGPT's `connect_domains`/`resource_domains` spelling | — | — | warn |
 | `resource-data-fonts` | No `data:` font in the HTML unless `ui.csp.resourceDomains` includes `data:` | — | error | — |
 | `resource-openai-data-fonts` | No `data:` font in the HTML unless `openai/widgetCSP.resource_domains` includes `data:` | — | — | warn |
 | `auth-challenge` | An unauthenticated request's `401` carries `resource_metadata` in `WWW-Authenticate` | warn | error | error |
@@ -82,12 +82,13 @@ non-zero without a report.
 | `tool-security-schemes` | Every tool declares `securitySchemes` when the server requires auth | — | — | error |
 
 The frame's security policy is checked once per dialect. Claude and the
-NimbleBrain host read the spec's nested `ui.csp`. ChatGPT was measured
-(2026-09-17, developer mode) applying **no policy at all** to a frame whose
-resource carried `ui.csp` alone; the key it read is the sibling
-`openai/widgetCSP`. So that check is an error for `chatgpt`, while `ui.csp` —
-which OpenAI documents as generally preferred for new UI, and which the host was
-not observed to apply — warns there. A server should declare both.
+NimbleBrain host read the spec's nested `ui.csp`. OpenAI documents `ui.csp` as
+generally preferred for new UI and the sibling `openai/widgetCSP` as a legacy
+compatibility key, still the only way to declare `redirect_domains`. Neither has
+been observed to change what ChatGPT enforces: measured 2026-09-18 in developer
+mode, a frame whose resource carried both ran under ChatGPT's own default sandbox
+policy. So both checks warn for `chatgpt` rather than fail. A server should
+declare both.
 
 The auth checks run only when the server answers an unauthenticated request with
 `401`. When it does and no token is given, the checks that need a session are

@@ -104,7 +104,7 @@ export const PROFILES: Record<TargetName, Profile> = {
       "resource-csp": { severity: "warn", why: SPEC_CSP },
       "resource-openai-csp": {
         severity: "warn",
-        why: "OpenAI documents openai/widgetCSP (snake_case origin lists) as a legacy compatibility surface, and it is still the only way to declare redirect_domains. Measured 2026-09-18 in developer mode, a resource carrying it — alone or beside ui.csp — produced no enforced policy: the component ran under ChatGPT's default sandbox CSP either way. Declare it for the documented requirement; it is not known to change what the host enforces.",
+        why: "OpenAI documents openai/widgetCSP (snake_case origin lists) as a legacy compatibility surface, and it is still the only way to declare redirect_domains. Measured 2026-09-18 in developer mode, a resource carrying it beside ui.csp produced no enforced policy: the component ran under ChatGPT's default sandbox CSP either way. Declare it for the documented requirement; it is not known to change what the host enforces.",
       },
       "resource-openai-data-fonts": {
         severity: "warn",

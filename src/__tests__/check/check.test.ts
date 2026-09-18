@@ -111,7 +111,7 @@ describe("synapse check", () => {
   it("fails a UI resource with no ui.csp", async () => {
     const results = await check({ csp: null, openaiCsp: { resource_domains: [] } });
     expect(failures(results)).toEqual(["resource-csp"]);
-    // The spec key is what the other hosts read; ChatGPT reads its own.
+    // The spec key is what the other hosts read.
     const [claude, chatgpt] = applyProfiles(results, ["claude", "chatgpt"]);
     expect(claude.failed).toBe(false);
     expect(chatgpt.failed).toBe(false);
@@ -136,13 +136,13 @@ describe("synapse check", () => {
   });
 
   it("fails an openai/widgetCSP whose origin lists use the spec's camelCase keys", async () => {
-    // The spelling is the whole difference between the dialects: origins under a
-    // key ChatGPT does not read are origins it does not allow, so a declared-looking
-    // alias leaves the component unable to reach them.
+    // The spelling is the whole difference between the dialects: OpenAI documents
+    // only the snake_case keys, so origins under the camelCase ones are declared in
+    // a key nothing documents.
     const results = await check({ openaiCsp: { connectDomains: [], resourceDomains: ["data:"] } });
     expect(failures(results)).toEqual(["resource-openai-csp"]);
     expect(detail(results, "resource-openai-csp")).toMatch(
-      /names connectDomains, resourceDomains, which ChatGPT does not read/,
+      /names connectDomains, resourceDomains, which OpenAI does not document for it/,
     );
   });
 

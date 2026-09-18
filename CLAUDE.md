@@ -190,8 +190,8 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   property of the host. A host-specific key carrying a **developer-declared
   input** (`widget_domain`, `invoking`/`invoked`) is emitted only when that input is
   given. Mind the dialects: `openai/widgetCSP` spells its origin lists
-  `connect_domains`/`resource_domains`, and a camelCase alias is ignored exactly as a
-  missing key is. `synapse check --target chatgpt` reports both, at `warn`. Its vendored client IIFE
+  `connect_domains`/`resource_domains`, and OpenAI documents no camelCase spelling for
+  it. `synapse check --target chatgpt` reports both, at `warn`. Its vendored client IIFE
   (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
   `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the CI
   freshness gate enforces the copy). A **version bump** to `package.json` also requires

@@ -67,7 +67,7 @@ if (app) {
 
   await step("callTool", () => connected.callTool("echo", { a: 1 }));
   await step("readServerResource", () => connected.readServerResource({ uri: "x://a" }));
-  await step("sendMessage", () => connected.sendMessage("hi", { action: "a" }));
+  await step("sendMessage", () => connected.sendMessage("hi"));
   await step("openLink", () => connected.openLink("https://example.com"));
   await step("updateModelContext", () => connected.updateModelContext({ a: 1 }));
   await step("downloadFile", () => downloadFile(connected, "a.txt", "abc", "text/plain"));

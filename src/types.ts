@@ -335,8 +335,7 @@ export interface App {
   readonly hostCapabilities: McpUiHostCapabilities;
   /**
    * True when the host identified itself as NimbleBrain in the handshake.
-   * Identity, not capability: nothing is gated on it except the NimbleBrain
-   * chat context on `sendMessage` (`_meta["ai.nimblebrain/context"]`), which other hosts ignore.
+   * Identity, not capability: nothing is gated on it.
    */
   readonly isNimbleBrainHost: boolean;
   /** True after `destroy()` has been called. */
@@ -404,8 +403,9 @@ export interface App {
   readServerResource(params: ReadResourceRequest["params"]): Promise<ReadResourceResult>;
   /**
    * Send a user message into the agent conversation (ext-apps `ui/message`).
-   * A no-op when the host did not declare `message`.
+   * A no-op when the host did not declare `message`. To tell the agent what
+   * the user is acting on, call `updateModelContext` first.
    */
-  sendMessage(text: string, context?: { action?: string; entity?: string }): void;
+  sendMessage(text: string): void;
   destroy(): void;
 }

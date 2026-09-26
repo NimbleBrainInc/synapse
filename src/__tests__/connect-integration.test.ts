@@ -263,30 +263,8 @@ describe("connect() integration", () => {
   // 4. sendMessage format
   // -----------------------------------------------------------------------
   describe("sendMessage format", () => {
-    it("sends ui/message with context as _meta", async () => {
-      // `context` is a NimbleBrain convention, so it rides only on that host.
+    it("sends ui/message with the text alone", async () => {
       app = await connectApp({}, nimblebrainInitResult());
-      host.clearSpy();
-
-      app.sendMessage("Summarize the board", { action: "summarize", entity: "board" });
-
-      expect(host.sentMessages[0]).toMatchObject({
-        method: "ui/message",
-        params: {
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: "Summarize the board",
-              _meta: { "ai.nimblebrain/context": { action: "summarize", entity: "board" } },
-            },
-          ],
-        },
-      });
-    });
-
-    it("sends ui/message without _meta when no context", async () => {
-      app = await connectApp();
       host.clearSpy();
 
       app.sendMessage("Just chatting");

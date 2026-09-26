@@ -332,60 +332,30 @@ describe("connect() capabilities", () => {
   describe("action", () => {
     it("sends ai.nimblebrain/action on a NimbleBrain host", async () => {
       app = await connectAndHandshake();
-      action(app, "navigate", { entity: "board", id: "b1" });
+      action(app, "openConversation", { id: "c1" });
 
       const sent = sentNotifications("ai.nimblebrain/action");
       expect(sent).toHaveLength(1);
-      expect(sent[0].params).toEqual({ action: "navigate", entity: "board", id: "b1" });
+      expect(sent[0].params).toEqual({ action: "openConversation", id: "c1" });
     });
 
     it("is a no-op where the host did not declare it, whatever the host is called", async () => {
       app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
-      action(app, "navigate", { id: "b1" });
+      action(app, "openConversation", { id: "c1" });
       await flush();
       expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(0);
     });
 
     it("sends on any host that declares it", async () => {
       app = await connectAndHandshake({}, makeInitResult("another-host"));
-      action(app, "navigate", { id: "b1" });
+      action(app, "openConversation", { id: "c1" });
       await flush();
       expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(1);
     });
   });
 
   describe("sendMessage", () => {
-    it('attaches the chat context under _meta["ai.nimblebrain/context"] on a NimbleBrain host', async () => {
-      app = await connectAndHandshake();
-      app.sendMessage("hello", { action: "open", entity: "board" });
-      await flush();
-
-      const sent = sentByMethod("ui/message");
-      expect(sent[0].params).toEqual({
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: "hello",
-            _meta: { "ai.nimblebrain/context": { action: "open", entity: "board" } },
-          },
-        ],
-      });
-    });
-
-    it("omits _meta off a NimbleBrain host — the field is a NimbleBrain convention", async () => {
-      app = await connectAndHandshake({}, makeInitResult("claude"));
-      app.sendMessage("hello", { action: "open" });
-      await flush();
-
-      const sent = sentByMethod("ui/message");
-      expect(sent[0].params).toEqual({
-        role: "user",
-        content: [{ type: "text", text: "hello" }],
-      });
-    });
-
-    it("omits _meta when no context is given", async () => {
+    it("sends the text alone on a NimbleBrain host", async () => {
       app = await connectAndHandshake();
       app.sendMessage("hello");
       await flush();

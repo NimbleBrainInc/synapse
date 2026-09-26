@@ -263,7 +263,8 @@ the one slot a spec client's handshake parse keeps):
 - `ai.nimblebrain/request-file`
 - `ai.nimblebrain/keydown`
 
-The chat context on `sendMessage` rides `_meta["ai.nimblebrain/context"]`.
+`sendMessage` sends the spec's text block and nothing else; what the user is
+acting on reaches the agent through `updateModelContext`.
 
 An `ai.nimblebrain/` method constant without an entry fails `event-map.test.ts`.
 

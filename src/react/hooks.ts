@@ -263,16 +263,9 @@ export function useModelContext(
  * not declare `message`; check `app.hostCapabilities.message` to decide whether
  * to offer the control at all.
  */
-export function useSendMessage(): (
-  text: string,
-  context?: { action?: string; entity?: string },
-) => void {
+export function useSendMessage(): (text: string) => void {
   const app = useAppContext();
-  return useCallback(
-    (text: string, context?: { action?: string; entity?: string }) =>
-      app.sendMessage(text, context),
-    [app],
-  );
+  return useCallback((text: string) => app.sendMessage(text), [app]);
 }
 
 // -----------------------------------------------------------------------------

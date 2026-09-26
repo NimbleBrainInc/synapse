@@ -6,6 +6,16 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- **`sendMessage` takes the text alone, and sends no `_meta["ai.nimblebrain/context"]`.** `sendMessage(text, context)` and `useSendMessage()`'s second argument are gone. What the user is acting on reaches the agent through the spec's `updateModelContext`, which the NimbleBrain host attaches to the next turn.
+
+  **Migration:** replace `sendMessage(text, { action, entity })` with `updateModelContext({ action, entity })` followed by `sendMessage(text)`, or put what the agent needs in the text.
+
+- **The NimbleBrain host serves two actions: `openApp` (`{ name }`) and `openConversation` (`{ id }`).** `navigate` and `startChat` are retired from the host, and `action` still sends any name.
+
+  **Migration:** `action(app, "startChat", { prompt })` becomes `sendMessage(prompt)`. `action(app, "navigate", { route })` becomes `action(app, "openApp", { name })` for an app, or `openLink(url)` for an external page.
+
 ## [0.21.1] - 2026-09-18
 
 ### Fixed

@@ -35,8 +35,10 @@ const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 /**
  * Trigger a host-side action.
  *
- * Sends a command *to* the host (navigate, open a panel). A no-op when the host
- * did not declare `ai.nimblebrain/action`.
+ * Sends a command *to* the host. The NimbleBrain host serves `openApp`
+ * (`{ name }`) and `openConversation` (`{ id }`) and ignores any other name. A
+ * message into the conversation is `sendMessage`, and an external page is
+ * `openLink`. A no-op when the host did not declare `ai.nimblebrain/action`.
  */
 export function action(app: App, name: string, params?: Record<string, unknown>): void {
   if (!hostSupports(app, "action")) return;

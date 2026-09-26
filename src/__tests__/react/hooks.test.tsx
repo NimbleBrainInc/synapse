@@ -265,10 +265,13 @@ describe("useAction", () => {
     await settle();
 
     await act(async () => {
-      result.current("navigate", { id: "b1" });
+      result.current("openConversation", { id: "c1" });
     });
 
-    expect(sent("ai.nimblebrain/action")[0].params).toEqual({ action: "navigate", id: "b1" });
+    expect(sent("ai.nimblebrain/action")[0].params).toEqual({
+      action: "openConversation",
+      id: "c1",
+    });
   });
 
   it("is a no-op where the host did not declare it", async () => {
@@ -276,7 +279,7 @@ describe("useAction", () => {
     await settle("nimblebrain", {});
 
     await act(async () => {
-      result.current("navigate", { id: "b1" });
+      result.current("openConversation", { id: "c1" });
     });
 
     expect(sent("ai.nimblebrain/action")).toHaveLength(0);

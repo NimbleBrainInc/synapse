@@ -76,10 +76,9 @@ as its method and as the identifier a host declares in
 That is the complete list. `NIMBLEBRAIN_EXTENSIONS`, exported from the package
 root, holds the same table in code.
 
-Two NimbleBrain fields also ride inside spec messages, and other hosts ignore them:
-the workspace in the host context, and the chat context on a `sendMessage` text
-block, under `_meta["ai.nimblebrain/context"]`. Synapse sends the chat context only
-when the host identifies itself as NimbleBrain (`app.isNimbleBrainHost`).
+One NimbleBrain field also rides inside a spec message, and other hosts ignore it:
+the workspace in the host context. What the user is acting on reaches the agent
+through the spec's `updateModelContext`, on every host that declares it.
 
 ## Deciding what to offer
 

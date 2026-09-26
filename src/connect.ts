@@ -53,9 +53,6 @@ import type {
  */
 const NIMBLEBRAIN_HOST = "nimblebrain";
 
-/** The `_meta` key a `ui/message` text block carries the NimbleBrain chat context under. */
-const CHAT_CONTEXT_META_KEY = "ai.nimblebrain/context";
-
 /**
  * Requests this SDK sends carry no deadline.
  *
@@ -473,15 +470,9 @@ export async function connect(options: ConnectOptions): Promise<App> {
       return await client.readServerResource(params, NO_DEADLINE);
     },
 
-    sendMessage(text: string, context?: { action?: string; entity?: string }): void {
+    sendMessage(text: string): void {
       if (destroyed || !hostCapabilities.message) return;
-      const textBlock: TextContent = {
-        type: "text",
-        text,
-        // The chat context is a NimbleBrain host field; other hosts ignore it,
-        // but there is no reason to spend the bytes off one.
-        ...(isNimbleBrainHost && context && { _meta: { [CHAT_CONTEXT_META_KEY]: context } }),
-      };
+      const textBlock: TextContent = { type: "text", text };
       const params: McpUiMessageRequest["params"] = {
         role: "user",
         content: [textBlock],

@@ -55,7 +55,6 @@ import type {
   ReadResourceRequest,
   ReadResourceResult,
   TaskStatus,
-  TextContent,
 } from "@modelcontextprotocol/sdk/types.js";
 import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -451,28 +450,14 @@ describe("outbound message shapes", () => {
     expect(params.content[0]).toMatchObject({ type: "text", text: "hello world" });
   });
 
-  // `context` is a NimbleBrain convention carried in the spec's open `_meta`,
-  // so it is encoded on a NimbleBrain host and absent everywhere else. Both
-  // halves are asserted: the placement is what a host reads, and the absence
-  // is what keeps a private field off a foreign host's wire.
-  it("sendMessage with context puts it in _meta on a NimbleBrain host", async () => {
+  // The text block is the spec's `TextContent` and nothing more, on every host:
+  // what the user is acting on reaches the agent through `ui/update-model-context`.
+  it("sendMessage sends no _meta, on a NimbleBrain host too", async () => {
     app = await connectAndHandshake(
       {},
       makeSpecInitResult({ hostInfo: { name: "nimblebrain", version: "1.0.0" } }),
     );
-    app.sendMessage("test", { action: "search" });
-
-    const call = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === MESSAGE_METHOD,
-    );
-    const params = (call![0] as Record<string, unknown>).params as McpUiMessageRequest["params"];
-    const block = params.content[0] as TextContent;
-    expect(block._meta).toEqual({ "ai.nimblebrain/context": { action: "search" } });
-  });
-
-  it("sendMessage omits _meta entirely on a non-NimbleBrain host", async () => {
-    app = await connectAndHandshake();
-    app.sendMessage("test", { action: "search" });
+    app.sendMessage("test");
 
     const call = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === MESSAGE_METHOD,

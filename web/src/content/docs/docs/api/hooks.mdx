@@ -52,7 +52,7 @@ reasoning.
 | --- | --- | --- | --- |
 | `useModelContext()` | `(state, summary?) => void` | Push what the user is looking at to the agent, debounced 250 ms | `updateModelContext`: no-op |
 | `useModelContext(factory, deps)` | none | The same, pushed whenever `deps` change | `updateModelContext`: no-op |
-| `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation | `message`: no-op |
+| `useSendMessage()` | `(text) => void` | Send a message into the agent conversation | `message`: no-op |
 
 The debounce lives in the hook rather than on `app.updateModelContext`, which
 sends immediately: a selection the user drags through should cost one frame, not
@@ -66,7 +66,7 @@ it did.
 
 | Hook | Returns | Description | Without it |
 | --- | --- | --- | --- |
-| `useAction()` | `(name, params?) => void` | Trigger a host-side action | `ai.nimblebrain/action`: no-op |
+| `useAction()` | `(name, params?) => void` | Trigger a host-side action: on NimbleBrain, `openApp` or `openConversation` | `ai.nimblebrain/action`: no-op |
 | `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker | `ai.nimblebrain/request-file`: both reject with `HostCapabilityError` |
 
 ## See also

@@ -471,28 +471,7 @@ describe("connect()", () => {
       ]);
     });
 
-    // The chat context is a NimbleBrain host field, so it rides only on a
-    // NimbleBrain host — and this harness's host is `test-host`. Both branches
-    // are covered in connect-capabilities.test.ts.
-    it("sendMessage() omits context off a NimbleBrain host", async () => {
-      app = await connectAndHandshake();
-      postMessageSpy.mockClear();
-
-      app.sendMessage("Hello", { action: "summarize" });
-
-      expect(postMessageSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          method: "ui/message",
-          params: {
-            role: "user",
-            content: [{ type: "text", text: "Hello" }],
-          },
-        }),
-        "*",
-      );
-    });
-
-    it("sendMessage() sends without _meta when no context", async () => {
+    it("sendMessage() sends the text as a ui/message", async () => {
       app = await connectAndHandshake();
       postMessageSpy.mockClear();
 

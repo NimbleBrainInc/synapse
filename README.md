@@ -332,7 +332,7 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
 | `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result |
 | `readServerResource({ uri })` | Read an MCP resource from the originating server |
-| `sendMessage(text, context?)` | Send a message into the agent conversation |
+| `sendMessage(text)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |
 
 ### Helpers over an `App`
@@ -346,13 +346,13 @@ never carries the picker.
 import { connect, action, pickFile, downloadFile, callToolAsTask } from "@nimblebrain/synapse";
 
 const app = await connect({ name: "my-app", version: "1.0.0" });
-action(app, "navigate", { entity: "board", id: "b1" });
+action(app, "openConversation", { id: "conv_abc123" });
 ```
 
 | Function | Description |
 |----------|-------------|
 | `callToolAsTask(app, name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
-| `action(app, name, params?)` | Trigger a NimbleBrain host action. No-op unless the host declares `ai.nimblebrain/action`. |
+| `action(app, name, params?)` | Trigger a NimbleBrain host action: `openApp` (`{ name }`) or `openConversation` (`{ id }`). No-op unless the host declares `ai.nimblebrain/action`. |
 | `pickFile(app, options?)` | Native file picker, single file. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
 | `pickFiles(app, options?)` | Native file picker, multiple files. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
 | `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension (`"action"`, `"requestFile"`, `"keydown"`). |
@@ -391,7 +391,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useDataSync(cb)` | — | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`); `cb` gets the notification's params |
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
 | `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
-| `useSendMessage()` | `(text, context?) => void` | Send a message into the agent conversation |
+| `useSendMessage()` | `(text) => void` | Send a message into the agent conversation |
 | `useAction()` | `(name, params?) => void` | Trigger a NimbleBrain host action |
 | `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker (NB-only) |
 

@@ -62,7 +62,7 @@ export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
  * extension says so; a host that does not is never sent it.
  */
 export const NIMBLEBRAIN_EXTENSIONS = {
-  /** App → host notification: run a host action (navigate, open a panel). */
+  /** App → host notification: run a host action (open an app or a conversation). */
   action: { method: ACTION_METHOD, capability: ACTION_METHOD },
   /** App → host request: the host's file picker, answered `{ files }`. */
   requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },

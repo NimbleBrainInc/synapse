@@ -6,6 +6,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-09-26
+
 ### Breaking
 
 - **`sendMessage` takes the text alone, and sends no `_meta["ai.nimblebrain/context"]`.** `sendMessage(text, context)` and `useSendMessage()`'s second argument are gone. What the user is acting on reaches the agent through the spec's `updateModelContext`, which the NimbleBrain host attaches to the next turn.

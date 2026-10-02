@@ -90,6 +90,19 @@ describe("the neutral default theme is a fallback, not an override", () => {
     expect(dark).toContain(`@layer ${DEFAULTS_LAYER_NAME}`);
   });
 
+  it("sets the color scheme with the mode, so the browser's own parts follow it", () => {
+    // Scrollbars and form controls are drawn from `color-scheme`, not from any
+    // variable, so a mode flip that left it behind would leave them in the old mode.
+    applyThemeVariables("dark", null);
+    expect(document.getElementById(DEFAULTS_STYLE_ID)?.textContent).toContain(
+      "color-scheme: dark;",
+    );
+    applyThemeVariables("light", null);
+    const light = document.getElementById(DEFAULTS_STYLE_ID)?.textContent ?? "";
+    expect(light).toContain("color-scheme: light;");
+    expect(light).not.toContain("color-scheme: dark;");
+  });
+
   it("is idempotent — re-applying the same mode installs one element", () => {
     applyThemeVariables("dark", null);
     applyThemeVariables("dark", null);

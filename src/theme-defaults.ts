@@ -182,7 +182,12 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
   const declarations = Object.entries(DEFAULT_THEME_VARS[mode])
     .map(([k, v]) => `    ${k}: ${v};`)
     .join("\n");
-  const css = `@layer ${DEFAULTS_LAYER_NAME} {\n  :root {\n${declarations}\n  }\n}`;
+  // `color-scheme` rides in the same rule as the variables. It is what the
+  // browser draws its own parts with (scrollbars, form controls, the canvas
+  // behind a transparent body), so a dark theme without it is a dark page with
+  // light scrollbars. Here it flips with the mode in the one swap, and being
+  // layered it is a default like the rest: an app's own `color-scheme` wins.
+  const css = `@layer ${DEFAULTS_LAYER_NAME} {\n  :root {\n    color-scheme: ${mode};\n${declarations}\n  }\n}`;
 
   const existing = document.getElementById(DEFAULTS_STYLE_ID);
   if (existing) {

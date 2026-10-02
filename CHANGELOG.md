@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **The default theme layer sets `color-scheme` with the mode.** Scrollbars, form controls and the canvas are drawn from `color-scheme`, not from any theme variable, so an app in dark mode kept the browser's light ones. It rides in the layered `:root` rule, so it flips with the mode and an app's own `color-scheme` still wins.
+
 ## [0.22.0] - 2026-09-26
 
 ### Breaking

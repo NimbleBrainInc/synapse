@@ -6,7 +6,14 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
-import { pickFile, pickFiles, action as sendAction } from "../extensions.js";
+import {
+  hostSupports,
+  onNavigate,
+  pickFile,
+  pickFiles,
+  action as sendAction,
+  setLocation,
+} from "../extensions.js";
 import { callToolAsTask } from "../task-handle.js";
 import type {
   App,
@@ -18,6 +25,7 @@ import type {
   Theme,
   ToolCallResult,
   ToolResultData,
+  TrailEntry,
 } from "../types.js";
 import { useAppContext } from "./app-provider.js";
 
@@ -279,6 +287,35 @@ export function useAction(): (name: string, params?: Record<string, unknown>) =>
     (name: string, params?: Record<string, unknown>) => sendAction(app, name, params),
     [app],
   );
+}
+
+/**
+ * Report where the app is to the host, and go where the host asks.
+ *
+ * Sends `trail` (root first, current view last) whenever its ids or labels
+ * change, and calls `navigate` with an entry's `id` when the user picks it in
+ * the host's breadcrumb. Returns whether the host shows the title and
+ * breadcrumb (`ai.nimblebrain/location` declared): when it does, leave the
+ * view's own out, e.g. `<PageHeader crumbs={shown ? undefined : crumbs} …>`.
+ * Where it does not, nothing is sent and the view keeps its own.
+ */
+export function useTrail(trail: readonly TrailEntry[], navigate: (id: string) => void): boolean {
+  const app = useAppContext();
+
+  const trailRef = useRef(trail);
+  trailRef.current = trail;
+  // The trail's content, so a new array with the same levels sends nothing.
+  const key = JSON.stringify(trail.map(({ id, label }) => [id, label]));
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `key` is the trail's content; the ref holds the same value
+  useEffect(() => {
+    setLocation(app, trailRef.current);
+  }, [app, key]);
+
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  useEffect(() => onNavigate(app, (id) => navigateRef.current(id)), [app]);
+
+  return hostSupports(app, "location");
 }
 
 export interface UseFileUploadResult {

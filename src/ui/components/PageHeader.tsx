@@ -55,7 +55,11 @@ const RULES = `
 interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   /** The trail. Omit on a top-level page, which has nothing above it to name. */
   crumbs?: Crumb[];
-  title: ReactNode;
+  /**
+   * Omit where the host already shows the view's title (`useTrail` returns
+   * true), so the page does not say it twice.
+   */
+  title?: ReactNode;
   /** Sits beside the title — typically a `Badge`. */
   status?: ReactNode;
   /** Sits at the far end of the title's row. Buttons, a menu. */
@@ -85,36 +89,38 @@ export function PageHeader({
     >
       {crumbs && crumbs.length > 0 ? <Breadcrumb crumbs={crumbs} /> : null}
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "1rem",
-          flexWrap: "wrap",
-          minWidth: 0,
-        }}
-      >
+      {title || status || actions ? (
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.6rem",
+            justifyContent: "space-between",
+            gap: "1rem",
             flexWrap: "wrap",
             minWidth: 0,
           }}
         >
-          <Heading size="md">{title}</Heading>
-          {status}
-        </div>
-        {/* Rendered only when given. An empty actions box still occupies its row and pulls
-            the title off centre, which reads as a control that failed to load. */}
-        {actions ? (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
-            {actions}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "0.6rem",
+              flexWrap: "wrap",
+              minWidth: 0,
+            }}
+          >
+            {title ? <Heading size="md">{title}</Heading> : null}
+            {status}
           </div>
-        ) : null}
-      </div>
+          {/* Rendered only when given. An empty actions box still occupies its row and pulls
+            the title off centre, which reads as a control that failed to load. */}
+          {actions ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexShrink: 0 }}>
+              {actions}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {description ? (
         <Text

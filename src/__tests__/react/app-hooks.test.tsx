@@ -2,7 +2,14 @@ import { act, render, renderHook } from "@testing-library/react";
 import { Component, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
-import { useApp, useResize, useTheme, useToolInput, useToolResult } from "../../react/hooks.js";
+import {
+  useApp,
+  useResize,
+  useTheme,
+  useToolInput,
+  useToolResult,
+  useTrail,
+} from "../../react/hooks.js";
 import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
 
 // --- Helpers ---
@@ -329,6 +336,71 @@ describe("app hooks", () => {
       expect(() => {
         renderHook(() => useTheme());
       }).toThrow("useApp must be used within an <AppProvider>");
+    });
+  });
+
+  describe("useTrail", () => {
+    const sentLocations = () =>
+      postMessageSpy.mock.calls
+        .map((c: unknown[]) => c[0] as Record<string, unknown>)
+        .filter((m) => m?.method === "ai.nimblebrain/location");
+
+    async function renderTrail(
+      initialLabel: string,
+      navigate: (id: string) => void,
+      initResult?: Record<string, unknown>,
+    ) {
+      const hook = renderHook(
+        ({ label }: { label: string }) =>
+          useTrail(
+            [
+              { id: "people://contacts", label: "People" },
+              { id: "people://contacts/1", label },
+            ],
+            navigate,
+          ),
+        { wrapper: createWrapper(), initialProps: { label: initialLabel } },
+      );
+      await act(async () => {
+        await respondToInitialize(initResult);
+        await new Promise((r) => setTimeout(r, 0));
+      });
+      return hook;
+    }
+
+    it("sends the trail once per change of content, and says the host shows it", async () => {
+      const { result, rerender } = await renderTrail("Jane Doe", () => {});
+      expect(result.current).toBe(true);
+      expect(sentLocations()).toHaveLength(1);
+
+      // A new array with the same levels sends nothing.
+      await act(async () => rerender({ label: "Jane Doe" }));
+      expect(sentLocations()).toHaveLength(1);
+
+      await act(async () => rerender({ label: "Jane Q. Doe" }));
+      expect(sentLocations()).toHaveLength(2);
+      expect((sentLocations()[1].params as { trail: { label: string }[] }).trail[1].label).toBe(
+        "Jane Q. Doe",
+      );
+    });
+
+    it("calls navigate with the id the host names", async () => {
+      const navigate = vi.fn();
+      await renderTrail("Jane Doe", navigate);
+      await act(async () => {
+        await dispatchNotification("ai.nimblebrain/navigate", { id: "people://contacts" });
+      });
+      expect(navigate.mock.calls).toEqual([["people://contacts"]]);
+    });
+
+    it("sends nothing and returns false where the host did not declare it", async () => {
+      const { result } = await renderTrail(
+        "Jane Doe",
+        () => {},
+        makeInitResult({ hostCapabilities: {} }),
+      );
+      expect(result.current).toBe(false);
+      expect(sentLocations()).toHaveLength(0);
     });
   });
 });

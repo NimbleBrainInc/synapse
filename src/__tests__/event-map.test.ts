@@ -60,8 +60,10 @@ describe("NIMBLEBRAIN_EXTENSIONS", () => {
   // An `ai.nimblebrain/` method constant exported without an entry would be sent
   // ungated.
   it("lists every ai.nimblebrain/ method constant in event-map.ts", () => {
+    // `navigate` is host → app: received, never sent, so there is nothing to gate.
     const methods = Object.values(eventMap).filter(
-      (v): v is string => typeof v === "string" && v.startsWith("ai.nimblebrain/"),
+      (v): v is string =>
+        typeof v === "string" && v.startsWith("ai.nimblebrain/") && v !== eventMap.NAVIGATE_METHOD,
     );
     const listed = Object.values(NIMBLEBRAIN_EXTENSIONS).map((e) => e.method);
     expect([...listed].sort()).toEqual([...methods].sort());

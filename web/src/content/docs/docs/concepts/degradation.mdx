@@ -42,6 +42,7 @@ call, whatever it is called.
 | `useAction`, `action` | `ai.nimblebrain/action`, under `experimental` | No-op |
 | `useFileUpload`, `pickFile`, `pickFiles` | `ai.nimblebrain/request-file`, under `experimental` | `HostCapabilityError` |
 | `connect({ forwardKeys })` | `ai.nimblebrain/keydown`, under `experimental` | Keys are not captured, so the browser handles them as usual. |
+| `useTrail`, `setLocation` | `ai.nimblebrain/location`, under `experimental` | No-op. `useTrail` returns `false`, so the view keeps its own title and breadcrumb. |
 
 ## The portable subset
 
@@ -61,7 +62,7 @@ declaration before you offer it.
 
 ## The NimbleBrain extensions
 
-Three features have no equivalent in the spec. They are the NimbleBrain host's
+Four features have no equivalent in the spec. They are the NimbleBrain host's
 own extensions, which Synapse implements a client for. Each has one name, used
 as its method and as the identifier a host declares in
 `hostCapabilities.experimental` to offer it. MCP Apps has no field for extensions, and
@@ -72,6 +73,7 @@ as its method and as the identifier a host declares in
 | Host actions (`action`, `useAction`) | `ai.nimblebrain/action` | app → host notification |
 | File picker (`pickFile`, `pickFiles`, `useFileUpload`) | `ai.nimblebrain/request-file` | app → host request, answered `{ files }` |
 | Keyboard forwarding (`forwardKeys`) | `ai.nimblebrain/keydown` | app → host notification |
+| Location (`setLocation`, `onNavigate`, `useTrail`) | `ai.nimblebrain/location` | app → host notification; the host answers a pick with `ai.nimblebrain/navigate` |
 
 That is the complete list. `NIMBLEBRAIN_EXTENSIONS`, exported from the package
 root, holds the same table in code.

@@ -16,9 +16,9 @@
  * gate.
  */
 import { HostCapabilityError } from "./errors.js";
-import { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
+import { NAVIGATE_METHOD, NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 import { internalsFor } from "./internals.js";
-import type { App, FileResult, RequestFileOptions } from "./types.js";
+import type { App, FileResult, RequestFileOptions, TrailEntry } from "./types.js";
 
 /**
  * Whether the host declared a NimbleBrain extension. Use it to decide what to
@@ -43,6 +43,49 @@ const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 export function action(app: App, name: string, params?: Record<string, unknown>): void {
   if (!hostSupports(app, "action")) return;
   internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.action.method, { action: name, ...params });
+}
+
+/** The most a host accepts: a longer trail or label drops the whole message. */
+const MAX_TRAIL_ENTRIES = 32;
+const MAX_LABEL_LENGTH = 200;
+
+/**
+ * Tell the host where the app is: the whole trail, root first, the current view
+ * last. The NimbleBrain host shows the last label as the page title and the
+ * levels above it as a breadcrumb, and sends `ai.nimblebrain/navigate` (see
+ * {@link onNavigate}) when the user picks one.
+ *
+ * Send it when a view first renders and on every navigation inside the app.
+ * Each one replaces the last, so the app stays the only owner of its location
+ * and a lost message corrects itself on the next.
+ *
+ * A host that declares `ai.nimblebrain/location` shows the title, so drop the
+ * view's own title and breadcrumb there and keep them elsewhere
+ * (`hostSupports(app, "location")`). A no-op where it is not declared, and for
+ * an empty trail. The trail is held to the host's bounds (32 levels, keeping
+ * the root and the deepest; 200 characters a label) rather than sent and
+ * dropped whole.
+ */
+export function setLocation(app: App, trail: readonly TrailEntry[]): void {
+  if (!hostSupports(app, "location") || trail.length === 0) return;
+  const bounded =
+    trail.length > MAX_TRAIL_ENTRIES
+      ? [trail[0], ...trail.slice(trail.length - (MAX_TRAIL_ENTRIES - 1))]
+      : trail;
+  internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.location.method, {
+    trail: bounded.map(({ id, label }) => ({ id, label: label.slice(0, MAX_LABEL_LENGTH) })),
+  });
+}
+
+/**
+ * Run `handler` with a trail entry's `id` when the host asks the app to go
+ * there (`ai.nimblebrain/navigate`). Navigate, then send the new trail with
+ * {@link setLocation}. Returns the unsubscribe.
+ */
+export function onNavigate(app: App, handler: (id: string) => void): () => void {
+  return app.on(NAVIGATE_METHOD, (params: { id?: unknown } | undefined) => {
+    if (typeof params?.id === "string") handler(params.id);
+  });
 }
 
 /**

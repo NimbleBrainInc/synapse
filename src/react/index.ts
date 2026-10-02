@@ -16,4 +16,5 @@ export {
   useTheme,
   useToolInput,
   useToolResult,
+  useTrail,
 } from "./hooks.js";

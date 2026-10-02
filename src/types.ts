@@ -163,6 +163,20 @@ export interface FileResult {
   size: number;
 }
 
+/**
+ * One level of an app's trail, for `setLocation` / `useTrail`.
+ *
+ * `id` is the view's stable address: the MCP resource URI of what it shows when
+ * there is one (`people://contacts/123`), otherwise a path-like address of the
+ * app's own, never a value that changes between visits such as a list index.
+ * The host hands it back unread when the user picks that level. `label` is what
+ * the host shows, 1 to 200 characters.
+ */
+export interface TrailEntry {
+  id: string;
+  label: string;
+}
+
 /** Options for requesting a file from the user */
 export interface RequestFileOptions {
   /** File type filter (e.g., ".csv,.json", "image/*") */

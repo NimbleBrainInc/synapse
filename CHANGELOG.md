@@ -6,6 +6,11 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **`setLocation`, `onNavigate` and `useTrail` report where the app is, so the host shows its title and breadcrumb.** They speak `ai.nimblebrain/location` (the whole trail, root first) and `ai.nimblebrain/navigate` (the level the user picked). Gated like the other extensions: where the host does not declare `ai.nimblebrain/location`, nothing is sent and `useTrail` returns `false`, so the view keeps its own. See [hooks](https://synapse.nimblebrain.ai/docs/api/hooks/).
+- **`PageHeader`'s `title` is optional**, for a view whose host already shows it.
+
 ## [0.22.0] - 2026-09-26
 
 ### Breaking

@@ -11,7 +11,14 @@
 import { connect } from "./connect.js";
 import { downloadFile } from "./download-file.js";
 import { HostCapabilityError } from "./errors.js";
-import { action, hostSupports, pickFile, pickFiles } from "./extensions.js";
+import {
+  action,
+  hostSupports,
+  onNavigate,
+  pickFile,
+  pickFiles,
+  setLocation,
+} from "./extensions.js";
 import { connectUI } from "./host/connect.js";
 import { callToolAsTask } from "./task-handle.js";
 
@@ -24,5 +31,7 @@ import { callToolAsTask } from "./task-handle.js";
   hostSupports,
   pickFile,
   pickFiles,
+  setLocation,
+  onNavigate,
   HostCapabilityError,
 };

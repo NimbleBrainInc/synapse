@@ -46,6 +46,14 @@ export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/
 export const ACTION_METHOD = "ai.nimblebrain/action";
 export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
 export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
+export const LOCATION_METHOD = "ai.nimblebrain/location";
+/**
+ * Host → app: go to one of the trail entries the app last sent by
+ * `ai.nimblebrain/location`. Received, never sent, so it is not an entry in
+ * {@link NIMBLEBRAIN_EXTENSIONS}: the host sends it only to an app that sent a
+ * trail.
+ */
+export const NAVIGATE_METHOD = "ai.nimblebrain/navigate";
 
 /**
  * The NimbleBrain host extensions. This is the complete list; anything else an
@@ -68,6 +76,11 @@ export const NIMBLEBRAIN_EXTENSIONS = {
   requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },
   /** App → host notification: a keyboard shortcut pressed inside the frame. */
   keydown: { method: KEYDOWN_METHOD, capability: KEYDOWN_METHOD },
+  /**
+   * App → host notification: where the app is, as its whole trail. Declaring
+   * it also means the host shows the app's title and breadcrumb.
+   */
+  location: { method: LOCATION_METHOD, capability: LOCATION_METHOD },
 } as const;
 
 export type NimbleBrainExtension = keyof typeof NIMBLEBRAIN_EXTENSIONS;

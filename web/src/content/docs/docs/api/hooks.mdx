@@ -68,6 +68,22 @@ it did.
 | --- | --- | --- | --- |
 | `useAction()` | `(name, params?) => void` | Trigger a host-side action: on NimbleBrain, `openApp` or `openConversation` | `ai.nimblebrain/action`: no-op |
 | `useFileUpload()` | `{ pickFile, pickFiles, isPending }` | The host's native file picker | `ai.nimblebrain/request-file`: both reject with `HostCapabilityError` |
+| `useTrail(trail, navigate)` | `boolean` | Report the view's trail (root first, current last) so the host shows its title and breadcrumb; `navigate(id)` runs when the user picks a level. Returns whether the host shows them, so the view drops its own | `ai.nimblebrain/location`: sends nothing, returns `false` |
+
+```tsx
+const trail = [
+  { id: "people://contacts", label: "People" },
+  { id: `people://contacts/${contact.id}`, label: contact.name },
+];
+const hostShowsTrail = useTrail(trail, (id) => router.go(id));
+const crumbs = [{ label: "People", onClick: () => router.go("people://contacts") }];
+
+<PageHeader
+  crumbs={hostShowsTrail ? undefined : crumbs}
+  title={hostShowsTrail ? undefined : contact.name}
+  actions={<Button>Edit</Button>}
+/>
+```
 
 ## See also
 

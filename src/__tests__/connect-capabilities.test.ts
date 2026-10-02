@@ -11,7 +11,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { HostCapabilityError } from "../errors.js";
-import { action, hostSupports, pickFile, pickFiles } from "../extensions.js";
+import {
+  action,
+  hostSupports,
+  onNavigate,
+  pickFile,
+  pickFiles,
+  setLocation,
+} from "../extensions.js";
 import { readHostTasksCapability, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
 import { FULL_HOST_CAPABILITIES } from "./helpers/host-capabilities.js";
@@ -351,6 +358,77 @@ describe("connect() capabilities", () => {
       action(app, "openConversation", { id: "c1" });
       await flush();
       expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(1);
+    });
+  });
+
+  describe("setLocation / onNavigate", () => {
+    const TRAIL = [
+      { id: "people://contacts", label: "People" },
+      { id: "people://contacts/1", label: "Jane Doe" },
+    ];
+
+    it("sends the whole trail as ai.nimblebrain/location", async () => {
+      app = await connectAndHandshake();
+      setLocation(app, TRAIL);
+
+      const sent = sentNotifications("ai.nimblebrain/location");
+      expect(sent).toHaveLength(1);
+      expect(sent[0].params).toEqual({ trail: TRAIL });
+    });
+
+    it("sends only id and label, whatever else an entry carries", async () => {
+      app = await connectAndHandshake();
+      setLocation(app, [{ id: "a", label: "A", onClick: () => {} } as never]);
+      expect(sentNotifications("ai.nimblebrain/location")[0].params).toEqual({
+        trail: [{ id: "a", label: "A" }],
+      });
+    });
+
+    it("is a no-op where the host did not declare it, and for an empty trail", async () => {
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
+      setLocation(app, TRAIL);
+      await flush();
+      expect(sentNotifications("ai.nimblebrain/location")).toHaveLength(0);
+      app.destroy();
+
+      app = await connectAndHandshake();
+      setLocation(app, []);
+      await flush();
+      expect(sentNotifications("ai.nimblebrain/location")).toHaveLength(0);
+    });
+
+    it("holds the trail to the host's bounds instead of sending one it drops", async () => {
+      app = await connectAndHandshake();
+      const deep = Array.from({ length: 40 }, (_, i) => ({ id: `v${i}`, label: `V${i}` }));
+      setLocation(app, [...deep.slice(0, -1), { id: "last", label: "x".repeat(300) }]);
+
+      const [{ params }] = sentNotifications("ai.nimblebrain/location");
+      const trail = (params as { trail: { id: string; label: string }[] }).trail;
+      expect(trail).toHaveLength(32);
+      expect(trail[0].id).toBe("v0");
+      expect(trail[1].id).toBe("v9");
+      expect(trail[31]).toEqual({ id: "last", label: "x".repeat(200) });
+    });
+
+    it("sends an empty label as a placeholder, since the host refuses the trail over one", async () => {
+      app = await connectAndHandshake();
+      setLocation(app, [TRAIL[0], { id: "people://contacts/2", label: "" }]);
+      const [{ params }] = sentNotifications("ai.nimblebrain/location");
+      expect((params as { trail: { label: string }[] }).trail[1].label).toBe("…");
+    });
+
+    it("onNavigate hands over the id the host names, until unsubscribed", async () => {
+      app = await connectAndHandshake();
+      const handler = vi.fn();
+      const off = onNavigate(app, handler);
+
+      await dispatchNotification("ai.nimblebrain/navigate", { id: "people://contacts" });
+      await dispatchNotification("ai.nimblebrain/navigate", { id: 7 });
+      expect(handler.mock.calls).toEqual([["people://contacts"]]);
+
+      off();
+      await dispatchNotification("ai.nimblebrain/navigate", { id: "people://contacts" });
+      expect(handler).toHaveBeenCalledTimes(1);
     });
   });
 

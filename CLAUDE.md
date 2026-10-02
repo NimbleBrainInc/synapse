@@ -228,7 +228,7 @@ Four things about that seam are load-bearing:
 
 The returned object carries the ext-apps surface plus the handshake state, and
 nothing else.
-The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`), the spec's
+The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`, `setLocation`, `onNavigate`), the spec's
 `ui/download-file` (`downloadFile`) and the MCP tasks utility (`callToolAsTask`)
 are **functions over an `App`** in `src/extensions.ts`, `src/download-file.ts`
 and `src/task-handle.ts`, reaching the transport through `internalsFor(app)`. Adding a capability means adding a function there, not a
@@ -262,6 +262,8 @@ the one slot a spec client's handshake parse keeps):
 - `ai.nimblebrain/action`
 - `ai.nimblebrain/request-file`
 - `ai.nimblebrain/keydown`
+- `ai.nimblebrain/location`, answered host → app by `ai.nimblebrain/navigate`
+  (received, never sent, so not in the table)
 
 `sendMessage` sends the spec's text block and nothing else; what the user is
 acting on reaches the agent through `updateModelContext`.

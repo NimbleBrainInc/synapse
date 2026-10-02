@@ -9,7 +9,14 @@ export { HostCapabilityError } from "./errors.js";
 export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 // NimbleBrain host extensions — composable over `App`, each a no-op or a
 // `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
-export { action, hostSupports, pickFile, pickFiles } from "./extensions.js";
+export {
+  action,
+  hostSupports,
+  onNavigate,
+  pickFile,
+  pickFiles,
+  setLocation,
+} from "./extensions.js";
 // Cross-host UI client (push-first; any MCP Apps host, or standalone). A
 // different axis from `connect()`, and unaffected by it.
 export { connectUI } from "./host/connect.js";
@@ -46,4 +53,5 @@ export type {
   ToolCallResult,
   ToolDefinition,
   ToolResultData,
+  TrailEntry,
 } from "./types.js";

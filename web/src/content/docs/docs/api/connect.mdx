@@ -66,9 +66,11 @@ picker.
 | Function | Description |
 | --- | --- |
 | `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). Rejects with `HostCapabilityError` when `supportsTasks` is false. |
-| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension: `"action"`, `"requestFile"` or `"keydown"`. |
+| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension: `"action"`, `"requestFile"`, `"keydown"` or `"location"`. |
 | `action(app, name, params?)` | Trigger a host-side action: on NimbleBrain, `openApp` (`{ name }`) or `openConversation` (`{ id }`). No-op unless the host declares `ai.nimblebrain/action`. |
 | `pickFile(app, options?)` / `pickFiles(app, options?)` | The host's native file picker. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
+| `setLocation(app, trail)` | Tell the host where the app is: the whole trail, root first, as `{ id, label }` entries. Send it when a view renders and on every navigation; each replaces the last. No-op unless the host declares `ai.nimblebrain/location`. |
+| `onNavigate(app, handler)` | Run `handler(id)` when the user picks a trail level in the host (`ai.nimblebrain/navigate`). Navigate, then call `setLocation` again. Returns the unsubscribe. |
 | `downloadFile(app, filename, content, mimeType?)` | Hand the user a file to save, over the spec's `ui/download-file`. A string travels as the resource's `text`, a `Blob` as base64 `blob`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects with `HostCapabilityError`, without sending, when the host did not declare `downloadFile`. |
 
 ## See also

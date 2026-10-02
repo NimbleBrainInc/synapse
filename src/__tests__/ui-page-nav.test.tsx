@@ -184,6 +184,23 @@ describe("PageHeader", () => {
     expect(titleRow.children).toHaveLength(1);
   });
 
+  it("draws no heading where the host shows the title, and keeps the actions", () => {
+    const { container } = render(
+      <PageHeader actions={<button type="button">Edit</button>} description="Owner of record" />,
+    );
+    expect(screen.queryByRole("heading")).toBeNull();
+    const rows = container.querySelectorAll(":scope > header > *");
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toBe("Edit");
+  });
+
+  it("draws no empty title row when there is nothing to put in it", () => {
+    const { container } = render(<PageHeader description="Owner of record" />);
+    const rows = container.querySelectorAll(":scope > header > *");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].textContent).toBe("Owner of record");
+  });
+
   it("omits the trail entirely on a top-level page", () => {
     render(<PageHeader title="Campaigns" crumbs={[]} />);
     expect(screen.queryByRole("navigation")).toBeNull();

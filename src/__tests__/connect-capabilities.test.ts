@@ -410,6 +410,13 @@ describe("connect() capabilities", () => {
       expect(trail[31]).toEqual({ id: "last", label: "x".repeat(200) });
     });
 
+    it("sends an empty label as a placeholder, since the host refuses the trail over one", async () => {
+      app = await connectAndHandshake();
+      setLocation(app, [TRAIL[0], { id: "people://contacts/2", label: "" }]);
+      const [{ params }] = sentNotifications("ai.nimblebrain/location");
+      expect((params as { trail: { label: string }[] }).trail[1].label).toBe("…");
+    });
+
     it("onNavigate hands over the id the host names, until unsubscribed", async () => {
       app = await connectAndHandshake();
       const handler = vi.fn();

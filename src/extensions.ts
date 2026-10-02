@@ -48,6 +48,8 @@ export function action(app: App, name: string, params?: Record<string, unknown>)
 /** The most a host accepts: a longer trail or label drops the whole message. */
 const MAX_TRAIL_ENTRIES = 32;
 const MAX_LABEL_LENGTH = 200;
+/** Sent for an empty label (a record still loading, a blank name): the host refuses "". */
+const EMPTY_LABEL = "…";
 
 /**
  * Tell the host where the app is: the whole trail, root first, the current view
@@ -62,9 +64,11 @@ const MAX_LABEL_LENGTH = 200;
  * A host that declares `ai.nimblebrain/location` shows the title, so drop the
  * view's own title and breadcrumb there and keep them elsewhere
  * (`hostSupports(app, "location")`). A no-op where it is not declared, and for
- * an empty trail. The trail is held to the host's bounds (32 levels, keeping
- * the root and the deepest; 200 characters a label) rather than sent and
- * dropped whole.
+ * an empty trail. Labels and depth are held to the host's bounds (32 levels,
+ * keeping the root and the deepest; 1 to 200 characters a label, an empty one
+ * sent as "…") rather than sent and dropped whole, which would leave the host
+ * showing the previous view. An `id` is sent as given, since a shortened one
+ * would no longer navigate: keep it to 512 characters.
  */
 export function setLocation(app: App, trail: readonly TrailEntry[]): void {
   if (!hostSupports(app, "location") || trail.length === 0) return;
@@ -73,7 +77,10 @@ export function setLocation(app: App, trail: readonly TrailEntry[]): void {
       ? [trail[0], ...trail.slice(trail.length - (MAX_TRAIL_ENTRIES - 1))]
       : trail;
   internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.location.method, {
-    trail: bounded.map(({ id, label }) => ({ id, label: label.slice(0, MAX_LABEL_LENGTH) })),
+    trail: bounded.map(({ id, label }) => ({
+      id,
+      label: label.slice(0, MAX_LABEL_LENGTH) || EMPTY_LABEL,
+    })),
   });
 }
 

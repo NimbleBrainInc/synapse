@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-10-03
+
+### Fixed
+
+- **`uploadFiles` uploads dropped files.** A dropped file is a reference only the frame it was dropped on may read, so the host's upload of it failed with "Failed to fetch". `uploadFiles` now reads each file in the app's frame and sends a copy holding its bytes; a file over `maxSize` goes unread for the host to refuse, and one that cannot be read rejects naming it.
+
 ## [0.24.0] - 2026-10-03
 
 ### Added

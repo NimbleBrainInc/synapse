@@ -341,8 +341,13 @@ describe("useFileUpload", () => {
     expect(result.current.isPending).toBe(true);
     expect(sent("ai.nimblebrain/request-file")).toHaveLength(0);
 
+    // The file is read before the request goes out.
+    await act(async () => {
+      await vi.waitFor(() => expect(sent("ai.nimblebrain/upload-files")).toHaveLength(1));
+    });
     const request = sent("ai.nimblebrain/upload-files")[0];
-    expect((request.params as { files: unknown[] }).files[0]).toBe(file);
+    const copy = (request.params as { files: File[] }).files[0] as File;
+    expect([copy.name, copy.size]).toEqual(["a.csv", 3]);
 
     await act(async () => {
       window.dispatchEvent(

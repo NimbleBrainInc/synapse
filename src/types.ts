@@ -1,15 +1,15 @@
-import type { McpUiHostCapabilities, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type {
   CreateTaskResult,
   ReadResourceRequest,
   ReadResourceResult,
   Task,
   TaskStatus,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/client";
+import type { McpUiHostCapabilities, McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 
 // ---------- MCP Task Utility (spec 2025-11-25) ----------
 //
-// Re-exported from `@modelcontextprotocol/sdk/types.js` so consumers can
+// Re-exported from `@modelcontextprotocol/client` so consumers can
 // reference spec-compliant task types without a second dependency. Never
 // hand-roll these — the SDK is the source of truth; a rename upstream
 // should surface here as a compile error.
@@ -139,7 +139,7 @@ export interface ToolCallResult<T = unknown> {
    * Key-preserving: any `_meta` entry the host/server attaches propagates
    * without explicit support here. Consumers reading known keys should
    * reference the canonical key names (e.g. `RELATED_TASK_META_KEY` from
-   * `@modelcontextprotocol/sdk/types.js`).
+   * `@modelcontextprotocol/client`).
    */
   _meta?: { [key: string]: unknown };
 }

@@ -1,3 +1,9 @@
+import type {
+  CallToolRequest,
+  ListResourcesRequest,
+  ReadResourceRequest,
+  ResourceListChangedNotification,
+} from "@modelcontextprotocol/client";
 import {
   HOST_CONTEXT_CHANGED_METHOD,
   RESOURCE_TEARDOWN_METHOD,
@@ -6,12 +12,6 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type {
-  CallToolRequest,
-  ListResourcesRequest,
-  ReadResourceRequest,
-  ResourceListChangedNotification,
-} from "@modelcontextprotocol/sdk/types.js";
 
 /**
  * A server's own `tools/call`. Core MCP, so the same reasoning as the resource

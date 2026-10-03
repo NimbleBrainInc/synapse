@@ -17,7 +17,13 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
     clean: true,
-    external: ["react", "@modelcontextprotocol/ext-apps", "@modelcontextprotocol/sdk", "vite"],
+    external: [
+      "react",
+      "@modelcontextprotocol/client",
+      "@modelcontextprotocol/core",
+      "@modelcontextprotocol/ext-apps",
+      "vite",
+    ],
     splitting: true,
     treeshake: true,
   },
@@ -28,6 +34,9 @@ export default defineConfig([
       "synapse-runtime.iife": "src/iife.ts",
     },
     format: ["iife"],
+    // The script runs in an app's iframe. Without this, tsup resolves for
+    // Node, and the MCP client's Node build pulls in code a browser never runs.
+    platform: "browser",
     globalName: "Synapse",
     sourcemap: false,
     dts: false,

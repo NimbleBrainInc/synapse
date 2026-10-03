@@ -10,6 +10,19 @@
  * This prevents silent regressions like clientInfo vs appInfo.
  */
 
+import type {
+  CallToolRequest,
+  CancelTaskRequest,
+  CreateTaskResult,
+  GetTaskPayloadRequest,
+  GetTaskPayloadResult,
+  GetTaskRequest,
+  GetTaskResult,
+  ReadResourceRequest,
+  ReadResourceResult,
+  TaskStatus,
+} from "@modelcontextprotocol/client";
+import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/client";
 // --- Canonical spec types and constants ---
 import type {
   McpUiAppCapabilities,
@@ -44,19 +57,6 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type {
-  CallToolRequest,
-  CancelTaskRequest,
-  CreateTaskResult,
-  GetTaskPayloadRequest,
-  GetTaskPayloadResult,
-  GetTaskRequest,
-  GetTaskResult,
-  ReadResourceRequest,
-  ReadResourceResult,
-  TaskStatus,
-} from "@modelcontextprotocol/sdk/types.js";
-import { RELATED_TASK_META_KEY } from "@modelcontextprotocol/sdk/types.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { connect } from "../connect.js";

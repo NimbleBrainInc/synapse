@@ -45,6 +45,7 @@ export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/
  */
 export const ACTION_METHOD = "ai.nimblebrain/action";
 export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
+export const UPLOAD_FILES_METHOD = "ai.nimblebrain/upload-files";
 export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
 export const LOCATION_METHOD = "ai.nimblebrain/location";
 /**
@@ -74,6 +75,11 @@ export const NIMBLEBRAIN_EXTENSIONS = {
   action: { method: ACTION_METHOD, capability: ACTION_METHOD },
   /** App → host request: the host's file picker, answered `{ files }`. */
   requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },
+  /**
+   * App → host request: store files the app already holds (dropped on it, say),
+   * answered `{ files }` like the picker.
+   */
+  uploadFiles: { method: UPLOAD_FILES_METHOD, capability: UPLOAD_FILES_METHOD },
   /** App → host notification: a keyboard shortcut pressed inside the frame. */
   keydown: { method: KEYDOWN_METHOD, capability: KEYDOWN_METHOD },
   /**

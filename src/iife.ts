@@ -18,6 +18,7 @@ import {
   pickFile,
   pickFiles,
   setLocation,
+  uploadFiles,
 } from "./extensions.js";
 import { connectUI } from "./host/connect.js";
 import { callToolAsTask } from "./task-handle.js";
@@ -33,5 +34,6 @@ import { callToolAsTask } from "./task-handle.js";
   pickFiles,
   setLocation,
   onNavigate,
+  uploadFiles,
   HostCapabilityError,
 };

@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.24.0] - 2026-10-03
+
+### Added
+
+- **`uploadFiles` stores files the app already holds**, such as files dropped on it, the way a pick stores them: same limits, same `{ files }` answer, same refusal. It speaks `ai.nimblebrain/upload-files`, gated on its own declaration, so `hostSupports(app, "uploadFiles")` tells an app whether to offer a drop target. The `File`s cross whole through `postMessage`, never as base64 in a tool call. `useFileUpload()` returns it too. See [connect](https://synapse.nimblebrain.ai/docs/api/connect/).
+
 ## [0.23.0] - 2026-10-02
 
 ### Added

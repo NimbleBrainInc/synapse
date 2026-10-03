@@ -13,6 +13,7 @@ import {
   pickFiles,
   action as sendAction,
   setLocation,
+  uploadFiles,
 } from "../extensions.js";
 import { callToolAsTask } from "../task-handle.js";
 import type {
@@ -26,6 +27,7 @@ import type {
   ToolCallResult,
   ToolResultData,
   TrailEntry,
+  UploadFilesOptions,
 } from "../types.js";
 import { useAppContext } from "./app-provider.js";
 
@@ -321,14 +323,17 @@ export function useTrail(trail: readonly TrailEntry[], navigate: (id: string) =>
 export interface UseFileUploadResult {
   pickFile: (options?: RequestFileOptions) => Promise<FileResult | null>;
   pickFiles: (options?: RequestFileOptions) => Promise<FileResult[]>;
+  /** Store files the app already holds (dropped on it, say). See `uploadFiles`. */
+  uploadFiles: (files: readonly File[], options?: UploadFilesOptions) => Promise<FileResult[]>;
   isPending: boolean;
 }
 
 /**
- * The host's native file picker, with a pending flag. Both functions reject
- * with `HostCapabilityError` where the host did not declare
- * `ai.nimblebrain/request-file`; `hostSupports(app, "requestFile")` says so up
- * front.
+ * The host's native file picker, and uploads of files the app already holds,
+ * with a pending flag. The pickers reject with `HostCapabilityError` where the
+ * host did not declare `ai.nimblebrain/request-file`, and `uploadFiles` where it
+ * did not declare `ai.nimblebrain/upload-files`; `hostSupports(app, "requestFile")`
+ * and `hostSupports(app, "uploadFiles")` say so up front.
  */
 export function useFileUpload(): UseFileUploadResult {
   const app = useAppContext();
@@ -358,7 +363,19 @@ export function useFileUpload(): UseFileUploadResult {
     [app],
   );
 
-  return { pickFile: one, pickFiles: many, isPending };
+  const upload = useCallback(
+    async (files: readonly File[], options?: UploadFilesOptions) => {
+      setIsPending(true);
+      try {
+        return await uploadFiles(app, files, options);
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [app],
+  );
+
+  return { pickFile: one, pickFiles: many, uploadFiles: upload, isPending };
 }
 
 // -----------------------------------------------------------------------------

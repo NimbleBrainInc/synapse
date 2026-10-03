@@ -18,7 +18,13 @@
 import { HostCapabilityError } from "./errors.js";
 import { NAVIGATE_METHOD, NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 import { internalsFor } from "./internals.js";
-import type { App, FileResult, RequestFileOptions, TrailEntry } from "./types.js";
+import type {
+  App,
+  FileResult,
+  RequestFileOptions,
+  TrailEntry,
+  UploadFilesOptions,
+} from "./types.js";
 
 /**
  * Whether the host declared a NimbleBrain extension. Use it to decide what to
@@ -119,6 +125,35 @@ export async function pickFiles(app: App, options?: RequestFileOptions): Promise
   return await requestFile(app, options, true);
 }
 
+/**
+ * Store files the app already holds, such as files dropped on it, the way a
+ * pick stores them: the host uploads each one to the workspace and answers the
+ * stored entries, under the same limits and with the same refusal (a rejection
+ * whose `data` is `{ files, errors }`, the files stored despite it and why each
+ * other was refused).
+ *
+ * The `File` objects cross to the host whole (`postMessage` clones them), never
+ * as base64 in a tool call. Resolves `[]` for an empty list without asking the
+ * host. Rejects with `HostCapabilityError` when the host did not declare
+ * `ai.nimblebrain/upload-files`; `hostSupports(app, "uploadFiles")` says so up
+ * front, to decide whether to offer a drop target at all.
+ */
+export async function uploadFiles(
+  app: App,
+  files: readonly File[],
+  options?: UploadFilesOptions,
+): Promise<FileResult[]> {
+  if (!hostSupports(app, "uploadFiles")) {
+    throw new HostCapabilityError("uploadFiles", NIMBLEBRAIN_EXTENSIONS.uploadFiles.capability);
+  }
+  if (files.length === 0) return [];
+  const result = await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.uploadFiles.method, {
+    files: [...files],
+    maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
+  });
+  return readFiles(result, NIMBLEBRAIN_EXTENSIONS.uploadFiles.method);
+}
+
 function requireRequestFile(feature: string, app: App): void {
   if (!hostSupports(app, "requestFile")) {
     throw new HostCapabilityError(feature, NIMBLEBRAIN_EXTENSIONS.requestFile.capability);
@@ -148,16 +183,21 @@ async function requestFile(
     maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
     multiple,
   });
+  return readFiles(result, NIMBLEBRAIN_EXTENSIONS.requestFile.method);
+}
+
+/** The `{ files }` a picker or an upload answers, each entry shape-checked. */
+function readFiles(result: unknown, method: string): FileResult[] {
   const files = (result as { files?: unknown } | null | undefined)?.files;
   if (files === undefined) {
     throw new Error(
-      "ai.nimblebrain/request-file returned no `files`. The host is older than this " +
+      `${method} returned no \`files\`. The host is older than this ` +
         "SDK targets: it answers the picker with a bare array or `null`, which " +
         "a spec-compliant client cannot parse.",
     );
   }
   if (!Array.isArray(files)) {
-    throw new Error("ai.nimblebrain/request-file returned a `files` field that is not an array.");
+    throw new Error(`${method} returned a \`files\` field that is not an array.`);
   }
   return files.map(validateFileResult);
 }

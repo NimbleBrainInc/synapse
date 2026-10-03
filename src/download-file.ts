@@ -9,12 +9,13 @@
  * asks the host to fetch a URI the app names; a host holding the user's session
  * has every reason to refuse that, and the NimbleBrain host does.
  */
+
+import type { EmbeddedResource } from "@modelcontextprotocol/client";
 import {
   DOWNLOAD_FILE_METHOD,
   type McpUiDownloadFileRequest,
   type McpUiDownloadFileResult,
 } from "@modelcontextprotocol/ext-apps";
-import type { EmbeddedResource } from "@modelcontextprotocol/sdk/types.js";
 import { HostCapabilityError } from "./errors.js";
 import { internalsFor } from "./internals.js";
 import type { App } from "./types.js";

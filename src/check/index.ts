@@ -8,6 +8,20 @@
  */
 
 import type {
+  ReadResourceResult,
+  Resource,
+  ServerCapabilities,
+  Tool,
+} from "@modelcontextprotocol/client";
+import {
+  Client,
+  discoverAuthorizationServerMetadata,
+  discoverOAuthProtectedResourceMetadata,
+  extractWWWAuthenticateParams,
+  StreamableHTTPClientTransport,
+} from "@modelcontextprotocol/client";
+import { ListToolsResultSchema, ResultSchema } from "@modelcontextprotocol/core";
+import type {
   McpUiClientCapabilities,
   McpUiResourceMeta,
   McpUiToolMeta,
@@ -17,20 +31,6 @@ import {
   RESOURCE_MIME_TYPE,
   RESOURCE_URI_META_KEY,
 } from "@modelcontextprotocol/ext-apps/server";
-import {
-  discoverAuthorizationServerMetadata,
-  discoverOAuthProtectedResourceMetadata,
-  extractWWWAuthenticateParams,
-} from "@modelcontextprotocol/sdk/client/auth.js";
-import { Client } from "@modelcontextprotocol/sdk/client/index.js";
-import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
-import type {
-  ReadResourceResult,
-  Resource,
-  ServerCapabilities,
-  Tool,
-} from "@modelcontextprotocol/sdk/types.js";
-import { ListToolsResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 import { type CheckId, PROFILES, type Severity, type TargetName } from "./profiles.js";
 
 export { type CheckId, isTargetName, PROFILES, type Profile, type TargetName } from "./profiles.js";
@@ -171,7 +171,7 @@ async function openSession(
 ): Promise<Session> {
   // Declare MCP Apps support, so a server that gates its UI on the client's
   // capability shows the UI a host would see.
-  const ui: McpUiClientCapabilities = { mimeTypes: [RESOURCE_MIME_TYPE] };
+  const ui = { mimeTypes: [RESOURCE_MIME_TYPE] } satisfies McpUiClientCapabilities;
   const client = new Client(
     { name: "synapse-check", version: "1" },
     { capabilities: { extensions: { [EXTENSION_ID]: ui } } },

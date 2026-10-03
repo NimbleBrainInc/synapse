@@ -190,11 +190,13 @@ async function requestFile(
 function readFiles(result: unknown, method: string): FileResult[] {
   const files = (result as { files?: unknown } | null | undefined)?.files;
   if (files === undefined) {
-    throw new Error(
-      `${method} returned no \`files\`. The host is older than this ` +
-        "SDK targets: it answers the picker with a bare array or `null`, which " +
-        "a spec-compliant client cannot parse.",
-    );
+    // Only the picker had hosts that answered a bare array or `null`.
+    const why =
+      method === NIMBLEBRAIN_EXTENSIONS.requestFile.method
+        ? " The host is older than this SDK targets: it answers the picker with a " +
+          "bare array or `null`, which a spec-compliant client cannot parse."
+        : "";
+    throw new Error(`${method} returned no \`files\`.${why}`);
   }
   if (!Array.isArray(files)) {
     throw new Error(`${method} returned a \`files\` field that is not an array.`);

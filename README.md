@@ -35,7 +35,7 @@ Synapse handles the plumbing so you can focus on the UI. See **[Why Synapse?](do
 npm install @nimblebrain/synapse
 ```
 
-**Peer dependencies:** `@modelcontextprotocol/ext-apps@^1.7.5`, `@modelcontextprotocol/sdk@^1.29.0`
+**Peer dependencies:** `@modelcontextprotocol/ext-apps@^2.0.0`, `@modelcontextprotocol/client@^2.0.0`, `@modelcontextprotocol/core@^2.0.0` (and `zod@^4.2.0`, which ext-apps requires)
 
 **Building a Python MCP server?** The server half — one self-contained `ui://`
 component rendered across ChatGPT, Claude, and NimbleBrain — ships as the

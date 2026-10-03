@@ -1,4 +1,3 @@
-import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import type {
   CallToolRequest,
   CancelTaskRequest,
@@ -12,7 +11,8 @@ import type {
   TaskStatus,
   TaskStatusNotification,
   TaskStatusNotificationParams,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/client";
+import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 
 import { HostCapabilityError } from "./errors.js";
 import { TOOLS_CALL_METHOD } from "./event-map.js";

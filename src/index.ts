@@ -1,7 +1,7 @@
 export type {
   ReadResourceRequest,
   ReadResourceResult,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/client";
 export { connect } from "./connect.js";
 // ext-apps `ui/download-file`, composable over `App`.
 export { downloadFile } from "./download-file.js";

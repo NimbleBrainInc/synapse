@@ -2,6 +2,9 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { McpUiResourceCsp } from "@modelcontextprotocol/ext-apps";
 import { EXTENSION_ID, RESOURCE_MIME_TYPE } from "@modelcontextprotocol/ext-apps/server";
+// The fixture is built on SDK v1 on purpose: `synapse check` runs against
+// third-party servers, most of which are, so this also holds the v2 client
+// the checker uses to a v1 server. SDK v1 is a dev dependency for this file only.
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";

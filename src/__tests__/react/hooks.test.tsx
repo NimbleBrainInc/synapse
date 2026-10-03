@@ -328,4 +328,46 @@ describe("useFileUpload", () => {
     expect(result.current.isPending).toBe(false);
     await expect(pending).resolves.toMatchObject({ filename: "a.csv" });
   });
+
+  it("uploads files the app holds over upload-files, pending until the host answers", async () => {
+    const { result } = renderHook(() => useFileUpload(), { wrapper: createWrapper() });
+    await settle();
+
+    const file = new File(["a,b"], "a.csv", { type: "text/csv" });
+    let pending!: Promise<unknown>;
+    await act(async () => {
+      pending = result.current.uploadFiles([file]);
+    });
+    expect(result.current.isPending).toBe(true);
+    expect(sent("ai.nimblebrain/request-file")).toHaveLength(0);
+
+    const request = sent("ai.nimblebrain/upload-files")[0];
+    expect((request.params as { files: unknown[] }).files[0]).toBe(file);
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: window.parent,
+          data: {
+            jsonrpc: "2.0",
+            id: request.id,
+            result: {
+              files: [
+                {
+                  id: "fl_0123456789abcdef01234567",
+                  filename: "a.csv",
+                  mimeType: "text/csv",
+                  size: 3,
+                },
+              ],
+            },
+          },
+        }),
+      );
+      await pending;
+    });
+
+    expect(result.current.isPending).toBe(false);
+    await expect(pending).resolves.toMatchObject([{ filename: "a.csv" }]);
+  });
 });

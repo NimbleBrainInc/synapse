@@ -18,6 +18,7 @@ import {
   pickFile,
   pickFiles,
   setLocation,
+  uploadFiles,
 } from "../extensions.js";
 import { readHostTasksCapability, TASKS_EXTENSION_ID } from "../task-handle.js";
 import type { App, TasksCapability } from "../types.js";
@@ -298,6 +299,53 @@ describe("connect() capabilities", () => {
       const p = pickFile(app);
       await respondToLastRequest({ files: [] });
       await expect(p).resolves.toBeNull();
+    });
+  });
+
+  describe("uploadFiles", () => {
+    const stored = {
+      id: "fl_0123456789abcdef01234567",
+      filename: "a.csv",
+      mimeType: "text/csv",
+      size: 3,
+    };
+
+    it("sends the File objects themselves, and resolves the stored entries", async () => {
+      app = await connectAndHandshake();
+      const file = new File(["a,b"], "a.csv", { type: "text/csv" });
+      const p = uploadFiles(app, [file], { maxSize: 1024 });
+
+      const msg = lastRequest();
+      expect(msg.method).toBe("ai.nimblebrain/upload-files");
+      const params = msg.params as { files: unknown[]; maxSize: number };
+      // The File crosses whole: postMessage clones it, so no bytes are encoded here.
+      expect(params.files[0]).toBe(file);
+      expect(params.maxSize).toBe(1024);
+
+      await respondToLastRequest({ files: [stored] });
+      await expect(p).resolves.toEqual([stored]);
+    });
+
+    it("resolves [] for no files without asking the host", async () => {
+      app = await connectAndHandshake();
+      await expect(uploadFiles(app, [])).resolves.toEqual([]);
+      expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(0);
+    });
+
+    it("throws if an entry the host returns has no `id`", async () => {
+      app = await connectAndHandshake();
+      const p = uploadFiles(app, [new File(["x"], "x.txt")]);
+      await respondToLastRequest({ files: [{ filename: "x.txt" }] });
+      await expect(p).rejects.toThrow(/without a string `id`/);
+    });
+
+    it("rejects without sending where the host did not declare it", async () => {
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
+      expect(hostSupports(app, "uploadFiles")).toBe(false);
+      const error = await uploadFiles(app, [new File(["x"], "x.txt")]).catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(HostCapabilityError);
+      expect((error as HostCapabilityError).capability).toBe("ai.nimblebrain/upload-files");
+      expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(0);
     });
   });
 

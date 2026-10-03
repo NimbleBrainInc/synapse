@@ -188,6 +188,11 @@ export interface RequestFileOptions {
   multiple?: boolean;
 }
 
+export interface UploadFilesOptions {
+  /** Max file size in bytes. Default: 25 MB. The host's own limit wins when lower. */
+  maxSize?: number;
+}
+
 // ---------- Agent-facing state ----------
 
 /** What `useModelContext`'s declarative factory returns. */

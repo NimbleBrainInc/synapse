@@ -16,6 +16,7 @@ export {
   pickFile,
   pickFiles,
   setLocation,
+  uploadFiles,
 } from "./extensions.js";
 // Cross-host UI client (push-first; any MCP Apps host, or standalone). A
 // different axis from `connect()`, and unaffected by it.
@@ -54,4 +55,5 @@ export type {
   ToolDefinition,
   ToolResultData,
   TrailEntry,
+  UploadFilesOptions,
 } from "./types.js";

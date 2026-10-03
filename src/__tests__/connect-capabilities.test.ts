@@ -310,20 +310,50 @@ describe("connect() capabilities", () => {
       size: 3,
     };
 
-    it("sends the File objects themselves, and resolves the stored entries", async () => {
+    it("sends a copy of each file holding its bytes, and resolves the stored entries", async () => {
       app = await connectAndHandshake();
-      const file = new File(["a,b"], "a.csv", { type: "text/csv" });
+      const file = new File(["a,b"], "a.csv", { type: "text/csv", lastModified: 42 });
       const p = uploadFiles(app, [file], { maxSize: 1024 });
+      // Reading the file is async; let it finish before the request goes out.
+      await vi.waitFor(() => expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(1));
 
       const msg = lastRequest();
       expect(msg.method).toBe("ai.nimblebrain/upload-files");
-      const params = msg.params as { files: unknown[]; maxSize: number };
-      // The File crosses whole: postMessage clones it, so no bytes are encoded here.
-      expect(params.files[0]).toBe(file);
+      const params = msg.params as { files: File[]; maxSize: number };
+      // A copy read in this frame, not the caller's File: a dropped file's
+      // reference is readable only here, so the host must get the bytes.
+      const sent = params.files[0] as File;
+      expect(sent).not.toBe(file);
+      expect(sent).toBeInstanceOf(File);
+      expect([sent.name, sent.type, sent.size, sent.lastModified]).toEqual([
+        "a.csv",
+        "text/csv",
+        3,
+        42,
+      ]);
+      expect(await sent.text()).toBe("a,b");
       expect(params.maxSize).toBe(1024);
 
       await respondToLastRequest({ files: [stored] });
       await expect(p).resolves.toEqual([stored]);
+    });
+
+    it("sends a file over maxSize unread, for the host to refuse on its size", async () => {
+      app = await connectAndHandshake();
+      const big = new File(["0123456789"], "big.bin");
+      const read = vi.spyOn(big, "arrayBuffer");
+      void uploadFiles(app, [big], { maxSize: 4 }).catch(() => {});
+      await vi.waitFor(() => expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(1));
+      expect((lastRequest().params as { files: File[] }).files[0]).toBe(big);
+      expect(read).not.toHaveBeenCalled();
+    });
+
+    it("rejects, naming the file, when a file cannot be read, and sends nothing", async () => {
+      app = await connectAndHandshake();
+      const gone = new File(["x"], "gone.txt");
+      vi.spyOn(gone, "arrayBuffer").mockRejectedValue(new DOMException("NotFoundError"));
+      await expect(uploadFiles(app, [gone])).rejects.toThrow(/gone\.txt/);
+      expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(0);
     });
 
     it("resolves [] for no files without asking the host", async () => {
@@ -335,6 +365,7 @@ describe("connect() capabilities", () => {
     it("throws if an entry the host returns has no `id`", async () => {
       app = await connectAndHandshake();
       const p = uploadFiles(app, [new File(["x"], "x.txt")]);
+      await vi.waitFor(() => expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(1));
       await respondToLastRequest({ files: [{ filename: "x.txt" }] });
       await expect(p).rejects.toThrow(/without a string `id`/);
     });

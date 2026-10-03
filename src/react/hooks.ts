@@ -1,9 +1,9 @@
-import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import type {
   ResourceListChangedNotification,
   Task,
   TaskStatus,
-} from "@modelcontextprotocol/sdk/types.js";
+} from "@modelcontextprotocol/client";
+import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
 import {

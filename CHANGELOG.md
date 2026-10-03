@@ -6,11 +6,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.24.1] - 2026-10-03
+## [0.25.1] - 2026-10-03
 
 ### Fixed
 
 - **`uploadFiles` uploads dropped files.** A dropped file is a reference only the frame it was dropped on may read, so the host's upload of it failed with "Failed to fetch". `uploadFiles` now reads each file in the app's frame and sends a copy holding its bytes; a file over `maxSize` goes unread for the host to refuse, and one that cannot be read rejects naming it.
+
+## [0.25.0] - 2026-10-03
+
+### Breaking
+
+- **Synapse runs on `@modelcontextprotocol/ext-apps` 2.x and the MCP TypeScript SDK 2.x.** The peer dependencies are `@modelcontextprotocol/ext-apps@^2.0.0`, `@modelcontextprotocol/client@^2.0.0` and `@modelcontextprotocol/core@^2.0.0`, in place of `ext-apps@^1.7.5` and `@modelcontextprotocol/sdk@^1.29.0`. ext-apps 2 needs `zod@^4.2.0` and Node 20+. The MCP Apps wire protocol is unchanged, so an app on 0.25 runs in a host on ext-apps 1.x and an app on 0.24 runs in a host on 2.x. See ext-apps' [migration guide](https://apps.extensions.modelcontextprotocol.io/api/documents/migrate-to-v2.html).
+
+  **Migration:** remove `@modelcontextprotocol/sdk` if nothing else uses it, install `@modelcontextprotocol/ext-apps@^2`, `@modelcontextprotocol/client@^2`, `@modelcontextprotocol/core@^2` and `zod@^4.2`, and import SDK types from `@modelcontextprotocol/client` instead of `@modelcontextprotocol/sdk/types.js`.
+
+### Changed
+
+- **The `connect` script and an app's Synapse code are about 17% larger** (about 135 KB gzipped, from 116 KB), because ext-apps 2's `App` is built on the SDK 2 client's protocol layer. The script is built for the browser, so it does not carry the client's Node build.
 
 ## [0.24.0] - 2026-10-03
 

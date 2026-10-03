@@ -27,7 +27,7 @@ const BUDGETS = [
     // fail this budget with no change to Synapse. Those bytes still land in
     // the app because of Synapse, so the budget counts them.
     name: "React path (connect + AppProvider + hooks, React external)",
-    limit: 120_000,
+    limit: 140_000,
     measure: () =>
       bundle(
         'export * from "./dist/react/index.js"; export { connect } from "./dist/index.js";',
@@ -37,7 +37,7 @@ const BUDGETS = [
     // `dist/connect.iife.global.js`, the `window.Synapse` script tag. It bundles
     // ext-apps' `App` and its schemas by design.
     name: "connect IIFE (dist/connect.iife.global.js)",
-    limit: 121_000,
+    limit: 139_000,
     measure: () => readFileSync(resolve(root, "dist/connect.iife.global.js")),
   },
   {

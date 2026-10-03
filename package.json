@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.24.1",
+  "version": "0.25.1",
   "description": "Agent-aware app SDK for the MCP ext-apps protocol",
   "type": "module",
   "exports": {
@@ -75,8 +75,9 @@
   },
   "author": "NimbleBrain Inc.",
   "peerDependencies": {
-    "@modelcontextprotocol/ext-apps": "^1.7.5",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/core": "^2.0.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.0",
     "react": "^18.0.0 || ^19.0.0"
   },
   "peerDependenciesMeta": {
@@ -86,8 +87,11 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.9",
-    "@modelcontextprotocol/ext-apps": "^1.7.5",
-    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@modelcontextprotocol/client": "^2.3.0",
+    "@modelcontextprotocol/core": "^2.3.0",
+    "@modelcontextprotocol/ext-apps": "^2.0.3",
+    "@modelcontextprotocol/sdk": "^1.32.0",
+    "@modelcontextprotocol/server": "^2.3.0",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
@@ -98,7 +102,8 @@
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vite": "^8.0.3",
-    "vitest": "^4.1.2"
+    "vitest": "^4.1.2",
+    "zod": "^4.6.5"
   },
   "publishConfig": {
     "access": "public"

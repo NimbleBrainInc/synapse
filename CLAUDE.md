@@ -117,7 +117,7 @@ Releases are public and provenance-attested — published artifacts carry a sign
    };
    ```
 
-3. **Never use `as any` for content blocks.** `TextContent` from `@modelcontextprotocol/sdk/types.js` already has `_meta?: { [key: string]: unknown }`.
+3. **Never use `as any` for content blocks.** `TextContent` from `@modelcontextprotocol/client` already has `_meta?: { [key: string]: unknown }`.
 
 4. **Never weaken `__tests__/spec-compliance.test.ts`.** It enforces wire-format correctness at both compile time and runtime. If a test fails, fix the code, not the test.
 
@@ -311,7 +311,7 @@ export const HOST_CONTEXT_CHANGED_METHOD = "ui/notifications/host-context-change
 export const REQUEST_TEARDOWN_METHOD = "ui/notifications/request-teardown";
 export const RESOURCE_TEARDOWN_METHOD = "ui/resource-teardown";
 
-// MCP 2025-11-25 tasks utility — mirrors `@modelcontextprotocol/sdk/types.js`
+// MCP 2025-11-25 tasks utility — mirrors `@modelcontextprotocol/client`
 // constants. Method strings are frozen by the spec; keep these in lockstep
 // with `src/task-handle.ts` (and any future `src/task-methods.ts`). The SDK
 // publishes these only as Zod `z.literal(...)`s — our source files derive
@@ -330,7 +330,8 @@ SHIM
 bunx esbuild src/_iife-entry.ts \
   --bundle --format=iife --minify \
   --alias:@modelcontextprotocol/ext-apps=./src/_shims/ext-apps.ts \
-  --alias:@modelcontextprotocol/sdk/types.js=./src/_shims/ext-apps.ts \
+  --alias:@modelcontextprotocol/client=./src/_shims/ext-apps.ts \
+  --alias:@modelcontextprotocol/core=./src/_shims/ext-apps.ts \
   --external:react --platform=browser \
   --outfile=<target>
 

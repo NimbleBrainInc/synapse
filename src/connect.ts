@@ -1,4 +1,12 @@
 import type {
+  CallToolRequest,
+  ReadResourceRequest,
+  ReadResourceResult,
+  RequestOptions,
+  TextContent,
+} from "@modelcontextprotocol/client";
+import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/core";
+import type {
   AppEventMap,
   AppNotification,
   AppRequest,
@@ -19,14 +27,6 @@ import {
   TOOL_INPUT_PARTIAL_METHOD,
   TOOL_RESULT_METHOD,
 } from "@modelcontextprotocol/ext-apps";
-import type { RequestOptions } from "@modelcontextprotocol/sdk/shared/protocol.js";
-import type {
-  CallToolRequest,
-  ReadResourceRequest,
-  ReadResourceResult,
-  TextContent,
-} from "@modelcontextprotocol/sdk/types.js";
-import { CallToolResultSchema, ResultSchema } from "@modelcontextprotocol/sdk/types.js";
 
 import { parseToolResultParams } from "./content-parser.js";
 import { extractHostFontCss, extractTheme } from "./detection.js";

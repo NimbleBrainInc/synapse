@@ -11,7 +11,7 @@ One `SynapseUI` declaration serves a self-contained HTML component to every MCP
 Apps host — **ChatGPT**, **Claude**, and the **NimbleBrain** runtime — replacing the
 per-app hand-rolled shim.
 It is an MCP extension (SEP-2133): hand the instance to `MCPServer` and it
-contributes its `ui://` resource and its `tools/call` interceptor.
+contributes its `ui://` resource.
 
 ```python
 from mcp.server.mcpserver import MCPServer
@@ -20,7 +20,6 @@ from nimblebrain_synapse import SynapseUI
 report_ui = SynapseUI(
     uri="ui://bassethound/report",
     template=load_template(),            # data-free HTML (carries the SDK + data markers)
-    preferred_size=("100%", "auto"),
 )
 mcp = MCPServer("bassethound", extensions=[report_ui])
 
@@ -30,18 +29,11 @@ async def analyze_domain(domain: str) -> Dossier:
 ```
 
 Passing the instance in `extensions=` serves one data-free `ui://` resource under
-`text/html;profile=mcp-app` and installs the `tools/call` interceptor. `tool_meta` on
+`text/html;profile=mcp-app`. `tool_meta` on
 the tool descriptor carries the binding, `ui.resourceUri`; ChatGPT and Claude both
 resolve it, read the resource and render the component from the result's
 `structuredContent`, with no UI HTML in the result content. Plain MCP clients ignore
 the `_meta` and still read `structuredContent`.
-
-`bind(tool, embed_resource=True)` additionally bakes the rendered component (dossier
-in a `<script>`) into that tool's result content, for a host that renders solely
-from an embedded copy. It is off by default so that `audience: ["user"]` HTML can't
-leak into a client that won't render it. `bind` may be called before or after the
-server is constructed; the resource is built at construction, so a `SynapseUI` is
-fully formed before `MCPServer` reads it.
 
 ## The keys each input reaches
 
@@ -69,9 +61,6 @@ ChatGPT takes an origin the developer declares, while Claude derives
 Leave both unset unless the component needs a stable origin. Every host reads
 `ui.domain` from the one resource, so `mcp_app_domain` reaches ChatGPT too: set it
 only when each host the server targets accepts that value.
-
-`tool_meta(widget_accessible=)` still works and warns: it is
-`visibility=["model", "app"]` or `visibility=["model"]`.
 
 ## Sign-in
 
@@ -104,11 +93,13 @@ of fields, so the top-level form cannot be emitted through it.
 
 The `template` is data-free HTML that carries two markers:
 
-- `<!--__SYNAPSE_SDK__-->` — replaced with the inlined client SDK `<script>`.
+- `<!--__SYNAPSE_SDK__-->` — replaced with the inlined client SDK `<script>`. A
+  template without it raises `ValueError`, unless `inline_sdk=False` because the
+  template carries the SDK itself.
 - `<script type="application/json" id="synapse-ui-data">/*__SYNAPSE_DATA__*/</script>`
-  — the data slot; `render_html(data)` substitutes the escaped payload here (the
-  served copy leaves the marker, so the client reads `null` and falls back to the
-  host's push).
+  — the data slot. The served copy leaves the marker, so the client reads `null` and
+  takes the host's push. `render_html(data)` substitutes the escaped payload here,
+  for a page rendered outside a host, such as a test or a sample harness.
 
 `SynapseUI._safe_json` escapes the payload for `<script>` embedding (the XSS
 defense) — framework-owned and on by default.
@@ -154,10 +145,8 @@ What both halves share is the **wire protocol** — the `ui://` resource MIME, t
 **This package requires mcp 2.x from 2.1** (`mcp>=2.1.0,<3`) and does not run on 1.x. It is
 built on two things that exist only in 2.x: the SEP-2133 extension interface
 (`mcp.server.extension.Extension`), and `mcp.server.apps` for the MCP Apps
-identifier and MIME. On 1.x the equivalent of `intercept_tool_call` did not exist,
-and this package reached into `FastMCP`'s private handler registry to get one — so
-there is no shape that serves both majors, and the range is a single major rather
-than a span.
+identifier and MIME. Neither exists in 1.x, so there is no shape that serves both
+majors, and the range is a single major rather than a span.
 
 The floor is 2.1.0 because 2.0.0 validates an error result from a tool with
 structured output against its output schema and replaces it, dropping the challenge

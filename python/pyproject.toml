@@ -1,6 +1,6 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.7.1"
+version = "0.8.0"
 description = "Server half of the Synapse cross-host UI framework: declare one self-contained ui:// component as an MCP extension and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,10 +21,8 @@ classifiers = [
 dependencies = [
     # mcp 2.x only. SynapseUI is an `mcp.server.extension.Extension` (SEP-2133) and
     # takes its identifier and the MCP Apps MIME from `mcp.server.apps`; neither
-    # module exists in 1.x, where `FastMCP` (now `MCPServer`) also had no
-    # result-transform hook and this package patched `_mcp_server.request_handlers`
-    # to get one. There is no 1.x-compatible shape for the current code, so the
-    # range does not span both. The floor is 2.1.0, not 2.0.0: 2.0.0 validates an
+    # module exists in 1.x, so there is no 1.x-compatible shape and the range does
+    # not span both. The floor is 2.1.0, not 2.0.0: 2.0.0 validates an
     # error `CallToolResult` from a tool with structured output against the output
     # schema and replaces it, so the challenge `auth_error_result` carries never
     # reaches the client.

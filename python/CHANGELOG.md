@@ -8,6 +8,44 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0]
+
+### Breaking
+
+- **`tool_meta(widget_accessible=...)` is removed.** Pass `visibility`.
+
+  **Migration:** `widget_accessible=True` is `visibility=["model", "app"]`, the
+  default, and `widget_accessible=False` is `visibility=["model"]`.
+
+- **The mcp-ui embedded copy is removed: `bind()`, `embedded_resource()`, the
+  `preferred_size` argument and the `MCPUI_MIME` export.** A result no longer
+  carries a `text/html` `EmbeddedResource` or `mcpui.dev/ui-preferred-frame-size`.
+  Every host renders the one `ui://` resource from `ui.resourceUri` and the
+  result's `structuredContent`, so `SynapseUI` contributes the resource and no
+  `tools/call` interceptor. `render_html()` stays, for a page rendered outside a
+  host.
+
+  **Migration:** delete `bind(...)` calls and the `preferred_size=` argument.
+  `SynapseUI(..., preferred_size=...)` and `from nimblebrain_synapse import
+  MCPUI_MIME` now raise.
+
+- **A template must carry `SDK_MARKER` (`<!--__SYNAPSE_SDK__-->`).** `SynapseUI`
+  raises `ValueError` for a template without it, unless `inline_sdk=False`.
+
+  **Migration:** put `<!--__SYNAPSE_SDK__-->` where the client `<script>` goes,
+  before the component's own script.
+
+- **`__version__` reads the installed distribution only.** Importing from a source
+  tree that is not installed raises `PackageNotFoundError`.
+
+  **Migration:** install the package, editable for a checkout
+  (`uv pip install -e python`).
+
+### Changed
+
+- Bundles the client IIFE from `@nimblebrain/synapse` 0.28.0
+  (`__client_version__ = "0.28.0"`).
+
 ## [0.7.1]
 
 ### Fixed

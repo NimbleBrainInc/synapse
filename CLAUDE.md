@@ -174,9 +174,8 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
   `ui.visibility`) and the resource `_meta` (`ui.csp`, `ui.prefersBorder`), each with
   ChatGPT's alias for it, kept in one marked section of `server.py` whose comment says
-  why; plus the `<script>`-safe embed (XSS defense), and the `tools/call` interceptor
-  that bakes the component into a bound tool's result when `embed_resource=True`.
-  Never add a second copy of the resource under another MIME. **A host-specific key
+  why; plus the `<script>`-safe embed (XSS defense) that `render_html` uses to bake
+  a payload into the template. Never add a second copy of the resource under another MIME. **A host-specific key
   that mirrors a spec value is emitted always, derived from that value** — ChatGPT's
   documented default for a missing `openai/widgetAccessible` is *not app-accessible*,
   so an omitted alias is a silent change of behaviour rather than a fallback. OpenAI

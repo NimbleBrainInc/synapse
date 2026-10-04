@@ -403,7 +403,7 @@ describe("callToolAsTask — run as a task", () => {
     expect(await resultPromise).toBeInstanceOf(TaskError);
   });
 
-  it("rejects when a poll's tasks/get fails", async () => {
+  it("rejects at once when tasks/get says the task is unknown (-32602)", async () => {
     await ready();
     vi.useFakeTimers();
     const handle = await startTask("tsk_gone", { pollIntervalMs: 500 });
@@ -413,6 +413,45 @@ describe("callToolAsTask — run as a task", () => {
     const err = await resultPromise;
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(TaskError);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sent(TASKS_GET_METHOD)).toHaveLength(1);
+  });
+
+  it("keeps polling through a failed tasks/get, and the count resets on success", async () => {
+    await ready();
+    vi.useFakeTimers();
+    const handle = await startTask("tsk_blip", { pollIntervalMs: 500 });
+    let settled = false;
+    const resultPromise = handle.result().finally(() => {
+      settled = true;
+    });
+
+    // Two failures, a success, two more failures: never three in a row.
+    for (const answer of ["fail", "fail", "ok", "fail", "fail"] as const) {
+      await vi.advanceTimersByTimeAsync(500);
+      if (answer === "fail") await respondError(TASKS_GET_METHOD, -32603, "blip");
+      else await respond(TASKS_GET_METHOD, wireTask("tsk_blip", WORKING));
+    }
+    expect(settled).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(500);
+    await respond(TASKS_GET_METHOD, wireTask("tsk_blip", COMPLETED, { result: TOOL_RESULT }));
+    expect((await resultPromise).data).toEqual({ answer: 42 });
+  });
+
+  it("rejects on the third consecutive failed tasks/get", async () => {
+    await ready();
+    vi.useFakeTimers();
+    const handle = await startTask("tsk_down", { pollIntervalMs: 500 });
+    const resultPromise = handle.result().catch((e: unknown) => e);
+    for (let i = 0; i < 3; i += 1) {
+      await vi.advanceTimersByTimeAsync(500);
+      await respondError(TASKS_GET_METHOD, -32603, "down");
+    }
+    const err = await resultPromise;
+    expect((err as Error).message).toMatch(/down/);
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(sent(TASKS_GET_METHOD)).toHaveLength(3);
   });
 
   it("an aborted signal stops polling and rejects with its reason", async () => {

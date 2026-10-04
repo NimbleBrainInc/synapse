@@ -64,8 +64,7 @@ function isTextBlock(block: unknown): block is McpTextBlock {
 function extractMeta(result: McpCallToolResult): { [key: string]: unknown } | undefined {
   const meta = result._meta;
   if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
-  // Shallow spread so mutations on either side don't leak. Preserves the
-  // full key set including `io.modelcontextprotocol/related-task`.
+  // Shallow spread so mutations on either side don't leak.
   return { ...meta };
 }
 

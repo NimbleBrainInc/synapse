@@ -51,7 +51,9 @@ export interface TaskHandle<TOutput = unknown> {
    *
    * Rejects with `TaskError` when the task fails (carrying the host's error),
    * is cancelled, or asks for input: this SDK cannot answer an input request,
-   * so it cancels the task first.
+   * so it cancels the task first. A failed poll is retried; it rejects with
+   * the poll's error after three in a row, or at once on `-32602` (unknown
+   * task).
    */
   result(options?: TaskResultOptions): Promise<ToolCallResult<TOutput>>;
 

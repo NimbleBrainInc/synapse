@@ -74,7 +74,7 @@ interface WireTask {
   status: TaskStatus;
   createdAt: string;
   lastUpdatedAt: string;
-  ttlMs?: number;
+  ttlMs?: number | null;
   pollIntervalMs?: number;
   statusMessage?: string;
   result?: CallToolResult;
@@ -84,6 +84,8 @@ interface WireTask {
 /** Poll cadence when the task names none, and the floor under one it names. */
 const DEFAULT_POLL_INTERVAL_MS = 2_000;
 const MIN_POLL_INTERVAL_MS = 250;
+/** Consecutive failed `tasks/get` polls after which `result()` rejects. */
+const MAX_POLL_FAILURES = 3;
 
 // -----------------------------------------------------------------------------
 // Caller-facing factory
@@ -174,6 +176,7 @@ export async function callToolAsTask<TOutput = unknown>(
       let fetched = false;
       // A `tasks/get` that omits `pollIntervalMs` keeps the last one named.
       let hinted = raw.pollIntervalMs;
+      let failures = 0;
       for (;;) {
         if (typeof wire.pollIntervalMs === "number") hinted = wire.pollIntervalMs;
         signal?.throwIfAborted();
@@ -204,8 +207,18 @@ export async function callToolAsTask<TOutput = unknown>(
             await wait(pollDelay(hinted), signal);
         }
         if (app.destroyed) throw new Error(`callToolAsTask: app destroyed while ${taskId} ran`);
-        wire = await get();
-        fetched = true;
+        try {
+          wire = await get();
+          fetched = true;
+          failures = 0;
+        } catch (err) {
+          // A poll can fail without the task failing. Only an unknown task
+          // (-32602) or a run of failures ends the wait.
+          failures += 1;
+          if (failures >= MAX_POLL_FAILURES || (err as { code?: unknown })?.code === -32602) {
+            throw err;
+          }
+        }
       }
     },
 

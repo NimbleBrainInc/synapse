@@ -277,7 +277,7 @@ describe("useCallToolAsTask — polling to the end", () => {
     expect(r.result.current.isWorking).toBe(false);
   });
 
-  it("a failed poll ends the hook as failed with the error", async () => {
+  it("a poll that gives up sets error but keeps the last known status", async () => {
     vi.useFakeTimers();
     const r = await renderReady();
     await fireWith(r, wireTask("tsk_gone", WORKING, { pollIntervalMs: 500 }));
@@ -287,8 +287,27 @@ describe("useCallToolAsTask — polling to the end", () => {
       await flush();
     });
     expect(r.result.current.error?.message).toMatch(/unknown task/);
-    expect(r.result.current.task?.status).toBe(FAILED);
+    expect(r.result.current.task?.status).toBe(WORKING);
     expect(r.result.current.isTerminal).toBe(true);
+    expect(r.result.current.isWorking).toBe(false);
+  });
+
+  it("one failed poll does not end the task", async () => {
+    vi.useFakeTimers();
+    const r = await renderReady();
+    await fireWith(r, wireTask("tsk_blip", WORKING, { pollIntervalMs: 500 }));
+    await advance(500);
+    await act(async () => {
+      await respondError(TASKS_GET_METHOD, -32603, "blip");
+      await flush();
+    });
+    expect(r.result.current.error).toBeNull();
+    expect(r.result.current.isWorking).toBe(true);
+
+    await advance(500);
+    await answerGet(wireTask("tsk_blip", COMPLETED, { result: TOOL_RESULT }));
+    expect(r.result.current.result?.data).toEqual({ answer: 42 });
+    expect(r.result.current.error).toBeNull();
   });
 });
 
@@ -316,6 +335,27 @@ describe("useCallToolAsTask — cancel()", () => {
 
     await advance(10_000);
     expect(sent(TASKS_GET_METHOD)).toHaveLength(1);
+  });
+
+  it("a cancel the server finishes later still ends quietly", async () => {
+    vi.useFakeTimers();
+    const r = await renderReady();
+    await fireWith(r, wireTask("tsk_coop", WORKING, { pollIntervalMs: 500 }));
+
+    // Cancellation is cooperative: the task is still working right after.
+    await act(async () => {
+      void r.result.current.cancel();
+      await respond(TASKS_CANCEL_METHOD, {});
+      await respond(TASKS_GET_METHOD, wireTask("tsk_coop", WORKING));
+      await flush();
+    });
+    expect(r.result.current.task?.status).toBe(WORKING);
+
+    await advance(500);
+    await answerGet(wireTask("tsk_coop", CANCELLED));
+    expect(r.result.current.task?.status).toBe(CANCELLED);
+    expect(r.result.current.error).toBeNull();
+    expect(r.result.current.isTerminal).toBe(true);
   });
 
   it("surfaces a cancel failure via error", async () => {

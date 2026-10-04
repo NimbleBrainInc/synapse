@@ -91,7 +91,9 @@ When the server answers with a task, the handle polls `tasks/get` at the
 task's `pollInterval` (2 s when it names none, never faster than every 250 ms).
 A terminal `tasks/get` carries the outcome inline: the result when `completed`,
 the error when `failed`. `onStatus` and the hook's `task` are fed by those
-polls; the host pushes no status of its own.
+polls; the host pushes no status of its own. A failed poll is retried: `result()`
+rejects only after three in a row, or at once when the host no longer knows the
+task (`-32602`).
 
 Two things to know about cancellation: `cancel` sends `tasks/cancel`, and
 unmounting the component, or firing again, stops polling but does **not**

@@ -473,6 +473,8 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
   const handleRef = useRef<TaskHandle<TOutput> | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  // Set by `cancel()` for the current fire; reset by the next one.
+  const cancelRequested = useRef(false);
 
   const detachCurrent = useCallback(() => {
     abortRef.current?.abort();
@@ -492,6 +494,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
       setResult(null);
       setError(null);
       setStopped(false);
+      cancelRequested.current = false;
 
       let handle: TaskHandle<TOutput>;
       try {
@@ -533,17 +536,19 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
         },
         (err) => {
           if (gen !== genRef.current || abort.signal.aborted) return;
-          if (err instanceof TaskError) {
-            setTask(err.task);
-          } else {
-            // The poll itself failed, so the task's real state is unknown.
-            setTask((prev) =>
-              prev
-                ? { ...prev, status: FAILED_STATUS, lastUpdatedAt: new Date().toISOString() }
-                : prev,
-            );
-          }
+          // A poll that gave up leaves the task's real state unknown, so the
+          // last status observed stays.
+          if (err instanceof TaskError) setTask(err.task);
           setStopped(true);
+          // A cancel the caller asked for is not an error, however late the
+          // server finishes it.
+          if (
+            cancelRequested.current &&
+            err instanceof TaskError &&
+            err.task.status === CANCELLED_STATUS
+          ) {
+            return;
+          }
           setError(err instanceof Error ? err : new Error(String(err)));
         },
       );
@@ -557,6 +562,7 @@ export function useCallToolAsTask<TInput = Record<string, unknown>, TOutput = un
     const h = handleRef.current;
     if (!h) return;
     const gen = genRef.current;
+    cancelRequested.current = true;
     try {
       const cancelled = await h.cancel();
       if (gen !== genRef.current) return;

@@ -1,6 +1,6 @@
 ---
 title: "Handle long-running tools (tasks)"
-description: "Research runs, batch imports, and multi-stage analyses blow past the ~60s MCP request timeout. useCallToolAsTask runs the tool as a task, returning a handle immediately and fetching the result when the work finishes."
+description: "Research runs, batch imports, and multi-stage analyses blow past the ~60s MCP request timeout. useCallToolAsTask lets the server run the tool as a task, returning a handle immediately and polling for the result until the work finishes."
 ---
 
 Some tool work does not fit in one request. A research run, a batch import, or a
@@ -11,8 +11,8 @@ the result when it lands, possibly after the user has navigated away and back.
 ## The recipe
 
 `useCallToolAsTask<TInput, TOutput>(name)` wraps the full task lifecycle. `fire`
-starts (or restarts) the task and returns immediately, `task` carries the live
-status, `result` and `error` populate when the work reaches a terminal state,
+starts (or restarts) the call and resolves as soon as the server answers it,
+`task` carries the live status, `result` and `error` populate when the work reaches a terminal state,
 `isWorking` and `isTerminal` are derived flags for rendering, and `cancel` stops
 an in-flight task. Wrap your tree in `<AppProvider>`.
 
@@ -30,54 +30,45 @@ function ResearchPanel() {
 }
 ```
 
-## Declare the tool task-aware on the server
+## The server decides
 
-The tool has to opt in. Its `tools/list` entry declares
-`execution.taskSupport: "optional"` (or `"required"`). With FastMCP (Python, 4.x):
+`callToolAsTask` speaks the MCP tasks extension (`io.modelcontextprotocol/tasks`,
+protocol 2026-07-28). It declares the extension in the `tools/call` request's
+`_meta`, and the server chooses per call: it runs the tool outright and answers
+with the result, or it answers with a task the handle then polls. Both come back
+as a handle, so your code has one path. A call the server answered outright
+gives a handle whose `task` is already `completed` and whose `result()`
+resolves at once.
 
-```python
-from fastmcp.utilities.tasks import TaskConfig
-from fastmcp_tasks import TasksExtension  # pip install 'fastmcp[tasks]'
-
-mcp.add_extension(TasksExtension())
-
-@mcp.tool(task=TaskConfig(mode="optional"))
-async def start_research(query: str, ctx: Context) -> dict:
-    ...
-```
-
-`TasksExtension` is what serves the task methods; a task-enabled tool with no
-extension registered aborts the server at startup, before it binds.
-`mode="optional"` lets the same tool run inline (`callTool`) or as a task
-(`callToolAsTask`), so the client decides per call. `mode="required"` rejects a
-call from a client that has not negotiated the extension with JSON-RPC `-32021`
-(`MISSING_REQUIRED_CLIENT_CAPABILITY`), whose `data.requiredCapabilities` names
-the extension the client is missing.
+So a server with no tasks support still works: every call is answered outright.
+To have a slow tool run as a task, the server has to implement the tasks
+extension; see your server SDK's documentation for it.
 
 ## Detect the capability and degrade
 
-Not every host supports tasks. A host that does advertises
-`tasks.requests.tools.call` in
-`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`. Hosts that do not
-advertise it get a `callToolAsTask` that throws. Wrap it and fall back to a
-blocking `callTool` if you want graceful degradation:
+`callToolAsTask` needs the host to relay the extension. A host that does
+declares `hostCapabilities.experimental["io.modelcontextprotocol/tasks"]` (an
+empty object: presence is the signal). On a host that does not,
+`callToolAsTask` rejects with `HostCapabilityError` without sending. Read
+`app.supportsTasks` to branch before you fire, and fall back to a blocking
+`callTool`:
 
 ```typescript
-try {
-  const handle = await synapse.callToolAsTask("start_research", { query });
-  // …task-aware UI
-} catch (err) {
-  if (String(err).includes("tasks.requests.tools.call")) {
-    // Legacy host: fall back to a blocking call.
-    const result = await synapse.callTool("start_research", { query });
-  } else {
-    throw err;
-  }
-}
+import { callToolAsTask } from "@nimblebrain/synapse";
+
+const result = app.supportsTasks
+  ? await (await callToolAsTask(app, "start_research", { query })).result()
+  : await app.callTool("start_research", { query });
 ```
 
-To branch before you fire, read `app.supportsTasks`: it is `true` only when the
-host advertised `tasks.requests.tools.call`.
+## How a task ends
+
+`handle.result()` resolves with the tool's result, parsed the way `callTool`
+parses one, when the task completes. It rejects with a `TaskError` when the task
+fails (its message and `code` are the server's error), is cancelled, or asks for
+input (`input_required`). Synapse cannot answer an input request, so it cancels
+such a task before rejecting. `TaskError.task.status` says which. The hook puts
+the same error in `error`.
 
 ## The dual-channel pattern
 
@@ -96,13 +87,19 @@ on `useDataSync` rather than waiting on `result`.
 
 ## How it works
 
-`callToolAsTask` sends a task-augmented `tools/call` and gets back a task handle
-immediately; the real result is fetched with `tasks/result` once the task reaches
-a terminal status. Status notifications are optional per spec, so the hook also
-polls `tasks/get` as a fallback and stops automatically on a terminal status. Two
-things to know about cancellation: `cancel` issues `tasks/cancel`, and unmounting
-the component does **not** cancel the server-side task. It keeps running, so the
-user can re-fire to recover state on their next visit.
+When the server answers with a task, the handle polls `tasks/get` at the
+task's `pollInterval` (2 s when it names none, never faster than every 250 ms).
+A terminal `tasks/get` carries the outcome inline: the result when `completed`,
+the error when `failed`. `onStatus` and the hook's `task` are fed by those
+polls; the host pushes no status of its own. A failed poll is retried: `result()`
+rejects only after three in a row, or at once when the host no longer knows the
+task (`-32602`).
+
+Two things to know about cancellation: `cancel` sends `tasks/cancel`, and
+unmounting the component, or firing again, stops polling but does **not**
+cancel the server-side task. It keeps running until it ends or its `ttl`
+lapses. With the handle directly, pass `result({ signal })` an `AbortSignal` to
+stop waiting.
 
 ## Related
 

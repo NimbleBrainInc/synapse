@@ -11,7 +11,7 @@ import { connect } from "../../src/connect.js";
 import { downloadFile } from "../../src/download-file.js";
 import { pickFile } from "../../src/extensions.js";
 import { internalsFor } from "../../src/internals.js";
-import { callToolAsTask, TASKS_GET_METHOD, TASKS_RESULT_METHOD } from "../../src/task-handle.js";
+import { callToolAsTask, TASKS_GET_METHOD } from "../../src/task-handle.js";
 
 const results: Record<string, unknown> = {};
 (window as unknown as { __results: unknown }).__results = results;
@@ -79,18 +79,19 @@ if (app) {
   // A NimbleBrain host extension request, app → host, answered by the host's
   // fallback handler.
   await step("requestFile", () => pickFile(connected));
-  // The tasks utility has no ext-apps typed surface, so its methods ride the
-  // generic request path. Driving them directly is what proves that path
-  // carries a method the spec's host has never heard of.
+  // The tasks extension has no ext-apps typed surface, so `tasks/get` rides the
+  // generic request path. Driving it directly is what proves that path carries
+  // a method the spec's host has never heard of.
   const internals = internalsFor(connected);
   await step("tasksGet", () => internals.request(TASKS_GET_METHOD, { taskId: "task-1" }));
-  await step("tasksResult", () => internals.request(TASKS_RESULT_METHOD, { taskId: "task-1" }));
 
-  // A task-*augmented* `tools/call` is a different thing: it puts `task` in
-  // `params`, which the MCP SDK's `Protocol` recognises, and the spec's
-  // `AppBridge` refuses outright. Recorded rather than asserted as parity,
-  // because what it pins is the spec host's boundary, not our bug.
-  await step("callToolAsTask", () => callToolAsTask(connected, "slow", {}));
+  // `callToolAsTask` declares the extension in the `tools/call` `_meta`. A host
+  // that runs the tool outright answers with its result, and the handle comes
+  // back already completed, so the helper works on any host that serves tools.
+  await step("callToolAsTask", async () => {
+    const handle = await callToolAsTask(connected, "slow", {});
+    return { task: handle.task, result: await handle.result() };
+  });
 }
 
 results.finished = true;

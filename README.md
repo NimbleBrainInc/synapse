@@ -320,7 +320,7 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus host extensions |
 | `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
 | `destroyed` | `boolean` | True after `destroy()` |
-| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call` |
+| `supportsTasks` | `boolean` | Whether the host declared the MCP tasks extension (`io.modelcontextprotocol/tasks`) |
 
 ### `App` Methods
 
@@ -351,7 +351,7 @@ action(app, "openConversation", { id: "conv_abc123" });
 
 | Function | Description |
 |----------|-------------|
-| `callToolAsTask(app, name, args?, opts?)` | Call a long-running tool task-augmented; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
+| `callToolAsTask(app, name, args?)` | Call a tool the server may run as a task; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
 | `action(app, name, params?)` | Trigger a NimbleBrain host action: `openApp` (`{ name }`) or `openConversation` (`{ id }`). No-op unless the host declares `ai.nimblebrain/action`. |
 | `pickFile(app, options?)` | Native file picker, single file. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
 | `pickFiles(app, options?)` | Native file picker, multiple files. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
@@ -360,14 +360,15 @@ action(app, "openConversation", { id: "conv_abc123" });
 | `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension (`"action"`, `"notify"`, `"requestFile"`, `"uploadFiles"`, `"keydown"`, `"location"`). |
 | `downloadFile(app, name, content, mime?)` | Hand the user a file to save, over the spec's `ui/download-file`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
-`app.supportsTasks` says whether the host negotiated the tasks utility for
-`tools/call`. `callToolAsTask` throws when it is false, so read it to decide
+`app.supportsTasks` says whether the host declared the MCP tasks extension.
+`callToolAsTask` throws when it is false, so read it to decide
 whether to offer a long-running action at all rather than to discover the answer
 from an exception.
 
-A host advertises the capability in
-`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, the MCP Tasks
-extension identifier, and nowhere else. A top-level `hostCapabilities.tasks` is
+A host declares it in
+`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, the MCP tasks
+extension identifier, and nowhere else; presence is the signal, so `{}` is a
+declaration. A top-level `hostCapabilities.tasks` is
 not read, because a spec client's handshake parse strips it.
 
 ## React Hooks
@@ -400,7 +401,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 
 ## Long-running tools (tasks)
 
-For tools whose work exceeds the stock MCP request timeout (~60s) — research runs, batch imports, multi-stage analyses — use `callToolAsTask` (or `useCallToolAsTask` in React) instead of `callTool`. The host returns a `CreateTaskResult` immediately; the actual `CallToolResult` is fetched via `tasks/result` when the task reaches a terminal state.
+For tools whose work exceeds the stock MCP request timeout (~60s) — research runs, batch imports, multi-stage analyses — use `callToolAsTask` (or `useCallToolAsTask` in React) instead of `callTool`. It speaks the MCP tasks extension (`io.modelcontextprotocol/tasks`, protocol 2026-07-28): the `tools/call` declares the extension in its `_meta`, and the server either answers with the result or with a task the handle polls through `tasks/get`. A call answered outright gives a handle whose `task` is already `completed`, so there is one code path.
 
 ```tsx
 import { useCallToolAsTask } from "@nimblebrain/synapse/react";
@@ -416,42 +417,21 @@ function ResearchPanel() {
 }
 ```
 
-**Authoring task-aware tools.** The server side declares `execution.taskSupport: "optional"` (or `"required"`) on the tool's `tools/list` entry. With FastMCP (Python, 4.x):
-
-```python
-from fastmcp.utilities.tasks import TaskConfig
-from fastmcp_tasks import TasksExtension  # pip install 'fastmcp[tasks]'
-
-mcp.add_extension(TasksExtension())
-
-@mcp.tool(task=TaskConfig(mode="optional"))
-async def start_research(query: str, ctx: Context) -> dict:
-    ...
-```
-
-`TasksExtension` is what serves the task methods; a task-enabled tool with no extension registered aborts the server at startup, before it binds. `mode="optional"` lets the same tool run inline (`callTool`) or as a task (`callToolAsTask`) — the client decides. `mode="required"` rejects a call from a client that has not negotiated the extension with JSON-RPC `-32021` (`MISSING_REQUIRED_CLIENT_CAPABILITY`), whose `data.requiredCapabilities` names the extension the client is missing.
+**The server decides.** Whether a call runs as a task is the server's choice per call. A server without the tasks extension answers every call outright, and the handle completes at once; to have a slow tool run as a task, the server implements the extension.
 
 **Dual-channel pattern.** When a task creates a domain entity (a research run, an import job), the UI learns the entity exists from the server, **not** from the task result: the server announces the write with `notifications/resources/list_changed`, and `useDataSync` re-reads the list the entity now appears in. The task channel signals "started / running / done / cancelled"; the server's data carries the durable record. UIs that need to navigate to the new entity should re-read on `useDataSync` rather than awaiting `result()`.
 
-**Capability detection.** Hosts that don't support tasks won't advertise the `tasks.requests.tools.call` capability. `callToolAsTask` throws on hosts without the capability — wrap in a try/catch and fall back to `callTool` if you want graceful degradation:
+**Capability detection.** `callToolAsTask` rejects with `HostCapabilityError`, without sending, on a host that did not declare the extension. Branch on `app.supportsTasks` and fall back to `callTool`:
 
 ```typescript
-try {
-  const handle = await synapse.callToolAsTask("start_research", { query });
-  // ...task-aware UI
-} catch (err) {
-  if (String(err).includes("tasks.requests.tools.call")) {
-    // Legacy host — fall back to a blocking call.
-    const result = await synapse.callTool("start_research", { query });
-  } else {
-    throw err;
-  }
-}
+const result = app.supportsTasks
+  ? await (await callToolAsTask(app, "start_research", { query })).result()
+  : await app.callTool("start_research", { query });
 ```
 
-**Status notifications are optional.** Per spec, hosts MAY emit `notifications/tasks/status` but consumers MUST NOT rely on them. `useCallToolAsTask` polls `tasks/get` as a fallback (using `pollInterval × 1.5` from the initial `Task`, defaulting to ~7.5s). Polling stops automatically on terminal status, on `result()` settling, or after 5 consecutive refresh failures.
+**Polling and the end of a task.** `handle.result()` polls `tasks/get` at the task's `pollInterval` (2 s when it names none, never under 250 ms) and resolves the result a completed `tasks/get` carries inline. It rejects with `TaskError` when the task fails (carrying the server's error), is cancelled, or asks for input (`input_required`): Synapse cannot answer an input request, so it cancels the task first. `onStatus` reports the status changes those polls observe; the host pushes none. Pass `result({ signal })` an `AbortSignal` to stop waiting.
 
-**Cancellation.** `handle.cancel()` issues `tasks/cancel`. Cancelling an already-terminal task surfaces a `-32602` error from the host. Unmounting a React component does **not** cancel the server-side task — the task continues, and the user can re-fire to recover state.
+**Cancellation.** `handle.cancel()` sends `tasks/cancel` and returns the task from one `tasks/get`. Unmounting a React component, or firing again, stops polling but does **not** cancel the server-side task.
 
 ## Development
 

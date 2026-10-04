@@ -102,11 +102,11 @@ const bridge = new AppBridge(
     logging: {},
     updateModelContext: { text: {} },
     message: { text: {} },
-    // The MCP tasks utility, under its extension identifier in `experimental`.
-    // The ext-apps capability type has no `tasks` field, so `experimental` is
-    // the only slot a spec client's handshake parse keeps.
+    // The MCP tasks extension, under its identifier in `experimental`: the
+    // ext-apps capability type has no field for it, and `experimental` is the
+    // only slot a spec client's handshake parse keeps. Presence is the signal.
     experimental: {
-      "io.modelcontextprotocol/tasks": { cancel: {}, requests: { tools: { call: {} } } },
+      "io.modelcontextprotocol/tasks": {},
       "ai.nimblebrain/action": {},
       "ai.nimblebrain/request-file": {},
       "ai.nimblebrain/keydown": {},
@@ -179,14 +179,16 @@ const raw = bridge as unknown as RawHandlers;
 raw.fallbackRequestHandler = async (req) => {
   handled(req.method, req.params);
   if (req.method === "tasks/get") {
+    const now = new Date().toISOString();
     return {
+      resultType: "task",
       taskId: "task-1",
       status: "completed",
-      createdAt: new Date().toISOString(),
-      ttl: 1000,
+      createdAt: now,
+      lastUpdatedAt: now,
+      result: { content: [{ type: "text", text: "task done" }] },
     };
   }
-  if (req.method === "tasks/result") return { content: [{ type: "text", text: "task done" }] };
   if (req.method === "ai.nimblebrain/request-file") return { files: [] };
   return {};
 };

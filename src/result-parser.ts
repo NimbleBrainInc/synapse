@@ -9,9 +9,7 @@ import type { ToolCallResult } from "./types.js";
  * 3. Null / undefined — returns `{ data: null, isError: false }`.
  *
  * `_meta` on a `CallToolResult` is preserved on the parsed output as a
- * whole-object passthrough — notably `io.modelcontextprotocol/related-task`
- * (`{ taskId }`) for MCP 2025-11-25 task-augmented results, but any other
- * namespaced `_meta` keys propagate for free.
+ * whole-object passthrough, so any namespaced `_meta` key propagates for free.
  */
 export function parseToolResult(raw: unknown): ToolCallResult {
   if (raw == null) {
@@ -66,8 +64,7 @@ function isTextBlock(block: unknown): block is McpTextBlock {
 function extractMeta(result: McpCallToolResult): { [key: string]: unknown } | undefined {
   const meta = result._meta;
   if (!meta || typeof meta !== "object" || Array.isArray(meta)) return undefined;
-  // Shallow spread so mutations on either side don't leak. Preserves the
-  // full key set including `io.modelcontextprotocol/related-task`.
+  // Shallow spread so mutations on either side don't leak.
   return { ...meta };
 }
 

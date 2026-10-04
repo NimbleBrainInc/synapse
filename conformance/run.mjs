@@ -374,13 +374,11 @@ try {
             `vendorNotice was ${JSON.stringify(app?.vendorNotice)}`,
         ],
         [
-          "tasks/get and tasks/result work over generic request",
-          "the tasks utility has no ext-apps typed surface, so it rides the generic path",
+          "tasks/get works over the generic request path",
+          "the tasks extension has no ext-apps typed surface, so it rides the generic path",
           (app) => {
             const get = stepOk(app, "tasksGet");
             if (get !== true) return `tasks/get ${get}`;
-            const result = stepOk(app, "tasksResult");
-            if (result !== true) return `tasks/result ${result}`;
             return (
               app.tasksGet.value?.status === "completed" ||
               `tasks/get returned ${JSON.stringify(app.tasksGet.value)}`
@@ -389,18 +387,34 @@ try {
         ],
         [
           "the host's tasks capability survives the handshake",
-          "a host publishes it in `hostCapabilities.experimental`, the one slot a spec client's handshake parse keeps. If `connect()` cannot read it there, `callToolAsTask` refuses to send on every host — and the row below passes without the host ever being asked",
+          "a host publishes it in `hostCapabilities.experimental`, the one slot a spec client's handshake parse keeps. If `connect()` cannot read it there, `callToolAsTask` refuses to send on every host",
           (app) =>
             app?.supportsTasks === true ||
             `supportsTasks was ${JSON.stringify(app?.supportsTasks)}`,
         ],
         [
-          "a task-augmented tools/call is refused by a spec host",
-          "pinned, not desired: the spec's AppBridge throws on `params.task`, so `callToolAsTask` is a NimbleBrain-host capability today. If this row starts failing, ext-apps has opened the door and the tasks helper can go portable.",
-          (app) => {
-            const s = step(app, "callToolAsTask");
-            if (!s) return "no result recorded";
-            return s.ok === false || "it succeeded — see why-it-matters";
+          "callToolAsTask declares the extension, and a spec host's outright answer completes it",
+          "the 2026-07-28 tasks extension rides `tools/call` `_meta`; a host that runs the tool outright answers with the result, and the handle must come back completed with it",
+          // The declaration is asserted on the wire: the SDK under the spec's
+          // AppBridge consumes the client-capabilities `_meta` envelope before
+          // a handler sees the params.
+          (app, _handled, wire) => {
+            const s = stepOk(app, "callToolAsTask");
+            if (s !== true) return `callToolAsTask ${s}`;
+            const call = wire.find((f) => f.method === "tools/call" && f.params?.name === "slow");
+            if (!call) return "the call never left the app";
+            if ("task" in call.params) return "params carry a 2025-style `task`";
+            const declared =
+              call.params._meta?.["io.modelcontextprotocol/clientCapabilities"]?.extensions?.[
+                "io.modelcontextprotocol/tasks"
+              ];
+            if (declared === undefined) return `_meta was ${JSON.stringify(call.params._meta)}`;
+            const { task, result } = app.callToolAsTask.value ?? {};
+            if (task?.status !== "completed") return `task was ${JSON.stringify(task)}`;
+            return (
+              (result?.isError === false && result.content?.[0]?.text === "ok") ||
+              `result was ${JSON.stringify(result)}`
+            );
           },
         ],
         ["ui/message reaches the host", "the follow-up path", (app) => stepOk(app, "sendMessage")],

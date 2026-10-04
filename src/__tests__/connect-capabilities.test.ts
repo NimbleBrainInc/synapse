@@ -875,7 +875,7 @@ describe("connect() capabilities", () => {
   });
 
   describe("tasks capability", () => {
-    it("ui/initialize advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
+    it("ui/initialize advertises no app capabilities: the tasks extension is declared per call", async () => {
       connect({ name: "test-app", version: "1.0.0" }).catch(() => {});
 
       await flush();
@@ -884,12 +884,10 @@ describe("connect() capabilities", () => {
         (c: unknown[]) => (c[0] as Record<string, unknown>)?.method === "ui/initialize",
       );
       const params = (initCall?.[0] as Record<string, unknown>).params as Record<string, unknown>;
-      expect(params.appCapabilities).toEqual({
-        tasks: { cancel: {}, requests: { tools: { call: {} } } },
-      });
+      expect(params.appCapabilities).toEqual({});
     });
 
-    const tasks: TasksCapability = { cancel: {}, requests: { tools: { call: {} } } };
+    const tasks: TasksCapability = {};
     const withExperimental = (experimental: Record<string, unknown>) =>
       makeInitResult("nimblebrain", { hostCapabilities: { experimental } });
 
@@ -914,8 +912,7 @@ describe("connect() capabilities", () => {
       // typed as a record of records, so a client that validates the result
       // against the spec's schema refuses this shape upstream and it never
       // reaches the read over the wire. What the guard prevents is a stored
-      // capability that contradicts its own type — both callers ask only
-      // `?.requests?.tools?.call`, so it is not visible in `supportsTasks`.
+      // capability that contradicts its own type.
       expect(
         readHostTasksCapability({
           experimental: { [TASKS_EXTENSION_ID]: "yes" },
@@ -938,12 +935,12 @@ describe("connect() capabilities", () => {
       expect(app.supportsTasks).toBe(false);
     });
 
-    it("supportsTasks is false when the host advertised tasks but not tools/call", async () => {
+    it("supportsTasks is true for an empty declaration: presence is the signal", async () => {
       app = await connectAndHandshake(
         {},
-        withExperimental({ "io.modelcontextprotocol/tasks": { cancel: {} } }),
+        withExperimental({ "io.modelcontextprotocol/tasks": {} }),
       );
-      expect(app.supportsTasks).toBe(false);
+      expect(app.supportsTasks).toBe(true);
     });
   });
 

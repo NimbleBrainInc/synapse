@@ -12,12 +12,9 @@
 
 import type {
   CallToolRequest,
+  CallToolResult,
   CancelTaskRequest,
-  CreateTaskResult,
-  GetTaskPayloadRequest,
-  GetTaskPayloadResult,
   GetTaskRequest,
-  GetTaskResult,
   ReadResourceRequest,
   ReadResourceResult,
   TaskStatus,
@@ -64,7 +61,7 @@ import { downloadFile } from "../download-file.js";
 import { resolveEventMethod } from "../event-map.js";
 import { parseToolResult } from "../result-parser.js";
 import { callToolAsTask, TASKS_EXTENSION_ID } from "../task-handle.js";
-import type { App, TasksCapability } from "../types.js";
+import type { App } from "../types.js";
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -662,18 +659,13 @@ describe("compile-time type assertions", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 8. MCP 2025-11-25 tasks utility — capability advertisement
+// 8. MCP tasks extension (2026-07-28) — capability
 // ---------------------------------------------------------------------------
 
-describe("tasks capability advertisement", () => {
-  // Per MCP 2025-11-25 a requestor advertises exactly what it can use: no
-  // more (a host may allocate state on the strength of it) and no less (a
-  // receiver may refuse to augment a call from an app that never asked).
-  // `App` reaches `callToolAsTask`, so `connect()` advertises `tasks`.
-  //
-  // The nested values are empty objects — presence flags, NOT booleans. A
-  // `true` here would be a wire-format break that no type catches.
-  it("connect() advertises appCapabilities.tasks with cancel and requests.tools.call", async () => {
+describe("tasks capability", () => {
+  // The 2026-07-28 tasks extension is declared per request, in the
+  // `tools/call` `_meta`, so the handshake advertises nothing for it.
+  it("connect() advertises no app capabilities", async () => {
     app = await connectAndHandshake();
 
     const initCall = postMessageSpy.mock.calls.find(
@@ -682,9 +674,7 @@ describe("tasks capability advertisement", () => {
     expect(initCall).toBeDefined();
 
     const params = (initCall![0] as Record<string, unknown>).params as Record<string, unknown>;
-    expect(params.appCapabilities).toEqual({
-      tasks: { cancel: {}, requests: { tools: { call: {} } } },
-    });
+    expect(params.appCapabilities).toEqual({});
   });
 
   // The host's half travels in `hostCapabilities.experimental`, keyed by
@@ -698,7 +688,7 @@ describe("tasks capability advertisement", () => {
       {},
       makeSpecInitResult({
         hostCapabilities: {
-          experimental: { [TASKS_EXTENSION_ID]: { requests: { tools: { call: {} } } } },
+          experimental: { [TASKS_EXTENSION_ID]: {} },
         },
       }),
     );
@@ -823,30 +813,25 @@ describe("RELATED_TASK_META_KEY constant matches spec", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 10. Task-augmented tools/call wire shape (MCP 2025-11-25 §)
+// 10. tools/call under the tasks extension (MCP 2026-07-28) — wire shape
 // ---------------------------------------------------------------------------
 //
-// These assert the ENCODED wire bytes match the spec — the layer where
-// silent drift is most costly.
+// These assert the ENCODED wire bytes — the layer where silent drift is most
+// costly. The extension's shapes are not in the MCP SDK, so the field names are
+// pinned literally.
 
-describe("task-augmented tools/call wire shape", () => {
+describe("tasks extension wire shape", () => {
   const TOOLS_CALL_METHOD: CallToolRequest["method"] = "tools/call";
   const TASKS_GET_METHOD: GetTaskRequest["method"] = "tasks/get";
-  const TASKS_RESULT_METHOD: GetTaskPayloadRequest["method"] = "tasks/result";
   const TASKS_CANCEL_METHOD: CancelTaskRequest["method"] = "tasks/cancel";
 
-  function makeSynapseInitResult(
-    hostTasks: TasksCapability = {
-      cancel: {},
-      requests: { tools: { call: {} } },
-    },
-  ) {
+  function makeSynapseInitResult() {
     return {
       protocolVersion: LATEST_PROTOCOL_VERSION,
       hostInfo: { name: "test-host", version: "1.0.0" },
       hostCapabilities: {
         openLinks: {},
-        experimental: { "io.modelcontextprotocol/tasks": hostTasks },
+        experimental: { "io.modelcontextprotocol/tasks": {} },
       } satisfies McpUiHostCapabilities,
       hostContext: {
         theme: "dark",
@@ -860,7 +845,6 @@ describe("task-augmented tools/call wire shape", () => {
 
     await flush();
 
-    // Answer ui/initialize with a host that advertises the tasks capability.
     const initCall = postMessageSpy.mock.calls.find(
       (c: unknown[]) => (c[0] as Record<string, unknown>).method === INITIALIZE_METHOD,
     );
@@ -880,196 +864,120 @@ describe("task-augmented tools/call wire shape", () => {
     return { app: ready, cleanup: () => ready.destroy() };
   }
 
+  function sent(method: string): Record<string, unknown>[] {
+    return postMessageSpy.mock.calls
+      .map((c) => c[0] as Record<string, unknown>)
+      .filter((m) => m?.method === method);
+  }
+
   async function respondTo(method: string, result: unknown): Promise<void> {
-    const call = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === method,
-    );
+    const calls = sent(method);
+    const call = calls[calls.length - 1];
     if (!call) throw new Error(`No pending ${method} request`);
-    const id = (call[0] as Record<string, unknown>).id;
     window.dispatchEvent(
-      new MessageEvent("message", { source: window.parent, data: { jsonrpc: "2.0", id, result } }),
+      new MessageEvent("message", {
+        source: window.parent,
+        data: { jsonrpc: "2.0", id: call.id, result },
+      }),
     );
     await flush();
   }
 
-  it("tools/call with task param has the spec wire shape", async () => {
+  const wireTask = (taskId: string, status: TaskStatus, extra: Record<string, unknown> = {}) => ({
+    resultType: "task",
+    taskId,
+    status,
+    createdAt: "2026-07-28T00:00:00.000Z",
+    lastUpdatedAt: "2026-07-28T00:00:00.000Z",
+    ...extra,
+  });
+
+  it("tools/call declares the extension in _meta and carries no params.task", async () => {
     const { app: taskApp, cleanup } = await makeReadyApp();
 
-    const pending = callToolAsTask(taskApp, "do_research", { query: "mcp" }, { ttl: 60_000 });
+    const pending = callToolAsTask(taskApp, "do_research", { query: "mcp" });
     await flush();
 
-    // Find the tools/call message on the wire.
-    const call = postMessageSpy.mock.calls.find(
-      (c: unknown[]) => (c[0] as Record<string, unknown>).method === TOOLS_CALL_METHOD,
-    );
-    expect(call).toBeDefined();
-
-    const msg = call![0] as Record<string, unknown>;
-    // Request shape: has id, jsonrpc, method, params — no forbidden fields.
-    expect(msg.jsonrpc).toBe("2.0");
-    expect(msg.method).toBe(TOOLS_CALL_METHOD);
+    const [msg] = sent(TOOLS_CALL_METHOD);
+    expect(msg).toBeDefined();
+    expect(msg!.jsonrpc).toBe("2.0");
     // The spec allows a string or a number; the MCP SDK numbers requests from 0.
-    expect(typeof msg.id).toBe("number");
+    expect(typeof msg!.id).toBe("number");
 
-    const params = msg.params as CallToolRequest["params"];
-    // Spec-required fields
+    const params = msg!.params as Record<string, unknown>;
     expect(params.name).toBe("do_research");
     expect(params.arguments).toEqual({ query: "mcp" });
-    // `task` is the augmentation signal
-    expect(params.task).toEqual({ ttl: 60_000 });
-
-    // Respond and clean up
-    const createResult: CreateTaskResult = {
-      task: {
-        taskId: "tsk_spec",
-        status: "working" satisfies TaskStatus,
-        ttl: 60_000,
-        createdAt: "2026-04-22T00:00:00.000Z",
-        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
+    expect(params).not.toHaveProperty("task");
+    expect(params._meta).toEqual({
+      "io.modelcontextprotocol/clientCapabilities": {
+        extensions: { "io.modelcontextprotocol/tasks": {} },
       },
-    };
-    await respondTo(TOOLS_CALL_METHOD, createResult);
-    await pending;
-    cleanup();
-  });
-
-  it("tasks/result response preserves _meta through parseToolResult", async () => {
-    const { app: taskApp, cleanup } = await makeReadyApp();
-
-    const pending = callToolAsTask(taskApp, "do_thing", {});
-    await respondTo(TOOLS_CALL_METHOD, {
-      task: {
-        taskId: "tsk_meta_spec",
-        status: "working" satisfies TaskStatus,
-        ttl: 60_000,
-        createdAt: "2026-04-22T00:00:00.000Z",
-        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
-      },
-    } satisfies CreateTaskResult);
-    const handle = await pending;
-
-    const resultPromise = handle.result();
-
-    // Spec §: `tasks/result` response MUST include
-    // `_meta["io.modelcontextprotocol/related-task"] = { taskId }`.
-    const terminal = {
-      content: [{ type: "text", text: '{"ok":true}' }],
-      _meta: {
-        [RELATED_TASK_META_KEY]: { taskId: "tsk_meta_spec" },
-      },
-    } satisfies GetTaskPayloadResult;
-    await respondTo(TASKS_RESULT_METHOD, terminal);
-
-    const result = await resultPromise;
-    expect(result._meta).toBeDefined();
-    expect(result._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_meta_spec" });
-
-    cleanup();
-  });
-
-  it("lifecycle: start → refresh (working) → result (completed) records spec wire traffic", async () => {
-    const { app: taskApp, cleanup } = await makeReadyApp();
-
-    // 1. Start task
-    const pending = callToolAsTask(taskApp, "do_thing", { q: 1 }, { ttl: 90_000 });
-    const startMsg = postMessageSpy.mock.calls
-      .map((c) => c[0] as Record<string, unknown>)
-      .find((m) => m.method === TOOLS_CALL_METHOD);
-    expect(startMsg).toBeDefined();
-    expect((startMsg!.params as CallToolRequest["params"]).task).toEqual({ ttl: 90_000 });
-
-    await respondTo(TOOLS_CALL_METHOD, {
-      task: {
-        taskId: "tsk_lc",
-        status: "working" satisfies TaskStatus,
-        ttl: 90_000,
-        createdAt: "2026-04-22T00:00:00.000Z",
-        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
-      },
-    } satisfies CreateTaskResult);
-    const handle = await pending;
-    expect(handle.task.status).toBe("working" satisfies TaskStatus);
-
-    // 2. Refresh (still working) — tasks/get with just { taskId }
-    const refreshPromise = handle.refresh();
-    const getMsg = postMessageSpy.mock.calls
-      .map((c) => c[0] as Record<string, unknown>)
-      .find((m) => m.method === TASKS_GET_METHOD);
-    expect(getMsg).toBeDefined();
-    expect((getMsg!.params as GetTaskRequest["params"]).taskId).toBe("tsk_lc");
-    // `taskId` is passed in `params` (NOT via _meta.related-task), per
-    // spec § — tasks/{get,list,cancel} and status notifications use
-    // `params.taskId` directly.
-    expect(getMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
-
-    await respondTo(TASKS_GET_METHOD, {
-      taskId: "tsk_lc",
-      status: "working" satisfies TaskStatus,
-      ttl: 90_000,
-      createdAt: "2026-04-22T00:00:00.000Z",
-      lastUpdatedAt: "2026-04-22T00:00:10.000Z",
-    } satisfies GetTaskResult);
-    const refreshed = await refreshPromise;
-    expect(refreshed.status).toBe("working" satisfies TaskStatus);
-    expect(refreshed.lastUpdatedAt).toBe("2026-04-22T00:00:10.000Z");
-
-    // 3. Terminal result — tasks/result with { taskId }
-    const resultPromise = handle.result();
-    const resultMsg = postMessageSpy.mock.calls
-      .map((c) => c[0] as Record<string, unknown>)
-      .find((m) => m.method === TASKS_RESULT_METHOD);
-    expect(resultMsg).toBeDefined();
-    expect((resultMsg!.params as GetTaskPayloadRequest["params"]).taskId).toBe("tsk_lc");
-
-    await respondTo(TASKS_RESULT_METHOD, {
-      content: [{ type: "text", text: '{"done":true}' }],
-      _meta: { [RELATED_TASK_META_KEY]: { taskId: "tsk_lc" } },
-    } satisfies GetTaskPayloadResult);
-
-    const finalResult = await resultPromise;
-    expect(finalResult.data).toEqual({ done: true });
-    expect(finalResult._meta?.[RELATED_TASK_META_KEY]).toEqual({ taskId: "tsk_lc" });
-
-    cleanup();
-  });
-
-  it("tasks/cancel wire shape: params.taskId only, no _meta related-task", async () => {
-    const { app: taskApp, cleanup } = await makeReadyApp();
-
-    const pending = callToolAsTask(taskApp, "do_thing", {});
-    await respondTo(TOOLS_CALL_METHOD, {
-      task: {
-        taskId: "tsk_cancel",
-        status: "working" satisfies TaskStatus,
-        ttl: 60_000,
-        createdAt: "2026-04-22T00:00:00.000Z",
-        lastUpdatedAt: "2026-04-22T00:00:00.000Z",
-      },
-    } satisfies CreateTaskResult);
-    const handle = await pending;
-
-    const cancelPromise = handle.cancel();
-
-    const cancelMsg = postMessageSpy.mock.calls
-      .map((c) => c[0] as Record<string, unknown>)
-      .find((m) => m.method === TASKS_CANCEL_METHOD);
-    expect(cancelMsg).toBeDefined();
-    const cancelParams = cancelMsg!.params as CancelTaskRequest["params"];
-    expect(cancelParams.taskId).toBe("tsk_cancel");
-    // Spec § exempts tasks/{get,list,cancel} from the related-task
-    // _meta requirement; enforce by absence.
-    expect(cancelMsg!.params as Record<string, unknown>).not.toHaveProperty("_meta");
-
-    await respondTo(TASKS_CANCEL_METHOD, {
-      taskId: "tsk_cancel",
-      status: "cancelled" satisfies TaskStatus,
-      ttl: 60_000,
-      createdAt: "2026-04-22T00:00:00.000Z",
-      lastUpdatedAt: "2026-04-22T00:00:05.000Z",
     });
-    const finalTask = await cancelPromise;
-    expect(finalTask.status).toBe("cancelled" satisfies TaskStatus);
+
+    await respondTo(TOOLS_CALL_METHOD, wireTask("tsk_spec", "working", { ttlMs: 60_000 }));
+    const handle = await pending;
+    expect(handle.task.taskId).toBe("tsk_spec");
+    expect(handle.task.ttl).toBe(60_000);
+    cleanup();
+  });
+
+  it("tasks/get and tasks/cancel carry params.taskId only", async () => {
+    const { app: taskApp, cleanup } = await makeReadyApp();
+
+    const pending = callToolAsTask(taskApp, "do_thing", {});
+    await flush();
+    await respondTo(TOOLS_CALL_METHOD, wireTask("tsk_lc", "working"));
+    const handle = await pending;
+
+    const refreshed = handle.refresh();
+    await flush();
+    expect(sent(TASKS_GET_METHOD).at(-1)!.params).toEqual({
+      taskId: "tsk_lc",
+    } satisfies GetTaskRequest["params"]);
+    await respondTo(TASKS_GET_METHOD, wireTask("tsk_lc", "working"));
+    expect((await refreshed).status).toBe("working" satisfies TaskStatus);
+
+    const cancelled = handle.cancel();
+    await flush();
+    expect(sent(TASKS_CANCEL_METHOD).at(-1)!.params).toEqual({
+      taskId: "tsk_lc",
+    } satisfies CancelTaskRequest["params"]);
+    await respondTo(TASKS_CANCEL_METHOD, {});
+    await respondTo(TASKS_GET_METHOD, wireTask("tsk_lc", "cancelled"));
+    expect((await cancelled).status).toBe("cancelled" satisfies TaskStatus);
 
     cleanup();
+  });
+
+  it("a completed tasks/get inlines the result, and no tasks/result is ever sent", async () => {
+    vi.useFakeTimers();
+    try {
+      const { app: taskApp, cleanup } = await makeReadyApp();
+
+      const pending = callToolAsTask(taskApp, "do_thing", {});
+      await flush();
+      await respondTo(TOOLS_CALL_METHOD, wireTask("tsk_meta", "working", { pollIntervalMs: 500 }));
+      const handle = await pending;
+
+      const resultPromise = handle.result();
+      await vi.advanceTimersByTimeAsync(500);
+      await respondTo(
+        TASKS_GET_METHOD,
+        wireTask("tsk_meta", "completed", {
+          result: {
+            content: [{ type: "text", text: '{"ok":true}' }],
+            _meta: { "x.example/key": "v" },
+          } satisfies CallToolResult,
+        }),
+      );
+
+      const result = await resultPromise;
+      expect(result.data).toEqual({ ok: true });
+      expect(result._meta).toEqual({ "x.example/key": "v" });
+      expect(sent("tasks/result")).toHaveLength(0);
+      cleanup();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

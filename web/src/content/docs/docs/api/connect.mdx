@@ -43,7 +43,7 @@ Available synchronously once the promise resolves.
 | `hostCapabilities` | `McpUiHostCapabilities` | What the host declared in `ui/initialize`. Every method and helper checks it before sending; see the [portable-app contract](/docs/concepts/degradation/). |
 | `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain. Identity only: nothing is gated on it. |
 | `destroyed` | `boolean` | True after `destroy()` |
-| `supportsTasks` | `boolean` | Whether the host negotiated the MCP tasks utility for `tools/call`. `callToolAsTask` throws when this is false. |
+| `supportsTasks` | `boolean` | Whether the host declared the MCP tasks extension (`io.modelcontextprotocol/tasks`). `callToolAsTask` throws when this is false. |
 
 ## `App` methods
 
@@ -59,13 +59,13 @@ Available synchronously once the promise resolves.
 | `destroy()` | Clean up all listeners, observers, and timers |
 
 That is the whole object. It is deliberately this small: NimbleBrain's own
-extensions, `downloadFile` and the MCP tasks utility are **functions over an `App`**, imported
+extensions, `downloadFile` and the MCP tasks extension are **functions over an `App`**, imported
 from the package root, so an app that never picks a file never carries the
 picker.
 
 | Function | Description |
 | --- | --- |
-| `callToolAsTask(app, name, args?, options?)` | Task-augmented tool call. See [long-running tools](/docs/guides/long-running-tools/). Rejects with `HostCapabilityError` when `supportsTasks` is false. |
+| `callToolAsTask(app, name, args?)` | A tool call the server may run as a task. Resolves with a handle (`task`, `result()`, `refresh()`, `cancel()`, `onStatus()`); `result()` polls until the task ends and rejects with `TaskError` if it does not complete. See [long-running tools](/docs/guides/long-running-tools/). Rejects with `HostCapabilityError` when `supportsTasks` is false. |
 | `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension: `"action"`, `"notify"`, `"requestFile"`, `"uploadFiles"`, `"keydown"` or `"location"`. |
 | `action(app, name, params?)` | Trigger a host-side action: on NimbleBrain, `openApp` (`{ name }`) or `openConversation` (`{ id }`). No-op unless the host declares `ai.nimblebrain/action`. |
 | `notify(app, { level, title, description? })` | Ask the host to show the user a notice, labelled with your app: for what they would otherwise miss, such as an export finishing. `level` is `success`, `info`, `warning` or `error`; `title` is 1–120 characters, `description` up to 500. Resolves `true` once shown, and `false` without sending unless the host declares `ai.nimblebrain/notify`. Rejects with the host's error when it refuses one, such as a burst past its limit. |

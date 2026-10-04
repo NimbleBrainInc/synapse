@@ -12,7 +12,6 @@ import type {
   AppRequest,
   McpUiHostCapabilities,
   McpUiHostContext,
-  McpUiInitializeRequest,
   McpUiMessageRequest,
   McpUiOpenLinkRequest,
   McpUiUpdateModelContextRequest,
@@ -36,7 +35,7 @@ import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
-import { createTaskStatusRouter, readHostTasksCapability } from "./task-handle.js";
+import { readHostTasksCapability } from "./task-handle.js";
 import { applyTheme } from "./theme-defaults.js";
 import type {
   App,
@@ -56,10 +55,9 @@ const NIMBLEBRAIN_HOST = "nimblebrain";
 /**
  * Requests this SDK sends carry no deadline.
  *
- * The MCP SDK gives every request a 60-second one, which is wrong for all three
- * kinds of request an app makes: a file picker waits on a person, `tasks/result`
- * blocks until the task finishes, and a tool call takes as long as the tool
- * takes. A deadline here would reject a call the host is still working on, and
+ * The MCP SDK gives every request a 60-second one, which is wrong for the
+ * requests an app makes: a file picker waits on a person, and a tool call takes
+ * as long as the tool takes. A deadline here would reject a call the host is still working on, and
  * the app would report a failure that did not happen.
  *
  * `Infinity` is not usable — `setTimeout` coerces it to `0` and the timer fires
@@ -94,7 +92,7 @@ const MAPPED_EVENTS = [
  * the NimbleBrain extensions — and it resolves to a ready {@link App}.
  *
  * The `App` it returns stays deliberately small. NimbleBrain's own extensions
- * (`action`, the file picker), `downloadFile` and the MCP tasks utility are
+ * (`action`, the file picker), `downloadFile` and the MCP tasks extension are
  * composable functions over it — import them from the package root.
  */
 export async function connect(options: ConnectOptions): Promise<App> {
@@ -122,26 +120,12 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // filter exists to skip a re-render when nothing visible moved.
   let appliedTheme: Theme = { mode: "light", tokens: {} };
 
-  // `appCapabilities` is typed as `McpUiAppCapabilities` by the ext-apps spec
-  // package, which does not yet model the MCP 2025-11-25 tasks utility. We
-  // extend structurally via `TasksCapability` and `satisfies` the extension so
-  // the nested objects match the spec literally — empty objects `{}` as
-  // presence flags, NOT booleans.
-  const appCapabilities = {
-    tasks: {
-      cancel: {},
-      requests: { tools: { call: {} } },
-    } satisfies TasksCapability,
-  };
-
   // `autoResize` is handed to `App`, which observes the document and reports
   // size after the handshake. Ours must not observe as well: two observers mean
   // two `size-changed` streams for one document.
-  const client = new ExtAppsApp(
-    { name, version },
-    appCapabilities as unknown as McpUiInitializeRequest["params"]["appCapabilities"],
-    { autoResize },
-  );
+  // No app capabilities. The MCP tasks extension is declared per request, in
+  // the `tools/call` that `callToolAsTask` sends, not in the handshake.
+  const client = new ExtAppsApp({ name, version }, {}, { autoResize });
 
   function currentContext(): McpUiHostContext {
     return client.getHostContext() ?? {};
@@ -270,8 +254,8 @@ export async function connect(options: ConnectOptions): Promise<App> {
     return {};
   };
 
-  // Everything else the host sends: vendor extension notifications, the server's
-  // `notifications/resources/list_changed`, and `notifications/tasks/status`.
+  // Everything else the host sends: vendor extension notifications and the
+  // server's `notifications/resources/list_changed`.
   // `App` routes a notification here when no typed handler claims its method,
   // and one handler with a fan-out under it is the only safe shape —
   // registering a second handler for a method would silently replace the first.
@@ -369,13 +353,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
   const resizer = createResizer(sendRaw, false);
   if (!autoResize) resizer.measureAndSend();
 
-  // Shared router for `notifications/tasks/status`. Created eagerly so the
-  // subscription registers exactly once — every `TaskHandle` filters off this
-  // single wire subscription by taskId.
-  const taskRouter = createTaskStatusRouter((method, handler) =>
-    subscribe(method, handler as (params: any) => void),
-  );
-
   // --- The App this SDK hands out ---
   const app: App = {
     get theme() {
@@ -403,7 +380,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
       return destroyed;
     },
     get supportsTasks() {
-      return hostTasksCapability?.requests?.tools?.call !== undefined;
+      return hostTasksCapability !== undefined;
     },
 
     on(event: string, handler: (params: any) => void): () => void {
@@ -485,7 +462,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
       destroyed = true;
       keyboard?.destroy();
       resizer.destroy();
-      taskRouter.dispose();
       handlers.clear();
       themeCallbacks.clear();
       hostContextCallbacks.clear();
@@ -503,7 +479,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     onMessage(method, handler) {
       return subscribe(method, handler as (params: any) => void);
     },
-    taskRouter,
     get hostTasksCapability() {
       return hostTasksCapability;
     },

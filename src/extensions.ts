@@ -132,8 +132,9 @@ export async function pickFiles(app: App, options?: RequestFileOptions): Promise
  * whose `data` is `{ files, errors }`, the files stored despite it and why each
  * other was refused).
  *
- * The `File` objects cross to the host whole (`postMessage` clones them), never
- * as base64 in a tool call. Resolves `[]` for an empty list without asking the
+ * Each file is read here, in the app's frame, and a copy holding its bytes
+ * crosses to the host (`postMessage` clones it), never base64 in a tool call:
+ * a dropped file read only by the host fails, since only this frame may read it. Resolves `[]` for an empty list without asking the
  * host. Rejects with `HostCapabilityError` when the host did not declare
  * `ai.nimblebrain/upload-files`; `hostSupports(app, "uploadFiles")` says so up
  * front, to decide whether to offer a drop target at all.
@@ -147,11 +148,36 @@ export async function uploadFiles(
     throw new HostCapabilityError("uploadFiles", NIMBLEBRAIN_EXTENSIONS.uploadFiles.capability);
   }
   if (files.length === 0) return [];
+  const maxSize = options?.maxSize ?? DEFAULT_MAX_FILE_SIZE;
+  const held = await Promise.all(files.map((file) => holdInMemory(file, maxSize)));
   const result = await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.uploadFiles.method, {
-    files: [...files],
-    maxSize: options?.maxSize ?? DEFAULT_MAX_FILE_SIZE,
+    files: held,
+    maxSize,
   });
   return readFiles(result, NIMBLEBRAIN_EXTENSIONS.uploadFiles.method);
+}
+
+/**
+ * A copy of `file` whose bytes live in memory, read here in the app's frame.
+ *
+ * A file dropped on the app, or chosen from an input in it, is a reference to
+ * a file on disk that only the frame it was given to may read. Cloned to the
+ * host, it keeps the reference and loses the right, so the host's upload fails
+ * with "Failed to fetch". A copy read here carries its bytes. A file over
+ * `maxSize` goes as it is: the host refuses it on its size alone, without
+ * reading it, so it is never loaded just to be turned away.
+ */
+async function holdInMemory(file: File, maxSize: number): Promise<File> {
+  if (file.size > maxSize) return file;
+  let bytes: ArrayBuffer;
+  try {
+    bytes = await file.arrayBuffer();
+  } catch {
+    throw new Error(
+      `Couldn't read "${file.name}". A folder, or a file that was moved or deleted, can't be uploaded.`,
+    );
+  }
+  return new File([bytes], file.name, { type: file.type, lastModified: file.lastModified });
 }
 
 function requireRequestFile(feature: string, app: App): void {

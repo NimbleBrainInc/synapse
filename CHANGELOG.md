@@ -14,7 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   - The host declares the extension as `hostCapabilities.experimental["io.modelcontextprotocol/tasks"] = {}`; presence is the signal. `app.supportsTasks` is `true` for any declaration there, and `requests.tools.call` is no longer read. `TasksCapability` is now `Record<string, unknown>`.
   - `result()` rejects with the new `TaskError` when the task fails (its message and `code` are the server's inlined error), is cancelled, or asks for input. Synapse cannot answer an input request, so on `input_required` it sends `tasks/cancel` first. `TaskError.task.status` says which.
   - `onStatus` reports the status changes the handle's own polls observe (`result()`, `refresh()`, `cancel()`); the host pushes none, so a handle nobody polls reports nothing.
-  - `cancel()` sends `tasks/cancel`, then resolves with the task from one `tasks/get`.
+  - `cancel()` sends `tasks/cancel`, then resolves with the task from one `tasks/get`, or with the last task seen if that read fails. It rejects only when `tasks/cancel` fails.
   - `result()` takes `{ signal }`: aborting it stops polling without cancelling the task. `useCallToolAsTask` aborts on unmount and on a re-fire.
   - `ttl` is gone from the call: the `options` argument of `callToolAsTask` and of the hook's `fire`, and the `CallToolAsTaskOptions` type, are removed. `Task.ttl` is the host's `ttlMs`, or `null` when it names none.
   - `connect()` no longer advertises `appCapabilities.tasks`: the extension is declared per call.

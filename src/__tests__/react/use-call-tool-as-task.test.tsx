@@ -358,6 +358,27 @@ describe("useCallToolAsTask — cancel()", () => {
     expect(r.result.current.isTerminal).toBe(true);
   });
 
+  it("an accepted cancel whose follow-up tasks/get fails still ends quietly", async () => {
+    vi.useFakeTimers();
+    const r = await renderReady();
+    await fireWith(r, wireTask("tsk_p", WORKING, { pollIntervalMs: 500 }));
+
+    await act(async () => {
+      void r.result.current.cancel();
+      await respond(TASKS_CANCEL_METHOD, {});
+      await respondError(TASKS_GET_METHOD, -32603, "blip");
+      await flush();
+    });
+    expect(r.result.current.error).toBeNull();
+    expect(r.result.current.isWorking).toBe(true);
+
+    await advance(500);
+    await answerGet(wireTask("tsk_p", CANCELLED));
+    expect(r.result.current.task?.status).toBe(CANCELLED);
+    expect(r.result.current.error).toBeNull();
+    expect(r.result.current.isTerminal).toBe(true);
+  });
+
   it("surfaces a cancel failure via error", async () => {
     const r = await renderReady();
     await fireWith(r, wireTask("tsk_cancel_err", WORKING));

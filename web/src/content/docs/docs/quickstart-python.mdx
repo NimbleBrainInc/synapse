@@ -43,8 +43,8 @@ assumes you already have an `MCPServer`, or can start one. The package requires
    `<!--__SYNAPSE_SDK__-->` is replaced with the inlined client SDK `<script>`, so
    the component is self-contained (no CDN, CSP-safe). The
    `synapse-ui-data` script is the data slot: the served copy leaves the marker in
-   place, so the client reads `null` and falls back to the host's push, and a
-   per-result copy substitutes the escaped payload there.
+   place, so the client reads `null` and takes the host's push. A template without
+   `<!--__SYNAPSE_SDK__-->` is refused with a `ValueError`.
 
 3. **Declare the component.**
 
@@ -54,12 +54,10 @@ assumes you already have an `MCPServer`, or can start one. The package requires
    forecast_ui = SynapseUI(
        uri="ui://weather/forecast",
        template=TEMPLATE,
-       preferred_size=("100%", "auto"),
    )
    ```
 
-   `uri` is the resource id the host loads; `preferred_size` is the size hint the
-   component asks for.
+   `uri` is the resource id the host loads.
 
 4. **Hand the component to the server as an extension.**
 
@@ -82,10 +80,6 @@ assumes you already have an `MCPServer`, or can start one. The package requires
    rides in the model-facing content. It also attaches the status strings ChatGPT
    shows while the tool runs and after it finishes.
 
-   For a host that renders solely from a copy embedded in the result,
-   `forecast_ui.bind("get_forecast", embed_resource=True)` bakes one into each
-   result's content.
-
 5. **Run the server.** Start it however you normally run an `MCPServer` (stdio or HTTP).
    In a host that supports embedded UIs, calling `get_forecast` now renders your
    component. A plain MCP client that renders no UI ignores the resource and
@@ -95,8 +89,7 @@ assumes you already have an `MCPServer`, or can start one. The package requires
 
 ## What just happened
 
-- `SynapseUI` described one component once: a URI, a data-free template, and a size
-  hint.
+- `SynapseUI` described one component once: a URI and a data-free template.
 - `extensions=[forecast_ui]` published it as a `ui://` resource with the client SDK
   inlined, so the component is fully self-contained.
 - `tool_meta` wired the component to a tool, so its result is delivered

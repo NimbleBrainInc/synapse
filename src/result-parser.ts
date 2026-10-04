@@ -1,27 +1,24 @@
 import type { ToolCallResult } from "./types.js";
 
 /**
- * Normalize a raw tool call response into a consistent `ToolCallResult`.
+ * Normalize a `CallToolResult` into a consistent `ToolCallResult`.
  *
- * Handles three shapes:
- * 1. MCP `CallToolResult` — has a `content` array with typed blocks.
- * 2. Raw JSON object (NimbleBrain bridge) — used as-is.
- * 3. Null / undefined — returns `{ data: null, isError: false }`.
+ * A host answers `tools/call` with the tool's `CallToolResult`, and a completed
+ * task inlines one. A missing `content` reads as empty, as the MCP SDK's own
+ * schema defaults it. Null or undefined returns `{ data: null, isError: false }`.
  *
  * `_meta` on a `CallToolResult` is preserved on the parsed output as a
  * whole-object passthrough, so any namespaced `_meta` key propagates for free.
  */
 export function parseToolResult(raw: unknown): ToolCallResult {
-  if (raw == null) {
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
     return { data: null, isError: false };
   }
-
-  if (isCallToolResult(raw)) {
-    return parseCallToolResult(raw);
-  }
-
-  // Raw JSON object — pass through.
-  return { data: raw, isError: false };
+  const result = raw as Partial<McpCallToolResult>;
+  return parseCallToolResult({
+    ...result,
+    content: Array.isArray(result.content) ? result.content : [],
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -37,13 +34,6 @@ interface McpCallToolResult {
   content: unknown[];
   isError?: boolean;
   _meta?: { [key: string]: unknown };
-}
-
-function isCallToolResult(value: unknown): value is McpCallToolResult {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  return Array.isArray((value as Record<string, unknown>).content);
 }
 
 function isTextBlock(block: unknown): block is McpTextBlock {

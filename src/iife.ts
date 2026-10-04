@@ -3,9 +3,6 @@
  * from an MCP server's widget HTML.
  *
  * Usage: `Synapse.connect({ name: "widget", version: "1.0.0" }).then(app => …)`
- *
- * The global keeps the `Synapse` name: it is the package namespace that every
- * embedded `ui://` resource already references, not the removed legacy class.
  */
 
 import { connect } from "./connect.js";

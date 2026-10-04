@@ -131,9 +131,10 @@ Three things worth knowing:
   self-hosted or CDN — needs the host to add that origin to the frame's CSP.
   Check the host's policy before choosing between them.
 
-Faces are applied through the same funnel as the token variables
-(`applyTheme`), so a theme change can never leave an app with the host's palette
-under the wrong typeface.
+Faces load alongside the token variables, on the handshake and on every
+`host-context-changed` that carries `styles.css.fonts`. A context change without
+them keeps the faces already loaded, so a theme toggle never unloads the host's
+typeface.
 
 ## Quick Start
 
@@ -318,7 +319,6 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `toolInfo` | `{ tool } \| null` | Tool context if launched from a tool call |
 | `containerDimensions` | `Dimensions \| null` | Container size constraints from host |
 | `hostContext` | `McpUiHostContext` | The full host context — spec fields plus host extensions |
-| `isNimbleBrainHost` | `boolean` | Whether the host identified itself as NimbleBrain |
 | `destroyed` | `boolean` | True after `destroy()` |
 | `supportsTasks` | `boolean` | Whether the host declared the MCP tasks extension (`io.modelcontextprotocol/tasks`) |
 

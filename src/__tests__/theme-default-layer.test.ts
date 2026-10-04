@@ -172,7 +172,7 @@ describe("a partial document degrades instead of throwing", () => {
   // defaults needed while they were inline properties — `documentElement.style`
   // plus listeners. Moving them into a stylesheet added `getElementById`,
   // `createElement` and `head.prepend`, none of which such a document has. A
-  // throw there does not stay local: it unwinds through `applyTheme` into the
+  // throw there does not stay local: it unwinds through `applyThemeVariables` into the
   // handshake, so the app never finishes connecting and the failure reads as a
   // dead session rather than a missing default. Shape mirrors the stub in the
   // NimbleBrain host's own SDK-parity suite, which is where this first surfaced.

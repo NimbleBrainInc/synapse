@@ -14,10 +14,8 @@ an MCP **extension** (SEP-2133): hand the instance to
 - **tool_meta** emits the `_meta` a host binds the component with: the ext-apps
   ``ui.resourceUri`` and ``ui.visibility``, plus ChatGPT's visibility aliases
   (see ``_chatgpt_tool_aliases``).
-- **bind** names the tools whose results carry the component HTML baked into the
-  result ``content`` (``embed_resource=True``, the mcp-ui no-round-trip copy) —
-  off by default so that ``audience: ["user"]`` HTML can't leak into a client that
-  won't render it.
+- **render_html** returns the component with a payload baked into its JSON
+  ``<script>``, for a page rendered outside a host (a test or a sample harness).
 
 The extension is advertised under the spec's MCP Apps identifier
 (``io.modelcontextprotocol/ui``), because that is the extension this implements;
@@ -25,7 +23,7 @@ the few ChatGPT keys it emits ride alongside in `_meta` keys the spec does not
 claim. A server therefore uses `SynapseUI` *instead of* the SDK's own
 ``mcp.server.apps.Apps`` — two extensions cannot share an identifier.
 
-The client SDK (`window.SynapseUI`) is inlined into the served + embedded HTML so
+The client SDK (`window.SynapseUI`) is inlined into the served HTML so
 the component is fully self-contained (no CDN, CSP-safe). Plain MCP clients ignore
 the UI pieces and still read ``structuredContent``, so degradation is graceful.
 
@@ -36,35 +34,28 @@ here, framework-owned and on by default.
 from __future__ import annotations
 
 import json
-import warnings
-from dataclasses import dataclass
 from importlib import resources
 from typing import TYPE_CHECKING, Any
 
-from mcp import types
 from mcp.server.apps import APP_MIME_TYPE, EXTENSION_ID, Visibility
 from mcp.server.extension import Extension, ResourceBinding
 from mcp.server.mcpserver.resources import TextResource
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping, Sequence
-
-    from mcp.server.context import CallNext, HandlerResult, ServerRequestContext
+    from collections.abc import Mapping, Sequence
 
 __all__ = ["SynapseUI"]
 
 # Every audience a tool can be visible to, which is also the spec's default.
 _ALL_AUDIENCES: tuple[Visibility, ...] = ("model", "app")
 
-# mcp-ui renders a ui:// resource whose content is raw HTML as text/html.
-MCPUI_MIME = "text/html"
 # MCP Apps standard (SEP-1865): a host mounts the component in an iframe only when
 # the resource is served under this exact MIME. Taken from the SDK rather than
 # spelled again here, so it cannot drift from the MIME the SDK's own resource
 # validation enforces.
 MCPAPP_MIME = APP_MIME_TYPE
 
-# The client reads pushed data from this element by id (mcp-ui / SSR path). Keep
+# The client reads baked-in data from this element by id (`render_html`). Keep
 # in lockstep with the SDK's SYNAPSE_DATA_ELEMENT_ID.
 DEFAULT_DATA_ELEMENT_ID = "synapse-ui-data"
 
@@ -87,29 +78,18 @@ def _load_bundled_sdk() -> str:
     )
 
 
-@dataclass(frozen=True)
-class _Binding:
-    """The per-tool render decision `bind` records, read by the interceptor."""
-
-    should_render: Callable[[Any], bool]
-    embed_resource: bool
-
-
 class SynapseUI(Extension):
     """A cross-host `ui://` component declared once and wired into every bridge.
 
     Pass the instance to ``MCPServer(..., extensions=[ui])``. The component's
     resource is built here, at construction, and contributed from
-    :meth:`resources`; :meth:`bind` names the tools whose results carry the
-    binding and may be called before or after the server is constructed.
+    :meth:`resources`. A tool binds to it through :meth:`tool_meta`.
 
     Args:
         uri: The ``ui://`` resource URI every host reads.
-        template: The data-free component HTML. Should carry {@link SDK_MARKER}
-            (where the client SDK is inlined) and a JSON ``<script>`` holding
-            {@link DATA_MARKER} with ``id`` = ``data_element_id``.
-        preferred_size: mcp-ui preferred frame size, emitted on the embedded
-            resource as ``mcpui.dev/ui-preferred-frame-size``.
+        template: The data-free component HTML. It carries ``SDK_MARKER`` (where
+            the client SDK is inlined) unless ``inline_sdk`` is ``False``, and a
+            JSON ``<script>`` holding ``DATA_MARKER`` with ``id`` = ``data_element_id``.
         data_element_id: ``id`` of the JSON ``<script>`` the client reads.
         inline_sdk: Inline the bundled client SDK into the HTML (default). Set
             ``False`` if the template already carries the SDK.
@@ -147,7 +127,6 @@ class SynapseUI(Extension):
         *,
         uri: str,
         template: str,
-        preferred_size: tuple[str, str] = ("100%", "auto"),
         data_element_id: str = DEFAULT_DATA_ELEMENT_ID,
         inline_sdk: bool = True,
         sdk_source: str | None = None,
@@ -158,7 +137,6 @@ class SynapseUI(Extension):
     ) -> None:
         self.uri = uri
         self.data_element_id = data_element_id
-        self.preferred_size = preferred_size
         # The sandbox origin is host-owned, and the hosts model it differently:
         # `openai/widgetDomain` is a developer-declared origin (ChatGPT), while the
         # ext-apps `ui.domain` is host-validated (Claude derives it and rejects a
@@ -168,7 +146,6 @@ class SynapseUI(Extension):
         self.mcp_app_domain = mcp_app_domain
         self.connect_domains = connect_domains or []
         self.resource_domains = resource_domains or []
-        self._bound: dict[str, _Binding] = {}
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
         self._resources = [self._build_resource()]
 
@@ -178,13 +155,12 @@ class SynapseUI(Extension):
     def _inline_sdk(template: str, sdk_source: str | None) -> str:
         sdk = sdk_source if sdk_source is not None else _load_bundled_sdk()
         script = f"<script>{sdk}</script>"
-        if SDK_MARKER in template:
-            return template.replace(SDK_MARKER, script, 1)
-        # Fallback: inject before </body> (or </html>) so the component still loads.
-        for close in ("</body>", "</html>"):
-            if close in template:
-                return template.replace(close, script + close, 1)
-        return template + script
+        if SDK_MARKER not in template:
+            raise ValueError(
+                f"template has no {SDK_MARKER} marker: place it where the client SDK "
+                "<script> goes, or pass inline_sdk=False if the template carries the SDK"
+            )
+        return template.replace(SDK_MARKER, script, 1)
 
     def template_html(self) -> str:
         """Data-free HTML (the served resource): SDK inlined, data marker intact."""
@@ -209,23 +185,15 @@ class SynapseUI(Extension):
         )
 
     def render_html(self, data: Any) -> str:
-        """HTML with ``data`` baked into the JSON ``<script>`` (mcp-ui embedded copy)."""
+        """HTML with ``data`` baked into the JSON ``<script>``, escaped for it.
+
+        For a page rendered outside a host, such as a test or a sample harness. A
+        host renders the data-free resource and feeds it the result's
+        ``structuredContent``.
+        """
         return self._template.replace(DATA_MARKER, self._safe_json(data), 1)
 
     # -- MCP wiring -------------------------------------------------------
-
-    def embedded_resource(self, data: Any) -> types.EmbeddedResource:
-        """The mcp-ui content block: a ``ui://`` resource carrying ``data`` inline."""
-        return types.EmbeddedResource(
-            type="resource",
-            resource=types.TextResourceContents(
-                uri=self.uri,
-                mime_type=MCPUI_MIME,
-                text=self.render_html(data),
-            ),
-            annotations=types.Annotations(audience=["user"]),
-            _meta={"mcpui.dev/ui-preferred-frame-size": list(self.preferred_size)},
-        )
 
     def tool_meta(
         self,
@@ -234,7 +202,6 @@ class SynapseUI(Extension):
         invoked: str | None = None,
         visibility: Sequence[Visibility] | None = None,
         security_schemes: Sequence[Mapping[str, Any]] | None = None,
-        widget_accessible: bool | None = None,
     ) -> dict[str, Any]:
         """`_meta` for the tool descriptor — how a host binds the component.
 
@@ -258,23 +225,10 @@ class SynapseUI(Extension):
                 clients that read only ``_meta``: the MCP SDK builds a tool
                 descriptor from a fixed set of fields, so a top-level
                 ``securitySchemes`` cannot reach the wire through it.
-            widget_accessible: Deprecated spelling of ``visibility``: ``True`` is
-                ``["model", "app"]`` and ``False`` is ``["model"]``.
 
         Raises:
             ValueError: ``visibility`` is empty or names an unknown audience.
-            TypeError: Both ``visibility`` and ``widget_accessible`` were given.
         """
-        if widget_accessible is not None:
-            if visibility is not None:
-                raise TypeError("pass visibility or widget_accessible, not both")
-            warnings.warn(
-                "widget_accessible is deprecated; pass visibility=['model', 'app'] "
-                "or visibility=['model'] instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            visibility = ("model", "app") if widget_accessible else ("model",)
         audiences = (
             list(dict.fromkeys(visibility)) if visibility is not None else list(_ALL_AUDIENCES)
         )
@@ -339,65 +293,6 @@ class SynapseUI(Extension):
     def resources(self) -> Sequence[ResourceBinding]:
         """The ``ui://`` resource, consumed at server construction."""
         return self._resources
-
-    def bind(
-        self,
-        tool: str,
-        *,
-        should_render: Callable[[Any], bool] | None = None,
-        embed_resource: bool = False,
-    ) -> None:
-        """Decide what `tool`'s results carry beyond the descriptor binding.
-
-        A host renders a tool's output through the component from the descriptor
-        ``_meta`` alone (``ui.resourceUri``, from ``tool_meta``) and the contributed
-        ``ui://`` resource, with the result's ``structuredContent``; a tool needs no
-        ``bind`` for that. A plain client ignores the ``_meta`` and still reads the
-        structured JSON.
-
-        ``embed_resource`` (default ``False``) bakes the fully rendered component
-        HTML into a successful, non-error result's ``content`` as an mcp-ui
-        ``EmbeddedResource`` — "render from the content block, no
-        ``resources/read`` round-trip" — when the result carries
-        ``structuredContent`` that passes ``should_render``. With it off, ``bind``
-        changes nothing. It is off by default because that HTML is
-        ``audience: ["user"]`` UI, not model context: a client that can't render it
-        (a plain MCP client, a terminal agent) cannot negotiate it away on a
-        stateless server, so the whole component — tens of KB per call — lands
-        verbatim in the model's context. Enable it only for a host that renders
-        *solely* from the embedded copy and not the ``ui.resourceUri`` binding.
-
-        Order does not matter: the interceptor is installed because this class
-        overrides :meth:`intercept_tool_call`, not because a tool is bound, so this
-        may be called before or after the server is constructed. Binding the same
-        tool again replaces its options.
-        """
-        self._bound[tool] = _Binding(
-            should_render=should_render if should_render is not None else (lambda data: bool(data)),
-            embed_resource=embed_resource,
-        )
-
-    async def intercept_tool_call(
-        self,
-        params: types.CallToolRequestParams,
-        ctx: ServerRequestContext[Any, Any],
-        call_next: CallNext,
-    ) -> HandlerResult:
-        """Embed the component in a bound tool's result (SEP-2133 hook)."""
-        result = await call_next(ctx)
-        binding = self._bound.get(params.name)
-        if binding is None or not isinstance(result, types.CallToolResult):
-            return result
-        return self._attach(result, binding)
-
-    def _attach(self, result: types.CallToolResult, binding: _Binding) -> types.CallToolResult:
-        if result.is_error:
-            return result
-        data = result.structured_content
-        if not binding.embed_resource or not data or not binding.should_render(data):
-            return result
-        result.content.append(self.embedded_resource(data))
-        return result
 
 
 # -- ChatGPT (OpenAI Apps SDK) compatibility ------------------------------------

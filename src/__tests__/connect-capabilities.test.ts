@@ -154,14 +154,9 @@ describe("connect() capabilities", () => {
   });
 
   describe("host identity", () => {
-    it("isNimbleBrainHost is true when hostInfo.name is 'nimblebrain'", async () => {
-      app = await connectAndHandshake();
-      expect(app.isNimbleBrainHost).toBe(true);
-    });
-
-    it("isNimbleBrainHost is false for other hosts", async () => {
+    it("reports the name the host gave in the handshake", async () => {
       app = await connectAndHandshake({}, makeInitResult("claude"));
-      expect(app.isNimbleBrainHost).toBe(false);
+      expect(app.hostInfo.name).toBe("claude");
     });
   });
 
@@ -274,6 +269,13 @@ describe("connect() capabilities", () => {
       const p = pickFile(app);
       await respondToLastRequest({ files: [{ base64Data: "AAA=", filename: "a.csv" }] });
       await expect(p).rejects.toThrow(/without a string `id`/);
+    });
+
+    it("pickFile rejects an answer without a `files` array, naming the method", async () => {
+      app = await connectAndHandshake();
+      const p = pickFile(app);
+      await respondToLastRequest({});
+      await expect(p).rejects.toThrow(/request-file returned no `files` array/);
     });
 
     it("pickFiles throws if any entry is missing `id`", async () => {

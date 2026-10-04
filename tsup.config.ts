@@ -31,7 +31,6 @@ export default defineConfig([
   {
     entry: {
       "connect.iife": "src/iife.ts",
-      "synapse-runtime.iife": "src/iife.ts",
     },
     format: ["iife"],
     // The script runs in an app's iframe. Without this, tsup resolves for

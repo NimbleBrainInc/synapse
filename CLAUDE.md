@@ -20,8 +20,8 @@ what it covers and how to add a row.
 
 **Re-vendor the Python client asset whenever the build output moves.** The
 trigger is not "a change under `src/host/`": the bundle reaches outside it —
-`src/host/adapters/mcpapps.ts` imports `foldFontFaces` from `src/detection.ts` —
-and esbuild assigns minified names across the whole output, so deleting an
+`src/host/adapters/mcpapps.ts` imports from `src/detection.ts`, and
+`src/host/theme.ts` from `src/theme-defaults.ts` — and esbuild assigns minified names across the whole output, so deleting an
 unrelated export from a module it touches re-mangles the bundle at an unchanged
 size. Diff it rather than reasoning about which files matter, and never take a
 byte count as evidence the bundle is unchanged. The build writes
@@ -174,9 +174,8 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
   `ui.visibility`) and the resource `_meta` (`ui.csp`, `ui.prefersBorder`), each with
   ChatGPT's alias for it, kept in one marked section of `server.py` whose comment says
-  why; plus the `<script>`-safe embed (XSS defense), and the `tools/call` interceptor
-  that bakes the component into a bound tool's result when `embed_resource=True`.
-  Never add a second copy of the resource under another MIME. **A host-specific key
+  why; plus the `<script>`-safe embed (XSS defense) that `render_html` uses to bake
+  a payload into the template. Never add a second copy of the resource under another MIME. **A host-specific key
   that mirrors a spec value is emitted always, derived from that value** — ChatGPT's
   documented default for a missing `openai/widgetAccessible` is *not app-accessible*,
   so an omitted alias is a silent change of behaviour rather than a fallback. OpenAI
@@ -270,66 +269,15 @@ acting on reaches the agent through `updateModelContext`.
 
 An `ai.nimblebrain/` method constant without an entry fails `event-map.test.ts`.
 
-## IIFE build for MCP server widgets
+## IIFE builds
 
-**This recipe is for the cross-host `SynapseUI` client only.** It replaces
-`@modelcontextprotocol/*` with string constants, and `connect()` needs the real
-`App` class — so a `connect()` bundle built this way has no client at all. The
-`connect()` IIFE is built by `tsup` (`dist/connect.iife.global.js`) and bundles
-ext-apps and Zod deliberately: about 117 KB gzipped, against 3.8 KB for the
-`SynapseUI` bundle a self-contained `ui://` component inlines.
+`tsup` builds both script-tag bundles.
 
-MCP servers embed synapse as a `<script>` in widget HTML. Build with esbuild + shims to avoid bundling Zod (~11KB vs ~400KB):
+- `dist/connect.iife.global.js` (`./iife`) exposes `window.Synapse`, the
+  `connect()` path. It bundles ext-apps and Zod deliberately, because `connect()`
+  is the spec's own `App`.
+- `dist/synapse-ui.iife.global.js` (`./iife/ui`) exposes `window.SynapseUI`, the
+  cross-host client. It has no `@modelcontextprotocol/*` in its graph, which is
+  why a self-contained `ui://` component can inline it.
 
-```bash
-# Create entry
-cat > src/_iife-entry.ts << 'EOF'
-import { connect } from "./connect.ts";
-import { downloadFile } from "./download-file.ts";
-import { action, pickFile, pickFiles } from "./extensions.ts";
-import { callToolAsTask } from "./task-handle.ts";
-(globalThis as any).Synapse = {
-  connect, callToolAsTask, action, downloadFile, pickFile, pickFiles,
-};
-EOF
-
-# Create lightweight shim (string constants only, no Zod)
-mkdir -p src/_shims
-cat > src/_shims/ext-apps.ts << 'SHIM'
-export const LATEST_PROTOCOL_VERSION = "2026-01-26";
-export const INITIALIZE_METHOD = "ui/initialize";
-export const INITIALIZED_METHOD = "ui/notifications/initialized";
-export const OPEN_LINK_METHOD = "ui/open-link";
-export const DOWNLOAD_FILE_METHOD = "ui/download-file";
-export const MESSAGE_METHOD = "ui/message";
-export const SIZE_CHANGED_METHOD = "ui/notifications/size-changed";
-export const TOOL_INPUT_METHOD = "ui/notifications/tool-input";
-export const TOOL_INPUT_PARTIAL_METHOD = "ui/notifications/tool-input-partial";
-export const TOOL_RESULT_METHOD = "ui/notifications/tool-result";
-export const TOOL_CANCELLED_METHOD = "ui/notifications/tool-cancelled";
-export const HOST_CONTEXT_CHANGED_METHOD = "ui/notifications/host-context-changed";
-export const REQUEST_TEARDOWN_METHOD = "ui/notifications/request-teardown";
-export const RESOURCE_TEARDOWN_METHOD = "ui/resource-teardown";
-
-// MCP tasks extension (2026-07-28). Source files derive these via
-// `const X: SomeRequest["method"] = "..."`, so the shim only has to carry the
-// strings; keep them in lockstep with `src/task-handle.ts`.
-export const TOOLS_CALL_METHOD = "tools/call";
-export const TASKS_GET_METHOD = "tasks/get";
-export const TASKS_CANCEL_METHOD = "tasks/cancel";
-SHIM
-
-# Build
-bunx esbuild src/_iife-entry.ts \
-  --bundle --format=iife --minify \
-  --alias:@modelcontextprotocol/ext-apps=./src/_shims/ext-apps.ts \
-  --alias:@modelcontextprotocol/client=./src/_shims/ext-apps.ts \
-  --alias:@modelcontextprotocol/core=./src/_shims/ext-apps.ts \
-  --external:react --platform=browser \
-  --outfile=<target>
-
-# Clean up
-rm -rf src/_iife-entry.ts src/_shims
-```
-
-**If the spec adds new constants, update the shim.** The shim must mirror every constant imported by source files.
+`npm run size` holds each to its budget (`scripts/size-budget.mjs`).

@@ -302,11 +302,6 @@ export interface App {
    * `hostSupports`.
    */
   readonly hostCapabilities: McpUiHostCapabilities;
-  /**
-   * True when the host identified itself as NimbleBrain in the handshake.
-   * Identity, not capability: nothing is gated on it.
-   */
-  readonly isNimbleBrainHost: boolean;
   /** True after `destroy()` has been called. */
   readonly destroyed: boolean;
   /**

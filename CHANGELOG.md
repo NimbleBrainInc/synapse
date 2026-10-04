@@ -4,7 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.28.0] - 2026-10-04
+
+### Breaking
+
+- **`app.isNimbleBrainHost` is removed.** It reported the host's name, and nothing is gated on a name: a NimbleBrain extension is available when the host declares it.
+
+  **Migration:** check the capability you need with `hostSupports(app, "<extension>")` or `app.hostCapabilities`. Where you need the name itself, read `app.hostInfo.name`.
+
+- **`callTool` and `callToolAsTask` read every answer as a `CallToolResult`.** A non-null answer without a `content` array resolves with `data: null` and `content: []` rather than the answer as `data`. Every host this package targets answers `tools/call` with the tool's `CallToolResult`, and a completed task inlines one.
+
+  **Migration:** none for an app on a current host. A host that answered a bare JSON object must answer the `CallToolResult` (`{ content, structuredContent?, isError? }`).
+
+- **`pickFile`, `pickFiles` and `uploadFiles` require the `{ files: FileResult[] }` answer and a string `id` on each file**, and reject otherwise with an error naming the method.
+
+  **Migration:** none for an app on a current host. A host must answer `{ files }`, with `{ files: [] }` when the user cancels.
+
+- **`dist/synapse-runtime.iife.global.js` is removed.** It was a second copy of `dist/connect.iife.global.js`.
+
+  **Migration:** load `@nimblebrain/synapse/iife` (`dist/connect.iife.global.js`). Both expose `window.Synapse`.
+
+### Changed
+
+- **The preview hosts (`synapse preview` and the Vite plugin's `/__preview`) report `hostInfo.name: "synapse-preview"`.** They still declare `ai.nimblebrain/action` and `ai.nimblebrain/keydown`, so the extensions they emulate work in preview.
 
 ### Fixed
 

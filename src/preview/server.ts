@@ -109,7 +109,7 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
           jsonrpc: "2.0", id: msg.id,
           result: {
             protocolVersion: "2026-01-26",
-            hostInfo: { name: "nimblebrain", version: "preview" },
+            hostInfo: { name: "synapse-preview", version: "preview" },
             hostCapabilities: {
               openLinks: {},
               serverTools: {},

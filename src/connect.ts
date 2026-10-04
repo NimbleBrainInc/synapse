@@ -36,7 +36,7 @@ import { KeyboardForwarder } from "./keyboard.js";
 import { createResizer } from "./resize.js";
 import { parseToolResult } from "./result-parser.js";
 import { readHostTasksCapability } from "./task-handle.js";
-import { applyTheme } from "./theme-defaults.js";
+import { applyThemeVariables } from "./theme-defaults.js";
 import type {
   App,
   ConnectOptions,
@@ -45,12 +45,6 @@ import type {
   Theme,
   ToolCallResult,
 } from "./types.js";
-
-/**
- * The host name that identifies a NimbleBrain host in the handshake. Identity
- * only: the NimbleBrain host extensions are gated on the host declaring each one.
- */
-const NIMBLEBRAIN_HOST = "nimblebrain";
 
 /**
  * Requests this SDK sends carry no deadline.
@@ -105,7 +99,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
   // The host context lives in `App`, which merges each delta into it, so it is
   // read back rather than copied. `theme` is a derived view of it.
   let hostInfo: { name: string; version: string } = { name: "unknown", version: "unknown" };
-  let isNimbleBrainHost = false;
   let toolInfo: { tool: Record<string, unknown> } | null = null;
   let containerDimensions: Dimensions | null = null;
   let hostCapabilities: McpUiHostCapabilities = {};
@@ -156,7 +149,7 @@ export async function connect(options: ConnectOptions): Promise<App> {
   /** Apply the current theme to the document, and record what was applied. */
   function applyResolvedTheme(): Theme {
     const theme = resolveTheme();
-    applyTheme(theme.mode, theme.tokens);
+    applyThemeVariables(theme.mode, theme.tokens);
     appliedTheme = theme;
     return theme;
   }
@@ -308,7 +301,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     name: hostVersion?.name ?? "unknown",
     version: hostVersion?.version ?? "unknown",
   };
-  isNimbleBrainHost = hostInfo.name === NIMBLEBRAIN_HOST;
 
   // Everything an app may ask of the host is decided here, once: each method
   // below and each helper beside `App` checks the declaration before sending.
@@ -366,9 +358,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     },
     get hostCapabilities() {
       return hostCapabilities;
-    },
-    get isNimbleBrainHost() {
-      return isNimbleBrainHost;
     },
     get toolInfo() {
       return toolInfo;

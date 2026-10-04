@@ -67,7 +67,7 @@ jobs:
           test -f dist/index.d.ts
           test -f dist/react/index.js
           test -f dist/codegen/cli.js
-          test -f dist/synapse-runtime.iife.global.js
+          test -f dist/connect.iife.global.js
           test -f dist/synapse-ui.iife.global.js
       - name: Bundle-size budget
         # Limits and the reason for each are in the script.

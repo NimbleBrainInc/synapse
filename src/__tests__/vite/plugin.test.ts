@@ -89,9 +89,11 @@ describe("preview host HTML", () => {
     expect(html).not.toContain("localhost:5174");
   });
 
-  it("identifies as nimblebrain in the handshake", () => {
+  it("names itself as the preview and declares the extensions it emulates", () => {
     const html = getPreviewHtml("hello");
-    expect(html).toContain('name:"nimblebrain"');
+    expect(html).toContain('name:"synapse-preview"');
+    expect(html).toContain('"ai.nimblebrain/action":{}');
+    expect(html).toContain('"ai.nimblebrain/keydown":{}');
   });
 
   it("preserves original request ID in tool call proxy", () => {

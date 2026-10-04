@@ -238,33 +238,19 @@ async function requestFile(
 /** The `{ files }` a picker or an upload answers, each entry shape-checked. */
 function readFiles(result: unknown, method: string): FileResult[] {
   const files = (result as { files?: unknown } | null | undefined)?.files;
-  if (files === undefined) {
-    // Only the picker had hosts that answered a bare array or `null`.
-    const why =
-      method === NIMBLEBRAIN_EXTENSIONS.requestFile.method
-        ? " The host is older than this SDK targets: it answers the picker with a " +
-          "bare array or `null`, which a spec-compliant client cannot parse."
-        : "";
-    throw new Error(`${method} returned no \`files\`.${why}`);
-  }
   if (!Array.isArray(files)) {
-    throw new Error(`${method} returned a \`files\` field that is not an array.`);
+    throw new Error(`${method} returned no \`files\` array.`);
   }
-  return files.map(validateFileResult);
+  return files.map((entry) => validateFileResult(entry, method));
 }
 
-function validateFileResult(value: unknown): FileResult {
+function validateFileResult(value: unknown, method: string): FileResult {
   if (
     typeof value !== "object" ||
     value === null ||
     typeof (value as { id?: unknown }).id !== "string"
   ) {
-    throw new Error(
-      "ai.nimblebrain/request-file returned a result without a string `id`. " +
-        "The host appears to be on a version older than this SDK targets — " +
-        "@nimblebrain/synapse 0.8.0+ requires a host with POST /v1/resources " +
-        "(NimbleBrain ≥ the version that ships PR #93).",
-    );
+    throw new Error(`${method} returned a file without a string \`id\`.`);
   }
   return value as FileResult;
 }

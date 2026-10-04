@@ -154,14 +154,9 @@ describe("connect() capabilities", () => {
   });
 
   describe("host identity", () => {
-    it("isNimbleBrainHost is true when hostInfo.name is 'nimblebrain'", async () => {
-      app = await connectAndHandshake();
-      expect(app.isNimbleBrainHost).toBe(true);
-    });
-
-    it("isNimbleBrainHost is false for other hosts", async () => {
+    it("reports the name the host gave in the handshake", async () => {
       app = await connectAndHandshake({}, makeInitResult("claude"));
-      expect(app.isNimbleBrainHost).toBe(false);
+      expect(app.hostInfo.name).toBe("claude");
     });
   });
 

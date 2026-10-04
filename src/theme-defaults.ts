@@ -137,7 +137,7 @@ export function resetAppliedInlineKeys(): void {
  * requirements (`getElementById`, `createElement`, `head.prepend`), and reaching
  * for them on such a document throws.
  *
- * A throw here is not contained: it unwinds through `applyTheme` into the
+ * A throw here is not contained: it unwinds through `applyThemeVariables` into the
  * handshake, so an app in that environment never finishes connecting. The
  * default layer is a rendering nicety and the connection is not, so a document
  * that cannot carry a stylesheet gets no layer rather than no session.
@@ -227,18 +227,11 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
  * this module never clears an inline property it did not set — an app writing its
  * own `documentElement.style` is left alone.
  *
- * Today an empty var set also arrives for a reason that is a bug rather than a
- * narrowing — `core.ts` replaces the host context wholesale, so a partial
- * `host-context-changed` that omits `styles` reads as "no tokens" (#46;
- * `connect.ts` already carries them forward). Fixing #46 is the better outcome —
- * it keeps the host's brand across a mode flip instead of collapsing to our
- * neutral — and does not make this loop unnecessary.
- *
  * SSR-safe (no-ops when `document` is unavailable). Idempotent — re-applying on
  * every theme change is correct and cheap.
  *
- * Prefer {@link applyTheme}: it applies variables *and* font faces together, so
- * a caller cannot wire up half a theme.
+ * The single path by which theme variables reach the DOM: the handshake and
+ * `host-context-changed` both funnel through here.
  */
 export function applyThemeVariables(
   mode: "light" | "dark",
@@ -277,17 +270,4 @@ export function applyThemeVariables(
   }
   for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
   appliedInlineKeys = new Set(Object.keys(incoming));
-}
-
-/**
- * Apply a resolved theme's variables to the app document.
- *
- * The single path by which theme variables reach the DOM: the handshake and
- * `host-context-changed` both funnel through here.
- */
-export function applyTheme(
-  mode: "light" | "dark",
-  hostVars: Record<string, string> | undefined | null,
-): void {
-  applyThemeVariables(mode, hostVars);
 }

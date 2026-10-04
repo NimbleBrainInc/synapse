@@ -1,4 +1,4 @@
-import { applyTheme } from "../theme-defaults.js";
+import { applyThemeVariables } from "../theme-defaults.js";
 import type { SynapseUITheme } from "./types.js";
 
 /**
@@ -9,7 +9,7 @@ import type { SynapseUITheme } from "./types.js";
  *  - `document.documentElement[data-theme="light"|"dark"]` — how self-contained
  *    HTML components (Bassethound's report) gate their `--var` palettes, and the
  *    lever a host's light/dark signal actually flips.
- *  - CSS custom properties via {@link applyTheme} — how the
+ *  - CSS custom properties via {@link applyThemeVariables} — how the
  *    `@nimblebrain/synapse/ui` token components consume theme, backed by the
  *    SDK's neutral defaults so every referenced var resolves in both modes.
  *
@@ -23,7 +23,7 @@ export function applyHostTheme(theme: SynapseUITheme): void {
   if (typeof document !== "undefined") {
     document.documentElement.setAttribute("data-theme", theme.mode);
   }
-  applyTheme(theme.mode, theme.tokens);
+  applyThemeVariables(theme.mode, theme.tokens);
 }
 
 /** The style element the host's font CSS goes in — the same id the spec's

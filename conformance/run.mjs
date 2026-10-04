@@ -542,7 +542,7 @@ try {
         if (!report) return "the app published no results";
         if (report.connect?.ok !== true) return `connect failed: ${report.connect?.error}`;
         return (
-          report.hostInfo?.name === "nimblebrain" ||
+          report.hostInfo?.name === "synapse-preview" ||
           `hostInfo was ${JSON.stringify(report.hostInfo)}`
         );
       },

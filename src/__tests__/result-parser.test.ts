@@ -2,14 +2,10 @@ import { describe, expect, it } from "vitest";
 import { parseToolResult } from "../result-parser.js";
 
 describe("parseToolResult", () => {
-  it("normalizes a raw JSON object", () => {
-    const raw = { id: "tsk_01abc", title: "foo" };
-    const result = parseToolResult(raw);
+  it("reads a result without content as an empty one", () => {
+    const result = parseToolResult({ isError: true });
 
-    expect(result).toEqual({
-      data: { id: "tsk_01abc", title: "foo" },
-      isError: false,
-    });
+    expect(result).toEqual({ data: null, isError: true, content: [] });
   });
 
   it("parses MCP CallToolResult with a single text block", () => {

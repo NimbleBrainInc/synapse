@@ -12,6 +12,7 @@ export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.j
 export {
   action,
   hostSupports,
+  notify,
   onNavigate,
   pickFile,
   pickFiles,
@@ -45,6 +46,8 @@ export type {
   KeyForwardConfig,
   McpUiHostContext,
   ModelContext,
+  Notice,
+  NoticeLevel,
   RequestFileOptions,
   Task,
   TaskHandle,

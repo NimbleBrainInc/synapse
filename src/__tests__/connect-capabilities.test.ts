@@ -14,6 +14,7 @@ import { HostCapabilityError } from "../errors.js";
 import {
   action,
   hostSupports,
+  notify,
   onNavigate,
   pickFile,
   pickFiles,
@@ -377,6 +378,43 @@ describe("connect() capabilities", () => {
       expect(error).toBeInstanceOf(HostCapabilityError);
       expect((error as HostCapabilityError).capability).toBe("ai.nimblebrain/upload-files");
       expect(sentByMethod("ai.nimblebrain/upload-files")).toHaveLength(0);
+    });
+  });
+
+  describe("notify", () => {
+    it("sends the notice as a request and resolves true once the host shows it", async () => {
+      app = await connectAndHandshake();
+      expect(hostSupports(app, "notify")).toBe(true);
+      const p = notify(app, {
+        level: "success",
+        title: "Report exported",
+        description: "In Files.",
+      });
+      await flush();
+      const msg = lastRequest();
+      expect(msg.method).toBe("ai.nimblebrain/notify");
+      expect(msg.params).toEqual({
+        level: "success",
+        title: "Report exported",
+        description: "In Files.",
+      });
+      await respondToLastRequest({});
+      await expect(p).resolves.toBe(true);
+    });
+
+    it("rejects with the host's error when the host refuses it", async () => {
+      app = await connectAndHandshake();
+      const p = notify(app, { level: "info", title: "n6" });
+      await flush();
+      await rejectLastRequest(-32000, "Too many notices: at most 5 in 10 seconds");
+      await expect(p).rejects.toThrow(/Too many notices/);
+    });
+
+    it("resolves false without sending where the host did not declare it", async () => {
+      app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
+      expect(hostSupports(app, "notify")).toBe(false);
+      await expect(notify(app, { level: "info", title: "x" })).resolves.toBe(false);
+      expect(sentByMethod("ai.nimblebrain/notify")).toHaveLength(0);
     });
   });
 

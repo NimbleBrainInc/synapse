@@ -11,6 +11,7 @@ export {
   useFileUpload,
   useHostContext,
   useModelContext,
+  useNotify,
   useResize,
   useSendMessage,
   useTheme,

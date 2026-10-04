@@ -67,6 +67,7 @@ it did.
 | Hook | Returns | Description | Without it |
 | --- | --- | --- | --- |
 | `useAction()` | `(name, params?) => void` | Trigger a host-side action: on NimbleBrain, `openApp` or `openConversation` | `ai.nimblebrain/action`: no-op |
+| `useNotify()` | `(notice) => Promise<boolean>` | Show the user a notice through the host, labelled with your app. See `notify` | `ai.nimblebrain/notify`: resolves `false` without sending |
 | `useFileUpload()` | `{ pickFile, pickFiles, uploadFiles, isPending }` | The host's native file picker, and uploads of files the app holds | `ai.nimblebrain/request-file` for the pickers, `ai.nimblebrain/upload-files` for `uploadFiles`: each rejects with `HostCapabilityError` without its own |
 | `useTrail(trail, navigate)` | `boolean` | Report the view's trail (root first, current last) so the host shows its title and breadcrumb; `navigate(id)` runs when the user picks a level. Returns whether the host shows them, so the view drops its own | `ai.nimblebrain/location`: sends nothing, returns `false` |
 

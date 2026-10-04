@@ -1,6 +1,6 @@
 /**
- * `useDataSync`, `useModelContext`, `useSendMessage`, `useAction` and
- * `useFileUpload` under `<AppProvider>`.
+ * `useDataSync`, `useModelContext`, `useSendMessage`, `useAction`,
+ * `useNotify` and `useFileUpload` under `<AppProvider>`.
  *
  * `useModelContext` owns the 250 ms debounce — `app.updateModelContext` sends
  * immediately — so the timing is asserted here and nowhere else.
@@ -15,6 +15,7 @@ import {
   useDataSync,
   useFileUpload,
   useModelContext,
+  useNotify,
   useSendMessage,
 } from "../../react/hooks.js";
 import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
@@ -283,6 +284,41 @@ describe("useAction", () => {
     });
 
     expect(sent("ai.nimblebrain/action")).toHaveLength(0);
+  });
+});
+
+describe("useNotify", () => {
+  it("sends ai.nimblebrain/notify and resolves true once the host answers", async () => {
+    const { result } = renderHook(() => useNotify(), { wrapper: createWrapper() });
+    await settle();
+
+    let shown!: Promise<boolean>;
+    await act(async () => {
+      shown = result.current({ level: "success", title: "Report exported" });
+      await flush();
+    });
+
+    const request = sent("ai.nimblebrain/notify")[0];
+    expect(request.params).toEqual({ level: "success", title: "Report exported" });
+
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: window.parent,
+          data: { jsonrpc: "2.0", id: request.id, result: {} },
+        }),
+      );
+      await flush();
+    });
+    await expect(shown).resolves.toBe(true);
+  });
+
+  it("resolves false without sending where the host did not declare it", async () => {
+    const { result } = renderHook(() => useNotify(), { wrapper: createWrapper() });
+    await settle("nimblebrain", {});
+
+    await expect(result.current({ level: "info", title: "x" })).resolves.toBe(false);
+    expect(sent("ai.nimblebrain/notify")).toHaveLength(0);
   });
 });
 

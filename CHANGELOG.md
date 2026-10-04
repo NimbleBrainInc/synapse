@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An accepted cancel no longer reports an error when its follow-up read fails.** `cancel()` now resolves with the last task seen when the `tasks/get` after an accepted `tasks/cancel` fails, and rejects only when `tasks/cancel` fails. `useCallToolAsTask` keeps polling and ends quietly on `cancelled`, where it used to set `error` for a cancel that worked.
+
 ## [0.27.0] - 2026-10-04
 
 ### Breaking
@@ -14,7 +18,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   - The host declares the extension as `hostCapabilities.experimental["io.modelcontextprotocol/tasks"] = {}`; presence is the signal. `app.supportsTasks` is `true` for any declaration there, and `requests.tools.call` is no longer read. `TasksCapability` is now `Record<string, unknown>`.
   - `result()` rejects with the new `TaskError` when the task fails (its message and `code` are the server's inlined error), is cancelled, or asks for input. Synapse cannot answer an input request, so on `input_required` it sends `tasks/cancel` first. `TaskError.task.status` says which.
   - `onStatus` reports the status changes the handle's own polls observe (`result()`, `refresh()`, `cancel()`); the host pushes none, so a handle nobody polls reports nothing.
-  - `cancel()` sends `tasks/cancel`, then resolves with the task from one `tasks/get`, or with the last task seen if that read fails. It rejects only when `tasks/cancel` fails.
+  - `cancel()` sends `tasks/cancel`, then resolves with the task from one `tasks/get`.
   - `result()` takes `{ signal }`: aborting it stops polling without cancelling the task. `useCallToolAsTask` aborts on unmount and on a re-fire.
   - `ttl` is gone from the call: the `options` argument of `callToolAsTask` and of the hook's `fire`, and the `CallToolAsTaskOptions` type, are removed. `Task.ttl` is the host's `ttlMs`, or `null` when it names none.
   - `connect()` no longer advertises `appCapabilities.tasks`: the extension is declared per call.

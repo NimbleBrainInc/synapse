@@ -231,7 +231,7 @@ export async function callToolAsTask<TOutput = unknown>(
       try {
         return toTask(await get());
       } catch {
-        // The cancel was accepted; result() is still polling and will see the outcome.
+        // The cancel was accepted; a caller polling result() will see the outcome.
         return lastSeen;
       }
     },

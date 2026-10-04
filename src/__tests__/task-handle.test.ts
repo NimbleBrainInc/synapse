@@ -500,6 +500,15 @@ describe("TaskHandle — refresh, cancel, onStatus", () => {
     expect(seen).toEqual([CANCELLED]);
   });
 
+  it("cancel() resolves to the last task seen when the follow-up tasks/get fails", async () => {
+    await ready();
+    const handle = await startTask("tsk_can_blip");
+    const cancelled = handle.cancel();
+    await respond(TASKS_CANCEL_METHOD, {});
+    await respondError(TASKS_GET_METHOD, -32603, "blip");
+    expect(await cancelled).toMatchObject({ taskId: "tsk_can_blip", status: WORKING });
+  });
+
   it("cancel() rejects with the host's error", async () => {
     await ready();
     const handle = await startTask("tsk_can_err");

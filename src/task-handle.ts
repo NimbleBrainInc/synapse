@@ -228,7 +228,12 @@ export async function callToolAsTask<TOutput = unknown>(
 
     async cancel(): Promise<Task> {
       await sendCancel();
-      return toTask(await get());
+      try {
+        return toTask(await get());
+      } catch {
+        // The cancel was accepted; a caller polling result() will see the outcome.
+        return lastSeen;
+      }
     },
 
     onStatus(cb) {

@@ -62,7 +62,9 @@ export interface TaskHandle<TOutput = unknown> {
 
   /**
    * Send `tasks/cancel`, then resolve with the task's state from one
-   * `tasks/get`. A no-op for a call answered outright.
+   * `tasks/get`, or with the last state seen if that `tasks/get` fails.
+   * Rejects only when `tasks/cancel` fails. A no-op for a call answered
+   * outright.
    */
   cancel(): Promise<Task>;
 

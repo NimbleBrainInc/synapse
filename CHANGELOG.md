@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **An accepted cancel no longer reports an error when its follow-up read fails.** `cancel()` now resolves with the last task seen when the `tasks/get` after an accepted `tasks/cancel` fails, and rejects only when `tasks/cancel` fails. `useCallToolAsTask` keeps polling and ends quietly on `cancelled`, where it used to set `error` for a cancel that worked.
+
 ## [0.27.0] - 2026-10-04
 
 ### Breaking

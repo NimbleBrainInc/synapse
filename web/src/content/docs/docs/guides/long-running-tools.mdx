@@ -95,9 +95,9 @@ polls; the host pushes no status of its own. A failed poll is retried: `result()
 rejects only after three in a row, or at once when the host no longer knows the
 task (`-32602`).
 
-Two things to know about cancellation: `cancel` sends `tasks/cancel`, and
-unmounting the component, or firing again, stops polling but does **not**
-cancel the server-side task. It keeps running until it ends or its `ttl`
+Two things to know about cancellation: `cancel` sends `tasks/cancel` and sets
+`error` only when that request fails, and unmounting the component, or firing
+again, stops polling but does **not** cancel the server-side task. It keeps running until it ends or its `ttl`
 lapses. With the handle directly, pass `result({ signal })` an `AbortSignal` to
 stop waiting.
 

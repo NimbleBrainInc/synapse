@@ -178,6 +178,18 @@ export interface TrailEntry {
   label: string;
 }
 
+/** How much a notice matters: its colour, how long it stays, how it is announced. */
+export type NoticeLevel = "success" | "info" | "warning" | "error";
+
+/** A notice for the host to show, labelled with this app. */
+export interface Notice {
+  level: NoticeLevel;
+  /** 1–120 characters. */
+  title: string;
+  /** Up to 500 characters. */
+  description?: string;
+}
+
 /** Options for requesting a file from the user */
 export interface RequestFileOptions {
   /** File type filter (e.g., ".csv,.json", "image/*") */

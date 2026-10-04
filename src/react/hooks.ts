@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { RESOURCE_LIST_CHANGED_METHOD } from "../event-map.js";
 import {
   hostSupports,
+  notify,
   onNavigate,
   pickFile,
   pickFiles,
@@ -21,6 +22,7 @@ import type {
   CallToolAsTaskOptions,
   FileResult,
   ModelContext,
+  Notice,
   RequestFileOptions,
   TaskHandle,
   Theme,
@@ -289,6 +291,16 @@ export function useAction(): (name: string, params?: Record<string, unknown>) =>
     (name: string, params?: Record<string, unknown>) => sendAction(app, name, params),
     [app],
   );
+}
+
+/**
+ * Show the user a notice through the host, labelled with this app. Resolves
+ * `false` without sending where the host did not declare `ai.nimblebrain/notify`.
+ * See `notify`.
+ */
+export function useNotify(): (notice: Notice) => Promise<boolean> {
+  const app = useAppContext();
+  return useCallback((notice: Notice) => notify(app, notice), [app]);
 }
 
 /**

@@ -48,6 +48,7 @@ export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
 export const UPLOAD_FILES_METHOD = "ai.nimblebrain/upload-files";
 export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
 export const LOCATION_METHOD = "ai.nimblebrain/location";
+export const NOTIFY_METHOD = "ai.nimblebrain/notify";
 /**
  * Host → app: go to one of the trail entries the app last sent by
  * `ai.nimblebrain/location`. Received, never sent, so it is not an entry in
@@ -87,6 +88,11 @@ export const NIMBLEBRAIN_EXTENSIONS = {
    * it also means the host shows the app's title and breadcrumb.
    */
   location: { method: LOCATION_METHOD, capability: LOCATION_METHOD },
+  /**
+   * App → host request: show the user a notice, which the host labels with the
+   * app's name. Answered `{}`, or refused with the reason.
+   */
+  notify: { method: NOTIFY_METHOD, capability: NOTIFY_METHOD },
 } as const;
 
 export type NimbleBrainExtension = keyof typeof NIMBLEBRAIN_EXTENSIONS;

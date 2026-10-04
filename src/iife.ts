@@ -14,6 +14,7 @@ import { HostCapabilityError } from "./errors.js";
 import {
   action,
   hostSupports,
+  notify,
   onNavigate,
   pickFile,
   pickFiles,
@@ -30,6 +31,7 @@ import { callToolAsTask } from "./task-handle.js";
   action,
   downloadFile,
   hostSupports,
+  notify,
   pickFile,
   pickFiles,
   setLocation,

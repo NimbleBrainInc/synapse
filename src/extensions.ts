@@ -21,6 +21,7 @@ import { internalsFor } from "./internals.js";
 import type {
   App,
   FileResult,
+  Notice,
   RequestFileOptions,
   TrailEntry,
   UploadFilesOptions,
@@ -123,6 +124,28 @@ export async function pickFile(app: App, options?: RequestFileOptions): Promise<
 export async function pickFiles(app: App, options?: RequestFileOptions): Promise<FileResult[]> {
   requireRequestFile("pickFiles", app);
   return await requestFile(app, options, true);
+}
+
+/**
+ * Ask the host to show the user a notice, labelled with this app: for what the
+ * user would otherwise miss, such as an export finishing. Resolves `true` once
+ * the host showed it, and `false` without sending anything where the host did
+ * not declare `ai.nimblebrain/notify`, since a notice is never essential.
+ * Rejects with the host's error when it refuses one: a bad level, an empty or
+ * long title, a long description, or a burst past the host's limit.
+ */
+export async function notify(app: App, notice: Notice): Promise<boolean> {
+  if (!hostSupports(app, "notify")) return false;
+  const params: Notice = {
+    level: notice.level,
+    title: notice.title,
+    ...(notice.description !== undefined ? { description: notice.description } : {}),
+  };
+  await internalsFor(app).request(
+    NIMBLEBRAIN_EXTENSIONS.notify.method,
+    params as unknown as Record<string, unknown>,
+  );
+  return true;
 }
 
 /**

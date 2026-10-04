@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-10-04
+
+### Added
+
+- **`notify` and `useNotify()` show the user a notice through the host**, labelled with your app: for what they would otherwise miss, such as an export finishing. `notify(app, { level, title, description? })` sends `ai.nimblebrain/notify` and resolves `true` once the host shows it. Where the host does not declare it, it resolves `false` without sending, since a notice is never essential. The host refuses a bad level, an empty or long title, or a burst past its limit, and the call rejects with its reason. See [connect](https://synapse.nimblebrain.ai/docs/api/connect/).
+
 ## [0.25.1] - 2026-10-03
 
 ### Fixed

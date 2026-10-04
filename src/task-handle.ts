@@ -1,55 +1,54 @@
 import type {
   CallToolRequest,
+  CallToolResult,
   CancelTaskRequest,
-  CancelTaskResult,
-  CreateTaskResult,
-  GetTaskPayloadRequest,
-  GetTaskPayloadResult,
+  CLIENT_CAPABILITIES_META_KEY as ClientCapabilitiesMetaKey,
   GetTaskRequest,
-  GetTaskResult,
   Task,
   TaskStatus,
-  TaskStatusNotification,
-  TaskStatusNotificationParams,
 } from "@modelcontextprotocol/client";
 import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 
-import { HostCapabilityError } from "./errors.js";
+import { HostCapabilityError, TaskError } from "./errors.js";
 import { TOOLS_CALL_METHOD } from "./event-map.js";
 import { internalsFor } from "./internals.js";
 import { parseToolResult } from "./result-parser.js";
 import type {
   App,
-  CallToolAsTaskOptions,
   TaskHandle,
-  TaskStatusRouter,
-  TaskStatusUpdate,
+  TaskResultOptions,
   TasksCapability,
   ToolCallResult,
 } from "./types.js";
 
-export type { TaskStatusRouter, TaskStatusUpdate };
-
 // -----------------------------------------------------------------------------
-// Host capability
+// The MCP tasks extension (`io.modelcontextprotocol/tasks`, protocol 2026-07-28)
 // -----------------------------------------------------------------------------
 
-/** The MCP Tasks extension identifier. */
+/** The MCP tasks extension identifier. */
 export const TASKS_EXTENSION_ID = "io.modelcontextprotocol/tasks";
+
+/**
+ * The request `_meta` key a client declares its capabilities under. The SDK
+ * exports it as a value from its runtime; it is typed from that export here so
+ * a rename fails `tsc` without pulling the SDK runtime into this module.
+ */
+const CLIENT_CAPABILITIES_META_KEY: typeof ClientCapabilitiesMetaKey =
+  "io.modelcontextprotocol/clientCapabilities";
+
+// The SDK publishes task-method strings only inside Zod `z.literal(...)`s. Each
+// is typed from its request's `method`, so an upstream rename is a compile
+// error (same pattern as the core-MCP constants in event-map.ts).
+export const TASKS_GET_METHOD: GetTaskRequest["method"] = "tasks/get";
+export const TASKS_CANCEL_METHOD: CancelTaskRequest["method"] = "tasks/cancel";
 
 /**
  * The host's tasks capability, from the `ui/initialize` result.
  *
- * It lives in `hostCapabilities.experimental`, under the MCP Tasks extension
- * identifier. The ext-apps host capability type has no `tasks` field, so a client that
- * validates the handshake against the spec's schema strips a top-level `tasks`;
- * `experimental` is the one slot whose contents survive that parse (ext-apps
- * 1.7.5 and later). A top-level `tasks` is therefore not read at all — reading
- * it would make a capability visible here that no spec client can see.
- *
- * One key, and only that one: the identifier is the extension registry's, and a
- * host publishing the capability under any other name is not advertising this
- * extension.
+ * It lives in `hostCapabilities.experimental` under the extension identifier,
+ * the one slot a spec client's handshake parse keeps. Presence is the signal:
+ * the extension defines no settings, so a host declares `{}`. A top-level
+ * `tasks` is not read, and neither is any other key.
  */
 export function readHostTasksCapability(
   capabilities: McpUiHostCapabilities | undefined,
@@ -60,96 +59,44 @@ export function readHostTasksCapability(
     : undefined;
 }
 
-// -----------------------------------------------------------------------------
-// Spec method constants
-// -----------------------------------------------------------------------------
-//
-// The MCP SDK publishes task-method strings only inside Zod `z.literal(...)`s,
-// not as top-level `*_METHOD` constants. Derive each from its request's
-// `method` type so an upstream rename surfaces here as a compile error
-// (same pattern as `READ_RESOURCE_METHOD` in event-map.ts, where the core-MCP
-// method constants live).
-//
-// When adding a new method here, also mirror it in `src/_shims/ext-apps.ts`
-// per the IIFE build instructions in CLAUDE.md — the shim must export the
-// same string constants any source file consumes.
-
-export const TASKS_GET_METHOD: GetTaskRequest["method"] = "tasks/get";
-export const TASKS_RESULT_METHOD: GetTaskPayloadRequest["method"] = "tasks/result";
-export const TASKS_CANCEL_METHOD: CancelTaskRequest["method"] = "tasks/cancel";
-export const TASKS_STATUS_NOTIFICATION_METHOD: TaskStatusNotification["method"] =
-  "notifications/tasks/status";
-
-// -----------------------------------------------------------------------------
-// Status router
-// -----------------------------------------------------------------------------
-
-/** Subscribe to a wire method, and return the unsubscribe. */
-type SubscribeFn = (
-  method: string,
-  handler: (params: Record<string, unknown> | undefined) => void,
-) => () => void;
-
-export function createTaskStatusRouter(subscribe: SubscribeFn): TaskStatusRouter {
-  const listeners = new Map<string, Set<(update: TaskStatusUpdate) => void>>();
-
-  // A single subscription to the wire method. All per-handle listeners filter
-  // in-memory by taskId off this one handler.
-  const unsub = subscribe(TASKS_STATUS_NOTIFICATION_METHOD, (rawParams) => {
-    if (!rawParams) return;
-    const params = rawParams as unknown as TaskStatusNotificationParams;
-    const taskId = params.taskId;
-    if (typeof taskId !== "string") return;
-
-    const set = listeners.get(taskId);
-    if (!set || set.size === 0) return;
-
-    // Forward the spec-guaranteed fields verbatim. We deliberately don't
-    // fabricate `createdAt`/`lastUpdatedAt`/`ttl` here — the handle merges
-    // these from its initial `CreateTaskResult.task` so consumers always
-    // see a real Task with no placeholder strings.
-    const update: TaskStatusUpdate = {
-      taskId: params.taskId,
-      status: params.status,
-      ...(params.statusMessage !== undefined && { statusMessage: params.statusMessage }),
-    };
-
-    for (const cb of set) cb(update);
-  });
-
-  return {
-    subscribe(taskId, cb) {
-      let set = listeners.get(taskId);
-      if (!set) {
-        set = new Set();
-        listeners.set(taskId, set);
-      }
-      set.add(cb);
-      return () => {
-        const s = listeners.get(taskId);
-        if (!s) return;
-        s.delete(cb);
-        if (s.size === 0) listeners.delete(taskId);
-      };
-    },
-    dispose() {
-      listeners.clear();
-      unsub();
-    },
-  };
+/**
+ * A task as the extension puts it on the wire: the answer to a `tools/call`
+ * the server chose to run as a task, and the answer to `tasks/get`. A terminal
+ * `tasks/get` inlines the outcome: `result` when `completed`, `error` when
+ * `failed`.
+ *
+ * Declared here because the MCP SDK's `Task` types are the 2025-11-25 shape
+ * (`ttl`, `pollInterval`, no inlined outcome).
+ */
+interface WireTask {
+  resultType?: string;
+  taskId: string;
+  status: TaskStatus;
+  createdAt: string;
+  lastUpdatedAt: string;
+  ttlMs?: number;
+  pollIntervalMs?: number;
+  statusMessage?: string;
+  result?: CallToolResult;
+  error?: { code?: number; message?: string };
 }
+
+/** Poll cadence when the task names none, and the floor under one it names. */
+const DEFAULT_POLL_INTERVAL_MS = 2_000;
+const MIN_POLL_INTERVAL_MS = 250;
 
 // -----------------------------------------------------------------------------
 // Caller-facing factory
 // -----------------------------------------------------------------------------
 
 /**
- * Task-augment a `tools/call` per the MCP 2025-11-25 tasks utility.
+ * Call a tool the server may run as a task, per the MCP tasks extension
+ * (`io.modelcontextprotocol/tasks`, protocol 2026-07-28).
  *
- * A composable helper over {@link App} rather than a method on it: the object
- * `connect()` returns carries the ext-apps surface, and tasks ride alongside.
- * The receiver answers a task-augmented call with a `CreateTaskResult`
- * promptly; the actual `CallToolResult` arrives later via `tasks/result`.
+ * The call declares the extension in its request `_meta`, and the server
+ * decides: it answers outright with the tool's result, or with a task the
+ * handle then polls through `tasks/get`. Both come back as a handle, so a
+ * caller has one code path; an answered call's handle is already `completed`.
  *
  * ```ts
  * const handle = await callToolAsTask(app, "deep_research", { topic });
@@ -157,150 +104,127 @@ export function createTaskStatusRouter(subscribe: SubscribeFn): TaskStatusRouter
  * const result = await handle.result();
  * ```
  *
- * Rejects with `HostCapabilityError` if the host did not advertise
- * `tasks.requests.tools.call` — per spec a requestor MUST NOT task-augment
- * without matching receiver capability. Check `app.supportsTasks` first, and
- * fall back to `app.callTool`.
+ * Rejects with `HostCapabilityError`, without sending, if the host did not
+ * declare the extension. Check `app.supportsTasks` first, and fall back to
+ * `app.callTool`.
  */
 export async function callToolAsTask<TOutput = unknown>(
   app: App,
   toolName: string,
   args?: unknown,
-  options?: CallToolAsTaskOptions,
 ): Promise<TaskHandle<TOutput>> {
   const deps = internalsFor(app);
-  const hostTasks = deps.hostTasksCapability;
-  if (!hostTasks?.requests?.tools?.call) {
-    throw new HostCapabilityError(
-      "callToolAsTask",
-      `${TASKS_EXTENSION_ID} with requests.tools.call`,
-    );
+  if (!deps.hostTasksCapability) {
+    throw new HostCapabilityError("callToolAsTask", TASKS_EXTENSION_ID);
   }
 
-  // Per spec, `task` is an object even when the caller provides no hints —
-  // its presence is the signal to the receiver that augmentation is
-  // requested. An empty `{}` is valid.
-  const taskParam: { ttl?: number } = {};
-  if (options?.ttl !== undefined) taskParam.ttl = options.ttl;
-
-  // Build `tools/call` params. We layer our own shape on the SDK's
-  // `CallToolRequest["params"]` via `satisfies` so any rename upstream
-  // (`name` → `toolName`, `arguments` → `args`, etc.) trips tsc.
   const callParams = {
     name: toolName,
     arguments: (args as Record<string, unknown> | undefined) ?? {},
-    task: taskParam,
+    _meta: {
+      [CLIENT_CAPABILITIES_META_KEY]: { extensions: { [TASKS_EXTENSION_ID]: {} } },
+    },
   } satisfies CallToolRequest["params"];
 
-  const raw = await deps.request(
-    TOOLS_CALL_METHOD,
-    callParams as unknown as Record<string, unknown>,
-  );
+  const raw = await deps.request(TOOLS_CALL_METHOD, callParams);
 
-  // Spec: task-augmented `tools/call` returns a `CreateTaskResult`. If a
-  // receiver that advertised the capability returns a bare
-  // `CallToolResult` instead, that's a protocol violation — surface it.
-  const createResult = raw as CreateTaskResult | null | undefined;
-  const initialTask = createResult?.task;
-  if (!initialTask || typeof initialTask !== "object" || typeof initialTask.taskId !== "string") {
-    throw new Error(
-      "callToolAsTask: receiver returned a response without `task` per CreateTaskResult " +
-        "(expected shape: `{ task: { taskId, status, ... } }`). Receiver may not honor " +
-        "the advertised tasks capability.",
-    );
+  if (!isWireTask(raw)) return answeredHandle<TOutput>(raw);
+
+  const request = deps.request;
+  const taskId = raw.taskId;
+  const listeners = new Set<(task: Task) => void>();
+  let lastSeen = toTask(raw);
+
+  /** Record a task the host reported, and tell subscribers when it moved. */
+  function observe(wire: WireTask): Task {
+    const task = toTask(wire);
+    const moved = task.status !== lastSeen.status || task.statusMessage !== lastSeen.statusMessage;
+    lastSeen = task;
+    if (moved) {
+      for (const cb of [...listeners]) {
+        try {
+          cb(task);
+        } catch {
+          // A subscriber's throw must not stop the poll that feeds the others.
+        }
+      }
+    }
+    return task;
   }
 
-  const taskId = initialTask.taskId;
+  async function get(): Promise<WireTask> {
+    const wire = await request(TASKS_GET_METHOD, { taskId } satisfies GetTaskRequest["params"]);
+    if (!isTaskShaped(wire)) {
+      throw new Error(`callToolAsTask: tasks/get for ${taskId} did not answer with a task`);
+    }
+    observe(wire);
+    return wire;
+  }
 
-  // Preserve the Set-semantic dedup contract on `onStatus`: registering the
-  // same callback twice collapses to one wire subscription, and either
-  // returned unsub releases it. Without this, every `onStatus(cb)` would
-  // create a fresh wrapper that the router treats as distinct.
-  const localCallbacks = new Map<(task: Task) => void, () => void>();
+  async function sendCancel(): Promise<void> {
+    await request(TASKS_CANCEL_METHOD, { taskId } satisfies CancelTaskRequest["params"]);
+  }
 
-  const handle: TaskHandle<TOutput> = {
-    task: initialTask,
+  return {
+    task: lastSeen,
 
-    async result(): Promise<ToolCallResult<TOutput>> {
-      const params = { taskId } satisfies GetTaskPayloadRequest["params"];
-      const rawResult = await deps.request(
-        TASKS_RESULT_METHOD,
-        params as unknown as Record<string, unknown>,
-      );
-      // Per spec §: `tasks/result` returns exactly what the non-task
-      // response would return. Parse through the shared tool-result
-      // parser so `_meta["io.modelcontextprotocol/related-task"]`
-      // propagates unchanged (key-preserving spread).
-      //
-      // Type note: `GetTaskPayloadResult` is a union of result shapes
-      // (one per augmentable request type). For `tools/call` tasks,
-      // the runtime shape is `CallToolResult`, which `parseToolResult`
-      // already handles.
-      const typed = rawResult as GetTaskPayloadResult;
-      return parseToolResult(typed) as ToolCallResult<TOutput>;
+    async result(options?: TaskResultOptions): Promise<ToolCallResult<TOutput>> {
+      const signal = options?.signal;
+      let wire: WireTask = raw;
+      let fetched = false;
+      // A `tasks/get` that omits `pollIntervalMs` keeps the last one named.
+      let hinted = raw.pollIntervalMs;
+      for (;;) {
+        if (typeof wire.pollIntervalMs === "number") hinted = wire.pollIntervalMs;
+        signal?.throwIfAborted();
+        switch (wire.status) {
+          case "completed":
+            if (wire.result) return parseToolResult(wire.result) as ToolCallResult<TOutput>;
+            if (fetched) {
+              throw new Error(`callToolAsTask: task ${taskId} completed without a result`);
+            }
+            break;
+          case "failed":
+            throw new TaskError(
+              wire.error?.message ?? wire.statusMessage ?? `Task ${taskId} failed`,
+              toTask(wire),
+              wire.error?.code,
+            );
+          case "cancelled":
+            throw new TaskError(`Task ${taskId} was cancelled`, toTask(wire));
+          case "input_required":
+            // This SDK cannot answer an input request, so the task can never
+            // finish. Cancel it rather than leave it held on the server.
+            await sendCancel().catch(() => {});
+            throw new TaskError(
+              `Task ${taskId} asked for input, which this app cannot provide; it was cancelled`,
+              toTask(wire),
+            );
+          default:
+            await wait(pollDelay(hinted), signal);
+        }
+        if (app.destroyed) throw new Error(`callToolAsTask: app destroyed while ${taskId} ran`);
+        wire = await get();
+        fetched = true;
+      }
     },
 
     async refresh(): Promise<Task> {
-      const params = { taskId } satisfies GetTaskRequest["params"];
-      const raw = await deps.request(
-        TASKS_GET_METHOD,
-        params as unknown as Record<string, unknown>,
-      );
-      // Per spec, `tasks/get` returns the task shape FLAT (taskId, status,
-      // ttl, createdAt, lastUpdatedAt, ... at the top level) — NOT
-      // wrapped in a `{ task }` field (unlike `CreateTaskResult`).
-      return projectTask(raw as GetTaskResult);
+      return toTask(await get());
     },
 
     async cancel(): Promise<Task> {
-      const params = { taskId } satisfies CancelTaskRequest["params"];
-      const raw = await deps.request(
-        TASKS_CANCEL_METHOD,
-        params as unknown as Record<string, unknown>,
-      );
-      // `CancelTaskResult` is flat like `GetTaskResult`.
-      return projectTask(raw as CancelTaskResult);
+      await sendCancel();
+      return toTask(await get());
     },
 
     onStatus(cb) {
-      // Idempotent-in-callback: if the same `cb` is already subscribed,
-      // return the existing unsub.
-      const existing = localCallbacks.get(cb);
-      if (existing) return existing;
-
-      // Merge the notification's spec-guaranteed fields (taskId, status,
-      // statusMessage) with the handle's initial `CreateTaskResult.task`
-      // so the consumer always sees a full valid `Task`. `lastUpdatedAt`
-      // is stamped at SDK-receive time (an approximation of the host's
-      // update time — the spec doesn't wire the host's timestamp through
-      // the notification, so this is the closest signal we have).
-      // `createdAt`, `ttl`, `pollInterval` come from the initial task
-      // because they don't change over a task's lifetime.
-      const wireUnsub = deps.taskRouter.subscribe(taskId, (update) => {
-        const merged: Task = {
-          taskId: update.taskId,
-          status: update.status,
-          ttl: initialTask.ttl,
-          createdAt: initialTask.createdAt,
-          lastUpdatedAt: new Date().toISOString(),
-          ...(initialTask.pollInterval !== undefined && {
-            pollInterval: initialTask.pollInterval,
-          }),
-          ...(update.statusMessage !== undefined && { statusMessage: update.statusMessage }),
-        };
-        cb(merged);
-      });
-
-      const unsub = () => {
-        localCallbacks.delete(cb);
-        wireUnsub();
+      listeners.add(cb);
+      return () => {
+        listeners.delete(cb);
       };
-      localCallbacks.set(cb, unsub);
-      return unsub;
     },
   };
-
-  return handle;
 }
 
 // -----------------------------------------------------------------------------
@@ -308,27 +232,78 @@ export async function callToolAsTask<TOutput = unknown>(
 // -----------------------------------------------------------------------------
 
 /**
- * Project a `GetTaskResult` / `CancelTaskResult` down to the canonical
- * `Task` shape. Both result types are structurally `Task` with an
- * optional `_meta` field on top; we project explicitly so consumers
- * don't see protocol-level `_meta` leaking onto the task state they
- * get back from `refresh()` / `cancel()`.
+ * Whether a `tools/call` answer is a task rather than the tool's result.
  *
- * Asymmetry note: `parseToolResult` (for `tools/call` / `tasks/result`
- * payloads) is key-preserving — `_meta` flows through end-to-end, which
- * matters for `io.modelcontextprotocol/related-task` correlation. Here
- * we drop `_meta` because no downstream consumer reads it on `Task` state
- * today. If a host starts stamping useful keys on `tasks/get`/`tasks/cancel`
- * responses, switch to a key-preserving projection.
+ * The wire marks a task `resultType: "task"`, but the MCP SDK's 2025-era
+ * result codec strips `resultType` before a result reaches this code. So it is
+ * honoured when present, and otherwise the shape decides: a task carries a
+ * `taskId` and a `status`, and a `CallToolResult` carries `content`.
  */
-function projectTask(raw: GetTaskResult | CancelTaskResult): Task {
+function isWireTask(raw: unknown): raw is WireTask {
+  if (!isTaskShaped(raw)) return false;
+  const resultType = (raw as { resultType?: unknown }).resultType;
+  if (resultType !== undefined) return resultType === "task";
+  return !Array.isArray((raw as { content?: unknown }).content);
+}
+
+function isTaskShaped(raw: unknown): raw is WireTask {
+  if (!raw || typeof raw !== "object") return false;
+  const r = raw as Record<string, unknown>;
+  return typeof r.taskId === "string" && typeof r.status === "string";
+}
+
+/** The SDK's `Task` view of a wire task: `ttlMs` → `ttl`, `pollIntervalMs` → `pollInterval`. */
+function toTask(wire: WireTask): Task {
   return {
-    taskId: raw.taskId,
-    status: raw.status,
-    ttl: raw.ttl,
-    createdAt: raw.createdAt,
-    lastUpdatedAt: raw.lastUpdatedAt,
-    ...(raw.pollInterval !== undefined && { pollInterval: raw.pollInterval }),
-    ...(raw.statusMessage !== undefined && { statusMessage: raw.statusMessage }),
+    taskId: wire.taskId,
+    status: wire.status,
+    ttl: typeof wire.ttlMs === "number" ? wire.ttlMs : null,
+    createdAt: wire.createdAt,
+    lastUpdatedAt: wire.lastUpdatedAt,
+    ...(typeof wire.pollIntervalMs === "number" && { pollInterval: wire.pollIntervalMs }),
+    ...(wire.statusMessage !== undefined && { statusMessage: wire.statusMessage }),
+  };
+}
+
+function pollDelay(hinted: number | undefined): number {
+  return typeof hinted === "number" && hinted > 0
+    ? Math.max(hinted, MIN_POLL_INTERVAL_MS)
+    : DEFAULT_POLL_INTERVAL_MS;
+}
+
+function wait(ms: number, signal: AbortSignal | undefined): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    function onAbort() {
+      clearTimeout(timer);
+      reject(signal?.reason);
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+/**
+ * The handle for a call the server answered outright: already `completed`,
+ * under an id no host issued, so nothing about it goes back on the wire.
+ */
+function answeredHandle<TOutput>(raw: unknown): TaskHandle<TOutput> {
+  const now = new Date().toISOString();
+  const task: Task = {
+    taskId: `answered-${Math.random().toString(36).slice(2)}`,
+    status: "completed",
+    ttl: null,
+    createdAt: now,
+    lastUpdatedAt: now,
+  };
+  const result = parseToolResult(raw) as ToolCallResult<TOutput>;
+  return {
+    task,
+    result: async () => result,
+    refresh: async () => task,
+    cancel: async () => task,
+    onStatus: () => () => {},
   };
 }

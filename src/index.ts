@@ -5,7 +5,7 @@ export type {
 export { connect } from "./connect.js";
 // ext-apps `ui/download-file`, composable over `App`.
 export { downloadFile } from "./download-file.js";
-export { HostCapabilityError } from "./errors.js";
+export { HostCapabilityError, TaskError } from "./errors.js";
 export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 // NimbleBrain host extensions — composable over `App`, each a no-op or a
 // `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
@@ -33,14 +33,12 @@ export {
   type SynapseUITheme,
   ToolCallError,
 } from "./host/types.js";
-// MCP 2025-11-25 tasks utility, composable over `App`.
+// The MCP tasks extension (`io.modelcontextprotocol/tasks`), composable over `App`.
 export { callToolAsTask } from "./task-handle.js";
 export type {
   App,
   AppEventName,
-  CallToolAsTaskOptions,
   ConnectOptions,
-  CreateTaskResult,
   Dimensions,
   FileResult,
   KeyForwardConfig,
@@ -51,6 +49,7 @@ export type {
   RequestFileOptions,
   Task,
   TaskHandle,
+  TaskResultOptions,
   TaskStatus,
   TasksCapability,
   Theme,

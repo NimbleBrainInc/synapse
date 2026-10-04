@@ -10,7 +10,7 @@
 
 import { connect } from "./connect.js";
 import { downloadFile } from "./download-file.js";
-import { HostCapabilityError } from "./errors.js";
+import { HostCapabilityError, TaskError } from "./errors.js";
 import {
   action,
   hostSupports,
@@ -38,4 +38,5 @@ import { callToolAsTask } from "./task-handle.js";
   onNavigate,
   uploadFiles,
   HostCapabilityError,
+  TaskError,
 };

@@ -6,6 +6,22 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-10-04
+
+### Breaking
+
+- **`callToolAsTask` and `useCallToolAsTask` speak the MCP tasks extension (`io.modelcontextprotocol/tasks`, protocol 2026-07-28)** in place of the 2025-11-25 tasks utility. The `tools/call` declares the extension in its `_meta` and carries no `params.task`. The server answers with the result or with a task, and both come back as a handle: a call answered outright gives a handle whose `task` is already `completed` and whose `result()` resolves at once. `result()` polls `tasks/get` at the task's `pollInterval` (2 s when it names none, never under 250 ms) and resolves the result a completed task carries inline. `tasks/result`, `tasks/list` and `notifications/tasks/status` are no longer used. See [long-running tools](https://synapse.nimblebrain.ai/docs/guides/long-running-tools/).
+  - The host declares the extension as `hostCapabilities.experimental["io.modelcontextprotocol/tasks"] = {}`; presence is the signal. `app.supportsTasks` is `true` for any declaration there, and `requests.tools.call` is no longer read. `TasksCapability` is now `Record<string, unknown>`.
+  - `result()` rejects with the new `TaskError` when the task fails (its message and `code` are the server's inlined error), is cancelled, or asks for input. Synapse cannot answer an input request, so on `input_required` it sends `tasks/cancel` first. `TaskError.task.status` says which.
+  - `onStatus` reports the status changes the handle's own polls observe (`result()`, `refresh()`, `cancel()`); the host pushes none, so a handle nobody polls reports nothing.
+  - `cancel()` sends `tasks/cancel`, then resolves with the task from one `tasks/get`.
+  - `result()` takes `{ signal }`: aborting it stops polling without cancelling the task. `useCallToolAsTask` aborts on unmount and on a re-fire.
+  - `ttl` is gone from the call: the `options` argument of `callToolAsTask` and of the hook's `fire`, and the `CallToolAsTaskOptions` type, are removed. `Task.ttl` is the host's `ttlMs`, or `null` when it names none.
+  - `connect()` no longer advertises `appCapabilities.tasks`: the extension is declared per call.
+  - `useCallToolAsTask` reports a task's real status: a completed task whose result has `isError: true` stays `completed` (with `result` and `error` both set), where the hook used to show `failed`.
+
+  **Migration:** drop the `options`/`ttl` argument from `callToolAsTask(app, name, args)` and `fire(args)`, and the `CallToolAsTaskOptions` import. Catch `TaskError` where you handled a rejected `result()`. A host must declare `experimental["io.modelcontextprotocol/tasks"]`, answer `tools/call` with a result or a task, and serve `tasks/get` (with the outcome inline) and `tasks/cancel`; the NimbleBrain host does from its matching release. This version pairs with that host: against a host still on the 2025-11-25 utility, calls run outright or fail to poll.
+
 ## [0.26.0] - 2026-10-04
 
 ### Added

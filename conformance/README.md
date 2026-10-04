@@ -34,22 +34,21 @@ self-contained `ui://` component inlines, and it is refreshed by hand from
 `dist/` — so testing the source instead would test a build nobody serves. The
 first thing this suite caught was a stale vendored copy.
 
-## Rows that pin a boundary rather than a goal
+## The tasks rows
 
-Most rows assert something we want. One records something we merely need to know:
+`callToolAsTask` speaks the MCP tasks extension (`io.modelcontextprotocol/tasks`,
+protocol 2026-07-28): it declares the extension in the `tools/call` `_meta`, and
+the server answers with the result or with a task. The spec's `AppBridge`
+passes that `_meta` through and runs the tool outright, so **`callToolAsTask
+declares the extension, and a spec host's outright answer completes it`** asserts
+the declaration on the wire and a handle that comes back `completed` with the
+result.
 
-- **`a task-augmented tools/call is refused by a spec host`.** The spec's
-  `AppBridge` throws on `params.task` outright, so `callToolAsTask` works
-  against the NimbleBrain bridge and nowhere else. When this row starts
-  *failing*, ext-apps has opened the door and the tasks helper can go portable.
-
-It leans on the row before it, **`the host's tasks capability survives the
-handshake`**. `callToolAsTask` refuses to send unless it can read the host's
-capability, and a refusal on our side would satisfy the boundary row without the
-host ever being asked. The capability travels in
-`hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`, because the
-ext-apps capability type has no `tasks` field and `experimental` is the only slot
-a spec client's handshake parse keeps.
+It leans on **`the host's tasks capability survives the handshake`**.
+`callToolAsTask` refuses to send unless it can read the host's capability, which
+travels in `hostCapabilities.experimental["io.modelcontextprotocol/tasks"]`
+because the ext-apps capability type has no field for it and `experimental` is
+the only slot a spec client's handshake parse keeps.
 
 ## Two logs, and which one to assert against
 

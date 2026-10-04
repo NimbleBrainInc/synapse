@@ -130,7 +130,7 @@ Releases are public and provenance-attested — published artifacts carry a sign
 | `connect.ts` | The `App` class itself, plus `AppEventMap`, `AppRequest`, `AppNotification`, `McpUiHostCapabilities`, `McpUiHostContext`, `McpUiMessageRequest`, `McpUiOpenLinkRequest`, `McpUiUpdateModelContextRequest`, `TextContent`, `CallToolRequest`, `CallToolResultSchema`, `ResultSchema` |
 | `download-file.ts` | `McpUiDownloadFileRequest`, `McpUiDownloadFileResult`, `EmbeddedResource` |
 | `event-map.ts` | All `*_METHOD` constants, plus `ResourceListChangedNotification` |
-| `task-handle.ts` | `McpUiHostCapabilities`, and every task request/result type |
+| `task-handle.ts` | `McpUiHostCapabilities`, `CallToolRequest`, `GetTaskRequest`, `CancelTaskRequest`, `Task`, `TaskStatus`, and the type of `CLIENT_CAPABILITIES_META_KEY`. The tasks extension's own wire shape (`resultType`, `ttlMs`, `pollIntervalMs`, the inlined `result`/`error`) is not in the MCP SDK, so it is declared once there |
 | `detection.ts` | `McpUiHostContext` |
 
 ## Cross-host UI client (`connectUI` / `src/host/`)
@@ -215,12 +215,12 @@ Four things about that seam are load-bearing:
   it. A second registration for the same method through the `on*` setters throws,
   and `App` warns when a handler for a one-shot event is registered after the
   handshake — which is when every hook subscribes. Everything `App` does not
-  model (the NimbleBrain host extensions, `notifications/resources/list_changed`,
-  `notifications/tasks/status`) arrives through one `fallbackNotificationHandler`,
+  model (the NimbleBrain host extensions, `notifications/resources/list_changed`)
+  arrives through one `fallbackNotificationHandler`,
   for the same reason: a second handler for a method would silently replace the
   first.
 - **Requests carry no deadline.** The SDK's default is 60 seconds; a file picker
-  waits on a person and `tasks/result` blocks until a task ends. `Infinity` is not
+  waits on a person and a tool call takes as long as the tool takes. `Infinity` is not
   usable — `setTimeout` coerces it to `0` — so `NO_DEADLINE` is the longest timer
   a browser accepts.
 - **`autoResize` belongs to `App`.** Ours never observes as well: two observers
@@ -229,7 +229,7 @@ Four things about that seam are load-bearing:
 The returned object carries the ext-apps surface plus the handshake state, and
 nothing else.
 The NimbleBrain extensions (`action`, `pickFile`, `pickFiles`, `setLocation`, `onNavigate`), the spec's
-`ui/download-file` (`downloadFile`) and the MCP tasks utility (`callToolAsTask`)
+`ui/download-file` (`downloadFile`) and the MCP tasks extension (`callToolAsTask`)
 are **functions over an `App`** in `src/extensions.ts`, `src/download-file.ts`
 and `src/task-handle.ts`, reaching the transport through `internalsFor(app)`. Adding a capability means adding a function there, not a
 method on the object — the whole point of collapsing the old two-API fork was a
@@ -311,19 +311,12 @@ export const HOST_CONTEXT_CHANGED_METHOD = "ui/notifications/host-context-change
 export const REQUEST_TEARDOWN_METHOD = "ui/notifications/request-teardown";
 export const RESOURCE_TEARDOWN_METHOD = "ui/resource-teardown";
 
-// MCP 2025-11-25 tasks utility — mirrors `@modelcontextprotocol/client`
-// constants. Method strings are frozen by the spec; keep these in lockstep
-// with `src/task-handle.ts` (and any future `src/task-methods.ts`). The SDK
-// publishes these only as Zod `z.literal(...)`s — our source files derive
-// the constants via `const X: SomeRequest["method"] = "..."` so a spec
-// rename trips tsc immediately.
-export const RELATED_TASK_META_KEY = "io.modelcontextprotocol/related-task";
+// MCP tasks extension (2026-07-28). Source files derive these via
+// `const X: SomeRequest["method"] = "..."`, so the shim only has to carry the
+// strings; keep them in lockstep with `src/task-handle.ts`.
 export const TOOLS_CALL_METHOD = "tools/call";
 export const TASKS_GET_METHOD = "tasks/get";
-export const TASKS_RESULT_METHOD = "tasks/result";
 export const TASKS_CANCEL_METHOD = "tasks/cancel";
-export const TASKS_LIST_METHOD = "tasks/list";
-export const TASKS_STATUS_NOTIFICATION_METHOD = "notifications/tasks/status";
 SHIM
 
 # Build

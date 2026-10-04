@@ -38,7 +38,7 @@ call, whatever it is called.
 | `useSendMessage`, `app.sendMessage` | `message` | No-op |
 | `app.openLink` | `openLinks` | Opens the URL with `window.open` instead. The same happens when the host refuses. |
 | `downloadFile` | `downloadFile` | `HostCapabilityError` |
-| `useCallToolAsTask`, `callToolAsTask` | `io.modelcontextprotocol/tasks` with `requests.tools.call`, under `experimental` | `HostCapabilityError`. Check `app.supportsTasks` first and fall back to `callTool`. |
+| `useCallToolAsTask`, `callToolAsTask` | `io.modelcontextprotocol/tasks`, under `experimental` | `HostCapabilityError`. Check `app.supportsTasks` first and fall back to `callTool`. |
 | `useAction`, `action` | `ai.nimblebrain/action`, under `experimental` | No-op |
 | `useFileUpload`, `pickFile`, `pickFiles` | `ai.nimblebrain/request-file`, under `experimental` | `HostCapabilityError` |
 | `uploadFiles` | `ai.nimblebrain/upload-files`, under `experimental` | `HostCapabilityError` |

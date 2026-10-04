@@ -271,6 +271,13 @@ describe("connect() capabilities", () => {
       await expect(p).rejects.toThrow(/without a string `id`/);
     });
 
+    it("pickFile rejects an answer without a `files` array, naming the method", async () => {
+      app = await connectAndHandshake();
+      const p = pickFile(app);
+      await respondToLastRequest({});
+      await expect(p).rejects.toThrow(/request-file returned no `files` array/);
+    });
+
     it("pickFiles throws if any entry is missing `id`", async () => {
       app = await connectAndHandshake();
       const p = pickFiles(app);

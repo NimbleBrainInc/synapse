@@ -16,7 +16,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
   **Migration:** none for an app on a current host. A host that answered a bare JSON object must answer the `CallToolResult` (`{ content, structuredContent?, isError? }`).
 
-- **`pickFile`, `pickFiles` and `uploadFiles` require the `{ files: FileResult[] }` answer and a string `id` on each file**,, and reject otherwise with an error naming the method.
+- **`pickFile`, `pickFiles` and `uploadFiles` require the `{ files: FileResult[] }` answer and a string `id` on each file**, and reject otherwise with an error naming the method.
 
   **Migration:** none for an app on a current host. A host must answer `{ files }`, with `{ files: [] }` when the user cancels.
 

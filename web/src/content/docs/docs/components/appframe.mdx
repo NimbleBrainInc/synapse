@@ -27,13 +27,25 @@ import { AppFrame } from "@nimblebrain/synapse/ui";
 
 - `AppFrame.Header`: fixed at the top, doesn't scroll.
 - `AppFrame.Body`: the scrollable region. Pass `bleed` to host a full-bleed
-  layout (a `SidebarLayout` or board) edge-to-edge, where the panes manage their
-  own scroll; leave it off for plain content, which gets a padded column.
+  layout (a `SidebarLayout` or a `ListDetailLayout`) edge-to-edge, where the panes manage their own scroll and inset their own
+  content; leave it off for plain content, which gets a padded column.
 - `AppFrame.Footer`: fixed at the bottom, bordered.
 
 The `contentWidth` knob is a personality lever: `reading` centers header, body,
 and footer in a ~760px column (good for conversations or a report), while `full`
 uses the whole pane (good for a CRM or dashboard).
+
+## The gutter
+
+The space between the frame's edge and its content is the kit's `gutter` token,
+and nothing else draws it. The host hands your app an edge-to-edge slot, and an
+app names no spacing of its own. Containers (the frame, a pane, a scroll area)
+run edge to edge, so their scrollbars and dividers sit on the edges; the content
+inside them insets itself by the gutter. `AppFrame.Header`, `Footer` and a plain
+`Body` inset by it; with `bleed`, the layout inside does.
+
+The gutter follows the frame's own width: `1.5rem`, and `1rem` once the frame is
+640px or narrower. Set `--nb-gutter` to override it.
 
 ## Props
 

@@ -178,6 +178,8 @@ describe("default theme backs the token contract", () => {
     "--shadow-sm",
     "--shadow-md",
     "--shadow-lg",
+    // Space is the same in light and dark.
+    "--nb-gutter",
   ]);
 
   // Theme-sensitive = referenced but not declared invariant. These MUST be

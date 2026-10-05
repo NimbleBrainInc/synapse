@@ -10,6 +10,12 @@ import { ensureStyle } from "../internal/inject-style.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
 const STYLE_ID = "nb-synapse-listrow";
+
+/**
+ * A row's own inline padding. A list pane insets by the gutter LESS this, so a row's text lands
+ * on the gutter line the page's titles and tabs sit on, and its hover tint keeps a margin.
+ */
+export const LIST_ROW_INSET = "0.75rem";
 const RULES = `
 .nb-listrow { transition: background 140ms ease; }
 .nb-listrow--interactive { cursor: pointer; }
@@ -45,7 +51,7 @@ export function ListRow({
     gridTemplateColumns: `${leading ? "auto " : ""}minmax(0, 1fr)${trailing ? " auto" : ""}`,
     columnGap: "0.75rem",
     alignItems: "baseline",
-    padding: "0.65rem 0.75rem",
+    padding: `0.65rem ${LIST_ROW_INSET}`,
     borderRadius: tokens.radiusSm,
     ...style,
   };

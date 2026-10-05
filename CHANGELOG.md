@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.29.0] - 2026-10-04
+
+### Breaking
+
+- **`ListDetailLayout.List` and `ListDetailLayout.Detail` inset their own content by the gutter.** The detail pads by `gutter`, the list by `gutter` less a `ListRow`'s own padding, so row text lands on the same line as the page's title and tabs. The panes still run edge to edge, so their scrollbars sit on the frame's edge or the divider.
+
+  **Migration:** remove the horizontal padding your app adds inside a pane (a `padding: "1.25rem 1.5rem"` wrapper becomes `paddingBlock: "1.25rem"`), or pass `inset={false}` to a pane whose content runs edge to edge itself.
+
+### Added
+
+- **`tokens.gutter`** (`var(--nb-gutter, var(--nb-gutter-auto, 1.5rem))`): the inset between the frame's edge and content. It is the kit's to draw: the host hands an app an edge-to-edge slot, and an app names no spacing of its own. `AppFrame` narrows it to `1rem` when the frame is 640px or narrower, by container query, so it follows the pane the host gives the app rather than the device. Set `--nb-gutter` to override it. App content outside a kit layout (a banner over the page, say) insets by `tokens.gutter` too, the way it takes colour from `tokens.accent`, so the value lives in one place.
+
+### Changed
+
+- **`AppFrame.Header`, `AppFrame.Body` and `AppFrame.Footer` inset by `tokens.gutter`** in place of a fixed `1.5rem`. A wide frame looks as it did; a frame 640px or narrower gets `1rem`.
+
 ## [0.28.0] - 2026-10-04
 
 ### Breaking

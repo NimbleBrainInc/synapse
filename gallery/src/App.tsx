@@ -665,7 +665,7 @@ export function App() {
                       ))}
                     </ListDetailLayout.List>
                     <ListDetailLayout.Detail>
-                      <div style={{ padding: "1.25rem 1.5rem" }}>
+                      <div style={{ paddingBlock: "1.25rem" }}>
                         <ListDetailLayout.Back />
                         {selectedRun !== null ? (
                           <Stack gap="0.75rem">

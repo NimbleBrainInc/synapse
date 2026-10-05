@@ -32,6 +32,13 @@ import { ListDetailLayout } from "@nimblebrain/synapse/ui";
 - `ListDetailLayout.Back`: a back link placed at the top of `Detail`; it renders
   only on a narrow layout and calls `onBack`.
 
+Each pane runs edge to edge (its scrollbar sits on the frame's edge or the
+divider) and insets its own content by the [gutter](/docs/components/appframe#the-gutter):
+the detail by the gutter, the list by the gutter less a `ListRow`'s own padding,
+so row text lands on the line your page's title and tabs sit on. Put the layout
+in `AppFrame.Body bleed`, so nothing around it adds a second inset. Pass `inset={false}` to a pane whose content runs edge to
+edge itself.
+
 `selected` is driven by your own selection state. Read the responsive state with
 the `useListDetail()` hook for custom back affordances.
 
@@ -43,6 +50,12 @@ the `useListDetail()` hook for custom back affordances.
 | `onBack` | `() => void` | None |
 | `listWidth` | `number` \| `string` | `320` |
 | `breakpoint` | `number` | `720` |
+
+### `ListDetailLayout.List` and `ListDetailLayout.Detail`
+
+| Prop | Type | Default |
+| --- | --- | --- |
+| `inset` | `boolean` | `true` |
 
 ## Related
 

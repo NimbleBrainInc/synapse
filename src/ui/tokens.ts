@@ -75,6 +75,17 @@ export const tokens = {
   headingLgSize: "var(--font-heading-lg-size, 2rem)",
   headingLgLine: "var(--font-heading-lg-line-height, 2.5rem)",
 
+  // ── Space ──
+  // The inset between the frame's edge and content: titles, tabs, prose, a pane's text. It is
+  // the KIT's, not the host's and not an app's. The host hands an app an edge-to-edge slot,
+  // because a host gutter would make edge-to-edge panes impossible; an app composes layouts
+  // and names no spacing. Containers (the frame, panes, scroll areas) run edge to edge, and
+  // the content inside them insets itself by this.
+  //
+  // `--nb-gutter` overrides it. Otherwise `AppFrame` sets `--nb-gutter-auto` from its own
+  // width: narrower on a narrow pane, where 1.5rem a side is a tenth of a phone's screen.
+  gutter: "var(--nb-gutter, var(--nb-gutter-auto, 1.5rem))",
+
   // ── Radius / border width ──
   radiusXs: "var(--border-radius-xs, 0.25rem)",
   radiusSm: "var(--border-radius-sm, 0.5rem)",

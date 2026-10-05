@@ -35,9 +35,11 @@ import { ListDetailLayout } from "@nimblebrain/synapse/ui";
 Each pane runs edge to edge (its scrollbar sits on the frame's edge or the
 divider) and insets its own content by the [gutter](/docs/components/appframe#the-gutter):
 the detail by the gutter, the list by the gutter less a `ListRow`'s own padding,
-so row text lands on the line your page's title and tabs sit on. Put the layout
-in `AppFrame.Body bleed`, so nothing around it adds a second inset. Pass `inset={false}` to a pane whose content runs edge to
-edge itself.
+so row text lands on the line your page's title and tabs sit on. Other content
+in the list, such as a `SearchField` above the rows, sits a row's padding
+(`0.75rem`) inside that line. Put the layout in `AppFrame.Body bleed`, so nothing
+around it adds a second inset. Pass `inset={false}` to a pane whose content runs
+edge to edge itself.
 
 `selected` is driven by your own selection state. Read the responsive state with
 the `useListDetail()` hook for custom back affordances.

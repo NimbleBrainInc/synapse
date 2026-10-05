@@ -58,7 +58,13 @@ interface AppFrameProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
-function AppFrameRoot({ contentWidth = "full", style, children, ...rest }: AppFrameProps) {
+function AppFrameRoot({
+  contentWidth = "full",
+  className,
+  style,
+  children,
+  ...rest
+}: AppFrameProps) {
   // The shell's `height: 100%` only resolves against a definite-height ancestor
   // chain; supply it (same render-time pattern as the components' `ensureStyle`).
   injectBaseReset();
@@ -66,10 +72,13 @@ function AppFrameRoot({ contentWidth = "full", style, children, ...rest }: AppFr
   return (
     <ContentWidthCtx.Provider value={contentWidth}>
       <div
-        className="nb-appframe"
+        className={`nb-appframe ${className ?? ""}`.trim()}
         style={{
           display: "flex",
           flexDirection: "column",
+          // The frame is an inline-size container, so its width never comes from its content:
+          // without an explicit width it collapses to 0 in a shrink-to-fit parent.
+          width: "100%",
           height: "100%",
           minHeight: 0,
           background: tokens.bg,
@@ -99,10 +108,12 @@ function Header({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
 
 interface BodyProps extends HTMLAttributes<HTMLDivElement> {
   /**
-   * Host a full-bleed body layout (SidebarLayout, ListDetailLayout) edge-to-edge: no padding, no reading column, and
-   * the body itself doesn't scroll — the layout's panes manage their own scroll
-   * and inset their own content by the gutter. Leave off for plain content
-   * (lists, forms), which get the padded reading/full column.
+   * Host a full-bleed body layout (SidebarLayout, ListDetailLayout) edge-to-edge:
+   * no padding, no reading column, and the body itself doesn't scroll — the
+   * layout's panes manage their own scroll. ListDetailLayout's panes inset their
+   * own content by the gutter; SidebarLayout.Main leaves the inset to its
+   * content. Leave off for plain content (lists, forms), which get the padded
+   * reading/full column.
    */
   bleed?: boolean;
 }

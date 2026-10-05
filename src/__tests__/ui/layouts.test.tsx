@@ -193,6 +193,11 @@ describe("the gutter", () => {
       /@container \(max-width: 640px\) \{ \.nb-appframe > \* \{ --nb-gutter-auto: 1rem; \} \}/,
     );
   });
+
+  it("keeps the frame's class when an app adds its own", () => {
+    const { container } = render(<AppFrame className="app-root">Body</AppFrame>);
+    expect(container.firstElementChild?.className).toBe("nb-appframe app-root");
+  });
 });
 
 describe("ListDetailLayout's panes inset their own content", () => {

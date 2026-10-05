@@ -14,9 +14,10 @@
  * the divider), never a gutter in from it, and the content inside it starts on
  * the gutter line the page's title and tabs sit on: the detail by the gutter,
  * the list by the gutter less a row's own padding, so a `ListRow`'s text lands
- * on the same line. Put the layout in `AppFrame.Body bleed`, so nothing outside
- * it adds a second inset. `inset` off hands a pane's whole width to content
- * that runs edge to edge itself.
+ * on the same line (other content in the list, such as a search field, sits a
+ * row's padding inside that line). Put the layout in `AppFrame.Body bleed`, so
+ * nothing outside it adds a second inset. `inset` off hands a pane's whole
+ * width to content that runs edge to edge itself.
  */
 
 import { createContext, type HTMLAttributes, type ReactNode, useContext } from "react";
@@ -102,7 +103,7 @@ function List({
   const border = `${tokens.borderWidth} solid ${tokens.border}`;
   return (
     <section
-      className={[inset ? "nb-ldl-list--inset" : "", className ?? ""].join(" ").trim() || undefined}
+      className={`${inset ? "nb-ldl-list--inset" : ""} ${className ?? ""}`.trim()}
       style={{
         // Clip horizontally, scroll vertically. A too-wide child (e.g. an
         // auto-layout <table> that won't shrink below its content) would
@@ -134,9 +135,7 @@ function Detail({
   if (collapsed && !selected) return null; // list has the stage
   return (
     <div
-      className={
-        [inset ? "nb-ldl-detail--inset" : "", className ?? ""].join(" ").trim() || undefined
-      }
+      className={`${inset ? "nb-ldl-detail--inset" : ""} ${className ?? ""}`.trim()}
       style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", ...style }}
       {...rest}
     >

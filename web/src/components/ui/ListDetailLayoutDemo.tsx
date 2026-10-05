@@ -34,7 +34,8 @@ export default function ListDetailLayoutDemo() {
           </ListDetailLayout.List>
           <ListDetailLayout.Detail>
             <ListDetailLayout.Back />
-            <div style={{ padding: 20 }}>
+            {/* The pane insets by the gutter; the content adds only its vertical rhythm. */}
+            <div style={{ paddingBlock: 20 }}>
               {person ? (
                 <Stack gap={8}>
                   <Heading size="md">{person.name}</Heading>

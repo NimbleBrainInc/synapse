@@ -31,9 +31,21 @@ import {
   useContext,
 } from "react";
 import { injectBaseReset } from "../internal/base-reset.js";
+import { ensureStyle } from "../internal/inject-style.js";
 import { tokens } from "../tokens.js";
 
 type ContentWidth = "reading" | "full";
+
+// The gutter follows the FRAME's width, not the device's: the host decides how wide the pane
+// is (full screen, beside chat, a phone). A container query keeps it in CSS, so it needs no
+// measurement and no re-render. The rule sets the gutter on the frame's children because a
+// container query styles a container's descendants, never the container itself.
+const GUTTER_STYLE_ID = "nb-synapse-appframe";
+const NARROW = 640;
+const GUTTER_RULES = `
+.nb-appframe { container-type: inline-size; }
+@container (max-width: ${NARROW}px) { .nb-appframe > * { --nb-gutter-auto: 1rem; } }
+`;
 const READING_MAX = 760;
 const ContentWidthCtx = createContext<ContentWidth>("full");
 
@@ -46,16 +58,27 @@ interface AppFrameProps extends HTMLAttributes<HTMLDivElement> {
   children?: ReactNode;
 }
 
-function AppFrameRoot({ contentWidth = "full", style, children, ...rest }: AppFrameProps) {
+function AppFrameRoot({
+  contentWidth = "full",
+  className,
+  style,
+  children,
+  ...rest
+}: AppFrameProps) {
   // The shell's `height: 100%` only resolves against a definite-height ancestor
   // chain; supply it (same render-time pattern as the components' `ensureStyle`).
   injectBaseReset();
+  ensureStyle(GUTTER_STYLE_ID, GUTTER_RULES);
   return (
     <ContentWidthCtx.Provider value={contentWidth}>
       <div
+        className={`nb-appframe ${className ?? ""}`.trim()}
         style={{
           display: "flex",
           flexDirection: "column",
+          // The frame is an inline-size container, so its width never comes from its content:
+          // without an explicit width it collapses to 0 in a shrink-to-fit parent.
+          width: "100%",
           height: "100%",
           minHeight: 0,
           background: tokens.bg,
@@ -74,7 +97,10 @@ function AppFrameRoot({ contentWidth = "full", style, children, ...rest }: AppFr
 function Header({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
   const width = useContext(ContentWidthCtx);
   return (
-    <header style={{ flexShrink: 0, padding: "1.25rem 1.5rem 0.75rem", ...style }} {...rest}>
+    <header
+      style={{ flexShrink: 0, padding: `1.25rem ${tokens.gutter} 0.75rem`, ...style }}
+      {...rest}
+    >
       <div style={columnStyle(width)}>{children}</div>
     </header>
   );
@@ -82,10 +108,12 @@ function Header({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
 
 interface BodyProps extends HTMLAttributes<HTMLDivElement> {
   /**
-   * Host a full-bleed body layout (SidebarLayout, BoardLayout) edge-to-edge:
+   * Host a full-bleed body layout (SidebarLayout, ListDetailLayout) edge-to-edge:
    * no padding, no reading column, and the body itself doesn't scroll — the
-   * layout's panes manage their own scroll. Leave off for plain content
-   * (lists, forms), which get the padded reading/full column.
+   * layout's panes manage their own scroll. ListDetailLayout's panes inset their
+   * own content by the gutter; SidebarLayout.Main leaves the inset to its
+   * content. Leave off for plain content (lists, forms), which get the padded
+   * reading/full column.
    */
   bleed?: boolean;
 }
@@ -111,7 +139,9 @@ function Body({ bleed = false, style, children, ...rest }: BodyProps) {
   }
   return (
     <div style={{ flex: 1, minHeight: 0, overflowY: "auto", ...style }} {...rest}>
-      <div style={{ ...columnStyle(width), padding: "0.75rem 1.5rem 1.5rem" }}>{children}</div>
+      <div style={{ ...columnStyle(width), padding: `0.75rem ${tokens.gutter} 1.5rem` }}>
+        {children}
+      </div>
     </div>
   );
 }
@@ -122,7 +152,7 @@ function Footer({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
     <footer
       style={{
         flexShrink: 0,
-        padding: "0.75rem 1.5rem",
+        padding: `0.75rem ${tokens.gutter}`,
         borderTop: `${tokens.borderWidth} solid ${tokens.border}`,
         ...style,
       }}

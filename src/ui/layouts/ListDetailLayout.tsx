@@ -8,10 +8,22 @@
  * `selected` is driven by the app's own selection state. Place
  * `<ListDetailLayout.Back />` at the top of `Detail`; it renders only on a
  * narrow pane and calls `onBack`.
+ *
+ * **The panes are containers, so they run edge to edge, and they inset their
+ * own content.** Each pane's scrollbar sits on its edge (the frame's edge, or
+ * the divider), never a gutter in from it, and the content inside it starts on
+ * the gutter line the page's title and tabs sit on: the detail by the gutter,
+ * the list by the gutter less a row's own padding, so a `ListRow`'s text lands
+ * on the same line (other content in the list, such as a search field, sits a
+ * row's padding inside that line). Put the layout in `AppFrame.Body bleed`, so
+ * nothing outside it adds a second inset. `inset` off hands a pane's whole
+ * width to content that runs edge to edge itself.
  */
 
 import { createContext, type HTMLAttributes, type ReactNode, useContext } from "react";
 import { TextLink } from "../components/Button.js";
+import { LIST_ROW_INSET } from "../components/ListRow.js";
+import { ensureStyle } from "../internal/inject-style.js";
 import { tokens } from "../tokens.js";
 import { useBreakpoint } from "./use-container-width.js";
 
@@ -66,12 +78,32 @@ function ListDetailLayoutRoot({
   );
 }
 
-function List({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
+const STYLE_ID = "nb-synapse-listdetail";
+const RULES = `
+.nb-ldl-list--inset { padding-inline: calc(${tokens.gutter} - ${LIST_ROW_INSET}); }
+.nb-ldl-detail--inset { padding-inline: ${tokens.gutter}; }
+`;
+
+interface PaneProps {
+  /** Inset the pane's content by the gutter. Default true; off for content that runs edge to
+   * edge itself (a full-bleed table, a map). */
+  inset?: boolean;
+}
+
+function List({
+  inset = true,
+  className,
+  style,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLElement> & PaneProps) {
+  ensureStyle(STYLE_ID, RULES);
   const { collapsed, selected, listWidth } = useListDetail();
   if (collapsed && selected) return null; // detail has the stage
   const border = `${tokens.borderWidth} solid ${tokens.border}`;
   return (
     <section
+      className={`${inset ? "nb-ldl-list--inset" : ""} ${className ?? ""}`.trim()}
       style={{
         // Clip horizontally, scroll vertically. A too-wide child (e.g. an
         // auto-layout <table> that won't shrink below its content) would
@@ -91,11 +123,22 @@ function List({ style, children, ...rest }: HTMLAttributes<HTMLElement>) {
   );
 }
 
-function Detail({ style, children, ...rest }: HTMLAttributes<HTMLDivElement>) {
+function Detail({
+  inset = true,
+  className,
+  style,
+  children,
+  ...rest
+}: HTMLAttributes<HTMLDivElement> & PaneProps) {
+  ensureStyle(STYLE_ID, RULES);
   const { collapsed, selected } = useListDetail();
   if (collapsed && !selected) return null; // list has the stage
   return (
-    <div style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", ...style }} {...rest}>
+    <div
+      className={`${inset ? "nb-ldl-detail--inset" : ""} ${className ?? ""}`.trim()}
+      style={{ flex: 1, minWidth: 0, minHeight: 0, overflowY: "auto", ...style }}
+      {...rest}
+    >
       {children}
     </div>
   );

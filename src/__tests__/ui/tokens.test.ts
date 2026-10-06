@@ -123,6 +123,34 @@ describe("token contract", () => {
     }
   });
 
+  it("reads the MCP Apps spec key wherever the spec names one", () => {
+    // A spec key is what every MCP Apps host can send (Claude and ChatGPT
+    // included) and what crosses `hostContext.styles.variables`. A token read
+    // from a host-private name gets its fallback on every other host.
+    expect(tokens.danger).toBe("var(--color-text-danger, #dc2626)");
+    expect(tokens.success).toBe("var(--color-text-success, #059669)");
+    expect(tokens.warning).toBe("var(--color-text-warning, #f59e0b)");
+    expect(tokens.infoLight).toBe("var(--color-background-info, #eef4ff)");
+    expect(tokens.accentFg).toBe("var(--color-text-inverse, #ffffff)");
+    expect(tokens.dangerFg).toBe("var(--color-text-inverse, #ffffff)");
+    expect(tokens.fontHeading).toContain("var(--font-sans,");
+
+    // The kit's own variables, each for something the spec has no key for. A
+    // new `--nb-*` read joins this list only on the same ground.
+    const KIT_OWNED = new Set([
+      "--nb-color-processing",
+      "--nb-color-processing-light",
+      "--nb-font-heading",
+      "--nb-gutter",
+      "--nb-gutter-auto",
+    ]);
+    for (const [name, value] of Object.entries(tokens)) {
+      for (const [, v] of value.matchAll(/var\(\s*(--nb-[a-z0-9-]+)/g)) {
+        expect(KIT_OWNED.has(v as string), `tokens.${name} reads ${v}`).toBe(true);
+      }
+    }
+  });
+
   it("maps the type scale to the matching size + line-height vars", () => {
     expect(textStyle("sm")).toEqual({
       fontSize: "var(--font-text-sm-size, 0.875rem)",

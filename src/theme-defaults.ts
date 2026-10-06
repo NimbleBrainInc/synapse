@@ -55,19 +55,18 @@ const LIGHT: Record<string, string> = {
   "--color-text-secondary": "#6b7280",
   "--color-text-tertiary": "#9ca3af",
   "--color-text-accent": "#2563eb",
-  "--nb-color-accent-foreground": "#ffffff",
+  "--color-text-inverse": "#ffffff",
   // ── Border / ring ──
   "--color-border-primary": "#e5e7eb",
   "--color-border-secondary": "#d1d5db",
   "--color-ring-primary": "#2563eb",
-  // ── Status / brand semantics ──
-  "--nb-color-danger": "#dc2626",
-  "--nb-color-danger-foreground": "#ffffff",
-  "--nb-color-success": "#059669",
-  "--nb-color-warning": "#f59e0b",
+  // ── Status semantics ──
+  "--color-text-danger": "#dc2626",
+  "--color-text-success": "#059669",
+  "--color-text-warning": "#f59e0b",
+  "--color-background-info": "#eef4ff",
   "--nb-color-processing": "#7c3aed",
   "--nb-color-processing-light": "#f3eeff",
-  "--nb-color-info-light": "#eef4ff",
 };
 
 /**
@@ -87,20 +86,20 @@ const DARK: Record<string, string> = {
   "--color-text-secondary": "#a1a1aa",
   "--color-text-tertiary": "#71717a",
   "--color-text-accent": "#818cf8",
-  "--nb-color-accent-foreground": "#ffffff",
+  // Dark text on the brightened accent and danger fills: white on #818cf8 or
+  // #f87171 is under 3:1.
+  "--color-text-inverse": "#18181b",
   // ── Border / ring (lighter than surfaces so they remain visible) ──
   "--color-border-primary": "#3f3f46",
   "--color-border-secondary": "#52525b",
   "--color-ring-primary": "#818cf8",
-  // ── Status / brand semantics (brightened for contrast on dark) ──
-  "--nb-color-danger": "#f87171",
-  // Dark text on the brightened red: white on #f87171 is under 3:1.
-  "--nb-color-danger-foreground": "#18181b",
-  "--nb-color-success": "#34d399",
-  "--nb-color-warning": "#fbbf24",
+  // ── Status semantics (brightened for contrast on dark) ──
+  "--color-text-danger": "#f87171",
+  "--color-text-success": "#34d399",
+  "--color-text-warning": "#fbbf24",
+  "--color-background-info": "#1e2a44",
   "--nb-color-processing": "#a78bfa",
   "--nb-color-processing-light": "#2a2440",
-  "--nb-color-info-light": "#1e2a44",
 };
 
 /**
@@ -220,8 +219,8 @@ function applyDefaultThemeLayer(mode: "light" | "dark"): void {
  * strictly less destructive than overwriting the key with our own default.
  *
  * Tracked as the set of keys last written, not as `DEFAULT_THEME_VARS`'s keys.
- * Those are two different sets: a host can send any spec-enum var, and ~25
- * theme-sensitive ones (`--color-text-danger`, `--color-background-inverse`, …)
+ * Those are two different sets: a host can send any spec-enum var, and most
+ * theme-sensitive ones (`--color-border-danger`, `--color-background-inverse`, …)
  * have no neutral default, so keying the removal off the default map would pin
  * exactly those at the previous mode's value. Tracking what we wrote also means
  * this module never clears an inline property it did not set — an app writing its

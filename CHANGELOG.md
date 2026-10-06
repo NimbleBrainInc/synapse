@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.30.0] - 2026-10-06
+
+Needs a NimbleBrain host that sends the spec keys below ([nimblebrain#1633](https://github.com/NimbleBrainInc/nimblebrain/pull/1633)). On an older one, the status colours show the neutral defaults.
+
+### Breaking
+
+- **The status colours, the info ground and on-fill text read the MCP Apps spec's theme variables, not NimbleBrain-private ones.** Claude and ChatGPT send only spec keys, so on those hosts `danger`, `success`, `warning`, `infoLight`, `accentFg` and `dangerFg` always showed the neutral defaults. They now take the host's values on any MCP Apps host, and refresh on a theme toggle.
+
+  | Token | Was | Now |
+  | --- | --- | --- |
+  | `danger` | `--nb-color-danger` | `--color-text-danger` |
+  | `success` | `--nb-color-success` | `--color-text-success` |
+  | `warning` | `--nb-color-warning` | `--color-text-warning` |
+  | `infoLight` | `--nb-color-info-light` | `--color-background-info` |
+  | `accentFg`, `dangerFg` | `--nb-color-accent-foreground`, `--nb-color-danger-foreground` | `--color-text-inverse` |
+
+  `processing` and `processingLight` keep `--nb-color-processing` and `--nb-color-processing-light`: the spec has no processing hue, so they are the kit's own variables.
+
+  **Migration:** a host sends the spec keys in `hostContext.styles.variables`. Keep sending the `--nb-*` names too until every app is on this release. An app or theme that sets the old names on its own `:root` renames them as in the table. `accentFg` and `dangerFg` now share one variable: in dark mode the neutral default is near-black on both fills, where `accentFg` used to be white.
+
+### Changed
+
+- **`fontHeading` falls back to `--font-sans`** when `--nb-font-heading` is unset, so headings take the host's family on any MCP Apps host rather than `system-ui`. The spec names no heading family; `--nb-font-heading` stays as the kit's override.
+
 ## [0.29.0] - 2026-10-04
 
 ### Breaking

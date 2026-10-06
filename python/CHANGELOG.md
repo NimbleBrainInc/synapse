@@ -8,6 +8,15 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The vendored UI client is `@nimblebrain/synapse` 0.30.0.** Its status colours,
+  info ground and on-fill text read the MCP Apps spec's theme variables
+  (`--color-text-danger`, `--color-text-success`, `--color-text-warning`,
+  `--color-background-info`, `--color-text-inverse`) in place of the `--nb-color-*`
+  names, so a component takes the host's values on Claude and ChatGPT too. A
+  component whose own CSS sets the old names renames them; see the npm CHANGELOG.
+
 ## [0.8.0]
 
 ### Breaking

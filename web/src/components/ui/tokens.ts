@@ -68,13 +68,13 @@ const LIGHT: TokenMap = {
   "--shadow-sm": "0 1px 2px rgba(11,15,26,0.05)",
   "--shadow-md": "0 4px 6px -1px rgba(11,15,26,0.1)",
   "--shadow-lg": "0 10px 15px -3px rgba(11,15,26,0.1)",
-  "--nb-color-accent-foreground": "#ffffff",
-  "--nb-color-danger": "#dc2626",
-  "--nb-color-success": "#16a34a",
-  "--nb-color-warning": "#d97706",
+  "--color-text-inverse": "#ffffff",
+  "--color-text-danger": "#dc2626",
+  "--color-text-success": "#16a34a",
+  "--color-text-warning": "#d97706",
   "--nb-color-processing": "#7c3aed",
   "--nb-color-processing-light": "#f5f3ff",
-  "--nb-color-info-light": "#eff6ff",
+  "--color-background-info": "#eff6ff",
 };
 
 const DARK: TokenMap = {
@@ -92,13 +92,13 @@ const DARK: TokenMap = {
   "--shadow-sm": "0 1px 2px rgba(0,0,0,0.3)",
   "--shadow-md": "0 4px 6px -1px rgba(0,0,0,0.4)",
   "--shadow-lg": "0 10px 15px -3px rgba(0,0,0,0.4)",
-  "--nb-color-accent-foreground": "#0c111b",
-  "--nb-color-danger": "#f87171",
-  "--nb-color-success": "#4ade80",
-  "--nb-color-warning": "#fbbf24",
+  "--color-text-inverse": "#0c111b",
+  "--color-text-danger": "#f87171",
+  "--color-text-success": "#4ade80",
+  "--color-text-warning": "#fbbf24",
   "--nb-color-processing": "#a78bfa",
   "--nb-color-processing-light": "#1e1b2e",
-  "--nb-color-info-light": "#0c1a33",
+  "--color-background-info": "#0c1a33",
 };
 
 export const TOKENS: Record<Mode, TokenMap> = {

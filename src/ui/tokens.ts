@@ -34,26 +34,35 @@ export const tokens = {
   fgMuted: "var(--color-text-secondary, #6b7280)",
   fgFaint: "var(--color-text-tertiary, #9ca3af)",
   accent: "var(--color-text-accent, #2563eb)",
-  accentFg: "var(--nb-color-accent-foreground, #ffffff)",
+  // Text on an accent or danger fill. The spec names no "on-accent" colour;
+  // inverse text is text for a surface of the opposite polarity, which a
+  // saturated fill is in both modes.
+  accentFg: "var(--color-text-inverse, #ffffff)",
 
   // ── Border / ring ──
   border: "var(--color-border-primary, #e5e7eb)",
   borderStrong: "var(--color-border-secondary, #d1d5db)",
   ring: "var(--color-ring-primary, #2563eb)",
 
-  // ── Status / brand semantics ──
-  danger: "var(--nb-color-danger, #dc2626)",
-  dangerFg: "var(--nb-color-danger-foreground, #ffffff)",
-  success: "var(--nb-color-success, #059669)",
-  warning: "var(--nb-color-warning, #f59e0b)",
+  // ── Status semantics ──
+  danger: "var(--color-text-danger, #dc2626)",
+  dangerFg: "var(--color-text-inverse, #ffffff)",
+  success: "var(--color-text-success, #059669)",
+  warning: "var(--color-text-warning, #f59e0b)",
+  // The spec has no processing hue, so these two are the kit's own variables:
+  // backed by its neutral defaults, and set by a host or an app that wants
+  // its own.
   processing: "var(--nb-color-processing, #7c3aed)",
   processingLight: "var(--nb-color-processing-light, #f3eeff)",
-  infoLight: "var(--nb-color-info-light, #eef4ff)",
+  infoLight: "var(--color-background-info, #eef4ff)",
 
   // ── Typography ──
   fontSans: "var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
   fontMono: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
-  fontHeading: "var(--nb-font-heading, system-ui, -apple-system, BlinkMacSystemFont, sans-serif)",
+  // The spec names one family, `--font-sans`, and headings follow it. Set
+  // `--nb-font-heading` to give headings a family of their own.
+  fontHeading:
+    "var(--nb-font-heading, var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, sans-serif))",
   weightNormal: "var(--font-weight-normal, 400)",
   weightMedium: "var(--font-weight-medium, 500)",
   weightSemibold: "var(--font-weight-semibold, 600)",

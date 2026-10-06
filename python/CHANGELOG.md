@@ -8,14 +8,40 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0]
+
+The Python API is unchanged. This release ships the vendored UI client at
+`@nimblebrain/synapse` 0.30.0, up from 0.28.0 (`__client_version__ = "0.30.0"`).
+
+A minor, because the client **removes** theme variables a component's CSS may read,
+so this is not a drop-in for every component.
+
 ### Changed
 
-- **The vendored UI client is `@nimblebrain/synapse` 0.30.0.** Its status colours,
-  info ground and on-fill text read the MCP Apps spec's theme variables
-  (`--color-text-danger`, `--color-text-success`, `--color-text-warning`,
-  `--color-background-info`, `--color-text-inverse`) in place of the `--nb-color-*`
-  names, so a component takes the host's values on Claude and ChatGPT too. A
-  component whose own CSS sets the old names renames them; see the npm CHANGELOG.
+- **The client's status colours, info ground and on-fill text are the MCP Apps
+  spec's theme variables, not `--nb-color-*`.** The client's light and dark defaults
+  now set the spec keys, so a component takes the host's values on Claude and
+  ChatGPT as well as NimbleBrain, and refreshes on a theme toggle. The client no
+  longer sets the old names:
+
+  | Was | Now |
+  | --- | --- |
+  | `--nb-color-danger` | `--color-text-danger` |
+  | `--nb-color-success` | `--color-text-success` |
+  | `--nb-color-warning` | `--color-text-warning` |
+  | `--nb-color-info-light` | `--color-background-info` |
+  | `--nb-color-accent-foreground`, `--nb-color-danger-foreground` | `--color-text-inverse` |
+
+  `--nb-color-processing` and `--nb-color-processing-light` stay: the spec has no
+  processing hue.
+
+  **Migration:** in a template's CSS, replace each `var(--nb-color-…)` above with its
+  spec name; a component that sets the old names on its own `:root` renames them the
+  same way. Until then such a rule resolves to its own fallback, or to nothing, on any
+  host that does not send the `--nb-*` names. The accent and danger on-fill text now
+  share `--color-text-inverse`, which is near-black in dark mode (white on the
+  brightened dark-mode fills is under 3:1). The npm `CHANGELOG.md` 0.30.0 entry has
+  the full note.
 
 ## [0.8.0]
 

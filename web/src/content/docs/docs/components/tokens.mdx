@@ -67,10 +67,11 @@ Foreground tones plus the accent pair.
 | `fgMuted` | `--color-text-secondary` | `#6b7280` |
 | `fgFaint` | `--color-text-tertiary` | `#9ca3af` |
 | `accent` | `--color-text-accent` | `#2563eb` |
-| `accentFg` | `--nb-color-accent-foreground` | `#ffffff` |
+| `accentFg` | `--color-text-inverse` | `#ffffff` |
 
 `accentFg` is the foreground that sits on top of an `accent` fill: the label
-color for a primary button, for instance.
+color for a primary button, for instance. The spec names no "on-accent" colour,
+so it reads inverse text, the text for a surface of the opposite polarity.
 
 ## Border and ring
 
@@ -89,12 +90,17 @@ background for badges, banners, and status rows.
 
 | Token | CSS variable | Neutral fallback |
 | --- | --- | --- |
-| `danger` | `--nb-color-danger` | `#dc2626` |
-| `success` | `--nb-color-success` | `#059669` |
-| `warning` | `--nb-color-warning` | `#f59e0b` |
+| `danger` | `--color-text-danger` | `#dc2626` |
+| `dangerFg` | `--color-text-inverse` | `#ffffff` |
+| `success` | `--color-text-success` | `#059669` |
+| `warning` | `--color-text-warning` | `#f59e0b` |
 | `processing` | `--nb-color-processing` | `#7c3aed` |
 | `processingLight` | `--nb-color-processing-light` | `#f3eeff` |
-| `infoLight` | `--nb-color-info-light` | `#eef4ff` |
+| `infoLight` | `--color-background-info` | `#eef4ff` |
+
+The spec has no processing hue, so `processing` and `processingLight` read the
+kit's own variables. No host sends them unless it chooses to; the neutral
+defaults fill them otherwise, and an app can set them on its own `:root`.
 
 ## Fonts and weights
 
@@ -106,11 +112,14 @@ host supplies the faces. See [Host fonts](/docs/components/fonts).
 | --- | --- | --- |
 | `fontSans` | `--font-sans` | `system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
 | `fontMono` | `--font-mono` | `ui-monospace, SFMono-Regular, Menlo, monospace` |
-| `fontHeading` | `--nb-font-heading` | `system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
+| `fontHeading` | `--nb-font-heading`, then `--font-sans` | `system-ui, -apple-system, BlinkMacSystemFont, sans-serif` |
 | `weightNormal` | `--font-weight-normal` | `400` |
 | `weightMedium` | `--font-weight-medium` | `500` |
 | `weightSemibold` | `--font-weight-semibold` | `600` |
 | `weightBold` | `--font-weight-bold` | `700` |
+
+The spec names one family, `--font-sans`, and headings follow it on any host.
+Set `--nb-font-heading` to give headings a family of their own.
 
 ## Type scale
 

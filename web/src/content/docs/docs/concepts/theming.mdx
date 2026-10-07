@@ -21,12 +21,17 @@ opinion at runtime, and the same bytes look native everywhere.
 
 ## How the host fills the tokens
 
-Under the ext-apps protocol, the host injects a `:root` block of CSS variables into
-your app's iframe. That payload arrives as `hostContext.styles.variables` during the
-handshake, and the host re-sends it whenever the theme changes (the
-`host-context-changed` notification). Every `var(--token, fallback)` in the library
-re-resolves against that block, so filling the variables is all it takes to brand
-the whole component.
+Under the ext-apps protocol, the host sends its CSS variables as
+`hostContext.styles.variables` during the handshake, and re-sends them whenever the
+theme changes (the `host-context-changed` notification). The SDK applies them to your
+app's `:root`, and every `var(--token, fallback)` in the library re-resolves against
+them, so filling the variables is all it takes to brand the whole component.
+
+`styles.variables` is a closed enum, so a NimbleBrain host sends the variables that
+change with light and dark and have no spec key (`--color-text-accent` and the
+processing pair) beside it, as `hostContext["ai.nimblebrain/styles"].variables`, on
+the same two messages. The SDK applies them the same way, so they follow a theme
+toggle too.
 
 ## Who wins: the resolution order
 
@@ -39,12 +44,13 @@ layer named `synapse-defaults`.
 Because it is a layer, it loses to everything that actually declares the variable.
 For any token, the winner is:
 
-1. **The host, over the protocol** — `hostContext.styles.variables`, applied as an
-   inline style on `:root`. Inline outranks every stylesheet, so this always wins.
+1. **The host, over the protocol** — `hostContext.styles.variables`, and a
+   NimbleBrain host's `ai.nimblebrain/styles` variables, applied as an inline style
+   on `:root`. Inline outranks every stylesheet, so this always wins.
 2. **Any ordinary `:root` rule** — both the stylesheet a host injects into your app
-   document and your app's own CSS land here. Hosts need that channel because
-   `styles.variables` is a closed enum, so a design system larger than the enum
-   delivers the remainder as a stylesheet.
+   document and your app's own CSS land here. A host uses that channel for tokens
+   that look the same in light and dark, because `styles.variables` is a closed
+   enum and a design system larger than it needs somewhere to put the remainder.
 3. **`@layer synapse-defaults`** — the SDK's neutral value for the active mode,
    when nothing above declares the token.
 

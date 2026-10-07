@@ -8,6 +8,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **The vendored UI client is `@nimblebrain/synapse` 0.31.0.** It also applies the
+  theme variables a NimbleBrain host sends in `hostContext["ai.nimblebrain/styles"]`
+  (the accent text and the processing pair), so they follow a theme toggle. Nothing
+  changes on other hosts.
+
 ## [0.9.0]
 
 The Python API is unchanged. This release ships the vendored UI client at

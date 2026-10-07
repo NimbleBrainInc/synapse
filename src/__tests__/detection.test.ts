@@ -1,6 +1,6 @@
 import type { McpUiHostContext } from "@modelcontextprotocol/ext-apps";
 import { describe, expect, it } from "vitest";
-import { extractTheme } from "../detection";
+import { extractTheme, HOST_STYLES_EXTENSION } from "../detection";
 
 describe("extractTheme", () => {
   it("extracts theme from a spec-shaped hostContext", () => {
@@ -39,5 +39,44 @@ describe("extractTheme", () => {
     const theme = extractTheme({ theme: "sepia" as unknown as "light" });
 
     expect(theme.mode).toBe("light");
+  });
+
+  it("adds the ai.nimblebrain/styles variables to the spec's", () => {
+    const theme = extractTheme({
+      theme: "dark",
+      styles: { variables: { "--color-background-primary": "#111" } },
+      [HOST_STYLES_EXTENSION]: { variables: { "--color-text-accent": "#6a8fe4" } },
+    } as McpUiHostContext);
+
+    expect(theme.tokens).toEqual({
+      "--color-background-primary": "#111",
+      "--color-text-accent": "#6a8fe4",
+    });
+  });
+
+  it("reads the extension when the context carries no spec variables", () => {
+    const theme = extractTheme({
+      theme: "light",
+      [HOST_STYLES_EXTENSION]: { variables: { "--nb-color-processing": "#6d3ecf" } },
+    } as McpUiHostContext);
+
+    expect(theme.tokens).toEqual({ "--nb-color-processing": "#6d3ecf" });
+  });
+
+  it("lets the spec's value win on a key both carry", () => {
+    const theme = extractTheme({
+      styles: { variables: { "--color-text-primary": "#000" } },
+      [HOST_STYLES_EXTENSION]: { variables: { "--color-text-primary": "#f00" } },
+    } as McpUiHostContext);
+
+    expect(theme.tokens["--color-text-primary"]).toBe("#000");
+  });
+
+  it("ignores an extension that is not a { variables } record", () => {
+    const theme = extractTheme({
+      [HOST_STYLES_EXTENSION]: { variables: ["--x"] },
+    } as unknown as McpUiHostContext);
+
+    expect(theme.tokens).toEqual({});
   });
 });

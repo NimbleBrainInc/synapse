@@ -18,19 +18,23 @@ the pixels are decided by whatever fills the custom properties.
 
 ## How the host fills them
 
-Under the MCP ext-apps protocol, the host injects a `:root` block of CSS
-variables into your app's iframe: the `hostContext.styles.variables` payload.
-Every `var(--token, …)` in the library re-resolves against that block:
+Under the MCP ext-apps protocol, the host sends its CSS variables as
+`hostContext.styles.variables`, and the SDK applies them to your app's `:root`.
+Every `var(--token, …)` in the library re-resolves against them:
 
 ```css
 :root {
   --color-background-primary: #0b0b0f;
   --color-text-primary: #f4f4f5;
-  --color-text-accent: #a78bfa;
   --font-sans: "Your Brand Sans", system-ui, sans-serif;
   --border-radius-md: 0.5rem;
 }
 ```
+
+`styles.variables` is a closed enum. A NimbleBrain host sends the mode-varying
+variables it has no key for (`--color-text-accent` and the processing pair) in
+`hostContext["ai.nimblebrain/styles"].variables`, and the SDK applies them the
+same way; see [Theming](/docs/concepts/theming/).
 
 Because resolution happens in CSS, a theme change (including a light-to-dark
 flip) is just the host swapping those variables. Every `var()` re-resolves and
@@ -99,8 +103,9 @@ background for badges, banners, and status rows.
 | `infoLight` | `--color-background-info` | `#eef4ff` |
 
 The spec has no processing hue, so `processing` and `processingLight` read the
-kit's own variables. No host sends them unless it chooses to; the neutral
-defaults fill them otherwise, and an app can set them on its own `:root`.
+kit's own variables. A NimbleBrain host sends them in its `ai.nimblebrain/styles`
+host-context field; on other hosts the neutral defaults fill them, and an app can
+set them on its own `:root`.
 
 ## Fonts and weights
 

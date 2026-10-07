@@ -22,7 +22,8 @@ export type HostKind = "mcp-apps" | "generic";
 
 /** Resolved theme. `mode` always resolves to light or dark. `tokens` are CSS
  *  custom properties the host publishes — the MCP Apps adapter reads them from
- *  `hostContext.styles.variables`; where a host sends none they stay empty and the
+ *  `hostContext.styles.variables` and, from a NimbleBrain host, the
+ *  `ai.nimblebrain/styles` extension; where a host sends none they stay empty and the
  *  SDK's neutral defaults back them. */
 export interface SynapseUITheme {
   mode: "light" | "dark";

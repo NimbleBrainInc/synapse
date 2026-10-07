@@ -269,4 +269,11 @@ export function applyThemeVariables(
   }
   for (const [k, v] of Object.entries(incoming)) root.setProperty(k, v);
   appliedInlineKeys = new Set(Object.keys(incoming));
+
+  // The browser draws its own parts in the document's `color-scheme`:
+  // scrollbars, form controls, the canvas behind a transparent body. A host can
+  // seed it in the stylesheet it writes at mount, but it cannot reach into a
+  // sandboxed frame afterwards, so the mode this module applies is the one the
+  // document must keep. Inline, so it outranks that seed.
+  root.setProperty("color-scheme", mode);
 }

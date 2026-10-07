@@ -145,6 +145,19 @@ describe("connectUI — MCP Apps standard adapter", () => {
     expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe("#6a8fe4");
   });
 
+  it("keeps color-scheme on the host's mode, at the handshake and on a toggle", async () => {
+    // The browser draws scrollbars and form controls in the document's
+    // `color-scheme`; a host's stylesheet sets it once, at mount.
+    document.documentElement.style.removeProperty("color-scheme");
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+    respond(ofMethod(MCPAPP_INITIALIZE)[0].id, { hostContext: { theme: "dark" } });
+    await flush();
+    expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("dark");
+
+    notify(MCPAPP_HOST_CONTEXT_CHANGED, { theme: "light" });
+    expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("light");
+  });
+
   it("loads the host's font CSS from styles.css.fonts", () => {
     // A token names a family; only an @font-face rule loads it. The spec carries
     // the rules as CSS text, and this client injects them itself, since it

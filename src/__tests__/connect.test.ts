@@ -261,6 +261,34 @@ describe("connect()", () => {
     });
   });
 
+  describe("color-scheme", () => {
+    // The browser draws scrollbars, form controls and the canvas in the
+    // document's `color-scheme`. A host's stylesheet sets it once, at mount, so
+    // the SDK keeps it on the host's mode, which it already applies on every
+    // context change.
+    beforeEach(() => {
+      document.documentElement.style.removeProperty("color-scheme");
+    });
+
+    const inMode = (theme: "light" | "dark") => makeInitResult({ hostContext: { theme } });
+
+    it("sets the host's mode at the handshake", async () => {
+      app = await connectAndHandshake(undefined, inMode("dark"));
+      expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("dark");
+    });
+
+    it("follows a theme toggle", async () => {
+      app = await connectAndHandshake(undefined, inMode("light"));
+      expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("light");
+
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "dark" });
+      expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("dark");
+
+      await dispatchNotification("ui/notifications/host-context-changed", { theme: "light" });
+      expect(document.documentElement.style.getPropertyValue("color-scheme")).toBe("light");
+    });
+  });
+
   describe("on() event routing", () => {
     it("delivers parsed ToolResultData for tool-result events", async () => {
       app = await connectAndHandshake();

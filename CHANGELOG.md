@@ -10,6 +10,18 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **The document's `color-scheme` follows the host's theme.** `connect()`, `AppProvider` and `connectUI` set `color-scheme` inline on `:root` to the host's mode at the handshake and on every `host-context-changed`, so scrollbars and form controls follow a theme toggle. A host's stylesheet can only seed it at mount, and a sandboxed frame is out of the host's reach afterwards, so a toggled frame kept the mount's scrollbars. An app that sets its own `color-scheme` on `:root` now needs `!important` to keep it.
 
+## [0.31.2] - 2026-10-07
+
+### Fixed
+
+- **`ConfirmDialog` and `Drawer` open in the part of the frame on screen.** A host that sizes the app's frame to its content scrolls its own page, so the frame's viewport is the whole frame: a confirmation opened after scrolling down was centred at the frame's middle, above what the user could see, and a drawer's header could sit off screen. Each time an overlay opens it measures the frame's visible slice with a new `IntersectionObserver` (which works in a sandboxed cross-origin frame without host help) and lays its panel out in that slice; the scrim still covers the whole frame. The slice is measured at open: a host page scrolled while the overlay is open does not move it. Initial focus no longer scrolls. Where the whole frame is visible, or the engine has no `IntersectionObserver`, the overlays lay out as before.
+
+## [0.31.1] - 2026-10-07
+
+### Fixed
+
+- **`ConfirmDialog` and `Drawer` cover the whole frame wherever they are declared.** Each scrim is shown in the browser's top layer (`popover="manual"`), so no ancestor clips it or paints over it. In Safari, a confirmation declared in a pinned (`position: sticky`) header inside a scrolling list showed its scrim over the list only and no panel, leaving nothing to click. The DOM position, focus handling, Escape and Tab are unchanged, and a confirmation raised inside a drawer stacks above it. An engine without popovers renders the overlay as before. A popup an app portals to `<body>` from inside an open overlay now renders under it, as under a native modal dialog.
+
 ## [0.31.0] - 2026-10-06
 
 Pairs with a NimbleBrain host that sends the `ai.nimblebrain/styles` host-context field ([nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817)). On a host that does not, nothing changes.

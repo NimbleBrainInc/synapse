@@ -1,5 +1,5 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { StrictMode, useState } from "react";
 import { flushSync } from "react-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { KeyboardForwarder } from "../../keyboard.js";
@@ -486,6 +486,152 @@ describe("ConfirmDialog", () => {
     expect(css).toMatch(/@media \(pointer: coarse\)[\s\S]*min-height: 44px/);
     // Full width on a phone only fits if the padding is inside it.
     expect(css).toMatch(/\.nb-confirm\s*\{[^}]*box-sizing: border-box/);
+  });
+});
+
+describe("the top layer", () => {
+  // happy-dom has no popovers, so `showPopover` is installed as a spy that records the
+  // order elements were shown in: the top layer stacks in that order, so it is what
+  // decides which overlay paints above which.
+  let shown: Element[];
+  function installPopover(impl?: () => void) {
+    shown = [];
+    const show = vi.fn(function (this: HTMLElement) {
+      impl?.();
+      shown.push(this);
+    });
+    const hide = vi.fn();
+    Object.assign(HTMLElement.prototype, { showPopover: show, hidePopover: hide });
+    return { show, hide };
+  }
+  afterEach(() => {
+    const proto = HTMLElement.prototype as Partial<HTMLElement>;
+    delete proto.showPopover;
+    delete proto.hidePopover;
+  });
+
+  const scrimOf = (role: "alertdialog" | "dialog") =>
+    screen.getByRole(role).parentElement as HTMLElement;
+
+  it("marks each scrim as a manual popover and a kit overlay", () => {
+    render(<ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />);
+    const scrim = scrimOf("alertdialog");
+    expect(scrim.getAttribute("popover")).toBe("manual");
+    expect(scrim.hasAttribute("data-nb-overlay")).toBe(true);
+  });
+
+  it("renders in place, focused, where the engine has no popovers", () => {
+    render(<ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByText("Confirm"));
+  });
+
+  it("shows the confirmation's scrim when it opens", () => {
+    installPopover();
+    render(<ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />);
+    expect(shown).toEqual([scrimOf("alertdialog")]);
+  });
+
+  it("stacks a confirmation above the drawer it mounts with in one commit", () => {
+    installPopover();
+    render(
+      <Drawer open onClose={() => {}}>
+        <ConfirmDialog open onOpenChange={() => {}} title="Forget?" onConfirm={() => {}} />
+      </Drawer>,
+    );
+    expect(shown).toEqual([scrimOf("dialog"), scrimOf("alertdialog")]);
+  });
+
+  it("stacks a confirmation opened later above the drawer already open", () => {
+    installPopover();
+    function Later() {
+      const [confirming, setConfirming] = useState(false);
+      return (
+        <Drawer open onClose={() => {}}>
+          <button type="button" onClick={() => setConfirming(true)}>
+            Forget
+          </button>
+          <ConfirmDialog
+            open={confirming}
+            onOpenChange={setConfirming}
+            title="Forget?"
+            onConfirm={() => {}}
+          />
+        </Drawer>
+      );
+    }
+    render(<Later />);
+    fireEvent.click(screen.getByText("Forget"));
+    expect(shown).toEqual([scrimOf("dialog"), scrimOf("alertdialog")]);
+  });
+
+  it("leaves an app's own popover inside a drawer as the app left it", () => {
+    installPopover();
+    render(
+      <Drawer open onClose={() => {}}>
+        <div popover="manual" data-testid="menu" />
+      </Drawer>,
+    );
+    expect(shown).not.toContain(screen.getByTestId("menu"));
+  });
+
+  it("never hides a popover on close, so focus restore stays with the dialog", () => {
+    const { hide } = installPopover();
+    const opener = document.createElement("button");
+    document.body.appendChild(opener);
+    opener.focus();
+    const { rerender } = render(
+      <ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />,
+    );
+    rerender(
+      <ConfirmDialog open={false} onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />,
+    );
+    expect(hide).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
+
+  it("still renders and focuses when the engine refuses to show it", () => {
+    installPopover(() => {
+      throw new DOMException("refused", "InvalidStateError");
+    });
+    render(<ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />);
+    expect(screen.getByRole("alertdialog")).toBeDefined();
+    expect(document.activeElement).toBe(screen.getByText("Confirm"));
+  });
+
+  it("shows a scrim once under StrictMode's second effect run", () => {
+    installPopover();
+    render(
+      <StrictMode>
+        <ConfirmDialog open onOpenChange={() => {}} title="Send?" onConfirm={() => {}} />
+      </StrictMode>,
+    );
+    expect(shown).toEqual([scrimOf("alertdialog")]);
+  });
+
+  it("undoes the UA popover box on both scrims", () => {
+    render(
+      <Drawer open onClose={() => {}}>
+        <ConfirmDialog open onOpenChange={() => {}} title="Forget?" onConfirm={() => {}} />
+      </Drawer>,
+    );
+    for (const [id, cls] of [
+      ["nb-synapse-confirm-dialog", "nb-confirm-scrim"],
+      ["nb-synapse-drawer", "nb-drawer-scrim"],
+    ]) {
+      const css = document.getElementById(id)?.textContent ?? "";
+      const rule = css.match(new RegExp(`\\.${cls}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
+      for (const decl of [
+        "margin: 0",
+        "border: 0",
+        "padding: 0",
+        "width: auto",
+        "height: auto",
+        "color: inherit",
+      ]) {
+        expect(rule).toContain(decl);
+      }
+    }
   });
 });
 

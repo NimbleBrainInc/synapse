@@ -3,8 +3,11 @@
  * scrim. The general overlay the apps need (e.g. CRM's detail panel).
  *
  * A plain positioned `<div>` overlay — **not** a native `<dialog>`, which the app
- * iframe sandbox cannot open (see `internal/modal.ts`). The scrim is drawn here;
- * the modal behaviour — focus into the panel on open and back on close, the Tab
+ * iframe sandbox cannot open (see `internal/modal.ts`). The scrim is drawn here and
+ * lifted into the top layer (`internal/top-layer.ts`), so no ancestor clips it,
+ * and the sheet spans only the part of the frame on screen
+ * (`internal/visible-slice.ts`), so its header stays reachable in a frame the host
+ * sizes to its content; the modal behaviour — focus into the panel on open and back on close, the Tab
  * trap, background scroll lock, and Escape — comes from `useModal`, shared with
  * `ConfirmDialog` so a confirmation raised inside a drawer stacks correctly. Controlled via
  * `open`/`onClose` (renders nothing when closed). Escape routes through `onEscape`
@@ -36,6 +39,8 @@ import {
 } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { useModal } from "../internal/modal.js";
+import { OVERLAY_RESET, overlayProps, useTopLayer } from "../internal/top-layer.js";
+import { useVisibleSlice } from "../internal/visible-slice.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
 type Side = "left" | "right" | "bottom";
@@ -43,7 +48,10 @@ type Side = "left" | "right" | "bottom";
 const STYLE_ID = "nb-synapse-drawer";
 const RULES = `
 .nb-drawer-scrim {
+  ${OVERLAY_RESET}
   position: fixed; inset: 0; z-index: 1000;
+  /* The slice insets keep the sheet in the part of the frame on screen. */
+  padding-top: var(--nb-slice-top, 0px); padding-bottom: var(--nb-slice-bottom, 0px);
   display: flex; background: rgba(0, 0, 0, 0.32);
   animation: nb-drawer-fade 200ms ease;
 }
@@ -100,12 +108,15 @@ function DrawerRoot({
   ...rest
 }: DrawerProps) {
   ensureStyle(STYLE_ID, RULES);
+  const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const labelId = useId();
   // A `Header` with a `title` registers itself here so the panel can name
   // itself via `aria-labelledby` (preferred over a consumer-passed aria-label).
   const [hasTitle, setHasTitle] = useState(false);
 
+  useTopLayer(open, scrimRef);
+  useVisibleSlice(open, scrimRef);
   useModal(open, panelRef, { onEscape: onEscape ?? onClose });
 
   const ctxValue = useMemo<DrawerContextValue>(() => ({ labelId, setHasTitle }), [labelId]);
@@ -132,6 +143,8 @@ function DrawerRoot({
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: scrim click is a bonus mouse affordance; Escape (the window keydown above) and the Header close button are the keyboard dismissal paths. */}
       {/* biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a decorative dismissal backdrop; the panel below owns the dialog role/semantics. */}
       <div
+        ref={scrimRef}
+        {...overlayProps}
         className={`nb-drawer-scrim nb-drawer-scrim--${side}`}
         onClick={(e) => {
           // A click whose target is the scrim itself (not the panel) dismisses.

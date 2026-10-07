@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.32.0] - 2026-10-07
+
+### Changed
+
+- **The document's `color-scheme` follows the host's theme.** `connect()`, `AppProvider` and `connectUI` set `color-scheme` inline on `:root` to the host's mode at the handshake and on every `host-context-changed`, so scrollbars and form controls follow a theme toggle. A host's stylesheet can only seed it at mount, and a sandboxed frame is out of the host's reach afterwards, so a toggled frame kept the mount's scrollbars. An app that sets its own `color-scheme` on `:root` now needs `!important` to keep it.
+
 ## [0.31.2] - 2026-10-07
 
 ### Fixed

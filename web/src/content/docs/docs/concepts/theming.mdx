@@ -33,6 +33,15 @@ processing pair) beside it, as `hostContext["ai.nimblebrain/styles"].variables`,
 the same two messages. The SDK applies them the same way, so they follow a theme
 toggle too.
 
+## The browser's own parts follow the mode
+
+Scrollbars, form controls and the canvas behind a transparent body are drawn by the
+browser, not by your CSS, in the document's `color-scheme`. The SDK sets it inline on
+`:root` to the host's mode at the handshake and on every theme change, beside the
+variables, so a dark app never keeps light scrollbars after a toggle. A host can seed
+`color-scheme` in the stylesheet it writes at mount, but it cannot reach into a
+sandboxed frame afterwards, so keeping it current is the SDK's job.
+
 ## Who wins: the resolution order
 
 A `var()` fallback is a static literal, so it cannot branch on light versus dark. A

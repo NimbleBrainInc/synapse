@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.31.2] - 2026-10-07
+
+### Fixed
+
+- **`ConfirmDialog` and `Drawer` open in the part of the frame on screen.** A host that sizes the app's frame to its content scrolls its own page, so the frame's viewport is the whole frame: a confirmation opened after scrolling down was centred at the frame's middle, above what the user could see, and a drawer's header could sit off screen. Each time an overlay opens it measures the frame's visible slice with a new `IntersectionObserver` (which works in a sandboxed cross-origin frame without host help) and lays its panel out in that slice; the scrim still covers the whole frame. The slice is measured at open: a host page scrolled while the overlay is open does not move it. Initial focus no longer scrolls. Where the whole frame is visible, or the engine has no `IntersectionObserver`, the overlays lay out as before.
+
 ## [0.31.1] - 2026-10-07
 
 ### Fixed

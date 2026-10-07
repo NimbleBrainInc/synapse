@@ -22,15 +22,17 @@
  * decision the dialog is asking about.
  *
  * A plain positioned `<div>`, not a native `<dialog>` (the app iframe sandbox cannot
- * open one — see `internal/modal.ts`). It renders in place and `position: fixed`
- * lifts it out of layout, so it can be declared beside the control that opens it,
- * including inside a `Drawer`: the modal behaviour is shared with `Drawer` and knows
- * the innermost overlay owns Escape and Tab.
+ * open one — see `internal/modal.ts`). It renders in place and its scrim is lifted
+ * into the top layer (`internal/top-layer.ts`), so it can be declared beside the
+ * control that opens it — in a list's pinned header, inside a scroller, inside a
+ * `Drawer` — and still cover the whole frame. The modal behaviour is shared with
+ * `Drawer` and knows the innermost overlay owns Escape and Tab.
  */
 
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { useModal } from "../internal/modal.js";
+import { OVERLAY_RESET, overlayProps, useTopLayer } from "../internal/top-layer.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 import { Button } from "./Button.js";
 
@@ -39,6 +41,7 @@ const RULES = `
 /* border-box on both, because the kit cannot assume the host resets it: under
    content-box a full-width panel is its padding wider than a phone screen. */
 .nb-confirm-scrim {
+  ${OVERLAY_RESET}
   box-sizing: border-box;
   position: fixed; inset: 0; z-index: 1010;
   display: flex; align-items: center; justify-content: center;
@@ -96,6 +99,7 @@ export function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   ensureStyle(STYLE_ID, RULES);
+  const scrimRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -120,6 +124,7 @@ export function ConfirmDialog({
       destructive ? "[data-nb-confirm-cancel]" : "[data-nb-confirm-confirm]",
     );
 
+  useTopLayer(open, scrimRef);
   useModal(open, panelRef, { onEscape: dismiss, initialFocus: focusTarget });
 
   // Disabling the focused button while the action ran can drop focus to <body>,
@@ -163,6 +168,8 @@ export function ConfirmDialog({
     // biome-ignore lint/a11y/useKeyWithClickEvents: scrim click is a bonus mouse affordance; Escape and Cancel are the keyboard dismissal paths.
     // biome-ignore lint/a11y/noStaticElementInteractions: the scrim is a decorative dismissal backdrop; the panel below owns the alertdialog role/semantics.
     <div
+      ref={scrimRef}
+      {...overlayProps}
       className="nb-confirm-scrim"
       onClick={(e) => {
         // A click whose target is the scrim itself (not the panel) dismisses.

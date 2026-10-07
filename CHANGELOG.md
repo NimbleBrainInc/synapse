@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.31.1] - 2026-10-07
+
+### Fixed
+
+- **`ConfirmDialog` and `Drawer` cover the whole frame wherever they are declared.** Each scrim is shown in the browser's top layer (`popover="manual"`), so no ancestor clips it or paints over it. In Safari, a confirmation declared in a pinned (`position: sticky`) header inside a scrolling list showed its scrim over the list only and no panel, leaving nothing to click. The DOM position, focus handling, Escape and Tab are unchanged, and a confirmation raised inside a drawer stacks above it. An engine without popovers renders the overlay as before. A popup an app portals to `<body>` from inside an open overlay now renders under it, as under a native modal dialog.
+
 ## [0.31.0] - 2026-10-06
 
 Pairs with a NimbleBrain host that sends the `ai.nimblebrain/styles` host-context field ([nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817)). On a host that does not, nothing changes.

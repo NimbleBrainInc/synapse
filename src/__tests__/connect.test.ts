@@ -218,6 +218,49 @@ describe("connect()", () => {
     });
   });
 
+  describe("the ai.nimblebrain/styles extension", () => {
+    // A NimbleBrain host sends the mode-varying variables the spec enum has no
+    // key for beside `styles`, on the handshake and on every context change.
+    // These run through the real ext-apps `App`, so they also show the field
+    // survives its schema parse.
+    const withExtension = (accent: string) =>
+      makeInitResult({
+        hostContext: {
+          theme: "light",
+          styles: { variables: { "--color-background-primary": "#fff" } },
+          "ai.nimblebrain/styles": { variables: { "--color-text-accent": accent } },
+        },
+      });
+
+    it("applies the extension's variables inline at the handshake", async () => {
+      app = await connectAndHandshake(undefined, withExtension("#315EDB"));
+      expect(app.theme.tokens["--color-text-accent"]).toBe("#315EDB");
+      expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe(
+        "#315EDB",
+      );
+    });
+
+    it("replaces them with the new mode's values on a theme toggle", async () => {
+      app = await connectAndHandshake(undefined, withExtension("#315EDB"));
+      const handler = vi.fn();
+      app.on("theme-changed", handler);
+
+      await dispatchNotification("ui/notifications/host-context-changed", {
+        theme: "dark",
+        styles: { variables: { "--color-background-primary": "#000" } },
+        "ai.nimblebrain/styles": { variables: { "--color-text-accent": "#6a8fe4" } },
+      });
+
+      expect(handler.mock.calls[0][0]).toEqual({
+        mode: "dark",
+        tokens: { "--color-background-primary": "#000", "--color-text-accent": "#6a8fe4" },
+      });
+      expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe(
+        "#6a8fe4",
+      );
+    });
+  });
+
   describe("on() event routing", () => {
     it("delivers parsed ToolResultData for tool-result events", async () => {
       app = await connectAndHandshake();

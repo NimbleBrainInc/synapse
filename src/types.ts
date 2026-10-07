@@ -84,6 +84,8 @@ export type { McpUiHostContext };
 
 export interface Theme {
   mode: "light" | "dark";
+  /** The host's CSS variables: the spec's `hostContext.styles.variables`, plus
+   *  a NimbleBrain host's `ai.nimblebrain/styles` variables. */
   tokens: Record<string, string>;
 }
 

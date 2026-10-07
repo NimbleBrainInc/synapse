@@ -116,6 +116,35 @@ describe("connectUI — MCP Apps standard adapter", () => {
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
   });
 
+  it("applies the ai.nimblebrain/styles variables and follows a toggle", async () => {
+    // A NimbleBrain host sends the mode-varying variables the spec enum has no
+    // key for beside `styles`, on the handshake and on every context change.
+    synapse = connectUI({ host: "mcp-apps", autoResize: false });
+    const init = ofMethod(MCPAPP_INITIALIZE)[0];
+    respond(init.id, {
+      hostContext: {
+        theme: "light",
+        styles: { variables: { "--color-background-primary": "#fff" } },
+        "ai.nimblebrain/styles": { variables: { "--color-text-accent": "#315EDB" } },
+      },
+    });
+    await flush();
+    expect(synapse.theme().tokens["--color-text-accent"]).toBe("#315EDB");
+    expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe("#315EDB");
+
+    notify(MCPAPP_HOST_CONTEXT_CHANGED, {
+      theme: "dark",
+      styles: { variables: { "--color-background-primary": "#000" } },
+      "ai.nimblebrain/styles": { variables: { "--color-text-accent": "#6a8fe4" } },
+    });
+
+    expect(synapse.theme()).toEqual({
+      mode: "dark",
+      tokens: { "--color-background-primary": "#000", "--color-text-accent": "#6a8fe4" },
+    });
+    expect(document.documentElement.style.getPropertyValue("--color-text-accent")).toBe("#6a8fe4");
+  });
+
   it("loads the host's font CSS from styles.css.fonts", () => {
     // A token names a family; only an @font-face rule loads it. The spec carries
     // the rules as CSS text, and this client injects them itself, since it

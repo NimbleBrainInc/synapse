@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.31.0] - 2026-10-06
+
+Pairs with a NimbleBrain host that sends the `ai.nimblebrain/styles` host-context field ([nimblebrain#817](https://github.com/NimbleBrainInc/nimblebrain/issues/817)). On a host that does not, nothing changes.
+
+### Added
+
+- **`accent`, `processing` and `processingLight` take a NimbleBrain host's values and follow a theme toggle.** The spec's `styles.variables` has no key for them, so a NimbleBrain host sends them in `hostContext["ai.nimblebrain/styles"].variables`, on the handshake and on every `host-context-changed`. `connect()`, `AppProvider` and `connectUI` apply those variables inline beside the spec's, and `theme.tokens` includes them; on a key both carry, the spec's value wins. Before, these reached an app only through a stylesheet the host wrote once at mount, which kept the mount's mode after a toggle.
+
 ## [0.30.0] - 2026-10-06
 
 Needs a NimbleBrain host that sends the spec keys below ([nimblebrain#1633](https://github.com/NimbleBrainInc/nimblebrain/pull/1633)). On an older one, the status colours show the neutral defaults.

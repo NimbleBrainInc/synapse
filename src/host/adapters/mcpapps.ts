@@ -1,7 +1,7 @@
 // `detection` is type-only against `@modelcontextprotocol/*`, so importing it
 // keeps this adapter free of the ext-apps runtime (and Zod) that the lean
 // `window.SynapseUI` IIFE deliberately excludes.
-import { extractHostFontCss } from "../../detection.js";
+import { extractHostFontCss, extractHostVariables } from "../../detection.js";
 import { readInlineData } from "../data.js";
 import { coerceMode, injectHostFonts, preferredMode } from "../theme.js";
 import {
@@ -98,7 +98,9 @@ export function createMcpAppsAdapter(
   }
 
   /** Merge a full or partial host context into the resolved theme (mode, tokens),
-   *  and load the host's `@font-face` CSS from the spec's `styles.css.fonts`. */
+   *  and load the host's `@font-face` CSS from the spec's `styles.css.fonts`.
+   *  Tokens come from `styles.variables` and the `ai.nimblebrain/styles`
+   *  extension. */
   function applyHostContext(ctx: Record<string, unknown> | null | undefined): void {
     if (!ctx || typeof ctx !== "object") return;
     const fontCss = extractHostFontCss(ctx);
@@ -112,9 +114,11 @@ export function createMcpAppsAdapter(
         changed = true;
       }
     }
-    const styles = ctx.styles as { variables?: Record<string, string> } | undefined;
-    if (styles?.variables && typeof styles.variables === "object") {
-      tokens = { ...tokens, ...styles.variables };
+    // The spec's `styles.variables` and a NimbleBrain host's mode-varying
+    // `ai.nimblebrain/styles` variables, applied alike.
+    const variables = extractHostVariables(ctx);
+    if (variables) {
+      tokens = { ...tokens, ...variables };
       changed = true;
     }
     if (changed) {

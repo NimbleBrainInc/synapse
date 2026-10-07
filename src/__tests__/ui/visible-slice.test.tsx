@@ -5,22 +5,26 @@ import { ConfirmDialog } from "../../ui/components/ConfirmDialog.js";
 import { Drawer } from "../../ui/components/Drawer.js";
 
 // happy-dom has no layout, so the browser's report is played by hand: a frame
-// 1500px tall whose rows 600 to 1000 are on screen.
-type Report = (entries: Partial<IntersectionObserverEntry>[]) => void;
-let report: Report | null = null;
-let observed: Element[] = [];
-
+// 1500px tall whose rows 600 to 1000 are on screen. Each observer is kept, so a test
+// can see which element it watches and deliver its first report.
 class FakeObserver {
-  constructor(cb: (entries: IntersectionObserverEntry[]) => void) {
-    report = (entries) => cb(entries as IntersectionObserverEntry[]);
+  observed: Element[] = [];
+  disconnected = false;
+  constructor(readonly cb: (entries: IntersectionObserverEntry[]) => void) {
+    observers.push(this);
   }
   observe(el: Element) {
-    observed.push(el);
+    this.observed.push(el);
   }
   disconnect() {
-    observed = [];
+    this.disconnected = true;
+  }
+  report(entry: Partial<IntersectionObserverEntry>) {
+    if (!this.disconnected) this.cb([entry as IntersectionObserverEntry]);
   }
 }
+let observers: FakeObserver[] = [];
+const latest = () => observers.at(-1) as FakeObserver;
 
 function slice(top: number, bottom: number, frame = 1500): Partial<IntersectionObserverEntry> {
   return {
@@ -53,54 +57,68 @@ function Confirm() {
 }
 
 beforeEach(() => {
-  report = null;
-  observed = [];
+  observers = [];
   vi.stubGlobal("IntersectionObserver", FakeObserver);
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
+
+const insets = (scrim: HTMLElement) => [
+  scrim.style.getPropertyValue("--nb-slice-top"),
+  scrim.style.getPropertyValue("--nb-slice-bottom"),
+];
 
 describe("overlays in a frame partly on screen", () => {
   it("test_confirm_dialog_opened_in_scrolled_frame_insets_to_visible_slice", () => {
     render(<Confirm />);
-    // Observed from mount, before anything opens, so the slice is known at open.
-    expect(observed).toHaveLength(1);
-    act(() => report?.([slice(600, 1000)]));
-
+    expect(observers).toHaveLength(0);
     act(() => screen.getByText("Remove").click());
     const scrim = scrimOf(screen.getByRole("alertdialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("600px");
-    expect(scrim.style.getPropertyValue("--nb-slice-bottom")).toBe("500px");
+    expect(latest().observed).toEqual([scrim]);
+    act(() => latest().report(slice(600, 1000)));
+    expect(insets(scrim)).toEqual(["600px", "500px"]);
   });
 
-  it("test_open_overlay_host_scrolls_follows_slice", () => {
+  // An observer reports again only when the visible fraction crosses a threshold,
+  // and scrolling a tall frame through its middle keeps the fraction fixed: a
+  // long-lived observer never hears about it. Each open measures with a new one.
+  it("test_reopen_after_constant_share_scroll_measures_new_slice", () => {
     render(<Confirm />);
-    act(() => report?.([slice(600, 1000)]));
     act(() => screen.getByText("Remove").click());
-    act(() => report?.([slice(800, 1200)]));
-    const scrim = scrimOf(screen.getByRole("alertdialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("800px");
-    expect(scrim.style.getPropertyValue("--nb-slice-bottom")).toBe("300px");
+    const first = latest();
+    act(() => first.report(slice(600, 1000)));
+    act(() => screen.getByText("Cancel").click());
+    expect(first.disconnected).toBe(true);
+
+    act(() => screen.getByText("Remove").click());
+    expect(latest()).not.toBe(first);
+    act(() => latest().report(slice(800, 1200)));
+    expect(insets(scrimOf(screen.getByRole("alertdialog")))).toEqual(["800px", "300px"]);
+  });
+
+  it("test_first_report_disconnects_observer", () => {
+    render(<Confirm />);
+    act(() => screen.getByText("Remove").click());
+    act(() => latest().report(slice(600, 1000)));
+    expect(latest().disconnected).toBe(true);
   });
 
   it("test_whole_frame_visible_insets_zero", () => {
     render(<Confirm />);
-    act(() => report?.([slice(0, 1500)]));
     act(() => screen.getByText("Remove").click());
-    const scrim = scrimOf(screen.getByRole("alertdialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("0px");
-    expect(scrim.style.getPropertyValue("--nb-slice-bottom")).toBe("0px");
+    act(() => latest().report(slice(0, 1500)));
+    expect(insets(scrimOf(screen.getByRole("alertdialog")))).toEqual(["0px", "0px"]);
   });
 
-  it("test_frame_off_screen_insets_zero", () => {
+  it("test_frame_off_screen_leaves_insets_unset", () => {
     render(<Confirm />);
-    act(() => report?.([slice(0, 0)]));
     act(() => screen.getByText("Remove").click());
-    const scrim = scrimOf(screen.getByRole("alertdialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("0px");
+    act(() => latest().report(slice(0, 0)));
+    expect(insets(scrimOf(screen.getByRole("alertdialog")))).toEqual(["", ""]);
   });
 
   it("test_drawer_opened_in_scrolled_frame_insets_to_visible_slice", () => {
@@ -109,27 +127,28 @@ describe("overlays in a frame partly on screen", () => {
         <Drawer.Header title="Lead" />
       </Drawer>,
     );
-    act(() => report?.([slice(600, 1000)]));
-    const scrim = scrimOf(screen.getByRole("dialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("600px");
-    expect(scrim.style.getPropertyValue("--nb-slice-bottom")).toBe("500px");
-  });
-
-  it("test_last_overlay_unmounts_sentinel_removed", () => {
-    const { unmount } = render(<Confirm />);
-    expect(document.querySelector("[data-nb-slice-sentinel]")).not.toBeNull();
-    unmount();
-    expect(document.querySelector("[data-nb-slice-sentinel]")).toBeNull();
-    expect(observed).toHaveLength(0);
+    act(() => latest().report(slice(600, 1000)));
+    expect(insets(scrimOf(screen.getByRole("dialog")))).toEqual(["600px", "500px"]);
   });
 
   it("test_no_intersection_observer_lays_out_as_before", () => {
     vi.stubGlobal("IntersectionObserver", undefined);
     render(<Confirm />);
     act(() => screen.getByText("Remove").click());
-    const scrim = scrimOf(screen.getByRole("alertdialog"));
-    expect(scrim.style.getPropertyValue("--nb-slice-top")).toBe("0px");
-    expect(document.querySelector("[data-nb-slice-sentinel]")).toBeNull();
+    expect(insets(scrimOf(screen.getByRole("alertdialog")))).toEqual(["", ""]);
+  });
+
+  // Until the slice report places it, the panel may sit off screen; a scrolling
+  // focus would drag the host page there.
+  it("test_initial_focus_does_not_scroll", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    render(<Confirm />);
+    act(() => screen.getByText("Remove").click());
+    const cancel = screen.getByText("Cancel");
+    expect(document.activeElement).toBe(cancel);
+    const call = focus.mock.calls.at(-1);
+    expect(focus.mock.contexts.at(-1)).toBe(cancel);
+    expect(call?.[0]).toEqual({ preventScroll: true });
   });
 
   it("pads both scrims by the slice insets", () => {

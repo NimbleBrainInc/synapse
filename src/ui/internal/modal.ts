@@ -146,8 +146,12 @@ export function useModal(
 
     // Focus already inside the panel is left where it is: it is the nested overlay's
     // initial focus, from the same commit.
+    //
+    // Without scrolling: the panel is fixed, so it needs none, and until
+    // `useVisibleSlice` places it, a panel in a frame the host sizes to its content
+    // may sit off screen, where a scrolling focus would drag the host page to it.
     if (!(panel && previouslyFocused && panel.contains(previouslyFocused))) {
-      (initialFocusRef.current?.() ?? panel)?.focus();
+      (initialFocusRef.current?.() ?? panel)?.focus({ preventScroll: true });
     }
     body.style.overflow = "hidden";
 

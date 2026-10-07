@@ -25,7 +25,9 @@
  * open one — see `internal/modal.ts`). It renders in place and its scrim is lifted
  * into the top layer (`internal/top-layer.ts`), so it can be declared beside the
  * control that opens it — in a list's pinned header, inside a scroller, inside a
- * `Drawer` — and still cover the whole frame. The modal behaviour is shared with
+ * `Drawer` — and still cover the whole frame. The panel is centred in the part of
+ * the frame on screen (`internal/visible-slice.ts`), which is less than the frame
+ * when the host sizes it to its content and scrolls its own page. The modal behaviour is shared with
  * `Drawer` and knows the innermost overlay owns Escape and Tab.
  */
 
@@ -33,6 +35,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { useModal } from "../internal/modal.js";
 import { OVERLAY_RESET, overlayProps, useTopLayer } from "../internal/top-layer.js";
+import { useVisibleSlice } from "../internal/visible-slice.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 import { Button } from "./Button.js";
 
@@ -45,7 +48,8 @@ const RULES = `
   box-sizing: border-box;
   position: fixed; inset: 0; z-index: 1010;
   display: flex; align-items: center; justify-content: center;
-  padding: 1rem;
+  /* The slice insets lay the panel out in the part of the frame on screen. */
+  padding: calc(1rem + var(--nb-slice-top, 0px)) 1rem calc(1rem + var(--nb-slice-bottom, 0px));
   background: rgba(0, 0, 0, 0.4);
   animation: nb-confirm-fade 160ms ease;
 }
@@ -125,6 +129,7 @@ export function ConfirmDialog({
     );
 
   useTopLayer(open, scrimRef);
+  useVisibleSlice(open, scrimRef);
   useModal(open, panelRef, { onEscape: dismiss, initialFocus: focusTarget });
 
   // Disabling the focused button while the action ran can drop focus to <body>,

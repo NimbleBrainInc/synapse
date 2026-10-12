@@ -11,9 +11,11 @@ import {
   hostSupports,
   notify,
   onNavigate,
+  openApp,
+  openConnectorSettings,
+  openConversation,
   pickFile,
   pickFiles,
-  action as sendAction,
   setLocation,
   uploadFiles,
 } from "../extensions.js";
@@ -284,13 +286,22 @@ export function useSendMessage(): (text: string) => void {
 // NimbleBrain host extensions
 // -----------------------------------------------------------------------------
 
-/** Trigger a host-side action. A no-op where the host did not declare `ai.nimblebrain/action`. */
-export function useAction(): (name: string, params?: Record<string, unknown>) => void {
+/** Open an app through the host, at `target` when given. See `openApp`. */
+export function useOpenApp(): (name: string, target?: string) => Promise<boolean> {
   const app = useAppContext();
-  return useCallback(
-    (name: string, params?: Record<string, unknown>) => sendAction(app, name, params),
-    [app],
-  );
+  return useCallback((name: string, target?: string) => openApp(app, name, target), [app]);
+}
+
+/** Open a conversation through the host. See `openConversation`. */
+export function useOpenConversation(): (id: string) => Promise<boolean> {
+  const app = useAppContext();
+  return useCallback((id: string) => openConversation(app, id), [app]);
+}
+
+/** Open this connector's settings page through the host. See `openConnectorSettings`. */
+export function useOpenConnectorSettings(): () => Promise<boolean> {
+  const app = useAppContext();
+  return useCallback(() => openConnectorSettings(app), [app]);
 }
 
 /**

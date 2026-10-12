@@ -43,7 +43,9 @@ export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/
  *
  * Each is used only when the host declares it: see {@link NIMBLEBRAIN_EXTENSIONS}.
  */
-export const ACTION_METHOD = "ai.nimblebrain/action";
+export const OPEN_APP_METHOD = "ai.nimblebrain/open-app";
+export const OPEN_CONVERSATION_METHOD = "ai.nimblebrain/open-conversation";
+export const OPEN_CONNECTOR_SETTINGS_METHOD = "ai.nimblebrain/open-connector-settings";
 export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
 export const UPLOAD_FILES_METHOD = "ai.nimblebrain/upload-files";
 export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
@@ -72,8 +74,21 @@ export const NAVIGATE_METHOD = "ai.nimblebrain/navigate";
  * extension says so; a host that does not is never sent it.
  */
 export const NIMBLEBRAIN_EXTENSIONS = {
-  /** App → host notification: run a host action (open an app or a conversation). */
-  action: { method: ACTION_METHOD, capability: ACTION_METHOD },
+  /**
+   * App → host request: open an app, `{ name, target? }`, where `target` is a
+   * view inside it. Answered `{}`, or refused when the host has no such app.
+   */
+  openApp: { method: OPEN_APP_METHOD, capability: OPEN_APP_METHOD },
+  /** App → host request: open a conversation, `{ id }`. Answered `{}`. */
+  openConversation: { method: OPEN_CONVERSATION_METHOD, capability: OPEN_CONVERSATION_METHOD },
+  /**
+   * App → host request: open the settings page of the connector whose view
+   * sent it, `{}`. Answered `{}`, or refused when it has none.
+   */
+  openConnectorSettings: {
+    method: OPEN_CONNECTOR_SETTINGS_METHOD,
+    capability: OPEN_CONNECTOR_SETTINGS_METHOD,
+  },
   /** App → host request: the host's file picker, answered `{ files }`. */
   requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },
   /**

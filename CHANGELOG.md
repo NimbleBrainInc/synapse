@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.33.0] - 2026-10-12
+
+Pairs with a NimbleBrain host that serves the three open methods. On an older host each resolves `false` without sending.
+
+### Breaking
+
+- **`action` and `useAction` are replaced by one function per host action**, each a request the host answers: `openApp(app, name, target?)`, `openConversation(app, id)` and `openConnectorSettings(app)`, with the hooks `useOpenApp`, `useOpenConversation` and `useOpenConnectorSettings`. Each resolves `true` once the host has done it, resolves `false` without sending where the host did not declare its method, and rejects with the host's error when the host refuses, such as for an app it does not have. `hostSupports` takes `"openApp"`, `"openConversation"` and `"openConnectorSettings"` in place of `"action"`. `ai.nimblebrain/action` is gone: one method for every action let an app neither ask which actions a host serves nor learn that one failed.
+
 ## [0.32.0] - 2026-10-07
 
 ### Changed

@@ -12,10 +12,12 @@ import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
 import { HostCapabilityError } from "../errors.js";
 import {
-  action,
   hostSupports,
   notify,
   onNavigate,
+  openApp,
+  openConnectorSettings,
+  openConversation,
   pickFile,
   pickFiles,
   setLocation,
@@ -455,28 +457,66 @@ describe("connect() capabilities", () => {
     });
   });
 
-  describe("action", () => {
-    it("sends ai.nimblebrain/action on a NimbleBrain host", async () => {
+  describe("open requests", () => {
+    it("openApp sends the name and target as a request and resolves true once the host opened it", async () => {
       app = await connectAndHandshake();
-      action(app, "openConversation", { id: "c1" });
-
-      const sent = sentNotifications("ai.nimblebrain/action");
-      expect(sent).toHaveLength(1);
-      expect(sent[0].params).toEqual({ action: "openConversation", id: "c1" });
+      expect(hostSupports(app, "openApp")).toBe(true);
+      const p = openApp(app, "files", "files://fl_1");
+      await flush();
+      const msg = lastRequest();
+      expect(msg.method).toBe("ai.nimblebrain/open-app");
+      expect(msg.params).toEqual({ name: "files", target: "files://fl_1" });
+      await respondToLastRequest({});
+      await expect(p).resolves.toBe(true);
     });
 
-    it("is a no-op where the host did not declare it, whatever the host is called", async () => {
+    it("openApp sends no target when none is given", async () => {
+      app = await connectAndHandshake();
+      const p = openApp(app, "files");
+      await flush();
+      expect(lastRequest().params).toEqual({ name: "files" });
+      await respondToLastRequest({});
+      await expect(p).resolves.toBe(true);
+    });
+
+    it("openApp rejects with the host's error when it has no such app", async () => {
+      app = await connectAndHandshake();
+      const p = openApp(app, "nope");
+      await flush();
+      await rejectLastRequest(-32602, "No app named nope");
+      await expect(p).rejects.toThrow(/No app named nope/);
+    });
+
+    it("openConversation sends the id", async () => {
+      app = await connectAndHandshake();
+      const p = openConversation(app, "conv_1");
+      await flush();
+      const msg = lastRequest();
+      expect(msg.method).toBe("ai.nimblebrain/open-conversation");
+      expect(msg.params).toEqual({ id: "conv_1" });
+      await respondToLastRequest({});
+      await expect(p).resolves.toBe(true);
+    });
+
+    it("openConnectorSettings names no connector: the host knows which view sent it", async () => {
+      app = await connectAndHandshake();
+      const p = openConnectorSettings(app);
+      await flush();
+      const msg = lastRequest();
+      expect(msg.method).toBe("ai.nimblebrain/open-connector-settings");
+      expect(msg.params).toEqual({});
+      await respondToLastRequest({});
+      await expect(p).resolves.toBe(true);
+    });
+
+    it("each resolves false without sending where the host did not declare it", async () => {
       app = await connectAndHandshake({}, makeInitResult("nimblebrain", { hostCapabilities: {} }));
-      action(app, "openConversation", { id: "c1" });
-      await flush();
-      expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(0);
-    });
-
-    it("sends on any host that declares it", async () => {
-      app = await connectAndHandshake({}, makeInitResult("another-host"));
-      action(app, "openConversation", { id: "c1" });
-      await flush();
-      expect(sentNotifications("ai.nimblebrain/action")).toHaveLength(1);
+      await expect(openApp(app, "files")).resolves.toBe(false);
+      await expect(openConversation(app, "conv_1")).resolves.toBe(false);
+      await expect(openConnectorSettings(app)).resolves.toBe(false);
+      expect(sentByMethod("ai.nimblebrain/open-app")).toHaveLength(0);
+      expect(sentByMethod("ai.nimblebrain/open-conversation")).toHaveLength(0);
+      expect(sentByMethod("ai.nimblebrain/open-connector-settings")).toHaveLength(0);
     });
   });
 
@@ -1046,7 +1086,7 @@ describe("connect() capabilities", () => {
     });
 
     it("reports no NimbleBrain extension", () => {
-      expect(hostSupports(app, "action")).toBe(false);
+      expect(hostSupports(app, "openApp")).toBe(false);
       expect(hostSupports(app, "requestFile")).toBe(false);
       expect(hostSupports(app, "keydown")).toBe(false);
     });

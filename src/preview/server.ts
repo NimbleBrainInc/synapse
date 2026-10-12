@@ -114,7 +114,12 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
               openLinks: {},
               serverTools: {},
               updateModelContext: { text: {}, structuredContent: {} },
-              experimental: { "ai.nimblebrain/action": {}, "ai.nimblebrain/keydown": {} }
+              experimental: {
+                "ai.nimblebrain/open-app": {},
+                "ai.nimblebrain/open-conversation": {},
+                "ai.nimblebrain/open-connector-settings": {},
+                "ai.nimblebrain/keydown": {}
+              }
             },
             hostContext: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } }
           }
@@ -145,9 +150,14 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
         return;
       }
 
-      // ai.nimblebrain/action — log to console
-      if (msg.method === "ai.nimblebrain/action") {
-        console.log("[action]", msg.params?.action, msg.params);
+      // ai.nimblebrain/open-* — log and answer: preview has nothing to open
+      if (
+        msg.method === "ai.nimblebrain/open-app" ||
+        msg.method === "ai.nimblebrain/open-conversation" ||
+        msg.method === "ai.nimblebrain/open-connector-settings"
+      ) {
+        console.log("[open]", msg.method, msg.params);
+        if (isRequest(msg)) post({ jsonrpc: "2.0", id: msg.id, result: {} });
         return;
       }
 

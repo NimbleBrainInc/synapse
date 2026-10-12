@@ -9,10 +9,12 @@ import { connect } from "./connect.js";
 import { downloadFile } from "./download-file.js";
 import { HostCapabilityError, TaskError } from "./errors.js";
 import {
-  action,
   hostSupports,
   notify,
   onNavigate,
+  openApp,
+  openConnectorSettings,
+  openConversation,
   pickFile,
   pickFiles,
   setLocation,
@@ -25,10 +27,12 @@ import { callToolAsTask } from "./task-handle.js";
   connect,
   connectUI,
   callToolAsTask,
-  action,
   downloadFile,
   hostSupports,
   notify,
+  openApp,
+  openConnectorSettings,
+  openConversation,
   pickFile,
   pickFiles,
   setLocation,

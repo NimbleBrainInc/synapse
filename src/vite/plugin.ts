@@ -347,6 +347,7 @@ export function vitePreviewHostHtml(appName: string): string {
     var iframe = document.getElementById("app");
     var dark = true;
     var PROXIED = ${JSON.stringify(PROXIED_SERVER_METHODS)};
+    var OPENS = ["ai.nimblebrain/open-app","ai.nimblebrain/open-conversation","ai.nimblebrain/open-connector-settings"];
 
     // Every key here is one the spec's style-variable enum names. That enum is
     // a strict record, so a single extra key makes a spec client reject the
@@ -392,7 +393,7 @@ export function vitePreviewHostHtml(appName: string): string {
           hostInfo:{name:"synapse-preview",version:"preview"},
           hostCapabilities:{openLinks:{},serverTools:{},serverResources:{listChanged:true},
             updateModelContext:{text:{},structuredContent:{}},
-            experimental:{"ai.nimblebrain/action":{},"ai.nimblebrain/keydown":{}}},
+            experimental:{"ai.nimblebrain/open-app":{},"ai.nimblebrain/open-conversation":{},"ai.nimblebrain/open-connector-settings":{},"ai.nimblebrain/keydown":{}}},
           hostContext:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}
         }});
         return;
@@ -423,7 +424,8 @@ export function vitePreviewHostHtml(appName: string): string {
       }
 
       // Log other messages
-      if (msg.method === "ai.nimblebrain/action") console.log("[action]", msg.params?.action, msg.params);
+      // The open requests are logged and answered: preview has nothing to open.
+      if (OPENS.indexOf(msg.method) !== -1) { console.log("[open]", msg.method, msg.params); if (isRequest(msg)) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
       else if (msg.method === "ui/update-model-context") { console.log("[model-context]", msg.params?.structuredContent); if (isRequest(msg)) post({jsonrpc:"2.0",id:msg.id,result:{}}); }
       else if (msg.method === "ai.nimblebrain/keydown") { /* ignore */ }
       else if (msg.method) console.log("[bridge]", msg.method, msg);

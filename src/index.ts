@@ -10,10 +10,12 @@ export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.j
 // NimbleBrain host extensions — composable over `App`, each a no-op or a
 // `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
 export {
-  action,
   hostSupports,
   notify,
   onNavigate,
+  openApp,
+  openConnectorSettings,
+  openConversation,
   pickFile,
   pickFiles,
   setLocation,

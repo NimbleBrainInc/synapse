@@ -258,7 +258,8 @@ the complete list. Each has one name, used as its method and as the identifier a
 host declares in `hostCapabilities.experimental` to offer it (`experimental` is
 the one slot a spec client's handshake parse keeps):
 
-- `ai.nimblebrain/action`
+- `ai.nimblebrain/open-app`, `ai.nimblebrain/open-conversation`,
+  `ai.nimblebrain/open-connector-settings`
 - `ai.nimblebrain/request-file`
 - `ai.nimblebrain/keydown`
 - `ai.nimblebrain/location`, answered host → app by `ai.nimblebrain/navigate`

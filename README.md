@@ -45,7 +45,7 @@ component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
 
 | Entry Point | Description |
 |-------------|-------------|
-| `@nimblebrain/synapse` | Vanilla JS core — `connect()`, plus the helpers over an `App`: `callToolAsTask()`, `action()`, `pickFile()`, `pickFiles()`, `uploadFiles()`, `notify()`, `downloadFile()` |
+| `@nimblebrain/synapse` | Vanilla JS core — `connect()`, plus the helpers over an `App`: `callToolAsTask()`, `openApp()`, `openConversation()`, `openConnectorSettings()`, `pickFile()`, `pickFiles()`, `uploadFiles()`, `notify()`, `downloadFile()` |
 | `@nimblebrain/synapse/react` | React hooks and the `AppProvider` |
 | `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
 | `@nimblebrain/synapse/ui/base` | Side-effect import that establishes the root-height chain (`html, body, #root`) the app shell fills. `AppFrame` does this automatically on render; import it in your entry to apply it before first paint |
@@ -343,21 +343,23 @@ package root — so the object stays small and an app that never picks a file
 never carries the picker.
 
 ```typescript
-import { connect, action, pickFile, downloadFile, callToolAsTask } from "@nimblebrain/synapse";
+import { connect, openConversation, pickFile, downloadFile, callToolAsTask } from "@nimblebrain/synapse";
 
 const app = await connect({ name: "my-app", version: "1.0.0" });
-action(app, "openConversation", { id: "conv_abc123" });
+await openConversation(app, "conv_abc123");
 ```
 
 | Function | Description |
 |----------|-------------|
 | `callToolAsTask(app, name, args?)` | Call a tool the server may run as a task; returns a `Promise<TaskHandle>`. See [Long-running tools](#long-running-tools-tasks). |
-| `action(app, name, params?)` | Trigger a NimbleBrain host action: `openApp` (`{ name }`) or `openConversation` (`{ id }`). No-op unless the host declares `ai.nimblebrain/action`. |
+| `openApp(app, name, target?)` | Ask the host to open an app, at `target` (a view's stable address) when given. Resolves `true` once opened, and `false` without sending unless the host declares `ai.nimblebrain/open-app`. Rejects with the host's error when it has no such app. |
+| `openConversation(app, id)` | Ask the host to open a conversation. Resolves `true` once opened, and `false` without sending unless the host declares `ai.nimblebrain/open-conversation`. |
+| `openConnectorSettings(app)` | Ask the host to open this connector's settings page; the host knows which connector sent it. Resolves `true` once opened, and `false` without sending unless the host declares `ai.nimblebrain/open-connector-settings`. Rejects with the host's error when the connector has none. |
 | `pickFile(app, options?)` | Native file picker, single file. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
 | `pickFiles(app, options?)` | Native file picker, multiple files. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/request-file`. |
 | `uploadFiles(app, files, options?)` | Store `File`s the app already holds (dropped on it, say), answered like a pick. Rejects with `HostCapabilityError` unless the host declares `ai.nimblebrain/upload-files`. |
 | `notify(app, { level, title, description? })` | Ask the host to show the user a notice, labelled with your app. `level` is `success`, `info`, `warning` or `error`; `title` is 1–120 characters, `description` up to 500. Resolves `true` once shown, and `false` without sending unless the host declares `ai.nimblebrain/notify`. Rejects with the host's error when it refuses one. |
-| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension (`"action"`, `"notify"`, `"requestFile"`, `"uploadFiles"`, `"keydown"`, `"location"`). |
+| `hostSupports(app, extension)` | Whether the host declared a NimbleBrain extension (`"openApp"`, `"openConversation"`, `"openConnectorSettings"`, `"notify"`, `"requestFile"`, `"uploadFiles"`, `"keydown"`, `"location"`). |
 | `downloadFile(app, name, content, mime?)` | Hand the user a file to save, over the spec's `ui/download-file`. Resolves with the host's result — `{ isError: true }` when the host declined or the user cancelled — and rejects, without sending, when the host did not advertise the `downloadFile` capability. |
 
 `app.supportsTasks` says whether the host declared the MCP tasks extension.
@@ -395,7 +397,9 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
 | `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
 | `useSendMessage()` | `(text) => void` | Send a message into the agent conversation |
-| `useAction()` | `(name, params?) => void` | Trigger a NimbleBrain host action |
+| `useOpenApp()` | `(name, target?) => Promise<boolean>` | Open an app through the host. See `openApp` |
+| `useOpenConversation()` | `(id) => Promise<boolean>` | Open a conversation through the host. See `openConversation` |
+| `useOpenConnectorSettings()` | `() => Promise<boolean>` | Open this connector's settings page through the host. See `openConnectorSettings` |
 | `useNotify()` | `(notice) => Promise<boolean>` | Show the user a notice through the host, labelled with your app. See `notify` |
 | `useFileUpload()` | `{ pickFile, pickFiles, uploadFiles, isPending }` | The host's native file picker, and uploads of files the app holds (NB-only) |
 

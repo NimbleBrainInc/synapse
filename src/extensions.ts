@@ -40,16 +40,45 @@ export function hostSupports(app: App, extension: NimbleBrainExtension): boolean
 const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 
 /**
- * Trigger a host-side action.
- *
- * Sends a command *to* the host. The NimbleBrain host serves `openApp`
- * (`{ name }`) and `openConversation` (`{ id }`) and ignores any other name. A
- * message into the conversation is `sendMessage`, and an external page is
- * `openLink`. A no-op when the host did not declare `ai.nimblebrain/action`.
+ * Ask the host to open an app by its name, at `target` when given: a view
+ * inside it, by the stable address the app reports in its trail (see
+ * {@link setLocation}). Resolves `true` once the host opened it, and `false`
+ * without sending anything where the host did not declare
+ * `ai.nimblebrain/open-app`. Rejects with the host's error when it has no such
+ * app. A message into the conversation is `sendMessage`, and an external page
+ * is `openLink`.
  */
-export function action(app: App, name: string, params?: Record<string, unknown>): void {
-  if (!hostSupports(app, "action")) return;
-  internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.action.method, { action: name, ...params });
+export async function openApp(app: App, name: string, target?: string): Promise<boolean> {
+  if (!hostSupports(app, "openApp")) return false;
+  await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.openApp.method, {
+    name,
+    ...(target !== undefined ? { target } : {}),
+  });
+  return true;
+}
+
+/**
+ * Ask the host to open a conversation by its id. Resolves `true` once the host
+ * opened it, and `false` without sending anything where the host did not
+ * declare `ai.nimblebrain/open-conversation`. Rejects with the host's error.
+ */
+export async function openConversation(app: App, id: string): Promise<boolean> {
+  if (!hostSupports(app, "openConversation")) return false;
+  await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.openConversation.method, { id });
+  return true;
+}
+
+/**
+ * Ask the host to open this connector's settings page. The host knows which
+ * connector sent it, so an app can open only its own. Resolves `true` once the
+ * host opened it, and `false` without sending anything where the host did not
+ * declare `ai.nimblebrain/open-connector-settings`. Rejects with the host's
+ * error when the connector has no settings page.
+ */
+export async function openConnectorSettings(app: App): Promise<boolean> {
+  if (!hostSupports(app, "openConnectorSettings")) return false;
+  await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.openConnectorSettings.method, {});
+  return true;
 }
 
 /** The most a host accepts: a longer trail or label drops the whole message. */

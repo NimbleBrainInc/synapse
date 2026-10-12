@@ -107,7 +107,9 @@ const bridge = new AppBridge(
     // only slot a spec client's handshake parse keeps. Presence is the signal.
     experimental: {
       "io.modelcontextprotocol/tasks": {},
-      "ai.nimblebrain/action": {},
+      "ai.nimblebrain/open-app": {},
+      "ai.nimblebrain/open-conversation": {},
+      "ai.nimblebrain/open-connector-settings": {},
       "ai.nimblebrain/request-file": {},
       "ai.nimblebrain/keydown": {},
     },

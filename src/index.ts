@@ -7,13 +7,14 @@ export { connect } from "./connect.js";
 export { downloadFile } from "./download-file.js";
 export { HostCapabilityError, TaskError } from "./errors.js";
 export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
-// NimbleBrain host extensions — composable over `App`, each a no-op or a
-// `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
+// NimbleBrain host extensions — composable over `App`, each a no-op, a `false`
+// or a `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
 export {
-  action,
   hostSupports,
   notify,
   onNavigate,
+  open,
+  openConnectorSettings,
   pickFile,
   pickFiles,
   setLocation,

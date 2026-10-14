@@ -1,5 +1,5 @@
 /**
- * `useDataSync`, `useModelContext`, `useSendMessage`, `useAction`,
+ * `useDataSync`, `useModelContext`, `useSendMessage`, the open hooks,
  * `useNotify` and `useFileUpload` under `<AppProvider>`.
  *
  * `useModelContext` owns the 250 ms debounce — `app.updateModelContext` sends
@@ -11,11 +11,12 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
 import {
-  useAction,
   useDataSync,
   useFileUpload,
   useModelContext,
   useNotify,
+  useOpen,
+  useOpenConnectorSettings,
   useSendMessage,
 } from "../../react/hooks.js";
 import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
@@ -260,30 +261,59 @@ describe("useSendMessage", () => {
   });
 });
 
-describe("useAction", () => {
-  it("sends ai.nimblebrain/action on a NimbleBrain host", async () => {
-    const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
-    await settle();
-
+describe("the open hooks", () => {
+  /** Answer the one request sent under `method`, and return its params. */
+  async function answer(method: string): Promise<unknown> {
+    const request = sent(method)[0];
     await act(async () => {
-      result.current("openConversation", { id: "c1" });
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          source: window.parent,
+          data: { jsonrpc: "2.0", id: request.id, result: {} },
+        }),
+      );
+      await flush();
     });
+    return request.params;
+  }
 
-    expect(sent("ai.nimblebrain/action")[0].params).toEqual({
-      action: "openConversation",
-      id: "c1",
+  it("useOpen sends the URI and resolves true once the host answers", async () => {
+    const { result } = renderHook(() => useOpen(), { wrapper: createWrapper() });
+    await settle();
+    let opened!: Promise<boolean>;
+    await act(async () => {
+      opened = result.current("files://fl_1");
+      await flush();
     });
+    expect(await answer("ai.nimblebrain/open")).toEqual({ uri: "files://fl_1" });
+    await expect(opened).resolves.toBe(true);
   });
 
-  it("is a no-op where the host did not declare it", async () => {
-    const { result } = renderHook(() => useAction(), { wrapper: createWrapper() });
-    await settle("nimblebrain", {});
-
+  it("useOpenConnectorSettings sends no params", async () => {
+    const { result } = renderHook(() => useOpenConnectorSettings(), { wrapper: createWrapper() });
+    await settle();
+    let opened!: Promise<boolean>;
     await act(async () => {
-      result.current("openConversation", { id: "c1" });
+      opened = result.current();
+      await flush();
     });
+    expect(await answer("ai.nimblebrain/open-connector-settings")).toEqual({});
+    await expect(opened).resolves.toBe(true);
+  });
 
-    expect(sent("ai.nimblebrain/action")).toHaveLength(0);
+  it("each resolves false without sending where the host did not declare it", async () => {
+    const { result } = renderHook(
+      () => ({
+        open: useOpen(),
+        settings: useOpenConnectorSettings(),
+      }),
+      { wrapper: createWrapper() },
+    );
+    await settle("nimblebrain", {});
+    await expect(result.current.open("files://fl_1")).resolves.toBe(false);
+    await expect(result.current.settings()).resolves.toBe(false);
+    expect(sent("ai.nimblebrain/open")).toHaveLength(0);
+    expect(sent("ai.nimblebrain/open-connector-settings")).toHaveLength(0);
   });
 });
 

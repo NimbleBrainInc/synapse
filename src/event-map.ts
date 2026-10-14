@@ -43,7 +43,8 @@ export const LIST_RESOURCES_METHOD: ListResourcesRequest["method"] = "resources/
  *
  * Each is used only when the host declares it: see {@link NIMBLEBRAIN_EXTENSIONS}.
  */
-export const ACTION_METHOD = "ai.nimblebrain/action";
+export const OPEN_METHOD = "ai.nimblebrain/open";
+export const OPEN_CONNECTOR_SETTINGS_METHOD = "ai.nimblebrain/open-connector-settings";
 export const REQUEST_FILE_METHOD = "ai.nimblebrain/request-file";
 export const UPLOAD_FILES_METHOD = "ai.nimblebrain/upload-files";
 export const KEYDOWN_METHOD = "ai.nimblebrain/keydown";
@@ -72,8 +73,20 @@ export const NAVIGATE_METHOD = "ai.nimblebrain/navigate";
  * extension says so; a host that does not is never sent it.
  */
 export const NIMBLEBRAIN_EXTENSIONS = {
-  /** App → host notification: run a host action (open an app or a conversation). */
-  action: { method: ACTION_METHOD, capability: ACTION_METHOD },
+  /**
+   * App → host request: open what a resource URI names, `{ uri }`. The host
+   * finds what shows it, puts it on screen and hands it the URI; answered `{}`,
+   * or refused when nothing in the workspace shows it.
+   */
+  open: { method: OPEN_METHOD, capability: OPEN_METHOD },
+  /**
+   * App → host request: open the settings page of the connector whose view
+   * sent it, `{}`. Answered `{}`, or refused when it has none.
+   */
+  openConnectorSettings: {
+    method: OPEN_CONNECTOR_SETTINGS_METHOD,
+    capability: OPEN_CONNECTOR_SETTINGS_METHOD,
+  },
   /** App → host request: the host's file picker, answered `{ files }`. */
   requestFile: { method: REQUEST_FILE_METHOD, capability: REQUEST_FILE_METHOD },
   /**

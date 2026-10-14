@@ -98,7 +98,7 @@ import HostDemo from "../components/HostDemo.astro";
               <span class="file"><b>FollowUps.tsx</b>, your component</span>
             </div>
             <div class="code-scroll">
-<pre><code><span class="t-kw">import</span> &#123; useToolResult, useAction &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
+<pre><code><span class="t-kw">import</span> &#123; useToolResult, useCallTool &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/react"</span>;
 <span class="t-kw">import</span> &#123; Card, Stack, Inline, Heading, ListRow, Button, Badge &#125; <span class="t-kw">from</span> <span class="t-str">"@nimblebrain/synapse/ui"</span>;
 
 <span class="t-cm">// Typed data, straight from your MCP tool</span>
@@ -107,7 +107,7 @@ import HostDemo from "../components/HostDemo.astro";
 <span class="t-cm">// Real, typed React. The agent renders and drives it.</span>
 <span class="t-kw">export function</span> <span class="t-fn">FollowUps</span>() &#123;
   <span class="t-kw">const</span> data = <span class="t-fn">useToolResult</span>()?.structuredContent <span class="t-kw">as</span> &#123; drafts: <span class="t-ty">FollowUp</span>[] &#125;;
-  <span class="t-kw">const</span> send = <span class="t-fn">useAction</span>();
+  <span class="t-kw">const</span> send = <span class="t-fn">useCallTool</span>(<span class="t-str">"send_followups"</span>);
   <span class="t-kw">if</span> (!data) <span class="t-kw">return</span> <span class="t-kw">null</span>;
   <span class="t-kw">return</span> (
     &lt;<span class="t-tag">Card</span>&gt;
@@ -120,7 +120,7 @@ import HostDemo from "../components/HostDemo.astro";
           &lt;<span class="t-tag">ListRow</span> key=&#123;d.to&#125; title=&#123;d.to&#125; meta=&#123;d.company&#125; /&gt;
         ))&#125;
       &lt;/<span class="t-tag">Stack</span>&gt;
-      &lt;<span class="t-tag">Button</span> onClick=&#123;() =&gt; <span class="t-fn">send</span>(<span class="t-str">"send_followups"</span>)&#125;&gt;Approve &amp; send&lt;/<span class="t-tag">Button</span>&gt;
+      &lt;<span class="t-tag">Button</span> onClick=&#123;() =&gt; send.<span class="t-fn">call</span>()&#125;&gt;Approve &amp; send&lt;/<span class="t-tag">Button</span>&gt;
     &lt;/<span class="t-tag">Card</span>&gt;
   );
 &#125;</code></pre>

@@ -40,16 +40,35 @@ export function hostSupports(app: App, extension: NimbleBrainExtension): boolean
 const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 
 /**
- * Trigger a host-side action.
+ * Ask the host to open what a resource URI names: a record (`files://…`), a
+ * conversation (`conversation://…`), an app's own screen (its `ui://`
+ * resource), or a view another app reports in its trail. The app names what to
+ * show, never which app shows it; the host finds that.
  *
- * Sends a command *to* the host. The NimbleBrain host serves `openApp`
- * (`{ name }`) and `openConversation` (`{ id }`) and ignores any other name. A
+ * Resolves `true` once the host put it on screen and handed it the URI. Whether
+ * an app then shows that view is the app's to decide. Resolves `false` without
+ * sending anything where the host did not declare `ai.nimblebrain/open`, and
+ * rejects with the host's error when nothing in the workspace shows the URI. A
  * message into the conversation is `sendMessage`, and an external page is
- * `openLink`. A no-op when the host did not declare `ai.nimblebrain/action`.
+ * `openLink`.
  */
-export function action(app: App, name: string, params?: Record<string, unknown>): void {
-  if (!hostSupports(app, "action")) return;
-  internalsFor(app).send(NIMBLEBRAIN_EXTENSIONS.action.method, { action: name, ...params });
+export async function open(app: App, uri: string): Promise<boolean> {
+  if (!hostSupports(app, "open")) return false;
+  await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.open.method, { uri });
+  return true;
+}
+
+/**
+ * Ask the host to open this connector's settings page. The host knows which
+ * connector sent it, so an app can open only its own. Resolves `true` once the
+ * host opened it, and `false` without sending anything where the host did not
+ * declare `ai.nimblebrain/open-connector-settings`. Rejects with the host's
+ * error when the connector has no settings page.
+ */
+export async function openConnectorSettings(app: App): Promise<boolean> {
+  if (!hostSupports(app, "openConnectorSettings")) return false;
+  await internalsFor(app).request(NIMBLEBRAIN_EXTENSIONS.openConnectorSettings.method, {});
+  return true;
 }
 
 /** The most a host accepts: a longer trail or label drops the whole message. */

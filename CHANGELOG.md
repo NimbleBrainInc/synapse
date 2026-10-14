@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.33.0] - 2026-10-13
+
+Pairs with a NimbleBrain host that serves `ai.nimblebrain/open` and `ai.nimblebrain/open-connector-settings`. On an older host each resolves `false` without sending.
+
+### Breaking
+
+- **`action` and `useAction` are replaced by `open(app, uri)` and `openConnectorSettings(app)`**, with the hooks `useOpen` and `useOpenConnectorSettings`. Each is a request the host answers. `open` takes what to show as a resource URI and the host finds what shows it, so an app never names another app: `action(app, "openApp", { name: "files", target: uri })` becomes `open(app, uri)`, `action(app, "openConversation", { id })` becomes `open(app, \`conversation://${id}\`)`, and an app's home is its `ui://` resource. Each resolves `true` once the host has done it, resolves `false` without sending where the host did not declare its method, and rejects with the host's error when it refuses. `hostSupports` takes `"open"` and `"openConnectorSettings"` in place of `"action"`. `ai.nimblebrain/action` is gone: it let an app neither ask what a host serves nor learn that a request failed.
+
 ## [0.32.0] - 2026-10-07
 
 ### Changed

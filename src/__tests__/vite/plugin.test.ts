@@ -92,7 +92,8 @@ describe("preview host HTML", () => {
   it("names itself as the preview and declares the extensions it emulates", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain('name:"synapse-preview"');
-    expect(html).toContain('"ai.nimblebrain/action":{}');
+    expect(html).toContain('"ai.nimblebrain/open":{}');
+    expect(html).toContain('"ai.nimblebrain/open-connector-settings":{}');
     expect(html).toContain('"ai.nimblebrain/keydown":{}');
   });
 
@@ -145,7 +146,7 @@ describe("preview host HTML", () => {
   it("declares the capabilities it answers, since every call is gated on them", () => {
     const html = getPreviewHtml("hello");
     expect(html).toContain("updateModelContext:");
-    expect(html).toContain('"ai.nimblebrain/action"');
+    expect(html).toContain('"ai.nimblebrain/open"');
     expect(html).toContain('"ai.nimblebrain/keydown"');
   });
 

@@ -9,9 +9,11 @@
  * never pulls this code in.
  *
  * Every one of them is gated on the host declaring it in `ui/initialize`: where
- * it is not declared, the fire-and-forget ones are no-ops and the ones with a
- * return value throw `HostCapabilityError`, because a picker that silently
- * resolves `null` forever is worse than one that says it isn't there.
+ * it is not declared, the fire-and-forget ones are no-ops, the requests whose
+ * answer is only whether it happened (`open`, `openConnectorSettings`,
+ * `notify`) resolve `false` without sending, and the ones with a return value
+ * throw `HostCapabilityError`, because a picker that silently resolves `null`
+ * forever is worse than one that says it isn't there.
  * `keydown` has no function here; `connect({ forwardKeys })` applies the same
  * gate.
  */

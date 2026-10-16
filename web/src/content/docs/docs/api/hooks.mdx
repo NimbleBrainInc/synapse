@@ -44,7 +44,7 @@ reasoning.
 | --- | --- | --- | --- |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool on this app's own MCP server with loading/error state. `call(args?)` fires it. | `serverTools`: `call` rejects with `HostCapabilityError`, and `error` holds it. |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | A tool call the server may run as a task, followed to its end by polling. See [long-running tools](/docs/guides/long-running-tools/). | The tasks capability: `fire` rejects with `HostCapabilityError`. Check `app.supportsTasks`. |
-| `useDataSync(cb)` | none | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`). `cb` receives the notification's params. See [keep the UI in sync](/docs/guides/keep-ui-in-sync/). | `serverResources.listChanged`: `cb` never runs. |
+| `useDataSync(cb)` | none | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`). `cb` receives the latest notification's params. Notifications that arrive together run `cb` once, and while a promise `cb` returned is pending, later ones run it once after it settles. See [keep the UI in sync](/docs/guides/keep-ui-in-sync/). | `serverResources.listChanged`: `cb` never runs. |
 
 ## Agent-facing state
 

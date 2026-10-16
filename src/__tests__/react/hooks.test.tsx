@@ -69,6 +69,39 @@ async function dispatchNotification(method: string, params?: Record<string, unkn
   await flush();
 }
 
+/**
+ * Let `useDataSync`'s scheduled call run: it waits one macrotask after the
+ * notices that arrived together.
+ */
+async function nextTask(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await flush();
+}
+
+/** Notices dispatched back to back, as a resumed tab dispatches its queue. */
+async function burst(n: number, params: (i: number) => Record<string, unknown> = () => ({})) {
+  for (let i = 0; i < n; i += 1) {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        source: window.parent,
+        data: { jsonrpc: "2.0", method: "notifications/resources/list_changed", params: params(i) },
+      }),
+    );
+  }
+  await flush();
+}
+
+/** A promise the test settles by hand. */
+function deferred() {
+  let resolve!: () => void;
+  let reject!: (err: unknown) => void;
+  const promise = new Promise<void>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
 function sent(method: string): Record<string, unknown>[] {
   return postMessageSpy.mock.calls
     .map((c: unknown[]) => c[0] as Record<string, unknown>)
@@ -113,6 +146,7 @@ describe("useDataSync", () => {
 
     await act(async () => {
       await dispatchNotification("notifications/resources/list_changed", { _meta: { k: "v" } });
+      await nextTask();
     });
 
     expect(cb).toHaveBeenCalledTimes(1);
@@ -126,6 +160,7 @@ describe("useDataSync", () => {
 
     await act(async () => {
       await dispatchNotification("notifications/resources/list_changed");
+      await nextTask();
     });
 
     expect(cb).toHaveBeenCalledWith({});
@@ -141,6 +176,7 @@ describe("useDataSync", () => {
         server: "people",
         tool: "update_contact",
       });
+      await nextTask();
     });
 
     expect(cb).not.toHaveBeenCalled();
@@ -158,10 +194,147 @@ describe("useDataSync", () => {
     rerender({ cb: second });
     await act(async () => {
       await dispatchNotification("notifications/resources/list_changed", {});
+      await nextTask();
     });
 
     expect(first).not.toHaveBeenCalled();
     expect(second).toHaveBeenCalledTimes(1);
+  });
+  it("runs once, with the latest params, for a burst of notices dispatched together", async () => {
+    const cb = vi.fn();
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(36, (i) => ({ _meta: { n: i } }));
+      await nextTask();
+    });
+
+    expect(cb).toHaveBeenCalledTimes(1);
+    expect(cb).toHaveBeenCalledWith({ _meta: { n: 35 } });
+  });
+
+  it("collapses a burst for a callback that returns nothing, and runs again for a later notice", async () => {
+    const cb = vi.fn((_params: unknown): void => {});
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(5);
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      await burst(5);
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs exactly one trailing call for notices that arrive while the returned promise is pending", async () => {
+    const calls: ReturnType<typeof deferred>[] = [];
+    const cb = vi.fn((_params: unknown) => {
+      const d = deferred();
+      calls.push(d);
+      return d.promise;
+    });
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(1);
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    // Ten notices across several tasks while the first re-read is in flight.
+    await act(async () => {
+      for (let i = 0; i < 10; i += 1) {
+        await burst(1, () => ({ _meta: { n: i } }));
+        await nextTask();
+      }
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      calls[0]?.resolve();
+      await flush();
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(2);
+    expect(cb).toHaveBeenLastCalledWith({ _meta: { n: 9 } });
+
+    // Nothing arrived during the trailing call, so settling it runs nothing.
+    await act(async () => {
+      calls[1]?.resolve();
+      await flush();
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("runs the trailing call when the in-flight promise rejects", async () => {
+    const calls: ReturnType<typeof deferred>[] = [];
+    const cb = vi.fn((_params: unknown) => {
+      const d = deferred();
+      calls.push(d);
+      return d.promise;
+    });
+    renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(1);
+      await nextTask();
+      await burst(3);
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      calls[0]?.reject(new Error("re-read failed"));
+      await flush();
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not run for a notice still waiting to run when the view unmounts", async () => {
+    const cb = vi.fn();
+    const { unmount } = renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(3);
+      unmount();
+      await nextTask();
+    });
+
+    expect(cb).not.toHaveBeenCalled();
+  });
+
+  it("does not run the trailing call when the view unmounts while a promise is pending", async () => {
+    const d = deferred();
+    const cb = vi.fn((_params: unknown) => d.promise);
+    const { unmount } = renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+    await settle();
+
+    await act(async () => {
+      await burst(1);
+      await nextTask();
+      await burst(2);
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
+
+    unmount();
+    await act(async () => {
+      d.resolve();
+      await flush();
+      await nextTask();
+    });
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 });
 

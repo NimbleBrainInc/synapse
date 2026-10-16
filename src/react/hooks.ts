@@ -174,6 +174,9 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
   return { call, isPending, error, data };
 }
 
+/** The params `useDataSync` hands its callback: the notification's, or `{}`. */
+type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
+
 /**
  * Run `callback` when the app's own MCP server announces that its data changed.
  *
@@ -184,19 +187,73 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
  * none. They name no server and no tool: the notification only ever comes from
  * this app's own server, and a change need not come from a tool call at all.
  *
+ * **At most one refresh at a time.** The notification says only that something
+ * changed, so ten queued notices ask for the same thing as one: a re-read.
+ *
+ * - Notices that arrive together (a burst a host relays from a write loop, or a
+ *   backgrounded tab dispatching its queue on resume) run the callback once, on
+ *   the next macrotask, with the latest notice's params.
+ * - When the callback returns a promise, notices that arrive before it settles
+ *   run no new call. Once it settles, resolved or rejected, the callback runs
+ *   once more if any notice arrived meanwhile, so the last change is never
+ *   missed. Return the re-read's promise (`() => call()`) to get this.
+ *
+ * The callback's return type is `unknown` rather than `void | Promise<void>`
+ * so that every callback that type-checked against `() => void` still does,
+ * `() => call()` included: anything with a `then` is waited on, and anything
+ * else is ignored.
+ *
+ * The hook only waits on the promise: a rejection ends the wait and is not
+ * reported, so handle the error where you render it (`useCallTool` keeps it in
+ * `error`). After unmount the callback does not run again.
+ *
  * Where the host did not declare `serverResources.listChanged`, the callback
  * never runs. Nothing fails: the app shows what it last loaded until the user
  * or the app reloads it.
  */
-export function useDataSync(
-  callback: (params: NonNullable<ResourceListChangedNotification["params"]>) => void,
-): void {
+export function useDataSync(callback: (params: DataSyncParams) => unknown): void {
   const app = useAppContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
 
   useEffect(() => {
-    return app.on(RESOURCE_LIST_CHANGED_METHOD, (params) => callbackRef.current(params ?? {}));
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    // The latest notice not yet handed to a call; set means a call is owed.
+    let pending: DataSyncParams | undefined;
+
+    const schedule = () => {
+      if (timer === undefined && !inFlight) timer = setTimeout(run, 0);
+    };
+
+    const settle = () => {
+      inFlight = false;
+      if (active && pending !== undefined) schedule();
+    };
+
+    function run() {
+      timer = undefined;
+      if (!active || pending === undefined) return;
+      const params = pending;
+      pending = undefined;
+      const result = callbackRef.current(params);
+      if (result && typeof (result as PromiseLike<void>).then === "function") {
+        inFlight = true;
+        (result as PromiseLike<void>).then(settle, settle);
+      }
+    }
+
+    const off = app.on(RESOURCE_LIST_CHANGED_METHOD, (params) => {
+      pending = params ?? {};
+      schedule();
+    });
+
+    return () => {
+      active = false;
+      if (timer !== undefined) clearTimeout(timer);
+      off();
+    };
   }, [app]);
 }
 

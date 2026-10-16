@@ -39,10 +39,9 @@ function Root() {
 function Workspace() {
   const { call, data } = useCallTool("get_workspace");
 
-  // Re-fetch whenever the server says its data changed.
-  useDataSync(() => {
-    call();
-  });
+  // Re-fetch whenever the server says its data changed. Returning the
+  // call's promise keeps one re-fetch in flight at a time.
+  useDataSync(() => call());
 
   if (!data) return <p>Loading…</p>;
   return <Preview workspace={data} />;
@@ -80,7 +79,9 @@ then travels in that call's response, rather than on an optional stream the host
 may not hold open.
 
 Announce once per write, not once per row. A bulk import that announces inside
-its loop sends N notifications, and every open view re-reads N times.
+its loop sends N notifications across the wire to every open view. `useDataSync`
+keeps each view to one re-read in flight (below), but the notifications still
+cost the host and the transport.
 
 A server that does not announce its writes gives `useDataSync` nothing to fire on.
 
@@ -91,6 +92,26 @@ callback the notification's params as the spec defines them, or `{}` when there
 are none. They name no server, because a host forwards a server's notification
 only to that server's own views, and no tool, because a change need not come from
 a tool call. So there is nothing to filter: re-read what you render.
+
+### One re-read at a time
+
+The notification says that something changed, not what, so ten queued
+notifications ask for what one does: a re-read. `useDataSync` runs your callback
+accordingly.
+
+- **Notifications that arrive together run it once.** The callback runs on the
+  next macrotask after a notification, with the latest params, so a burst (a host
+  relaying a server's write loop, or a backgrounded tab dispatching its queue on
+  resume) costs one re-read rather than one per notification.
+- **A returned promise holds the next run.** While the promise your callback
+  returned is pending, further notifications only mark the view stale. When it
+  settles, resolved or rejected, the callback runs once more if anything arrived
+  meanwhile, so the view always ends on a read taken after the last change.
+
+A callback that returns nothing still gets the first rule. Return the re-read's
+promise (`() => call()`) to get the second. The hook only waits on that promise
+and does not report a rejection; `useCallTool` keeps the failure in `error`.
+After the component unmounts, the callback does not run again.
 
 It is a push, not a poll: the UI updates the moment the data moves and does no
 work in between. An announcement also reaches the view that made the change,

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.34.0] - 2026-10-16
+
+### Changed
+
+- **`useDataSync` runs at most one refresh at a time per view.** `notifications/resources/list_changed` says only that the server's data changed, so a burst of them asks for one re-read, not one each. Notices that arrive together now run the callback once, on the next macrotask, with the latest notice's params: a backgrounded tab dispatching its queue on resume, or a host relaying a server's write loop, costs one re-read. When the callback returns a promise, notices that arrive before it settles run no new call, and once it settles (resolved or rejected) the callback runs once more if any arrived, so the view always ends on a read taken after the last change. Return the re-read's promise to get this: `useDataSync(() => call())`. The hook does not report the promise's rejection. The callback's return type is `unknown`, so every callback that type-checked before still does. A callback now runs one macrotask after its notice rather than in the same task, and never after the component unmounts.
+
 ## [0.33.0] - 2026-10-13
 
 Pairs with a NimbleBrain host that serves `ai.nimblebrain/open` and `ai.nimblebrain/open-connector-settings`. On an older host each resolves `false` without sending.

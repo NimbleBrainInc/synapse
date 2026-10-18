@@ -21,7 +21,6 @@ import {
 import { callToolAsTask } from "../task-handle.js";
 import type {
   App,
-  CallToolOptions,
   FileResult,
   ModelContext,
   Notice,
@@ -136,19 +135,11 @@ export interface UseCallToolResult<TOutput> {
 /**
  * Call one tool, with pending/error/data state for the latest call.
  *
- * Pass `{ readOnly: true }` for a tool that only reads, so a call the page's
- * suspension interrupted is sent once more instead of landing in `error` (see
- * `CallToolOptions`).
- *
  * Where the host did not declare `serverTools`, `call` rejects with
  * `HostCapabilityError` without sending, and `error` holds it.
  */
-export function useCallTool<TOutput = unknown>(
-  toolName: string,
-  options?: CallToolOptions,
-): UseCallToolResult<TOutput> {
+export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolResult<TOutput> {
   const app = useAppContext();
-  const readOnly = options?.readOnly === true;
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<TOutput | null>(null);
@@ -161,7 +152,7 @@ export function useCallTool<TOutput = unknown>(
       setError(null);
 
       try {
-        const result = await app.callTool<TOutput>(toolName, args, { readOnly });
+        const result = await app.callTool<TOutput>(toolName, args);
         // Stale guard: only update if this is still the latest call.
         if (id === callIdRef.current) {
           setData(result.data);
@@ -177,7 +168,7 @@ export function useCallTool<TOutput = unknown>(
         throw err;
       }
     },
-    [app, toolName, readOnly],
+    [app, toolName],
   );
 
   return { call, isPending, error, data };

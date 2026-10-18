@@ -39,7 +39,6 @@ export { callToolAsTask } from "./task-handle.js";
 export type {
   App,
   AppEventName,
-  CallToolOptions,
   ConnectOptions,
   Dimensions,
   FileResult,

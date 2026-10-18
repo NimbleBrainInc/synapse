@@ -53,8 +53,8 @@ const REQUEST_TIMEOUT_CODE = -32001;
  * It tells client sleep from server slowness. A `-32001` without
  * `suspendedMs` is a request the server took too long to answer, and says
  * nothing about whether the tool ran; one with it was cut off by the page
- * sleeping. Either way the tool may have run, so only a call the app knows to be
- * read-only is safe to send again (`callTool`'s `readOnly` option does this).
+ * sleeping. Either way the tool may have run, so re-read before sending a
+ * write again.
  *
  * Checked structurally, so it matches the error whichever copy of the MCP
  * client built it.

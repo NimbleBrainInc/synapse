@@ -29,7 +29,7 @@ import {
 
 import { parseToolResultParams } from "./content-parser.js";
 import { extractHostFontCss, extractTheme } from "./detection.js";
-import { HostCapabilityError, isSuspensionError } from "./errors.js";
+import { HostCapabilityError } from "./errors.js";
 import { NIMBLEBRAIN_EXTENSIONS, resolveEventMethod, TOOLS_CALL_METHOD } from "./event-map.js";
 import { registerInternals } from "./internals.js";
 import { KeyboardForwarder } from "./keyboard.js";
@@ -39,7 +39,6 @@ import { readHostTasksCapability } from "./task-handle.js";
 import { applyThemeVariables } from "./theme-defaults.js";
 import type {
   App,
-  CallToolOptions,
   ConnectOptions,
   Dimensions,
   TasksCapability,
@@ -408,7 +407,6 @@ export async function connect(options: ConnectOptions): Promise<App> {
     async callTool<TOutput = unknown>(
       toolName: string,
       args?: Record<string, unknown>,
-      options?: CallToolOptions,
     ): Promise<ToolCallResult<TOutput>> {
       if (!hostCapabilities.serverTools) {
         throw new HostCapabilityError("callTool", "serverTools");
@@ -423,17 +421,11 @@ export async function connect(options: ConnectOptions): Promise<App> {
       // which asks for a progress token: that puts `_meta.progressToken` on
       // every call, and nothing here subscribes to progress. The result is
       // validated against the spec's schema either way.
-      const send = () =>
-        client.request({ method: TOOLS_CALL_METHOD, params }, CallToolResultSchema, NO_DEADLINE);
-      let raw: Awaited<ReturnType<typeof send>>;
-      try {
-        raw = await send();
-      } catch (err) {
-        // Once, and only for a tool the app says is safe to repeat: the page
-        // slept through the call, so the tool may or may not have run.
-        if (!options?.readOnly || !isSuspensionError(err)) throw err;
-        raw = await send();
-      }
+      const raw = await client.request(
+        { method: TOOLS_CALL_METHOD, params },
+        CallToolResultSchema,
+        NO_DEADLINE,
+      );
       return parseToolResult(raw) as ToolCallResult<TOutput>;
     },
 

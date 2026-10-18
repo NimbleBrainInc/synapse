@@ -330,7 +330,7 @@ const app = await connect({ name: "my-app", version: "1.0.0" });
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL (host-aware) |
 | `updateModelContext(state, summary?)` | Push LLM-visible state |
-| `callTool(name, args?, { readOnly? })` | Call a tool on this app's own MCP server and get a typed result. `readOnly: true` sends a call the page's suspension interrupted once more |
+| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result |
 | `readServerResource({ uri })` | Read an MCP resource from the originating server |
 | `sendMessage(text)` | Send a message into the agent conversation |
 | `destroy()` | Clean up all listeners, observers, and timers |
@@ -390,7 +390,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useToolResult()` | `ToolResultData \| null` | Re-renders on every `tool-result` event |
 | `useToolInput()` | `Record<string, unknown> \| null` | Re-renders on every `tool-input` event |
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
-| `useCallTool(name, { readOnly? })` | `{ call, data, isPending, error }` | Call a tool with loading/error state. `readOnly: true` sends a call the page's suspension interrupted once more |
+| `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full task lifecycle for a long-running tool. See below. |
 | `useDataSync(cb)` | — | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`); `cb` gets the latest notification's params. A burst runs `cb` once, and while a promise `cb` returned is pending, later notices run it once after it settles. Also runs `cb` (with `{}`, same single-flight) when the view is shown after a minute or more hidden |
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |

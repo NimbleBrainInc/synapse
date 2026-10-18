@@ -511,48 +511,7 @@ describe("useCallTool", () => {
     await flush();
   }
 
-  async function answerLastToolCall(value: unknown) {
-    const call = sent("tools/call").at(-1);
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        source: window.parent,
-        data: {
-          jsonrpc: "2.0",
-          id: call?.id,
-          result: {
-            content: [{ type: "text", text: JSON.stringify(value) }],
-            structuredContent: value,
-          },
-        },
-      }),
-    );
-    await flush();
-  }
-
-  it("sends a read-only call the page's suspension interrupted once more, and keeps no error", async () => {
-    const { result } = renderHook(
-      () => useCallTool<{ n: number }>("list_items", { readOnly: true }),
-      {
-        wrapper: createWrapper(),
-      },
-    );
-    await settle();
-
-    let done: Promise<unknown> | undefined;
-    await act(async () => {
-      done = result.current.call();
-      await flush();
-      await failLastToolCall({ suspendedMs: 3_600_000 });
-      await answerLastToolCall({ n: 7 });
-      await done;
-    });
-
-    expect(sent("tools/call")).toHaveLength(2);
-    expect(result.current.error).toBeNull();
-    expect(result.current.data).toEqual({ n: 7 });
-  });
-
-  it("does not retry a call that is not marked read-only; error holds the host's answer", async () => {
+  it("does not resend a call the page's suspension interrupted; error holds the host's answer", async () => {
     const { result } = renderHook(() => useCallTool("archive_item"), {
       wrapper: createWrapper(),
     });

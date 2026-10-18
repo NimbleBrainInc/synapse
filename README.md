@@ -392,7 +392,7 @@ import { AppProvider, useApp, useCallTool, useTheme } from "@nimblebrain/synapse
 | `useResize()` | `(w?, h?) => void` | Resize helper — auto-measures body if no args |
 | `useCallTool(name)` | `{ call, data, isPending, error }` | Call a tool with loading/error state |
 | `useCallToolAsTask(name)` | `{ fire, task, result, error, isWorking, isTerminal, cancel }` | The full task lifecycle for a long-running tool. See below. |
-| `useDataSync(cb)` | — | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`); `cb` gets the latest notification's params. A burst runs `cb` once, and while a promise `cb` returned is pending, later notices run it once after it settles |
+| `useDataSync(cb)` | — | Run `cb` when your server announces its data changed (`notifications/resources/list_changed`); `cb` gets the latest notification's params. A burst runs `cb` once, and while a promise `cb` returned is pending, later notices run it once after it settles. Also runs `cb` (with `{}`, same single-flight) when the view is shown after a minute or more hidden |
 | `useModelContext()` | `(state, summary?) => void` | Push LLM-visible state, debounced 250ms |
 | `useModelContext(factory, deps)` | — | The same, pushed whenever `deps` change |
 | `useSendMessage()` | `(text) => void` | Send a message into the agent conversation |

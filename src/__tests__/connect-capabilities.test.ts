@@ -10,7 +10,7 @@ import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
-import { HostCapabilityError } from "../errors.js";
+import { HostCapabilityError, isSuspensionError } from "../errors.js";
 import {
   hostSupports,
   notify,
@@ -114,12 +114,16 @@ async function respondToLastRequest(result: unknown) {
   await flush();
 }
 
-async function rejectLastRequest(code: number, message: string) {
+async function rejectLastRequest(code: number, message: string, data?: unknown) {
   const msg = lastRequest();
   window.dispatchEvent(
     new MessageEvent("message", {
       source: window.parent,
-      data: { jsonrpc: "2.0", id: msg.id, error: { code, message } },
+      data: {
+        jsonrpc: "2.0",
+        id: msg.id,
+        error: { code, message, ...(data !== undefined && { data }) },
+      },
     }),
   );
   await flush();
@@ -196,6 +200,45 @@ describe("connect() capabilities", () => {
       const p = app.callTool("boom");
       await rejectLastRequest(-32603, "tool exploded");
       await expect(p).rejects.toThrow("tool exploded");
+    });
+  });
+
+  // A host answers a call the page's suspension interrupted with -32001 and
+  // `data.suspendedMs`. The tool may have run, so the SDK never resends it.
+  describe("callTool after a suspension", () => {
+    const SUSPENDED = { suspendedMs: 3_600_000 };
+
+    it("rejects with the host's answer, sent once, and isSuspensionError matches it", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("archive_item", { id: "a" });
+      const settled = p.catch((err: unknown) => err);
+
+      await rejectLastRequest(-32001, "Request timed out", SUSPENDED);
+
+      expect(sentByMethod("tools/call")).toHaveLength(1);
+      const err = await settled;
+      expect(err).toMatchObject({ code: -32001, data: SUSPENDED });
+      expect(isSuspensionError(err)).toBe(true);
+    });
+
+    it("isSuspensionError does not match a plain -32001 that carries no suspendedMs", async () => {
+      app = await connectAndHandshake();
+      const settled = app.callTool("list_items").catch((err: unknown) => err);
+
+      await rejectLastRequest(-32001, "Request timed out");
+
+      const err = await settled;
+      expect(err).toMatchObject({ code: -32001 });
+      expect(isSuspensionError(err)).toBe(false);
+    });
+
+    it("isSuspensionError does not match another code that carries suspendedMs", async () => {
+      app = await connectAndHandshake();
+      const settled = app.callTool("list_items").catch((err: unknown) => err);
+
+      await rejectLastRequest(-32603, "tool exploded", SUSPENDED);
+
+      expect(isSuspensionError(await settled)).toBe(false);
     });
   });
 

@@ -55,6 +55,30 @@ call lands in `error` instead of an unhandled rejection. Concurrent calls are
 guarded, so if the user triggers the same tool twice only the latest result is
 kept, and a stale earlier response cannot overwrite it.
 
+## A call the page slept through
+
+A browser suspends a background tab, and a laptop lid closes. A call in flight
+when that happens is cut off. The NimbleBrain host answers it with JSON-RPC error
+`-32001` whose `data.suspendedMs` says how long the page was suspended, so an app
+can tell its own sleep from a slow server. `isSuspensionError(err)` checks for it.
+
+The tool may or may not have run, so the SDK never sends it again: the call
+rejects, and `useCallTool` puts the host's answer in `error`. Re-read before
+retrying a write, and tell the user to look first:
+
+```tsx
+import { isSuspensionError } from "@nimblebrain/synapse";
+
+const { call, error } = useCallTool("archive_document");
+if (isSuspensionError(error)) {
+  // The page slept through the call. Re-read, then offer to try again.
+}
+```
+
+A read is safe to call again. A view that reads through `useDataSync` re-reads
+by itself when it is shown after a long hide (see
+[keep the UI in sync](/docs/guides/keep-ui-in-sync/)).
+
 ## Related
 
 - [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): re-run a call when the agent mutates state.

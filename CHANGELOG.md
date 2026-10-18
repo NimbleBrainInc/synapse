@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.35.0] - 2026-10-18
+
+### Added
+
+- **`useDataSync` re-reads when the view comes back.** A view left in a background tab misses notices while the browser suspends it, a read it had in flight fails, and the host sends nothing on resume, so the view stayed on the failed read until a reload. When the document becomes visible after staying hidden for at least a minute, the callback now runs with `{}`, through the same path as a notice: notices dispatched on resume join it and keep their params, and a call already in flight holds it, so a resume costs at most one re-read. A shorter hide runs nothing, mounting runs nothing, and nothing runs after unmount. It is on for every `useDataSync`, including on a host that does not declare `serverResources.listChanged`, where it is now the only thing that runs the callback.
+- **`isSuspensionError(err)`** says whether a rejection is a host's answer to a request the page's suspension interrupted: JSON-RPC error `-32001` with a numeric `data.suspendedMs`. It tells the page's own sleep from a slow server. The tool may have run, so re-read before retrying a write.
+
 ## [0.34.0] - 2026-10-16
 
 ### Changed

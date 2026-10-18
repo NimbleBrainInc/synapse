@@ -83,7 +83,8 @@ its loop sends N notifications across the wire to every open view. `useDataSync`
 keeps each view to one re-read in flight (below), but the notifications still
 cost the host and the transport.
 
-A server that does not announce its writes gives `useDataSync` nothing to fire on.
+A server that does not announce its writes gives `useDataSync` nothing to fire on
+except a resume (below).
 
 ## How it works
 
@@ -92,6 +93,15 @@ callback the notification's params as the spec defines them, or `{}` when there
 are none. They name no server, because a host forwards a server's notification
 only to that server's own views, and no tool, because a change need not come from
 a tool call. So there is nothing to filter: re-read what you render.
+
+It is a push, not a poll: the UI updates the moment the data moves and does no
+work in between, apart from one re-read when a long-hidden view comes back
+(below). An announcement also reaches the view that made the change,
+which is what you want — that view re-reads too. Your own call cannot loop,
+because a re-read is not a write and announces nothing.
+
+In the Vite dev preview, the dev server forwards the server's announcement into
+the app the same way, so `useDataSync` fires locally.
 
 ### One re-read at a time
 
@@ -128,14 +138,6 @@ first read.
 This is on for every `useDataSync`, and on a host that sends no notifications at
 all. A callback that is right for "the data changed" is right for "the data may
 have changed while you weren't looking".
-
-It is a push, not a poll: the UI updates the moment the data moves and does no
-work in between. An announcement also reaches the view that made the change,
-which is what you want — that view re-reads too. Your own call cannot loop,
-because a re-read is not a write and announces nothing.
-
-In the Vite dev preview, the dev server forwards the server's announcement into
-the app the same way, so `useDataSync` fires locally.
 
 ## Related
 

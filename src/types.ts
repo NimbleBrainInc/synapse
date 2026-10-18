@@ -102,6 +102,25 @@ export interface ToolCallResult<T = unknown> {
   _meta?: { [key: string]: unknown };
 }
 
+/** Options for `app.callTool` and `useCallTool`. */
+export interface CallToolOptions {
+  /**
+   * The tool only reads: calling it twice has the effect of calling it once.
+   * Set it for the reads a view walks (a list, a page, a lookup) and nothing
+   * else.
+   *
+   * A read-only call that the page's suspension interrupted (the host answers
+   * `-32001` with `data.suspendedMs`; see `isSuspensionError`) is sent once
+   * more, and the call settles with that second answer. No other failure is
+   * retried, and a call without `readOnly` is never retried, since only the app
+   * knows that a tool is safe to repeat. A view sees only the annotations of
+   * the tool that mounted it (`hostContext.toolInfo`), not those of the tools
+   * it calls, so the SDK cannot read `readOnlyHint` for them; this option says
+   * it instead.
+   */
+  readOnly?: boolean;
+}
+
 /**
  * Result from a file picker request. Returned after the host has
  * persisted the picked file to its workspace store; the bytes never
@@ -347,9 +366,12 @@ export interface App {
    * Call a tool on this app's own MCP server.
    *
    * An app reaches its own server and nothing else. A host scopes every call
-   * to the server that mounted the app, so there is no target to name and no
-   * option to pass — cross-source work belongs to the agent, which can call
-   * two servers and hand one's result to the other.
+   * to the server that mounted the app, so there is no target to name —
+   * cross-source work belongs to the agent, which can call two servers and
+   * hand one's result to the other.
+   *
+   * `options.readOnly` marks a tool safe to repeat, so a call the page's
+   * suspension interrupted is sent once more (see `CallToolOptions`).
    *
    * Rejects with `HostCapabilityError`, without sending, when the host did not
    * declare `serverTools`.
@@ -357,6 +379,7 @@ export interface App {
   callTool<TOutput = unknown>(
     name: string,
     args?: Record<string, unknown>,
+    options?: CallToolOptions,
   ): Promise<ToolCallResult<TOutput>>;
   /**
    * Read an MCP resource from the originating server via the host bridge

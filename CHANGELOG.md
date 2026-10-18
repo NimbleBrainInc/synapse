@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.35.0] - 2026-10-18
+
+Pairs with a host that answers a `tools/call` the page's suspension interrupted with JSON-RPC error `-32001` and `data.suspendedMs`. Against a host that does not, `readOnly` never retries and the resume refresh still runs.
+
+### Added
+
+- **`useDataSync` re-reads when the view comes back.** A view left in a background tab misses notices while the browser suspends it, a read it had in flight fails, and the host sends nothing on resume, so the view stayed on the failed read until a reload. When the document becomes visible after staying hidden for at least a minute, the callback now runs with `{}`, through the same path as a notice: notices dispatched on resume join it and keep their params, and a call already in flight holds it, so a resume costs at most one re-read. A shorter hide runs nothing, mounting runs nothing, and nothing runs after unmount. It is on for every `useDataSync`, including on a host that does not declare `serverResources.listChanged`, where it is now the only thing that runs the callback.
+- **`readOnly` on `app.callTool` and `useCallTool`.** `app.callTool(name, args, { readOnly: true })` and `useCallTool(name, { readOnly: true })` mark a tool safe to repeat. A read-only call that failed with `-32001` and a numeric `data.suspendedMs` is sent once more, and settles with that second answer. A call without `readOnly`, a `-32001` without `suspendedMs`, any other error, and a second suspension all reject as before. The option is explicit because a view sees only the annotations of the tool that mounted it, not the `readOnlyHint` of the tools it calls.
+- **`isSuspensionError(err)`** says whether a rejection is the host's answer to a request the page's suspension interrupted, so an app can tell its own sleep from a slow server, for a write it must not resend.
+
 ## [0.34.0] - 2026-10-16
 
 ### Changed

@@ -113,6 +113,22 @@ promise (`() => call()`) to get the second. The hook only waits on that promise
 and does not report a rejection; `useCallTool` keeps the failure in `error`.
 After the component unmounts, the callback does not run again.
 
+### After the view comes back
+
+A browser suspends a tab that stays in the background, and the machine under it
+may sleep. While it does, the view misses notifications and a read it had in
+flight fails, and nothing arrives on resume to say the data moved. So
+`useDataSync` also runs your callback, with `{}`, when the document becomes
+visible after staying hidden for at least a minute. It goes through the same path
+as a notification: notices queued on resume join it, and a re-read already in
+flight holds it, so a resume costs at most one re-read. A short hide (switching
+tabs and back) runs nothing, and neither does mounting: the view does its own
+first read.
+
+This is on for every `useDataSync`, and on a host that sends no notifications at
+all. A callback that is right for "the data changed" is right for "the data may
+have changed while you weren't looking".
+
 It is a push, not a poll: the UI updates the moment the data moves and does no
 work in between. An announcement also reaches the view that made the change,
 which is what you want — that view re-reads too. Your own call cannot loop,

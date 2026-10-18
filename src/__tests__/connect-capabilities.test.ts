@@ -10,7 +10,7 @@ import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connect } from "../connect.js";
 import { downloadFile } from "../download-file.js";
-import { HostCapabilityError } from "../errors.js";
+import { HostCapabilityError, isSuspensionError } from "../errors.js";
 import {
   hostSupports,
   notify,
@@ -114,12 +114,16 @@ async function respondToLastRequest(result: unknown) {
   await flush();
 }
 
-async function rejectLastRequest(code: number, message: string) {
+async function rejectLastRequest(code: number, message: string, data?: unknown) {
   const msg = lastRequest();
   window.dispatchEvent(
     new MessageEvent("message", {
       source: window.parent,
-      data: { jsonrpc: "2.0", id: msg.id, error: { code, message } },
+      data: {
+        jsonrpc: "2.0",
+        id: msg.id,
+        error: { code, message, ...(data !== undefined && { data }) },
+      },
     }),
   );
   await flush();
@@ -196,6 +200,79 @@ describe("connect() capabilities", () => {
       const p = app.callTool("boom");
       await rejectLastRequest(-32603, "tool exploded");
       await expect(p).rejects.toThrow("tool exploded");
+    });
+  });
+
+  // A host answers a call the page's suspension interrupted with -32001 and
+  // `data.suspendedMs`. Only the app knows a tool is safe to repeat.
+  describe("callTool after a suspension", () => {
+    const SUSPENDED = { suspendedMs: 3_600_000 };
+
+    it("sends a read-only call once more and resolves with the second answer", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("list_items", { page: 2 }, { readOnly: true });
+      const first = lastRequest();
+
+      await rejectLastRequest(-32001, "Request timed out", SUSPENDED);
+      const calls = sentByMethod("tools/call");
+      expect(calls).toHaveLength(2);
+      expect(calls[1]?.id).not.toBe(first.id);
+      expect(calls[1]?.params).toEqual(first.params);
+
+      await respondToLastRequest({
+        content: [{ type: "text", text: '{"items":[1,2]}' }],
+        structuredContent: { items: [1, 2] },
+      });
+      await expect(p).resolves.toMatchObject({ data: { items: [1, 2] }, isError: false });
+    });
+
+    it("retries only once: a second suspension rejects", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("list_items", {}, { readOnly: true });
+      const settled = p.catch((err: unknown) => err);
+
+      await rejectLastRequest(-32001, "Request timed out", SUSPENDED);
+      await rejectLastRequest(-32001, "Request timed out again", SUSPENDED);
+
+      expect(sentByMethod("tools/call")).toHaveLength(2);
+      await expect(settled).resolves.toMatchObject({ code: -32001 });
+    });
+
+    it("does not retry a call the app did not mark read-only", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("archive_item", { id: "a" });
+      const settled = p.catch((err: unknown) => err);
+
+      await rejectLastRequest(-32001, "Request timed out", SUSPENDED);
+
+      expect(sentByMethod("tools/call")).toHaveLength(1);
+      const err = await settled;
+      expect(err).toMatchObject({ code: -32001, data: SUSPENDED });
+      expect(isSuspensionError(err)).toBe(true);
+    });
+
+    it("does not retry a plain -32001 that carries no suspendedMs", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("list_items", {}, { readOnly: true });
+      const settled = p.catch((err: unknown) => err);
+
+      await rejectLastRequest(-32001, "Request timed out");
+
+      expect(sentByMethod("tools/call")).toHaveLength(1);
+      const err = await settled;
+      expect(err).toMatchObject({ code: -32001 });
+      expect(isSuspensionError(err)).toBe(false);
+    });
+
+    it("does not retry a read-only call that failed some other way", async () => {
+      app = await connectAndHandshake();
+      const p = app.callTool("list_items", {}, { readOnly: true });
+      const settled = p.catch((err: unknown) => err);
+
+      await rejectLastRequest(-32603, "tool exploded", SUSPENDED);
+
+      expect(sentByMethod("tools/call")).toHaveLength(1);
+      await expect(settled).resolves.toMatchObject({ code: -32603 });
     });
   });
 

@@ -9,8 +9,10 @@ import type { McpUiHostCapabilities } from "@modelcontextprotocol/ext-apps";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isSuspensionError } from "../../errors.js";
 import { AppProvider } from "../../react/app-provider.js";
 import {
+  useCallTool,
   useDataSync,
   useFileUpload,
   useModelContext,
@@ -91,6 +93,26 @@ async function burst(n: number, params: (i: number) => Record<string, unknown> =
   await flush();
 }
 
+/** The test's clock, read by the hook through `Date.now()`. */
+let now = 1_000_000;
+
+/** Hide or show the document, as the browser does when a tab goes to the background. */
+function setHidden(hidden: boolean) {
+  Object.defineProperty(document, "hidden", { configurable: true, get: () => hidden });
+  Object.defineProperty(document, "visibilityState", {
+    configurable: true,
+    get: () => (hidden ? "hidden" : "visible"),
+  });
+  document.dispatchEvent(new Event("visibilitychange"));
+}
+
+/** Hide the document for `ms` of wall-clock time, then show it again. */
+function hideFor(ms: number) {
+  setHidden(true);
+  now += ms;
+  setHidden(false);
+}
+
 /** A promise the test settles by hand. */
 function deferred() {
   let resolve!: () => void;
@@ -131,11 +153,15 @@ async function settle(hostName?: string, hostCapabilities?: McpUiHostCapabilitie
 beforeEach(() => {
   postMessageSpy = vi.fn();
   window.parent.postMessage = postMessageSpy;
+  vi.spyOn(Date, "now").mockImplementation(() => now);
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.useRealTimers();
+  // Drop the overrides so the document's own visibility shows through again.
+  Reflect.deleteProperty(document, "hidden");
+  Reflect.deleteProperty(document, "visibilityState");
 });
 
 describe("useDataSync", () => {
@@ -335,6 +361,212 @@ describe("useDataSync", () => {
       await nextTask();
     });
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  describe("on resume", () => {
+    it("runs once, with {}, when the view is shown after a long hide", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        hideFor(60 * 60_000);
+        await nextTask();
+      });
+
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith({});
+    });
+
+    it("does not run for a short hide", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        hideFor(59_999);
+        await nextTask();
+      });
+
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    it("does not run on mount, nor when the view is shown without having been hidden", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+      await act(async () => {
+        now += 60 * 60_000;
+        setHidden(false);
+        await nextTask();
+      });
+
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    it("joins notices dispatched on resume into one call, keeping the latest notice's params", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        hideFor(60 * 60_000);
+        await burst(4, (i) => ({ _meta: { n: i } }));
+        await nextTask();
+      });
+
+      expect(cb).toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith({ _meta: { n: 3 } });
+    });
+
+    it("waits behind a call in flight and runs one trailing call", async () => {
+      const calls: ReturnType<typeof deferred>[] = [];
+      const cb = vi.fn((_params: unknown) => {
+        const d = deferred();
+        calls.push(d);
+        return d.promise;
+      });
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      // A resume and queued notices while the first re-read is pending.
+      await act(async () => {
+        hideFor(60 * 60_000);
+        await burst(3);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        calls[0]?.resolve();
+        await flush();
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+
+      await act(async () => {
+        calls[1]?.resolve();
+        await flush();
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not run after the view unmounts", async () => {
+      const cb = vi.fn();
+      const { unmount } = renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        setHidden(true);
+        unmount();
+        now += 60 * 60_000;
+        setHidden(false);
+        await nextTask();
+      });
+
+      expect(cb).not.toHaveBeenCalled();
+    });
+
+    it("counts a view mounted while hidden from mount", async () => {
+      setHidden(true);
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        now += 60 * 60_000;
+        setHidden(false);
+        await nextTask();
+      });
+
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
+  });
+});
+
+describe("useCallTool", () => {
+  async function failLastToolCall(data?: unknown) {
+    const call = sent("tools/call").at(-1);
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        source: window.parent,
+        data: {
+          jsonrpc: "2.0",
+          id: call?.id,
+          error: {
+            code: -32001,
+            message: "Request timed out",
+            ...(data !== undefined && { data }),
+          },
+        },
+      }),
+    );
+    await flush();
+  }
+
+  async function answerLastToolCall(value: unknown) {
+    const call = sent("tools/call").at(-1);
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        source: window.parent,
+        data: {
+          jsonrpc: "2.0",
+          id: call?.id,
+          result: {
+            content: [{ type: "text", text: JSON.stringify(value) }],
+            structuredContent: value,
+          },
+        },
+      }),
+    );
+    await flush();
+  }
+
+  it("sends a read-only call the page's suspension interrupted once more, and keeps no error", async () => {
+    const { result } = renderHook(
+      () => useCallTool<{ n: number }>("list_items", { readOnly: true }),
+      {
+        wrapper: createWrapper(),
+      },
+    );
+    await settle();
+
+    let done: Promise<unknown> | undefined;
+    await act(async () => {
+      done = result.current.call();
+      await flush();
+      await failLastToolCall({ suspendedMs: 3_600_000 });
+      await answerLastToolCall({ n: 7 });
+      await done;
+    });
+
+    expect(sent("tools/call")).toHaveLength(2);
+    expect(result.current.error).toBeNull();
+    expect(result.current.data).toEqual({ n: 7 });
+  });
+
+  it("does not retry a call that is not marked read-only; error holds the host's answer", async () => {
+    const { result } = renderHook(() => useCallTool("archive_item"), {
+      wrapper: createWrapper(),
+    });
+    await settle();
+
+    await act(async () => {
+      const done = result.current.call().catch(() => {});
+      await flush();
+      await failLastToolCall({ suspendedMs: 3_600_000 });
+      await done;
+    });
+
+    expect(sent("tools/call")).toHaveLength(1);
+    expect(isSuspensionError(result.current.error)).toBe(true);
   });
 });
 

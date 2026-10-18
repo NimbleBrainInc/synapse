@@ -5,7 +5,7 @@ export type {
 export { connect } from "./connect.js";
 // ext-apps `ui/download-file`, composable over `App`.
 export { downloadFile } from "./download-file.js";
-export { HostCapabilityError, TaskError } from "./errors.js";
+export { HostCapabilityError, isSuspensionError, TaskError } from "./errors.js";
 export { NIMBLEBRAIN_EXTENSIONS, type NimbleBrainExtension } from "./event-map.js";
 // NimbleBrain host extensions — composable over `App`, each a no-op, a `false`
 // or a `HostCapabilityError` where the host did not declare it. Not ext-apps spec.
@@ -39,6 +39,7 @@ export { callToolAsTask } from "./task-handle.js";
 export type {
   App,
   AppEventName,
+  CallToolOptions,
   ConnectOptions,
   Dimensions,
   FileResult,

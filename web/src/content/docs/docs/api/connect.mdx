@@ -52,7 +52,7 @@ Available synchronously once the promise resolves.
 | `resize(width?, height?)` | Send size to host. Auto-measures `document.body` if no args. |
 | `openLink(url)` | Open a URL through the host. Without `openLinks`, or when the host refuses, opens it with `window.open`. |
 | `updateModelContext(state, summary?)` | Push LLM-visible state. No-op without `updateModelContext`. |
-| `callTool(name, args?)` | Call a tool on this app's own MCP server and get a typed result. An app reaches its own server and nothing else — cross-source work belongs to the agent. Rejects with `HostCapabilityError` without `serverTools`. |
+| `callTool(name, args?, options?)` | Call a tool on this app's own MCP server and get a typed result. An app reaches its own server and nothing else — cross-source work belongs to the agent. `{ readOnly: true }` marks the tool safe to repeat, so a call the page's suspension interrupted (`isSuspensionError`) is sent once more. Rejects with `HostCapabilityError` without `serverTools`. |
 | `readServerResource({ uri })` | Read an MCP resource from the originating server. Rejects with `HostCapabilityError` without `serverResources`. |
 | `sendMessage(text)` | Send a message into the agent conversation. No-op without `message`. To tell the agent what the user is acting on, call `updateModelContext` first. |
 | `destroy()` | Clean up all listeners, observers, and timers |

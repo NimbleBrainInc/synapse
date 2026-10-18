@@ -55,6 +55,29 @@ call lands in `error` instead of an unhandled rejection. Concurrent calls are
 guarded, so if the user triggers the same tool twice only the latest result is
 kept, and a stale earlier response cannot overwrite it.
 
+## A call the page slept through
+
+A browser suspends a background tab, and a laptop lid closes. A call in flight
+when that happens is cut off, and the host answers it with JSON-RPC error
+`-32001` whose `data.suspendedMs` says how long the page was suspended, so an app
+can tell its own sleep from a slow server. `isSuspensionError(err)` checks for it.
+
+The tool may or may not have run. Sending it again is safe only for a tool that
+just reads, and only the app knows which those are: a view sees the annotations of
+the tool that mounted it, not of the tools it calls. So say so per tool:
+
+```tsx
+const { call, data } = useCallTool<DocumentInfo[]>("list_documents", { readOnly: true });
+// or
+await app.callTool("list_documents", { limit: 10 }, { readOnly: true });
+```
+
+A read-only call the page's suspension interrupted is sent once more, and settles
+with that answer. Nothing else is retried: not a call without `readOnly`, not a
+`-32001` without `suspendedMs` (the server was slow, and may still be working),
+and not a second suspension. A write that fails this way lands in `error`; check
+`isSuspensionError(error)` to tell the user to look before trying again.
+
 ## Related
 
 - [Keep the UI in sync with the agent](/docs/guides/keep-ui-in-sync): re-run a call when the agent mutates state.

@@ -33,7 +33,7 @@ call, whatever it is called.
 | `useResize`, `app.resize` | nothing | Always sent. The spec has no capability for it. |
 | `useCallTool`, `app.callTool` | `serverTools` | `HostCapabilityError`. The hook's `error` holds it. |
 | `app.readServerResource` | `serverResources` | `HostCapabilityError` |
-| `useDataSync` | `serverResources.listChanged` | The callback never runs. The app shows what it last loaded. |
+| `useDataSync` | `serverResources.listChanged` | The callback runs only when the view is shown after a long hide. Otherwise the app shows what it last loaded. |
 | `useModelContext`, `app.updateModelContext` | `updateModelContext` | No-op |
 | `useSendMessage`, `app.sendMessage` | `message` | No-op |
 | `app.openLink` | `openLinks` | Opens the URL with `window.open` instead. The same happens when the host refuses. |

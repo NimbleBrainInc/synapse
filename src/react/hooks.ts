@@ -21,6 +21,7 @@ import {
 import { callToolAsTask } from "../task-handle.js";
 import type {
   App,
+  CallToolOptions,
   FileResult,
   ModelContext,
   Notice,
@@ -135,11 +136,19 @@ export interface UseCallToolResult<TOutput> {
 /**
  * Call one tool, with pending/error/data state for the latest call.
  *
+ * Pass `{ readOnly: true }` for a tool that only reads, so a call the page's
+ * suspension interrupted is sent once more instead of landing in `error` (see
+ * `CallToolOptions`).
+ *
  * Where the host did not declare `serverTools`, `call` rejects with
  * `HostCapabilityError` without sending, and `error` holds it.
  */
-export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolResult<TOutput> {
+export function useCallTool<TOutput = unknown>(
+  toolName: string,
+  options?: CallToolOptions,
+): UseCallToolResult<TOutput> {
   const app = useAppContext();
+  const readOnly = options?.readOnly === true;
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [data, setData] = useState<TOutput | null>(null);
@@ -152,7 +161,7 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
       setError(null);
 
       try {
-        const result = await app.callTool<TOutput>(toolName, args);
+        const result = await app.callTool<TOutput>(toolName, args, { readOnly });
         // Stale guard: only update if this is still the latest call.
         if (id === callIdRef.current) {
           setData(result.data);
@@ -168,11 +177,22 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
         throw err;
       }
     },
-    [app, toolName],
+    [app, toolName, readOnly],
   );
 
   return { call, isPending, error, data };
 }
+
+/**
+ * How long the view's document must stay hidden before showing it again
+ * re-reads, in milliseconds.
+ *
+ * Long enough that switching tabs and straight back costs nothing; short
+ * enough to cover any hide in which a browser freezes the page or the machine
+ * sleeps, which is when reads fail and notices go missing. Measured with
+ * `Date.now()`, which keeps counting while the machine sleeps.
+ */
+const RESUME_REFRESH_AFTER_MS = 60_000;
 
 /** The params `useDataSync` hands its callback: the notification's, or `{}`. */
 type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
@@ -207,9 +227,20 @@ type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
  * reported, so handle the error where you render it (`useCallTool` keeps it in
  * `error`). After unmount the callback does not run again.
  *
+ * **It also runs when the view comes back.** When the document becomes visible
+ * after staying hidden for at least a minute (`RESUME_REFRESH_AFTER_MS`), the
+ * callback runs with `{}`, through the same path as a notice: it joins a burst
+ * that arrives with it, and waits behind a call already in flight. The
+ * notification means "the data may have changed while you weren't looking",
+ * and so does a long hide: a suspended page misses notices and its reads fail,
+ * and the host sends nothing on resume. So this is always on rather than an
+ * option: a callback that is right for a notice is right here, and a view that
+ * keeps no stale state has nothing to opt out of. It never runs on mount (the
+ * view does its own first read) or for a short hide.
+ *
  * Where the host did not declare `serverResources.listChanged`, the callback
- * never runs. Nothing fails: the app shows what it last loaded until the user
- * or the app reloads it.
+ * runs only on resume. Nothing fails: between resumes the app shows what it
+ * last loaded until the user or the app reloads it.
  */
 export function useDataSync(callback: (params: DataSyncParams) => unknown): void {
   const app = useAppContext();
@@ -249,9 +280,27 @@ export function useDataSync(callback: (params: DataSyncParams) => unknown): void
       schedule();
     });
 
+    // When the document was last hidden; unset while it is visible. A view
+    // mounted hidden counts from mount, since its first read may have frozen.
+    let hiddenAt: number | undefined = document.hidden ? Date.now() : undefined;
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenAt ??= Date.now();
+        return;
+      }
+      const since = hiddenAt;
+      hiddenAt = undefined;
+      if (since === undefined || Date.now() - since < RESUME_REFRESH_AFTER_MS) return;
+      // A notice already owed keeps its params.
+      pending ??= {};
+      schedule();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       active = false;
       if (timer !== undefined) clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
       off();
     };
   }, [app]);

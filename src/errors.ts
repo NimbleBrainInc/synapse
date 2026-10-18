@@ -41,3 +41,27 @@ export class TaskError extends Error {
     this.code = code;
   }
 }
+
+/** JSON-RPC error code a host answers a request it timed out with. */
+const REQUEST_TIMEOUT_CODE = -32001;
+
+/**
+ * Whether `err` is a host's answer to a request the browser interrupted by
+ * suspending the page: JSON-RPC error `-32001` with a numeric
+ * `data.suspendedMs`, the time the page was suspended.
+ *
+ * It tells client sleep from server slowness. A `-32001` without
+ * `suspendedMs` is a request the server took too long to answer, and says
+ * nothing about whether the tool ran; one with it was cut off by the page
+ * sleeping. Either way the tool may have run, so only a call the app knows to be
+ * read-only is safe to send again (`callTool`'s `readOnly` option does this).
+ *
+ * Checked structurally, so it matches the error whichever copy of the MCP
+ * client built it.
+ */
+export function isSuspensionError(err: unknown): boolean {
+  if (typeof err !== "object" || err === null) return false;
+  const { code, data } = err as { code?: unknown; data?: unknown };
+  if (code !== REQUEST_TIMEOUT_CODE || typeof data !== "object" || data === null) return false;
+  return typeof (data as { suspendedMs?: unknown }).suspendedMs === "number";
+}

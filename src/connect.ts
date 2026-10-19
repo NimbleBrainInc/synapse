@@ -77,6 +77,14 @@ const MAPPED_EVENTS = [
 ] as const satisfies ReadonlyArray<readonly [keyof AppEventMap, string]>;
 
 /**
+ * The events a subscriber gets even when it subscribes after they arrived: the
+ * tool's input and its result, which the host sends once and which stay true
+ * for the life of the view. Partial input and cancellation are moments, not
+ * state, so they are not replayed.
+ */
+const REPLAYED_METHODS: ReadonlySet<string> = new Set([TOOL_INPUT_METHOD, TOOL_RESULT_METHOD]);
+
+/**
  * Connect to an MCP Apps host.
  *
  * The one entry point. The protocol underneath is the spec's own client,
@@ -164,8 +172,19 @@ export async function connect(options: ConnectOptions): Promise<App> {
   const themeCallbacks = new Set<(theme: Theme) => void>();
   const hostContextCallbacks = new Set<(ctx: McpUiHostContext) => void>();
 
+  /**
+   * The latest tool input and tool result, for whoever subscribes after they
+   * arrived. The host sends each once per view, as soon as the handshake
+   * completes, and a hook subscribes only once its component has mounted, which
+   * is later; without this a card under a tool call would wait for a result that
+   * already came. They describe the view's state, so a late subscriber gets the
+   * latest and nothing older.
+   */
+  const latest = new Map<string, unknown>();
+
   /** Deliver a payload to everyone subscribed to a wire method. */
   function fanOut(method: string, payload: unknown): void {
+    if (REPLAYED_METHODS.has(method)) latest.set(method, payload);
     const set = handlers.get(method);
     if (!set) return;
     for (const handler of set) handler(payload);
@@ -274,6 +293,14 @@ export async function connect(options: ConnectOptions): Promise<App> {
         const method = resolveEventMethod(event);
         if (!handlers.has(method)) handlers.set(method, new Set());
         handlers.get(method)?.add(handler);
+        // A late subscriber gets what already arrived, on a microtask so the
+        // caller holds its unsubscribe first, and only if it is still subscribed.
+        if (latest.has(method)) {
+          const payload = latest.get(method);
+          queueMicrotask(() => {
+            if (!destroyed && handlers.get(method)?.has(handler)) handler(payload);
+          });
+        }
         return () => {
           const set = handlers.get(method);
           if (set) {

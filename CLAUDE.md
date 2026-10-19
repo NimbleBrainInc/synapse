@@ -205,11 +205,16 @@ protocol underneath it is the spec's own client: `@modelcontextprotocol/ext-apps
 framework on top — theme injection, parsed payloads, multi-subscriber events,
 resize, and the NimbleBrain extensions.
 
-Four things about that seam are load-bearing:
+Five things about that seam are load-bearing:
 
 - **Handlers are registered before `App.connect()`**, including everything in
   `options.on`, so a tool result the host sends in the same turn as `initialized`
   is not lost.
+- **The latest tool input and tool result are kept and replayed** to a subscriber
+  that arrives after them, because hooks subscribe when their component mounts,
+  after the host has already sent both. Only those two: they are the view's state.
+  Partial input and cancellation are moments, and replaying one would report it
+  twice.
 - **One `addEventListener` per mapped event**, with this SDK's own fan-out under
   it. A second registration for the same method through the `on*` setters throws,
   and `App` warns when a handler for a one-shot event is registered after the

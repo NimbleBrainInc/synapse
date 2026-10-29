@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **A view gets its tool result even when it subscribes late.** A host sends `ui/notifications/tool-input` and `ui/notifications/tool-result` once, as soon as the handshake completes, and `useToolResult` and `useToolInput` subscribe only when their component mounts, which is after; the payload was dropped and a card rendered under a tool call stayed on its empty state. `connect()` now keeps the latest tool input and tool result, and `app.on("tool-result" | "tool-input", …)` hands it to a subscriber that arrives later, on a microtask and only while it is still subscribed. Partial input and cancellation are not replayed.
+
 ## [0.35.0] - 2026-10-18
 
 ### Added

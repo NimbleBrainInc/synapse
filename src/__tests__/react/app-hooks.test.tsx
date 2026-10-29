@@ -155,6 +155,36 @@ describe("app hooks", () => {
       expect(result.current).toBeDefined();
       expect(result.current?.content).toEqual({ items: [1, 2] });
     });
+    it("shows a result that arrived before the component using it mounted", async () => {
+      // The card under a tool call: the host sends the result as soon as the
+      // handshake completes, and the component reading it mounts later.
+      function Probe() {
+        const data = useToolResult();
+        return <span data-testid="result">{data ? JSON.stringify(data.content) : "none"}</span>;
+      }
+      function Late({ show }: { show: boolean }) {
+        return show ? <Probe /> : null;
+      }
+      const { rerender, queryByTestId } = render(<Late show={false} />, {
+        wrapper: createWrapper(),
+      });
+
+      await act(async () => {
+        await respondToInitialize();
+        await new Promise((r) => setTimeout(r, 0));
+        await dispatchNotification("ui/notifications/tool-result", {
+          structuredContent: { request_id: "req-1" },
+        });
+      });
+      expect(queryByTestId("result")).toBeNull();
+
+      rerender(<Late show />);
+      await act(async () => {
+        await flush();
+      });
+
+      expect(queryByTestId("result")?.textContent).toBe('{"request_id":"req-1"}');
+    });
   });
 
   describe("useToolInput", () => {

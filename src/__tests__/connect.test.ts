@@ -407,6 +407,56 @@ describe("connect()", () => {
       expect(h2).toHaveBeenCalledTimes(1);
     });
 
+    it("gives a late subscriber the tool result and input that already arrived", async () => {
+      app = await connectAndHandshake();
+      await dispatchNotification("ui/notifications/tool-input", { arguments: { q: "first" } });
+      await dispatchNotification("ui/notifications/tool-input", { arguments: { q: "latest" } });
+      await dispatchNotification("ui/notifications/tool-result", {
+        structuredContent: { items: [1] },
+      });
+
+      const onResult = vi.fn();
+      const onInput = vi.fn();
+      app.on("tool-result", onResult);
+      app.on("tool-input", onInput);
+      // Delivered on a microtask, never inside on() itself.
+      expect(onResult).not.toHaveBeenCalled();
+      await flush();
+
+      expect(onResult).toHaveBeenCalledTimes(1);
+      expect(onResult.mock.calls[0][0].structuredContent).toEqual({ items: [1] });
+      expect(onInput).toHaveBeenCalledTimes(1);
+      expect(onInput).toHaveBeenCalledWith({ arguments: { q: "latest" } });
+    });
+
+    it("does not replay to a subscriber that left before delivery", async () => {
+      app = await connectAndHandshake();
+      await dispatchNotification("ui/notifications/tool-result", {
+        structuredContent: { items: [1] },
+      });
+
+      const handler = vi.fn();
+      app.on("tool-result", handler)();
+      await flush();
+
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("does not replay partial input or a cancellation", async () => {
+      app = await connectAndHandshake();
+      await dispatchNotification("ui/notifications/tool-input-partial", { q: "te" });
+      await dispatchNotification("ui/notifications/tool-cancelled", { reason: "stopped" });
+
+      const partial = vi.fn();
+      const cancelled = vi.fn();
+      app.on("tool-input-partial", partial);
+      app.on("ui/notifications/tool-cancelled", cancelled);
+      await flush();
+
+      expect(partial).not.toHaveBeenCalled();
+      expect(cancelled).not.toHaveBeenCalled();
+    });
+
     it("unsubscribe prevents further handler calls", async () => {
       app = await connectAndHandshake();
       const handler = vi.fn();

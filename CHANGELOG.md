@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.37.0] - 2026-10-30
+
+### Added
+
+- **`useToolAllowed(tool)`: whether the viewer may call one of this app's tools.** It reads the host context's `connector.allowedTools`, the list of the app's own tools the viewer may call, which a host computes with the same decision it enforces when the call arrives. Gate a control on the tool behind it rather than on a role, and a change to what a role may do reaches the app without the app changing. `false` until the host lists the tool, and on a host that sends no list, so a restricted control stays hidden.
+
 ## [0.36.0] - 2026-10-30
 
 ### Added

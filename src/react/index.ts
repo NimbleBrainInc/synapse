@@ -16,6 +16,7 @@ export {
   useResize,
   useSendMessage,
   useTheme,
+  useToolAllowed,
   useToolInput,
   useToolResult,
   useTrail,

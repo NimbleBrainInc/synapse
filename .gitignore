@@ -10,6 +10,3 @@ coverage/
 
 # Conformance suite build output (bundled pages + the copied vendored client)
 conformance/.out/
-
-# Layout suite scratch output
-layout/.out/

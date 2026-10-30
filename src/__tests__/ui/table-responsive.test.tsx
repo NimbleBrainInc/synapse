@@ -1,11 +1,11 @@
 /**
  * `Table` responsive mode, as far as a test DOM can see it.
  *
- * happy-dom has no layout engine: every width it reports is zero, so whether a table fits,
- * and which column a real browser would hide, are not observable here. Those claims are the
- * layout suite's (`layout/`, real Chromium). What this file holds is the logic around the
- * measurement: which tables opt in, which columns may hide, in what order, and what a hidden
- * column leaves behind. To drive the logic it stands in for the browser's measurement with a
+ * happy-dom has no layout engine: every width it reports is zero, so whether a table fits in a
+ * real browser is not observable here, and is checked by eye in the app that renders it. What
+ * this file holds is the logic around the measurement: which tables opt in, which columns may
+ * hide, in what order, what a hidden column leaves behind, and when it comes back. To drive the
+ * logic it stands in for the browser's measurement with a
  * stubbed `getBoundingClientRect`: each header cell is as wide as its column's `width`, else
  * 100px, a table is never narrower than its `minWidth`, and the wrapper is as wide as the test
  * says.

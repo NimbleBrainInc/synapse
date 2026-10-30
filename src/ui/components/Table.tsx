@@ -184,6 +184,7 @@ export function Table<T>({
     enabled: responsive,
     droppable,
     data,
+    columns,
     mounted: !showsEmpty,
   });
 

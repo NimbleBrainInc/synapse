@@ -53,12 +53,15 @@ export function useColumnFit({
   enabled,
   droppable,
   data,
+  columns,
   mounted,
 }: {
   enabled: boolean;
   droppable: readonly DroppableColumn[];
   /** Compared by identity: a new array means new content, and new widths to measure. */
   data: unknown;
+  /** Compared by identity, like `data`: new definitions can mean new widths, headers, cells. */
+  columns: unknown;
   /** Whether the table is in the document (it is not while the `empty` slot shows). */
   mounted: boolean;
 }): {
@@ -72,7 +75,6 @@ export function useColumnFit({
   const tableRef = useRef<HTMLTableElement>(null);
 
   const order = dropOrder(droppable);
-  const signature = order.join("\u0000");
 
   const [count, setCount] = useState(0);
   // needs[i]: the table's width, measured, with order[i] still shown — the width it needed.
@@ -124,7 +126,7 @@ export function useColumnFit({
   }, [enabled, mounted]);
 
   // What the recorded widths were measured against. A change to any of these resets the fit.
-  const basis = useRef<{ data: unknown; signature: string; fonts: number } | null>(null);
+  const basis = useRef<{ data: unknown; columns: unknown; fonts: number } | null>(null);
 
   // No dependency list: this runs after every commit, including the ones it causes, which is
   // how one column at a time is hidden or restored until the table fits.
@@ -134,13 +136,13 @@ export function useColumnFit({
     const table = tableRef.current;
     if (!wrap || !table) return;
 
-    const current = { data, signature, fonts: store.current.fonts };
+    const current = { data, columns, fonts: store.current.fonts };
     const previous = basis.current;
     basis.current = current;
     if (
       previous &&
       (previous.data !== current.data ||
-        previous.signature !== current.signature ||
+        previous.columns !== current.columns ||
         previous.fonts !== current.fonts) &&
       count > 0
     ) {
@@ -154,16 +156,17 @@ export function useColumnFit({
       wrap.getBoundingClientRect().width - (wrap.offsetWidth - wrap.clientWidth || 0);
     const width = table.getBoundingClientRect().width;
 
-    if (width > available + EPSILON) {
-      if (count < order.length) {
-        needs.current[count] = width;
-        setCount(count + 1);
-      }
-      return;
-    }
+    // Restoring is checked first: once every droppable column is hidden, `minWidth` widens
+    // the table past its natural width, so its measured width no longer says whether the last
+    // hidden column fits. The width recorded for that column still does.
     const need = needs.current[count - 1];
     if (count > 0 && need !== undefined && need <= available + EPSILON) {
       setCount(count - 1);
+      return;
+    }
+    if (width > available + EPSILON && count < order.length) {
+      needs.current[count] = width;
+      setCount(count + 1);
     }
   });
 

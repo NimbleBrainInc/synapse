@@ -6,8 +6,9 @@
  * layout suite's (`layout/`, real Chromium). What this file holds is the logic around the
  * measurement: which tables opt in, which columns may hide, in what order, and what a hidden
  * column leaves behind. To drive the logic it stands in for the browser's measurement with a
- * stubbed `getBoundingClientRect`: each header cell is 100px wide, and the wrapper is as wide
- * as the test says.
+ * stubbed `getBoundingClientRect`: each header cell is as wide as its column's `width`, else
+ * 100px, a table is never narrower than its `minWidth`, and the wrapper is as wide as the test
+ * says.
  */
 
 import { cleanup, render, screen } from "@testing-library/react";
@@ -43,8 +44,14 @@ beforeEach(() => {
     this: HTMLElement,
   ) {
     let width = 0;
-    if (this.tagName === "TABLE") width = this.querySelectorAll("thead th").length * PER_COLUMN;
-    else if (this.tagName === "DIV" && this.querySelector(":scope > table")) width = wrapperWidth;
+    if (this.tagName === "TABLE") {
+      const cells = [...this.querySelectorAll<HTMLElement>("thead th")];
+      const natural = cells.reduce(
+        (sum, th) => sum + (parseFloat(th.style.minWidth) || PER_COLUMN),
+        0,
+      );
+      width = Math.max(natural, parseFloat(this.style.minWidth) || 0);
+    } else if (this.tagName === "DIV" && this.querySelector(":scope > table")) width = wrapperWidth;
     return { width, height: 0, top: 0, left: 0, right: width, bottom: 0, x: 0, y: 0 } as DOMRect;
   });
 });
@@ -198,6 +205,35 @@ describe("hiding columns that do not fit", () => {
     const scroller = fully.container.firstElementChild as HTMLElement;
     expect(scroller.style.overflowX).toBe("auto");
     expect(scroller.tabIndex).toBe(0);
+  });
+
+  it("brings a column back once it fits again, though the table is still under minWidth", () => {
+    wrapperWidth = 150;
+    const columns = COLUMNS.slice(0, 2);
+    const props = { data: ROWS, rowKey: (r: Row) => r.id, columns, minWidth: 720 };
+    const { container, rerender } = render(<Table {...props} />);
+    expect(headers(container)).toEqual(["Name"]);
+    wrapperWidth = 450;
+    rerender(<Table {...props} />);
+    expect(headers(container)).toEqual(["Name", "Alpha"]);
+    expect(container.querySelector("table")?.style.minWidth).toBe("");
+  });
+});
+
+describe("refitting", () => {
+  it("measures again when the columns change, though the data and drop order do not", () => {
+    wrapperWidth = 150;
+    const wide: Column<Row>[] = [
+      COLUMNS[0] as Column<Row>,
+      { ...(COLUMNS[1] as Column<Row>), width: 200 },
+    ];
+    const { container, rerender } = render(
+      <Table data={ROWS} rowKey={(r) => r.id} columns={wide} />,
+    );
+    expect(headers(container)).toEqual(["Name"]);
+    const narrow = [wide[0] as Column<Row>, { ...(wide[1] as Column<Row>), width: 30 }];
+    rerender(<Table data={ROWS} rowKey={(r) => r.id} columns={narrow} />);
+    expect(headers(container)).toEqual(["Name", "Alpha"]);
   });
 });
 

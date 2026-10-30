@@ -106,6 +106,22 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run conformance
 
+  layout:
+    name: Layout (real browser)
+    # The kit's components laid out by Chromium: whether a table fits its pane and which
+    # columns it hides are questions happy-dom has no layout engine to answer. Separate from
+    # `test` for the same reason as `conformance`: it needs a browser binary.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run layout
+
   docs-build:
     name: Docs site build
     # web/ (the landing + Starlight docs) otherwise only builds in web-pages.yml

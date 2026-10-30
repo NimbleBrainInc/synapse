@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.36.0] - 2026-10-30
+
+### Added
+
+- **`Table` fits the width it is given when its columns declare a `priority`.** An app's pane is as wide as the host makes it, and a list table either declared column widths and a `minWidth` floor and scrolled sideways below it, or crushed. Declaring `priority` on any column turns on responsive mode: auto layout, one line per cell, and the first column as the primary column, which takes the remaining space and truncates (a `width` on it is its readable minimum). When the columns do not fit, the column with the highest `priority` number hides, rightmost first on a tie, then the next, until they do. The browser measures the fit before paint, on mount, on every resize of the table's container, when `data` or `columns` change, and when a web font finishes loading. A hidden column's value moves under the primary cell's content, as a muted line of label and value pairs, and comes back once the container is wide enough to hold it. A column without a `priority` never hides, so selection and action columns stay, and the first column never hides. A hidden column's sort control, if its header holds one, hides with it. If the table is still too wide with every column that may hide hidden, it scrolls inside its own container when `minWidth` is set, and otherwise overflows.
+- **`Column.priority` and `Column.label`.** `priority`: `1` is the most important; higher numbers hide first. `label`: the column's name as plain text, used beside its value when the column is hidden and as the header's `title`; it defaults to `header` when `header` is a string.
+
+A table with no `priority` on any column lays out exactly as before, so a spreadsheet-like table whose columns must all stay keeps fixed layout and its `minWidth` scroller.
+
+To adopt it on a list surface: give each column but the first a `priority` (and a `label` where the header is not plain text), give an action or selection column none, and remove the `minWidth` and the fixed `width`s that were budgeting pixels. A `width` you keep becomes that column's minimum.
+
 ## [0.35.1] - 2026-10-29
 
 ### Fixed

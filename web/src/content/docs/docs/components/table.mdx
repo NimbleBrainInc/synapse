@@ -40,6 +40,36 @@ keyboard-operable, and `empty` to render a placeholder when `data` is empty.
 />
 ```
 
+## Fitting a narrow pane
+
+An app renders in a pane whose width the host controls. Give columns a `priority` and the
+table fits whatever width it gets: when the columns do not fit, the column with the highest
+`priority` number hides first (`1` is the most important), and its value moves under the
+first column's content, named by the column's `label`.
+
+```tsx
+const columns: Column<Deal>[] = [
+  { key: "name", header: "Deal", width: 160, render: (d) => d.name },
+  { key: "stage", header: "Stage", priority: 2, render: (d) => <Badge>{d.stage}</Badge> },
+  { key: "amount", header: "Amount", priority: 1, align: "right", render: (d) => d.amount },
+  { key: "updated", header: "Updated", priority: 3, render: (d) => d.updated },
+  { key: "open", header: "", label: "Open", render: (d) => <OpenButton deal={d} /> },
+];
+```
+
+- The first column is the primary column. It takes the space the others leave and truncates
+  with an ellipsis; a `width` on it is the narrowest it gets. It never hides.
+- A column without a `priority` never hides, so action and selection columns stay.
+- The browser measures the fit before paint, so there is no pixel budget to declare. A
+  hidden column comes back once the pane is wide enough to hold it.
+- A hidden column's sort control, if its header holds one, hides with it.
+- If the table is still too wide once every column that may hide is hidden, it scrolls
+  inside its own container when `minWidth` is set, and overflows otherwise.
+
+With no `priority` on any column, every column always shows: declare a `width` on any
+column that truncates (that switches the table to fixed layout), and a `minWidth` below
+which it scrolls. That mode suits a table whose columns must all stay.
+
 ## Props
 
 | Prop | Type | Default |
@@ -49,6 +79,7 @@ keyboard-operable, and `empty` to render a placeholder when `data` is empty.
 | `rowKey` | `(row: T, index: number) => string \| number` | None |
 | `onRowClick` | `(row: T, index: number) => void` | None |
 | `empty` | `ReactNode` | None |
+| `minWidth` | `number` \| `string` | None |
 | `…rest` | `HTMLAttributes<HTMLTableElement>` | None |
 
 ### The `Column<T>` shape
@@ -62,6 +93,8 @@ Each entry in `columns` describes one column.
 | `render` | `(row: T, index: number) => ReactNode` | None |
 | `align` | `"left"` \| `"right"` \| `"center"` | `"left"` |
 | `width` | `number` \| `string` | None |
+| `priority` | `number` | None (never hides) |
+| `label` | `string` | `header`, when it is a string |
 
 ## Related
 

@@ -1,6 +1,6 @@
 {
   "name": "@nimblebrain/synapse",
-  "version": "0.35.1",
+  "version": "0.36.0",
   "description": "Agent-aware app SDK for the MCP ext-apps protocol",
   "type": "module",
   "exports": {
@@ -56,13 +56,14 @@
     "build": "tsup",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p conformance/tsconfig.json",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p conformance/tsconfig.json && tsc --noEmit -p layout/tsconfig.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "ci": "npm run lint && npm run typecheck && npm run build && npm run size && npm run test",
     "prepublishOnly": "npm run build",
     "conformance": "node conformance/run.mjs",
+    "layout": "node layout/run.mjs",
     "size": "node scripts/size-budget.mjs"
   },
   "repository": {
@@ -95,10 +96,12 @@
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "esbuild": "^0.28.2",
     "happy-dom": "^20.8.8",
     "playwright": "^1.58.0",
     "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "tsup": "^8.5.1",
     "typescript": "^5.8.3",
     "vite": "^8.0.3",

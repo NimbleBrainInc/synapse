@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.37.0] - 2026-10-30
+
+### Added
+
+- **`Column.primary` names a responsive table's primary column.** The primary column takes the space the others leave, truncates, never hides, and carries the hidden columns' values. It was always the first column, so a table whose first column is a row checkbox made the checkbox the column that grows. Declare `primary` on the record's name column instead. Without it the first column is primary, as in 0.36.0; if several columns declare it, the first of them is.
+
 ## [0.36.0] - 2026-10-30
 
 ### Added

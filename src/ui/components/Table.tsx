@@ -9,8 +9,8 @@
  *
  * **Responsive mode — any column declares a `priority`.** The table fits the width it is
  * actually given, which in an app is a pane whose width the host controls. It uses auto
- * layout with every cell on one line. The first column is the primary column: it takes the
- * space the others leave and truncates with an ellipsis, and a `width` on it is its
+ * layout with every cell on one line. One column is the primary column: the one that
+ * declares `primary`, else the first. It takes the space the others leave and truncates with an ellipsis, and a `width` on it is its
  * readable minimum. The other columns size to their content. When the columns do not fit,
  * the column with the highest `priority` number is hidden (rightmost first on a tie), then
  * the next, until they do — the browser measures the fit before paint, so no caller states
@@ -61,7 +61,7 @@ export interface Column<T> {
    * remainder equally. Required on any column whose cell truncates — see the note on the
    * module above.
    *
-   * In responsive mode it is a minimum: the column is never laid out narrower. On the first
+   * In responsive mode it is a minimum: the column is never laid out narrower. On the primary
    * column, which takes the remaining space and truncates, it is the narrowest that column
    * stays readable.
    */
@@ -69,10 +69,18 @@ export interface Column<T> {
   /**
    * How important the column is when space runs out: `1` is the most important, and higher
    * numbers are hidden first. Declaring it on any column turns on responsive mode (see the
-   * module note). A column without a priority is never hidden, and neither is the first
+   * module note). A column without a priority is never hidden, and neither is the primary
    * column.
    */
   priority?: number;
+  /**
+   * Makes this the primary column in responsive mode: the one that takes the remaining
+   * space, truncates, never hides, and carries the hidden columns' values. Without it the
+   * first column is primary. Name it when the first column is something else, a row
+   * checkbox for instance, which would otherwise be the column that grows. Only one column
+   * may declare it; if several do, the first of them is primary.
+   */
+  primary?: boolean;
   /**
    * The column's name as plain text: it names the column's value when the column is hidden
    * and its value moves under the primary cell, and it is the header's `title`. Defaults to
@@ -173,10 +181,13 @@ export function Table<T>({
   const responsive = columns.some((col) => col.priority !== undefined);
   const showsEmpty = data.length === 0 && empty !== undefined;
 
-  // The first column hosts the hidden values, so it never hides, whatever it declares.
+  // The primary column hosts the hidden values, so it never hides, whatever it declares. It
+  // is the column that says so, else the first.
+  const declaredPrimary = columns.findIndex((col) => col.primary);
+  const primaryIndex = declaredPrimary === -1 ? 0 : declaredPrimary;
   const droppable: DroppableColumn[] = [];
   columns.forEach((col, index) => {
-    if (index > 0 && col.priority !== undefined) {
+    if (index !== primaryIndex && col.priority !== undefined) {
       droppable.push({ key: col.key, priority: col.priority, index });
     }
   });
@@ -207,7 +218,7 @@ export function Table<T>({
 
   const visible = responsive ? columns.filter((col) => !fit.hidden.has(col.key)) : columns;
   const hiddenCols = responsive ? columns.filter((col) => fit.hidden.has(col.key)) : [];
-  const primaryKey = columns[0]?.key;
+  const primaryKey = columns[primaryIndex]?.key;
 
   // Fixed mode: any declared width means the caller has an opinion about proportions, and
   // auto layout would ignore it in favour of content — so one width switches the whole table

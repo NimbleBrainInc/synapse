@@ -155,6 +155,38 @@ describe("hiding columns that do not fit", () => {
     expect(headers(container)).toEqual(["Name", "Act"]);
   });
 
+  it("makes the column that declares primary the primary column, not the first", () => {
+    // A row checkbox first, the record's name second: without `primary` the checkbox would be
+    // the column that grows and carries the hidden values.
+    wrapperWidth = 10; // nothing fits
+    const withSelect: Column<Row>[] = [
+      { key: "select", header: "", render: () => "[ ]" },
+      { ...(COLUMNS[0] as Column<Row>), primary: true, priority: 9 },
+      ...COLUMNS.slice(1),
+    ];
+    const { container } = render(<Table data={ROWS} rowKey={(r) => r.id} columns={withSelect} />);
+    // The named primary never hides, whatever its priority; the checkbox has none, so stays.
+    expect(headers(container)).toEqual(["", "Name", "Act"]);
+    const cells = [...container.querySelectorAll("tbody td")] as HTMLElement[];
+    expect(cells[0]?.classList.contains("nb-table__primary")).toBe(false);
+    expect(cells[1]?.classList.contains("nb-table__primary")).toBe(true);
+    // The hidden values ride the named primary cell.
+    expect(cells[1]?.querySelector("dl.nb-table__hidden")).not.toBeNull();
+    expect(cells[0]?.querySelector("dl.nb-table__hidden")).toBeNull();
+  });
+
+  it("takes the first of several columns that declare primary", () => {
+    const twoPrimaries: Column<Row>[] = [
+      COLUMNS[0] as Column<Row>,
+      { ...(COLUMNS[1] as Column<Row>), primary: true },
+      { ...(COLUMNS[2] as Column<Row>), primary: true },
+      ...COLUMNS.slice(3),
+    ];
+    const { container } = render(<Table data={ROWS} rowKey={(r) => r.id} columns={twoPrimaries} />);
+    const primaries = [...container.querySelectorAll("thead th.nb-table__primary")];
+    expect(primaries.map((th) => th.textContent)).toEqual(["Alpha"]);
+  });
+
   it("moves each hidden value under the primary cell, named and in column order", () => {
     wrapperWidth = 350;
     const { container } = render(<Table data={ROWS} rowKey={(r) => r.id} columns={COLUMNS} />);

@@ -388,6 +388,27 @@ export function useOpen(): (uri: string) => Promise<boolean> {
   return useCallback((uri: string) => open(app, uri), [app]);
 }
 
+/**
+ * Whether the viewer may call `tool`, one of this app's own server's tools: true only when
+ * the host lists it in the host context's `connector.allowedTools`.
+ *
+ * Gate a control on the tool behind it, never on a role. The host computes the list with the
+ * same decision it enforces when the call arrives, so a control shown is a call that will be
+ * allowed, and a policy change (which tools are admin-only, what a role may do) reaches the
+ * app without the app changing. The server still decides every call; this only decides which
+ * controls to offer.
+ *
+ * A hook that waits for the host: `false` until the host context lists the tool, and `false`
+ * on a host that sends no list, so a restricted control stays hidden rather than offered to
+ * someone the call would refuse. Re-renders when the host context changes, such as when the
+ * viewer's role does.
+ */
+export function useToolAllowed(tool: string): boolean {
+  const ctx = useHostContext<McpUiHostContext & { connector?: { allowedTools?: unknown } }>();
+  const allowed = ctx?.connector?.allowedTools;
+  return Array.isArray(allowed) && allowed.includes(tool);
+}
+
 /** Open this connector's settings page through the host. See `openConnectorSettings`. */
 export function useOpenConnectorSettings(): () => Promise<boolean> {
   const app = useAppContext();

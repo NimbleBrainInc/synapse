@@ -2,7 +2,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppProvider } from "../../react/app-provider.js";
-import { useHostContext, useTheme } from "../../react/hooks.js";
+import { useHostContext, useTheme, useToolAllowed } from "../../react/hooks.js";
 import { FULL_HOST_CAPABILITIES } from "../helpers/host-capabilities.js";
 
 // --- Helpers ---
@@ -198,6 +198,52 @@ describe("useHostContext / useTheme React hooks", () => {
 
       expect(renderCount.mock.calls.length).toBeGreaterThan(before);
       expect(result.current.mode).toBe("light");
+    });
+  });
+
+  describe("useToolAllowed", () => {
+    const base = { theme: "dark", styles: { variables: {} } };
+
+    it("is false on a host that sends no list, so a restricted control stays hidden", async () => {
+      const { result } = renderHook(() => useToolAllowed("set_role"), { wrapper });
+      await act(async () => {
+        await completeHandshake(base);
+      });
+      expect(result.current).toBe(false);
+    });
+
+    it("is true only for a tool the host lists", async () => {
+      const listed = renderHook(() => useToolAllowed("set_role"), { wrapper });
+      await act(async () => {
+        await completeHandshake({
+          ...base,
+          connector: { allowedTools: ["list_items", "set_role"] },
+        });
+      });
+      expect(listed.result.current).toBe(true);
+    });
+
+    it("is false for a tool the host leaves out", async () => {
+      const { result } = renderHook(() => useToolAllowed("set_role"), { wrapper });
+      await act(async () => {
+        await completeHandshake({ ...base, connector: { allowedTools: ["list_items"] } });
+      });
+      expect(result.current).toBe(false);
+    });
+
+    it("follows the host when the list changes, as when the viewer's role does", async () => {
+      const { result } = renderHook(() => useToolAllowed("set_role"), { wrapper });
+      await act(async () => {
+        await completeHandshake({ ...base, connector: { allowedTools: ["list_items"] } });
+      });
+      expect(result.current).toBe(false);
+      await act(async () => {
+        await dispatchHostContextChanged({
+          ...base,
+          connector: { allowedTools: ["list_items", "set_role"] },
+        });
+      });
+      expect(result.current).toBe(true);
     });
   });
 });

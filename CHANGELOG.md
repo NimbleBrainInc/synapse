@@ -10,6 +10,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`Column.primary` names a responsive table's primary column.** The primary column takes the space the others leave, truncates, never hides, and carries the hidden columns' values. It was always the first column, so a table whose first column is a row checkbox made the checkbox the column that grows. Declare `primary` on the record's name column instead. Without it the first column is primary, as in 0.36.0; if several columns declare it, the first of them is.
 
+- **`useToolAllowed(tool)`: whether the viewer may call one of this app's tools.** It reads the host context's `connector.allowedTools`, the list of the app's own tools the viewer may call, which a host computes with the same decision it enforces when the call arrives. Gate a control on the tool behind it rather than on a role, and a change to what a role may do reaches the app without the app changing. `false` until the host lists the tool, and on a host that sends no list, so a restricted control stays hidden.
+
 ## [0.36.0] - 2026-10-30
 
 ### Added

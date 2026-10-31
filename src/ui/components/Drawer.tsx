@@ -39,7 +39,12 @@ import {
 } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { useModal } from "../internal/modal.js";
-import { OVERLAY_RESET, overlayProps, useTopLayer } from "../internal/top-layer.js";
+import {
+  OVERLAY_RESET,
+  overlayProps,
+  SCRIM_BACKGROUND,
+  useTopLayer,
+} from "../internal/top-layer.js";
 import { useVisibleSlice } from "../internal/visible-slice.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 
@@ -52,7 +57,7 @@ const RULES = `
   position: fixed; inset: 0; z-index: 1000;
   /* The slice insets keep the sheet in the part of the frame on screen. */
   padding-top: var(--nb-slice-top, 0px); padding-bottom: var(--nb-slice-bottom, 0px);
-  display: flex; background: rgba(0, 0, 0, 0.32);
+  display: flex; background: ${SCRIM_BACKGROUND};
   animation: nb-drawer-fade 200ms ease;
 }
 .nb-drawer-scrim--right { justify-content: flex-end; }

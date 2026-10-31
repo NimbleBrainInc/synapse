@@ -143,6 +143,7 @@ describe("token contract", () => {
       "--nb-font-heading",
       "--nb-gutter",
       "--nb-gutter-auto",
+      "--nb-gutter-wide",
     ]);
     for (const [name, value] of Object.entries(tokens)) {
       for (const [, v] of value.matchAll(/var\(\s*(--nb-[a-z0-9-]+)/g)) {

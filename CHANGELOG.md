@@ -10,6 +10,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`ConfirmDialog` and `Drawer` open without motion under `prefers-reduced-motion: reduce`.** The scrim fade, the dialog's rise and the drawer's slide-in are dropped, as `SidebarLayout` already did for its own drawer.
 
+## [0.38.0] - 2026-10-30
+
+### Added
+
+- **A host sets the gutter's values with `--nb-gutter-wide` and `--nb-gutter-narrow`.** The host supplies the gutter's values, as it supplies colour, font and radius; the kit applies them; an app chooses where content insets and where a container bleeds; the host never pads the app's slot. `tokens.gutter` is `var(--nb-gutter, var(--nb-gutter-auto, var(--nb-gutter-wide, 1.5rem)))` and `AppFrame`'s narrow rule reads `var(--nb-gutter-narrow, 1rem)`, so a host can set both values and keep the kit's breakpoint, which `--nb-gutter` (one value at every width) cannot. With no host value the gutter is `1.5rem`, and `1rem` in a frame 640px or narrower, as in 0.37.0.
+- **`GUTTER_DEFAULT`, `GUTTER_NARROW_DEFAULT` and `GUTTER_NARROW_BREAKPOINT`** from `@nimblebrain/synapse/ui`: the gutter's defaults (`"1.5rem"`, `"1rem"`) and the frame width, in pixels, at or below which the narrow gutter applies (`640`). A host that supplies its own values can test them against these.
+
 ## [0.37.0] - 2026-10-30
 
 ### Added

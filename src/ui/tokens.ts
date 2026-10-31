@@ -22,6 +22,15 @@
 
 import type { CSSProperties } from "react";
 
+// The gutter's defaults, which apply when the host supplies no value. Exported so a host
+// that supplies its own (`--nb-gutter-wide`, `--nb-gutter-narrow`) can test them against these.
+/** The gutter in a frame wider than {@link GUTTER_NARROW_BREAKPOINT}. */
+export const GUTTER_DEFAULT = "1.5rem";
+/** The gutter in a frame {@link GUTTER_NARROW_BREAKPOINT} wide or narrower. */
+export const GUTTER_NARROW_DEFAULT = "1rem";
+/** The frame width, in CSS pixels, at or below which `AppFrame` applies the narrow gutter. */
+export const GUTTER_NARROW_BREAKPOINT = 640;
+
 /** Resolved design tokens as CSS `var()` references with neutral fallbacks. */
 export const tokens = {
   // ── Surfaces ──
@@ -85,15 +94,19 @@ export const tokens = {
   headingLgLine: "var(--font-heading-lg-line-height, 2.5rem)",
 
   // ── Space ──
-  // The inset between the frame's edge and content: titles, tabs, prose, a pane's text. It is
-  // the KIT's, not the host's and not an app's. The host hands an app an edge-to-edge slot,
-  // because a host gutter would make edge-to-edge panes impossible; an app composes layouts
-  // and names no spacing. Containers (the frame, panes, scroll areas) run edge to edge, and
-  // the content inside them insets itself by this.
+  // The inset between the frame's edge and content: titles, tabs, prose, a pane's text.
   //
-  // `--nb-gutter` overrides it. Otherwise `AppFrame` sets `--nb-gutter-auto` from its own
-  // width: narrower on a narrow pane, where 1.5rem a side is a tenth of a phone's screen.
-  gutter: "var(--nb-gutter, var(--nb-gutter-auto, 1.5rem))",
+  // The host owns the VALUES, as it owns the colour, font and radius values: it may supply
+  // `--nb-gutter-wide` (the gutter in a frame wider than `GUTTER_NARROW_BREAKPOINT` px) and
+  // `--nb-gutter-narrow` (the gutter in a frame that wide or narrower). Without them the
+  // defaults apply: `GUTTER_DEFAULT` and `GUTTER_NARROW_DEFAULT`. `--nb-gutter` pins one
+  // gutter at every width and replaces the narrowing.
+  // The kit owns the MECHANISM: `AppFrame` picks the value from its own width, by container
+  // query, and sets `--nb-gutter-auto`; the kit's layouts inset by this token. The app owns
+  // the PLACEMENT: it composes layouts and names no spacing, choosing per region whether
+  // content insets or a container bleeds edge to edge. The host never pads the app's slot,
+  // because a host gutter would make edge-to-edge panes impossible.
+  gutter: `var(--nb-gutter, var(--nb-gutter-auto, var(--nb-gutter-wide, ${GUTTER_DEFAULT})))`,
 
   // ── Radius / border width ──
   radiusXs: "var(--border-radius-xs, 0.25rem)",

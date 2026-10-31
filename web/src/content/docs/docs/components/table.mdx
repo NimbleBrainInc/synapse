@@ -57,8 +57,10 @@ const columns: Column<Deal>[] = [
 ];
 ```
 
-- The first column is the primary column. It takes the space the others leave and truncates
-  with an ellipsis; a `width` on it is the narrowest it gets. It never hides.
+- The primary column is the one that declares `primary`, else the first. It takes the space
+  the others leave and truncates with an ellipsis; a `width` on it is the narrowest it gets. It
+  never hides, and the hidden columns' values sit under it. Name it with `primary` when the
+  first column is something else, such as a row checkbox.
 - A column without a `priority` never hides, so action and selection columns stay.
 - The browser measures the fit before paint, so there is no pixel budget to declare. A
   hidden column comes back once the pane is wide enough to hold it.
@@ -95,6 +97,7 @@ Each entry in `columns` describes one column.
 | `width` | `number` \| `string` | None |
 | `priority` | `number` | None (never hides) |
 | `label` | `string` | `header`, when it is a string |
+| `primary` | `boolean` | The first column is primary |
 
 ## Related
 

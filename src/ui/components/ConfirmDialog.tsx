@@ -34,7 +34,12 @@
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { ensureStyle } from "../internal/inject-style.js";
 import { useModal } from "../internal/modal.js";
-import { OVERLAY_RESET, overlayProps, useTopLayer } from "../internal/top-layer.js";
+import {
+  OVERLAY_RESET,
+  overlayProps,
+  SCRIM_BACKGROUND,
+  useTopLayer,
+} from "../internal/top-layer.js";
 import { useVisibleSlice } from "../internal/visible-slice.js";
 import { type StyleWithVars, tokens } from "../tokens.js";
 import { Button } from "./Button.js";
@@ -50,7 +55,7 @@ const RULES = `
   display: flex; align-items: center; justify-content: center;
   /* The slice insets lay the panel out in the part of the frame on screen. */
   padding: calc(1rem + var(--nb-slice-top, 0px)) 1rem calc(1rem + var(--nb-slice-bottom, 0px));
-  background: rgba(0, 0, 0, 0.4);
+  background: ${SCRIM_BACKGROUND};
   animation: nb-confirm-fade 160ms ease;
 }
 .nb-confirm {

@@ -44,6 +44,14 @@ export const OVERLAY_ATTR = "data-nb-overlay";
 export const overlayProps = { popover: "manual", [OVERLAY_ATTR]: "" } as const;
 
 /**
+ * Every kit overlay's scrim colour. Light, because the scrim can only cover the
+ * app's frame: a host draws its own chrome around the frame, and a heavy scrim
+ * makes the frame's edge read as a break in the page instead of the app's
+ * boundary. The panel's border and shadow carry the separation.
+ */
+export const SCRIM_BACKGROUND = "rgba(0, 0, 0, 0.2)";
+
+/**
  * UA `[popover]` defaults to undo on a scrim, which is a full-viewport box: an
  * author rule beats the UA sheet at any specificity, so these hold shown or not.
  */

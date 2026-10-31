@@ -6,6 +6,7 @@ import { KeyboardForwarder } from "../../keyboard.js";
 import { Button } from "../../ui/components/Button.js";
 import { ConfirmDialog } from "../../ui/components/ConfirmDialog.js";
 import { Drawer } from "../../ui/components/Drawer.js";
+import { SCRIM_BACKGROUND } from "../../ui/internal/top-layer.js";
 
 afterEach(cleanup);
 
@@ -486,6 +487,24 @@ describe("ConfirmDialog", () => {
     expect(css).toMatch(/@media \(pointer: coarse\)[\s\S]*min-height: 44px/);
     // Full width on a phone only fits if the padding is inside it.
     expect(css).toMatch(/\.nb-confirm\s*\{[^}]*box-sizing: border-box/);
+  });
+
+  it("gives the dialog and the drawer the same scrim", () => {
+    render(
+      <>
+        <ConfirmDialog open onOpenChange={() => {}} title="One" onConfirm={() => {}} />
+        <Drawer open onClose={() => {}}>
+          <Drawer.Body>Body</Drawer.Body>
+        </Drawer>
+      </>,
+    );
+    const scrimOf = (id: string, cls: string) =>
+      new RegExp(`\\.${cls}\\s*\\{[^}]*background: ([^;]+);`).exec(
+        document.getElementById(id)?.textContent ?? "",
+      )?.[1];
+    const dialog = scrimOf("nb-synapse-confirm-dialog", "nb-confirm-scrim");
+    expect(dialog).toBe(SCRIM_BACKGROUND);
+    expect(scrimOf("nb-synapse-drawer", "nb-drawer-scrim")).toBe(dialog);
   });
 
   it("drops the overlays' entrance motion under reduced motion", () => {

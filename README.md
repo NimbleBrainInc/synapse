@@ -46,6 +46,7 @@ component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
 | Entry Point | Description |
 |-------------|-------------|
 | `@nimblebrain/synapse` | Vanilla JS core — `connect()`, plus the helpers over an `App`: `callToolAsTask()`, `open()`, `openConnectorSettings()`, `pickFile()`, `pickFiles()`, `uploadFiles()`, `notify()`, `downloadFile()` |
+| `@nimblebrain/synapse/host` | Cross-host UI client, with no React or `@modelcontextprotocol/*` dependency: `connectUI()` for ChatGPT, Claude, NimbleBrain, and standalone, plus the gutter defaults (`GUTTER_DEFAULT`, `GUTTER_NARROW_DEFAULT`, `GUTTER_NARROW_BREAKPOINT`) |
 | `@nimblebrain/synapse/react` | React hooks and the `AppProvider` |
 | `@nimblebrain/synapse/ui` | Component library — tokens, primitives, components, layouts |
 | `@nimblebrain/synapse/ui/base` | Side-effect import that establishes the root-height chain (`html, body, #root`) the app shell fills. `AppFrame` does this automatically on render; import it in your entry to apply it before first paint |

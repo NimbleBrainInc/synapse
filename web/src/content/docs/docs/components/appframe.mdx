@@ -52,7 +52,9 @@ The gutter follows the frame's own width: `1.5rem`, and `1rem` once the frame is
 640px or narrower. A host sets the two values with `--nb-gutter-wide` and
 `--nb-gutter-narrow` and keeps the narrowing, or sets `--nb-gutter` for one
 value at every width. The defaults are exported as `GUTTER_DEFAULT`,
-`GUTTER_NARROW_DEFAULT` and `GUTTER_NARROW_BREAKPOINT` (in pixels).
+`GUTTER_NARROW_DEFAULT` and `GUTTER_NARROW_BREAKPOINT` (in pixels), from
+`@nimblebrain/synapse/ui` and from `@nimblebrain/synapse/host`, which does not
+depend on React, so a host can match the kit's breakpoint without it.
 
 ## Props
 

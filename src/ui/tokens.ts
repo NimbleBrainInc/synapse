@@ -23,7 +23,7 @@
 import type { CSSProperties } from "react";
 
 // The gutter's defaults, which apply when the host supplies no value. Exported so a host
-// that supplies its own (`--nb-gutter-narrow`, `--nb-gutter`) can test them against these.
+// that supplies its own (`--nb-gutter-wide`, `--nb-gutter-narrow`) can test them against these.
 /** The gutter in a frame wider than {@link GUTTER_NARROW_BREAKPOINT}. */
 export const GUTTER_DEFAULT = "1.5rem";
 /** The gutter in a frame {@link GUTTER_NARROW_BREAKPOINT} wide or narrower. */
@@ -96,16 +96,17 @@ export const tokens = {
   // ── Space ──
   // The inset between the frame's edge and content: titles, tabs, prose, a pane's text.
   //
-  // The host owns the VALUE, as it owns the colour, font and radius values: it may supply
-  // `--nb-gutter-narrow` (the gutter in a frame `GUTTER_NARROW_BREAKPOINT` px wide or narrower)
-  // and `--nb-gutter` (one gutter at every width, which replaces the narrowing). Without them
-  // the defaults apply: `GUTTER_DEFAULT`, and `GUTTER_NARROW_DEFAULT` in a narrow frame.
+  // The host owns the VALUES, as it owns the colour, font and radius values: it may supply
+  // `--nb-gutter-wide` (the gutter in a frame wider than `GUTTER_NARROW_BREAKPOINT` px) and
+  // `--nb-gutter-narrow` (the gutter in a frame that wide or narrower). Without them the
+  // defaults apply: `GUTTER_DEFAULT` and `GUTTER_NARROW_DEFAULT`. `--nb-gutter` pins one
+  // gutter at every width and replaces the narrowing.
   // The kit owns the MECHANISM: `AppFrame` picks the value from its own width, by container
   // query, and sets `--nb-gutter-auto`; the kit's layouts inset by this token. The app owns
   // the PLACEMENT: it composes layouts and names no spacing, choosing per region whether
   // content insets or a container bleeds edge to edge. The host never pads the app's slot,
   // because a host gutter would make edge-to-edge panes impossible.
-  gutter: `var(--nb-gutter, var(--nb-gutter-auto, ${GUTTER_DEFAULT}))`,
+  gutter: `var(--nb-gutter, var(--nb-gutter-auto, var(--nb-gutter-wide, ${GUTTER_DEFAULT})))`,
 
   // ── Radius / border width ──
   radiusXs: "var(--border-radius-xs, 0.25rem)",

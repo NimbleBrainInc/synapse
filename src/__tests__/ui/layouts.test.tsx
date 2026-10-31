@@ -178,7 +178,9 @@ describe("ListDetailLayout", () => {
 // them, and the literals that survive (CLAUDE.md, "what the test DOM cannot see").
 describe("the gutter", () => {
   it("is one token that an override reaches and the frame's width sets", () => {
-    expect(tokens.gutter).toBe("var(--nb-gutter, var(--nb-gutter-auto, 1.5rem))");
+    expect(tokens.gutter).toBe(
+      "var(--nb-gutter, var(--nb-gutter-auto, var(--nb-gutter-wide, 1.5rem)))",
+    );
   });
 
   // These are the values the token and the rule below assert as literals, so a host that

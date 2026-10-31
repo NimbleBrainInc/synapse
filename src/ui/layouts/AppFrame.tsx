@@ -32,19 +32,19 @@ import {
 } from "react";
 import { injectBaseReset } from "../internal/base-reset.js";
 import { ensureStyle } from "../internal/inject-style.js";
-import { tokens } from "../tokens.js";
+import { GUTTER_NARROW_BREAKPOINT, GUTTER_NARROW_DEFAULT, tokens } from "../tokens.js";
 
 type ContentWidth = "reading" | "full";
 
 // The gutter follows the FRAME's width, not the device's: the host decides how wide the pane
 // is (full screen, beside chat, a phone). A container query keeps it in CSS, so it needs no
 // measurement and no re-render. The rule sets the gutter on the frame's children because a
-// container query styles a container's descendants, never the container itself.
+// container query styles a container's descendants, never the container itself. The narrow
+// value is the host's `--nb-gutter-narrow` when it supplies one; the breakpoint is the kit's.
 const GUTTER_STYLE_ID = "nb-synapse-appframe";
-const NARROW = 640;
 const GUTTER_RULES = `
 .nb-appframe { container-type: inline-size; }
-@container (max-width: ${NARROW}px) { .nb-appframe > * { --nb-gutter-auto: 1rem; } }
+@container (max-width: ${GUTTER_NARROW_BREAKPOINT}px) { .nb-appframe > * { --nb-gutter-auto: var(--nb-gutter-narrow, ${GUTTER_NARROW_DEFAULT}); } }
 `;
 const READING_MAX = 760;
 const ContentWidthCtx = createContext<ContentWidth>("full");

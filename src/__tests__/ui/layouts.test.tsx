@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as ui from "../../ui/index.js";
 import { AppFrame } from "../../ui/layouts/AppFrame.js";
 import { ListDetailLayout, useListDetail } from "../../ui/layouts/ListDetailLayout.js";
 import { SidebarLayout, useSidebar } from "../../ui/layouts/SidebarLayout.js";
@@ -171,8 +172,8 @@ describe("ListDetailLayout", () => {
   });
 });
 
-// The gutter is the kit's: the host hands over an edge-to-edge slot, an app names no spacing,
-// and the kit's layouts inset content by one token. happy-dom drops every inline declaration
+// The host supplies the gutter's values, the kit applies them, and an app chooses where to
+// inset; the host never pads the slot. happy-dom drops every inline declaration
 // holding a `var()`, so what is asserted here is the injected rules, the classes that select
 // them, and the literals that survive (CLAUDE.md, "what the test DOM cannot see").
 describe("the gutter", () => {
@@ -180,7 +181,15 @@ describe("the gutter", () => {
     expect(tokens.gutter).toBe("var(--nb-gutter, var(--nb-gutter-auto, 1.5rem))");
   });
 
-  it("narrows with the FRAME's width, by container query", () => {
+  // These are the values the token and the rule below assert as literals, so a host that
+  // tests its own values against the exports tests them against what the kit applies.
+  it("exports its defaults from the ui entry", () => {
+    expect(ui.GUTTER_DEFAULT).toBe("1.5rem");
+    expect(ui.GUTTER_NARROW_DEFAULT).toBe("1rem");
+    expect(ui.GUTTER_NARROW_BREAKPOINT).toBe(640);
+  });
+
+  it("narrows with the FRAME's width, by container query, to the host's narrow value", () => {
     const { container } = render(
       <AppFrame>
         <AppFrame.Body>Body</AppFrame.Body>
@@ -190,7 +199,7 @@ describe("the gutter", () => {
     const rules = document.getElementById("nb-synapse-appframe")?.textContent ?? "";
     expect(rules).toContain("container-type: inline-size");
     expect(rules).toMatch(
-      /@container \(max-width: 640px\) \{ \.nb-appframe > \* \{ --nb-gutter-auto: 1rem; \} \}/,
+      /@container \(max-width: 640px\) \{ \.nb-appframe > \* \{ --nb-gutter-auto: var\(--nb-gutter-narrow, 1rem\); \} \}/,
     );
   });
 

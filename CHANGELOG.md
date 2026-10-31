@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **`ConfirmDialog` and `Drawer` share one lighter scrim.** A kit overlay's scrim covers only the app's frame, never the host chrome around it, and a heavy scrim made the frame's edge read as a break in the page. Both now dim with `rgba(0, 0, 0, 0.2)` (from 0.4 and 0.32); the panel's border and shadow carry the separation.
+
 ## [0.38.0] - 2026-10-30
 
 ### Added

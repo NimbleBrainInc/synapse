@@ -60,6 +60,9 @@ export { useBreakpoint } from "./layouts/use-container-width.js";
 export { Divider, Inline, Spacer, Stack } from "./primitives.js";
 // Foundation — token contract
 export {
+  GUTTER_DEFAULT,
+  GUTTER_NARROW_BREAKPOINT,
+  GUTTER_NARROW_DEFAULT,
   type HeadingSize,
   headingStyle,
   type TextSize,

@@ -39,15 +39,20 @@ uses the whole pane (good for a CRM or dashboard).
 ## The gutter
 
 The space between the frame's edge and its content is the kit's `gutter` token,
-and nothing else draws it. The host hands your app an edge-to-edge slot, and an
-app names no spacing of its own. Containers (the frame, a pane, a scroll area)
+and nothing else draws it. The host supplies its value and never pads your app's
+slot, which it hands over edge to edge; the kit applies the value; your app
+names no spacing of its own and chooses only where content insets and where a
+container bleeds. Containers (the frame, a pane, a scroll area)
 run edge to edge, so their scrollbars and dividers sit on the edges; the content
 inside them insets itself by the gutter. `AppFrame.Header`, `Footer` and a plain
 `Body` inset by it. With `bleed`, a `ListDetailLayout`'s panes inset their own
 content; a `SidebarLayout`'s `Main` leaves the inset to what you put in it.
 
 The gutter follows the frame's own width: `1.5rem`, and `1rem` once the frame is
-640px or narrower. Set `--nb-gutter` to override it.
+640px or narrower. A host sets the two values with `--nb-gutter-wide` and
+`--nb-gutter-narrow` and keeps the narrowing, or sets `--nb-gutter` for one
+value at every width. The defaults are exported as `GUTTER_DEFAULT`,
+`GUTTER_NARROW_DEFAULT` and `GUTTER_NARROW_BREAKPOINT` (in pixels).
 
 ## Props
 

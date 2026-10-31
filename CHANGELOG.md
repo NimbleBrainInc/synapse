@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **`ConfirmDialog` and `Drawer` open without motion under `prefers-reduced-motion: reduce`.** The scrim fade, the dialog's rise and the drawer's slide-in are dropped, as `SidebarLayout` already did for its own drawer.
+
 ## [0.37.0] - 2026-10-30
 
 ### Added

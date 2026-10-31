@@ -487,6 +487,30 @@ describe("ConfirmDialog", () => {
     // Full width on a phone only fits if the padding is inside it.
     expect(css).toMatch(/\.nb-confirm\s*\{[^}]*box-sizing: border-box/);
   });
+
+  it("drops the overlays' entrance motion under reduced motion", () => {
+    render(
+      <>
+        <ConfirmDialog open onOpenChange={() => {}} title="One" onConfirm={() => {}} />
+        <Drawer open onClose={() => {}}>
+          <Drawer.Body>Body</Drawer.Body>
+        </Drawer>
+      </>,
+    );
+    const reduced = (id: string) =>
+      /@media \(prefers-reduced-motion: reduce\) \{\s*([^{]+)\{ animation: none; \}/.exec(
+        document.getElementById(id)?.textContent ?? "",
+      )?.[1];
+    expect(reduced("nb-synapse-confirm-dialog")).toContain(".nb-confirm-scrim, .nb-confirm");
+    for (const cls of [
+      ".nb-drawer-scrim",
+      ".nb-drawer--right",
+      ".nb-drawer--left",
+      ".nb-drawer--bottom",
+    ]) {
+      expect(reduced("nb-synapse-drawer")).toContain(cls);
+    }
+  });
 });
 
 describe("the top layer", () => {

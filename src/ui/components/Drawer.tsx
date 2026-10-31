@@ -71,6 +71,9 @@ const RULES = `
 @keyframes nb-drawer-in-left { from { transform: translateX(-100%); } }
 @keyframes nb-drawer-in-bottom { from { transform: translateY(100%); } }
 @keyframes nb-drawer-fade { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .nb-drawer-scrim, .nb-drawer--right, .nb-drawer--left, .nb-drawer--bottom { animation: none; }
+}
 .nb-drawer-iconbtn { width: 28px; height: 28px; }
 @media (pointer: coarse) {
   .nb-drawer-iconbtn { min-width: 44px; min-height: 44px; }

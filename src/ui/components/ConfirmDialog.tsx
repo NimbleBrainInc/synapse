@@ -73,6 +73,9 @@ const RULES = `
 @media (pointer: coarse) {
   .nb-confirm__actions .nb-btn { min-height: 44px; }
 }
+@media (prefers-reduced-motion: reduce) {
+  .nb-confirm-scrim, .nb-confirm { animation: none; }
+}
 `;
 
 interface ConfirmDialogProps {

@@ -506,6 +506,30 @@ describe("ConfirmDialog", () => {
     expect(dialog).toBe(SCRIM_BACKGROUND);
     expect(scrimOf("nb-synapse-drawer", "nb-drawer-scrim")).toBe(dialog);
   });
+
+  it("drops the overlays' entrance motion under reduced motion", () => {
+    render(
+      <>
+        <ConfirmDialog open onOpenChange={() => {}} title="One" onConfirm={() => {}} />
+        <Drawer open onClose={() => {}}>
+          <Drawer.Body>Body</Drawer.Body>
+        </Drawer>
+      </>,
+    );
+    const reduced = (id: string) =>
+      /@media \(prefers-reduced-motion: reduce\) \{\s*([^{]+)\{ animation: none; \}/.exec(
+        document.getElementById(id)?.textContent ?? "",
+      )?.[1];
+    expect(reduced("nb-synapse-confirm-dialog")).toContain(".nb-confirm-scrim, .nb-confirm");
+    for (const cls of [
+      ".nb-drawer-scrim",
+      ".nb-drawer--right",
+      ".nb-drawer--left",
+      ".nb-drawer--bottom",
+    ]) {
+      expect(reduced("nb-synapse-drawer")).toContain(cls);
+    }
+  });
 });
 
 describe("the top layer", () => {

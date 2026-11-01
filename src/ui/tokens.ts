@@ -21,15 +21,15 @@
  */
 
 import type { CSSProperties } from "react";
+import { GUTTER_DEFAULT } from "../theme-defaults.js";
 
-// The gutter's defaults, which apply when the host supplies no value. Exported so a host
-// that supplies its own (`--nb-gutter-wide`, `--nb-gutter-narrow`) can test them against these.
-/** The gutter in a frame wider than {@link GUTTER_NARROW_BREAKPOINT}. */
-export const GUTTER_DEFAULT = "1.5rem";
-/** The gutter in a frame {@link GUTTER_NARROW_BREAKPOINT} wide or narrower. */
-export const GUTTER_NARROW_DEFAULT = "1rem";
-/** The frame width, in CSS pixels, at or below which `AppFrame` applies the narrow gutter. */
-export const GUTTER_NARROW_BREAKPOINT = 640;
+// The gutter's defaults live in the React-free `theme-defaults.ts`, so `/host` can export
+// them to a host without React; re-exported here for `/ui`.
+export {
+  GUTTER_DEFAULT,
+  GUTTER_NARROW_BREAKPOINT,
+  GUTTER_NARROW_DEFAULT,
+} from "../theme-defaults.js";
 
 /** Resolved design tokens as CSS `var()` references with neutral fallbacks. */
 export const tokens = {

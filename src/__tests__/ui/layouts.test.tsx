@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as host from "../../host/index.js";
 import * as ui from "../../ui/index.js";
 import { AppFrame } from "../../ui/layouts/AppFrame.js";
 import { ListDetailLayout, useListDetail } from "../../ui/layouts/ListDetailLayout.js";
@@ -189,6 +190,13 @@ describe("the gutter", () => {
     expect(ui.GUTTER_DEFAULT).toBe("1.5rem");
     expect(ui.GUTTER_NARROW_DEFAULT).toBe("1rem");
     expect(ui.GUTTER_NARROW_BREAKPOINT).toBe(640);
+  });
+
+  // A host without React imports them from `/host` to match the kit's breakpoint.
+  it("exports the same defaults from the host entry", () => {
+    expect(host.GUTTER_DEFAULT).toBe("1.5rem");
+    expect(host.GUTTER_NARROW_DEFAULT).toBe("1rem");
+    expect(host.GUTTER_NARROW_BREAKPOINT).toBe(640);
   });
 
   it("narrows with the FRAME's width, by container query, to the host's narrow value", () => {

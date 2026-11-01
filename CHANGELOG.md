@@ -6,6 +6,12 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-10-31
+
+### Added
+
+- **`GUTTER_DEFAULT`, `GUTTER_NARROW_DEFAULT` and `GUTTER_NARROW_BREAKPOINT` from `@nimblebrain/synapse/host`.** The same values `@nimblebrain/synapse/ui` exports (`"1.5rem"`, `"1rem"`, `640`), from the entry that does not depend on React, so a host without React can hold its own breakpoint and values equal to the kit's. 0.38.0 said a host could test its values against these, but exported them only from `/ui`, whose entry imports React; this release makes that possible. `/ui` still exports them.
+
 ## [0.38.0] - 2026-10-31
 
 ### Added

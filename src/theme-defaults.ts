@@ -277,3 +277,15 @@ export function applyThemeVariables(
   // document must keep. Inline, so it outranks that seed.
   root.setProperty("color-scheme", mode);
 }
+
+// The gutter's defaults, which apply when the host supplies no value. Not theme vars: the
+// gutter is theme-invariant, so the token's static `var()` fallback carries it. They live in
+// this React-free module so `/ui` (the token and `AppFrame`'s narrow rule) and `/host` export
+// one set of values, and a host that supplies its own (`--nb-gutter-wide`,
+// `--nb-gutter-narrow`) can test them against these without depending on React.
+/** The gutter in a frame wider than {@link GUTTER_NARROW_BREAKPOINT}. */
+export const GUTTER_DEFAULT = "1.5rem";
+/** The gutter in a frame {@link GUTTER_NARROW_BREAKPOINT} wide or narrower. */
+export const GUTTER_NARROW_DEFAULT = "1rem";
+/** The frame width, in CSS pixels, at or below which `AppFrame` applies the narrow gutter. */
+export const GUTTER_NARROW_BREAKPOINT = 640;

@@ -3,22 +3,38 @@ title: "Quickstart: Python server"
 description: "Add one ui:// component to an MCP server with nimblebrain-synapse, and render it across ChatGPT, Claude, and NimbleBrain from a single declaration."
 ---
 
-import { Steps } from "@astrojs/starlight/components";
+import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Synapse has two halves. The [React quickstart](/docs/quickstart-react) covers the
 client. This one covers the server: `nimblebrain-synapse`, the PyPI package that
-attaches a self-contained `ui://` component to an [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-server. From one declaration the component renders in any MCP Apps host (ChatGPT,
+attaches a self-contained `ui://` component to a [FastMCP](https://gofastmcp.com) 4
+server or to an [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+`MCPServer`. From one declaration the component renders in any MCP Apps host (ChatGPT,
 Claude, and the NimbleBrain runtime), with the client SDK inlined so the component
 ships as one asset.
 
 This walks you from an empty server to a tool whose result renders in a UI. It
-assumes you already have an `MCPServer`, or can start one. The package requires
-**mcp 2.x**; on mcp 1.x, use `nimblebrain-synapse` 0.5.x instead.
+assumes you already have a server, or can start one. Each step shows both
+frameworks; pick yours once and the tabs follow. The package requires **mcp 2.x**,
+which is what FastMCP 4 runs on; on mcp 1.x, use `nimblebrain-synapse` 0.5.x
+instead.
 
 <Steps>
 
 1. **Install the package.**
+
+   <Tabs syncKey="python-server">
+   <TabItem label="FastMCP">
+
+   ```bash
+   pip install "nimblebrain-synapse[fastmcp]"   # or: uv add "nimblebrain-synapse[fastmcp]"
+   ```
+
+   The `fastmcp` extra installs FastMCP 4, which you use to define the server and
+   its tools.
+
+   </TabItem>
+   <TabItem label="MCPServer">
 
    ```bash
    pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
@@ -26,6 +42,9 @@ assumes you already have an `MCPServer`, or can start one. The package requires
 
    It pairs with the `mcp` Python package (2.x), which you use to define the
    server and its tools.
+
+   </TabItem>
+   </Tabs>
 
 2. **Write a data-free template.**
 
@@ -48,6 +67,21 @@ assumes you already have an `MCPServer`, or can start one. The package requires
 
 3. **Declare the component.**
 
+   <Tabs syncKey="python-server">
+   <TabItem label="FastMCP">
+
+   ```python
+   from nimblebrain_synapse.fastmcp import FastMCPSynapseUI
+
+   forecast_ui = FastMCPSynapseUI(
+       uri="ui://weather/forecast",
+       template=TEMPLATE,
+   )
+   ```
+
+   </TabItem>
+   <TabItem label="MCPServer">
+
    ```python
    from nimblebrain_synapse import SynapseUI
 
@@ -57,9 +91,33 @@ assumes you already have an `MCPServer`, or can start one. The package requires
    )
    ```
 
-   `uri` is the resource id the host loads.
+   </TabItem>
+   </Tabs>
+
+   `uri` is the resource id the host loads. The two classes take the same
+   arguments and put the same resource and tool `_meta` on the wire; they differ
+   only in which framework's extension type they are.
 
 4. **Hand the component to the server as an extension.**
+
+   <Tabs syncKey="python-server">
+   <TabItem label="FastMCP">
+
+   ```python
+   from fastmcp import FastMCP
+
+   mcp = FastMCP("weather")
+   mcp.add_extension(forecast_ui)
+
+   @mcp.tool(
+       meta=forecast_ui.tool_meta(invoking="Checking the forecast", invoked="Forecast ready"),
+   )
+   async def get_forecast(city: str) -> dict:
+       return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
+   ```
+
+   </TabItem>
+   <TabItem label="MCPServer">
 
    ```python
    from mcp.server.mcpserver import MCPServer
@@ -73,14 +131,17 @@ assumes you already have an `MCPServer`, or can start one. The package requires
        return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
    ```
 
-   `extensions=[forecast_ui]` serves the `ui://` resource, under the MCP Apps MIME
+   </TabItem>
+   </Tabs>
+
+   Registering the extension serves the `ui://` resource, under the MCP Apps MIME
    `text/html;profile=mcp-app`, with the client SDK inlined. `tool_meta` points the
    tool at that resource (`ui.resourceUri`), which is all a host needs: it reads the
    component and renders it with the tool's `structuredContent`, and no UI HTML
    rides in the model-facing content. It also attaches the status strings ChatGPT
    shows while the tool runs and after it finishes.
 
-5. **Run the server.** Start it however you normally run an `MCPServer` (stdio or HTTP).
+5. **Run the server.** Start it however you normally run it (stdio or HTTP).
    In a host that supports embedded UIs, calling `get_forecast` now renders your
    component. A plain MCP client that renders no UI ignores the resource and
    still reads the tool's `structuredContent`, so the same server works everywhere.
@@ -89,9 +150,10 @@ assumes you already have an `MCPServer`, or can start one. The package requires
 
 ## What just happened
 
-- `SynapseUI` described one component once: a URI and a data-free template.
-- `extensions=[forecast_ui]` published it as a `ui://` resource with the client SDK
-  inlined, so the component is fully self-contained.
+- `FastMCPSynapseUI` (or `SynapseUI`, on `MCPServer`) described one component
+  once: a URI and a data-free template.
+- Registering it as an extension published it as a `ui://` resource with the
+  client SDK inlined, so the component is fully self-contained.
 - `tool_meta` wired the component to a tool, so its result is delivered
   both as `structuredContent` (for any MCP client) and as a rendered UI (for hosts
   that support it).

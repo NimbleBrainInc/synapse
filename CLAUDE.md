@@ -167,8 +167,15 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   and rejects any other value), so pass that exact value or omit it (the host then
   defaults the origin). Reproduce locally by loading the embedded resource top-level
   (`host=generic`) and in a sandboxed iframe (`host=claude`), reading the console.
-- The server half is the Python `nimblebrain-synapse` package (`python/`). `SynapseUI`
-  is an MCP extension (SEP-2133): handed to `MCPServer(extensions=[...])`, it
+- The server half is the Python `nimblebrain-synapse` package (`python/`). A component
+  is declared once and registered as an MCP extension (SEP-2133) by the class for the
+  server's framework: `SynapseUI` for the `mcp` SDK's `MCPServer(extensions=[...])`,
+  and `FastMCPSynapseUI` (`nimblebrain_synapse/fastmcp.py`, the only module that
+  imports FastMCP, behind the `fastmcp` extra) for `FastMCP.add_extension`. The two
+  frameworks' extension base classes are unrelated types, so each has its class, and
+  `SynapseComponent` in `server.py` holds everything that reaches the wire: add an
+  input or a `_meta` key there, never on one subclass, and run a test for it on both
+  protocol eras (`Client(..., mode="auto")` and `mode="legacy"`). Either class
   contributes the component as **one `ui://` resource** under
   `text/html;profile=mcp-app`, which every host renders (ChatGPT resolves
   `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
@@ -273,6 +280,17 @@ the one slot a spec client's handshake parse keeps):
 acting on reaches the agent through `updateModelContext`.
 
 An `ai.nimblebrain/` method constant without an entry fails `event-map.test.ts`.
+
+**These identifiers and the limits beside them are the host's, and this package keeps
+a copy.** A client cannot import a host, so the copy is held equal by test:
+`src/__tests__/host-constants.test.ts` compares each Synapse constant with
+`src/__tests__/host-constants/nimblebrain-host.constants.json`, a snapshot of the
+document the host publishes. Never edit the snapshot to make a test pass:
+`npm run host-constants:refresh` replaces it with the published document
+(`scripts/host-constants.mjs` has the address), and the constants here change until
+the test passes. A new extension, or a new bound applied before sending, gets a row
+in that test. The Python package holds none of these in source; it carries them only
+inside the vendored client.
 
 ## IIFE builds
 

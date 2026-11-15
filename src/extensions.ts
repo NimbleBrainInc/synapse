@@ -38,8 +38,12 @@ export function hostSupports(app: App, extension: NimbleBrainExtension): boolean
   return app.hostCapabilities.experimental?.[capability] !== undefined;
 }
 
-/** 25 MB — the host's default cap on a single picked file. */
-const DEFAULT_MAX_FILE_SIZE = 26_214_400;
+/**
+ * 25 MB — the host's default cap on a single picked file. Exported from this
+ * module, like the trail bounds below, for `host-constants.test.ts`, which holds
+ * each to the NimbleBrain host's value; none of them is package API.
+ */
+export const DEFAULT_MAX_FILE_SIZE = 26_214_400;
 
 /**
  * Ask the host to open what a resource URI names: a record (`files://…`), a
@@ -74,8 +78,8 @@ export async function openConnectorSettings(app: App): Promise<boolean> {
 }
 
 /** The most a host accepts: a longer trail or label drops the whole message. */
-const MAX_TRAIL_ENTRIES = 32;
-const MAX_LABEL_LENGTH = 200;
+export const MAX_TRAIL_ENTRIES = 32;
+export const MAX_LABEL_LENGTH = 200;
 /** Sent for an empty label (a record still loading, a blank name): the host refuses "". */
 const EMPTY_LABEL = "…";
 

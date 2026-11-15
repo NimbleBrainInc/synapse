@@ -4,14 +4,35 @@ The **server half** of the Synapse cross-host UI framework. Pairs with the
 `@nimblebrain/synapse` client (`connectUI` / `window.SynapseUI`).
 
 ```bash
-pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
+pip install "nimblebrain-synapse[fastmcp]"   # FastMCP 4; or: uv add "nimblebrain-synapse[fastmcp]"
+pip install nimblebrain-synapse              # the mcp SDK's MCPServer
 ```
 
-One `SynapseUI` declaration serves a self-contained HTML component to every MCP
+One declaration serves a self-contained HTML component to every MCP
 Apps host — **ChatGPT**, **Claude**, and the **NimbleBrain** runtime — replacing the
 per-app hand-rolled shim.
-It is an MCP extension (SEP-2133): hand the instance to `MCPServer` and it
+It is an MCP extension (SEP-2133): register the instance on the server and it
 contributes its `ui://` resource.
+
+On a **FastMCP 4** server, declare a `FastMCPSynapseUI` and add it as an extension:
+
+```python
+from fastmcp import FastMCP
+from nimblebrain_synapse.fastmcp import FastMCPSynapseUI
+
+report_ui = FastMCPSynapseUI(
+    uri="ui://bassethound/report",
+    template=load_template(),            # data-free HTML (carries the SDK + data markers)
+)
+mcp = FastMCP("bassethound")
+mcp.add_extension(report_ui)
+
+@mcp.tool(meta=report_ui.tool_meta(invoking="Picking up the scent…", invoked="Dossier ready"))
+async def analyze_domain(domain: str) -> Dossier:
+    return build_dossier(domain)
+```
+
+On the `mcp` SDK's **`MCPServer`**, declare a `SynapseUI` and pass it at construction:
 
 ```python
 from mcp.server.mcpserver import MCPServer
@@ -19,16 +40,28 @@ from nimblebrain_synapse import SynapseUI
 
 report_ui = SynapseUI(
     uri="ui://bassethound/report",
-    template=load_template(),            # data-free HTML (carries the SDK + data markers)
+    template=load_template(),
 )
 mcp = MCPServer("bassethound", extensions=[report_ui])
 
 @mcp.tool(meta=report_ui.tool_meta(invoking="Picking up the scent…", invoked="Dossier ready"))
 async def analyze_domain(domain: str) -> Dossier:
-    ...
+    return build_dossier(domain)
 ```
 
-Passing the instance in `extensions=` serves one data-free `ui://` resource under
+The two classes take the same arguments and share one implementation
+(`SynapseComponent`) of the HTML, the resource `_meta` and `tool_meta`, so a host
+reads the same resource and the same binding from either. They are two classes
+because the frameworks' extension types are unrelated: `MCPServer(extensions=[...])`
+takes an `mcp.server.extension.Extension`, and `FastMCP.add_extension` takes a
+`fastmcp.server.extensions.ServerExtension` and fails on anything else. Registering
+either class on the other framework raises a `TypeError` that names the class to use.
+Everything below applies to both.
+
+FastMCP adds its own `fastmcp` key to the `_meta` of every component it lists, the
+component's resource and tools included; the keys below are otherwise identical.
+
+Registering the instance serves one data-free `ui://` resource under
 `text/html;profile=mcp-app`. `tool_meta` on
 the tool descriptor carries the binding, `ui.resourceUri`; ChatGPT and Claude both
 resolve it, read the resource and render the component from the result's
@@ -101,19 +134,25 @@ The `template` is data-free HTML that carries two markers:
   takes the host's push. `render_html(data)` substitutes the escaped payload here,
   for a page rendered outside a host, such as a test or a sample harness.
 
-`SynapseUI._safe_json` escapes the payload for `<script>` embedding (the XSS
+`SynapseComponent._safe_json` escapes the payload for `<script>` embedding (the XSS
 defense) — framework-owned and on by default.
 
 ## Relationship to the SDK's own MCP Apps extension
 
-`SynapseUI` advertises the spec's MCP Apps identifier, `io.modelcontextprotocol/ui`
-— that *is* the extension it implements, and the few ChatGPT keys above ride
-alongside in `_meta` keys the spec does not claim. So a server uses `SynapseUI`
-**instead of** `mcp.server.apps.Apps`, not next to it: two extensions cannot share
-an identifier.
+`SynapseUI` and `FastMCPSynapseUI` advertise the spec's MCP Apps identifier,
+`io.modelcontextprotocol/ui` — that *is* the extension they implement, and the few
+ChatGPT keys above ride alongside in `_meta` keys the spec does not claim. So an
+`MCPServer` uses `SynapseUI` **instead of** `mcp.server.apps.Apps`, not next to it:
+two extensions cannot share an identifier.
 
-One consequence: **one `SynapseUI` per server.** A second instance fails at server
-construction with `Extension 'io.modelcontextprotocol/ui' is already registered`.
+One consequence: **one component per server.** A second `SynapseUI` fails at server
+construction with `Extension 'io.modelcontextprotocol/ui' is already registered`,
+and a second `FastMCPSynapseUI` fails in `add_extension` the same way.
+
+FastMCP advertises `io.modelcontextprotocol/ui` on every server, for its own
+`fastmcp.apps`, and that advertisement does not go through `add_extension`.
+`FastMCPSynapseUI` registers the identifier explicitly so the component's
+advertisement does not depend on that default.
 
 ## Client SDK asset
 
@@ -139,6 +178,16 @@ What both halves share is the **wire protocol** — the `ui://` resource MIME, t
 
 - ext-apps `2026-01-26`
 - MCP Apps (SEP-1865)
+
+### FastMCP compatibility
+
+`nimblebrain_synapse.fastmcp` requires **FastMCP 4** (`fastmcp>=4.0.0,<5`, the
+`fastmcp` extra) and is the only module that imports it. FastMCP 3 runs on mcp 1.x,
+which this package does not support. FastMCP's `ServerExtension` has no way to
+contribute a resource, so `FastMCPSynapseUI` registers its resource when
+`add_extension` binds it, through a hook FastMCP does not document; the cap below 5
+keeps a FastMCP major that changes that hook from reaching a fresh install, and
+registration raises rather than serve a tool whose resource is missing.
 
 ### MCP SDK compatibility
 

@@ -63,7 +63,9 @@
     "ci": "npm run lint && npm run typecheck && npm run build && npm run size && npm run test",
     "prepublishOnly": "npm run build",
     "conformance": "node conformance/run.mjs",
-    "size": "node scripts/size-budget.mjs"
+    "size": "node scripts/size-budget.mjs",
+    "host-constants:refresh": "node scripts/host-constants.mjs refresh",
+    "host-constants:check": "node scripts/host-constants.mjs check"
   },
   "repository": {
     "type": "git",

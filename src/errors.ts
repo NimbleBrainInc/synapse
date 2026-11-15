@@ -42,8 +42,11 @@ export class TaskError extends Error {
   }
 }
 
-/** JSON-RPC error code a host answers a request it timed out with. */
-const REQUEST_TIMEOUT_CODE = -32001;
+/**
+ * JSON-RPC error code a host answers a request it timed out with. Exported from
+ * this module for `host-constants.test.ts`; not package API.
+ */
+export const REQUEST_TIMEOUT_CODE = -32001;
 
 /**
  * Whether `err` is a host's answer to a request the browser interrupted by

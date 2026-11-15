@@ -288,7 +288,11 @@ a copy.** A client cannot import a host, so the copy is held equal by test:
 document the host publishes. Never edit the snapshot to make a test pass:
 `npm run host-constants:refresh` replaces it with the published document
 (`scripts/host-constants.mjs` has the address), and the constants here change until
-the test passes. A new extension, or a new bound applied before sending, gets a row
+the test passes. The `Host constants` workflow runs `npm run host-constants:check`
+daily and on a pull request that touches the snapshot, and fails when the snapshot
+differs from the published document; it is not a required check, so a host release
+never blocks an unrelated change. A new extension, or a new bound applied before
+sending, gets a row
 in that test. The Python package holds none of these in source; it carries them only
 inside the vendored client.
 

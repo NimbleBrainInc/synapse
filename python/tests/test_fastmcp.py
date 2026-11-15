@@ -195,6 +195,23 @@ def test_the_mcpserver_extension_is_not_a_fastmcp_extension():
     assert not issubclass(SynapseUI, ServerExtension)
 
 
+def test_a_synapse_ui_on_a_fastmcp_server_names_the_class_to_use():
+    """The mistake a server moving to FastMCP makes; the error has to say what to
+    change, since FastMCP's own is an ``AttributeError`` about a private name."""
+    mcp = FastMCP("test")
+    with pytest.raises(
+        TypeError, match=r"nimblebrain_synapse\.fastmcp\.FastMCPSynapseUI"
+    ) as raised:
+        mcp.add_extension(SynapseUI(uri=UI_URI, template=TEMPLATE))  # ty: ignore[invalid-argument-type]
+    assert "MCPServer" in str(raised.value)
+
+
+def test_a_fastmcp_synapse_ui_on_an_mcpserver_names_the_class_to_use():
+    with pytest.raises(TypeError, match=r"nimblebrain_synapse\.SynapseUI") as raised:
+        MCPServer("test", extensions=[_ui()])  # ty: ignore[invalid-argument-type]
+    assert "FastMCP" in str(raised.value)
+
+
 def test_an_extension_that_was_never_bound_refuses_to_register():
     """The resource is registered from FastMCP's bind hook; if a FastMCP release
     stops calling it, registration fails instead of serving a tool with no resource."""

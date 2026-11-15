@@ -54,8 +54,9 @@ The two classes take the same arguments and share one implementation
 reads the same resource and the same binding from either. They are two classes
 because the frameworks' extension types are unrelated: `MCPServer(extensions=[...])`
 takes an `mcp.server.extension.Extension`, and `FastMCP.add_extension` takes a
-`fastmcp.server.extensions.ServerExtension` and fails on anything else. Everything
-below applies to both.
+`fastmcp.server.extensions.ServerExtension` and fails on anything else. Registering
+either class on the other framework raises a `TypeError` that names the class to use.
+Everything below applies to both.
 
 FastMCP adds its own `fastmcp` key to the `_meta` of every component it lists, the
 component's resource and tools included; the keys below are otherwise identical.

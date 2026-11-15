@@ -26,7 +26,7 @@ Importing this module needs FastMCP 4, which the ``fastmcp`` extra installs
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from fastmcp.resources import TextResource
 from fastmcp.server.extensions import ServerExtension
@@ -80,6 +80,18 @@ class FastMCPSynapseUI(SynapseComponent, ServerExtension):
         )
         server.add_resource(resource)
         self._resource = resource
+
+    def tools(self) -> NoReturn:
+        # ``MCPServer(extensions=[...])`` takes the ``mcp`` SDK's ``Extension`` and
+        # reads its ``tools()`` first, which FastMCP's ``ServerExtension`` does not
+        # define, so this class handed to it would fail with an ``AttributeError``
+        # naming neither class. FastMCP never calls ``tools()`` on an extension.
+        raise TypeError(
+            "FastMCPSynapseUI is the extension for a FastMCP server "
+            "(mcp.add_extension(ui)). On the mcp SDK's MCPServer, declare the component "
+            "with nimblebrain_synapse.SynapseUI, which takes the same arguments, and "
+            "pass that in extensions=[...]."
+        )
 
     def methods(self) -> Sequence[MethodBinding]:
         # `add_extension` binds before it reads the methods. `_bind` is

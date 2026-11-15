@@ -38,7 +38,7 @@ from __future__ import annotations
 
 import json
 from importlib import resources
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
 from mcp.server.apps import APP_MIME_TYPE, EXTENSION_ID, Visibility
 from mcp.server.extension import Extension, ResourceBinding
@@ -298,6 +298,28 @@ class SynapseUI(SynapseComponent, Extension):
     #: The MCP Apps extension this implements, advertised under
     #: ``ServerCapabilities.extensions``. Taken from the SDK so it cannot drift.
     identifier = EXTENSION_ID
+
+    # ``FastMCP.add_extension`` takes FastMCP's own extension type. Handed this
+    # class, it reads the extension's ``_server_ref`` and then calls ``_bind``,
+    # two members of FastMCP's ``ServerExtension`` that the ``mcp`` SDK's
+    # ``Extension`` lacks, so it would fail with an ``AttributeError`` naming
+    # neither class. Both names answer here with the class to use instead.
+    # ``MCPServer`` reads neither, so nothing changes on a correct registration.
+    @staticmethod
+    def _not_a_fastmcp_extension() -> NoReturn:
+        raise TypeError(
+            "SynapseUI is the extension for the mcp SDK's MCPServer "
+            "(MCPServer(..., extensions=[ui])). On a FastMCP server, declare the "
+            "component with nimblebrain_synapse.fastmcp.FastMCPSynapseUI, which takes "
+            "the same arguments, and pass that to add_extension()."
+        )
+
+    @property
+    def _server_ref(self) -> NoReturn:
+        self._not_a_fastmcp_extension()
+
+    def _bind(self, server: object) -> NoReturn:
+        self._not_a_fastmcp_extension()
 
     def _build_resource(self) -> ResourceBinding:
         """The ``ui://`` resource (data-free, SDK inlined) every host reads."""

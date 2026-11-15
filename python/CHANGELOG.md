@@ -14,8 +14,7 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 - **`FastMCPSynapseUI`, for FastMCP 4 servers.** `FastMCP.add_extension` takes
   FastMCP's own `ServerExtension` type, and `SynapseUI` is the `mcp` SDK's
-  `Extension`, so `mcp.add_extension(SynapseUI(...))` fails with
-  `AttributeError: 'SynapseUI' object has no attribute '_server_ref'`.
+  `Extension`, so a `SynapseUI` cannot be registered with `mcp.add_extension`.
   `nimblebrain_synapse.fastmcp.FastMCPSynapseUI` takes the same arguments, serves
   the same `ui://` resource under `text/html;profile=mcp-app` with the same `_meta`,
   and returns the same `tool_meta()`:
@@ -32,7 +31,8 @@ This project adheres to [Semantic Versioning](https://semver.org/).
   Install it with the new `fastmcp` extra (`nimblebrain-synapse[fastmcp]`, which
   requires `fastmcp>=4.0.0,<5`). The core package does not import FastMCP, and
   `SynapseUI` with `MCPServer(extensions=[...])` works as before. One component per
-  server on either framework.
+  server on either framework. Registering either class on the other framework raises
+  a `TypeError` that names the class to use.
 
 - **`SynapseComponent`**, exported from `nimblebrain_synapse`: the base of both
   classes, holding the HTML, `render_html`, `tool_meta` and the new

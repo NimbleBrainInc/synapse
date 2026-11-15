@@ -1,0 +1,40 @@
+name: Host constants
+
+# Fails when the snapshot of the NimbleBrain host's constants
+# (src/__tests__/host-constants/nimblebrain-host.constants.json) differs from the
+# document the host publishes. The unit tests hold Synapse's constants equal to
+# the snapshot; this holds the snapshot equal to the host.
+#
+# Not part of CI and not a required check: the host can publish a new value at
+# any time, and that must not turn an unrelated pull request red. It runs daily,
+# on demand, and on a pull request that changes the snapshot or the script, which
+# is when a difference is that pull request's to fix. To fix one, run
+# `npm run host-constants:refresh` and change the constants until `npm test` passes.
+on:
+  schedule:
+    - cron: '17 15 * * *'
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/__tests__/host-constants/**'
+      - 'scripts/host-constants.mjs'
+      - '.github/workflows/host-constants.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Snapshot matches the published host constants
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      # The script uses only Node built-ins, so nothing is installed.
+      - run: npm run host-constants:check

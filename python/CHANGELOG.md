@@ -8,12 +8,44 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0]
+
+### Added
+
+- **`FastMCPSynapseUI`, for FastMCP 4 servers.** `FastMCP.add_extension` takes
+  FastMCP's own `ServerExtension` type, and `SynapseUI` is the `mcp` SDK's
+  `Extension`, so `mcp.add_extension(SynapseUI(...))` fails with
+  `AttributeError: 'SynapseUI' object has no attribute '_server_ref'`.
+  `nimblebrain_synapse.fastmcp.FastMCPSynapseUI` takes the same arguments, serves
+  the same `ui://` resource under `text/html;profile=mcp-app` with the same `_meta`,
+  and returns the same `tool_meta()`:
+
+  ```python
+  from fastmcp import FastMCP
+  from nimblebrain_synapse.fastmcp import FastMCPSynapseUI
+
+  ui = FastMCPSynapseUI(uri="ui://notes/main", template=TEMPLATE)
+  mcp = FastMCP("notes")
+  mcp.add_extension(ui)
+  ```
+
+  Install it with the new `fastmcp` extra (`nimblebrain-synapse[fastmcp]`, which
+  requires `fastmcp>=4.0.0,<5`). The core package does not import FastMCP, and
+  `SynapseUI` with `MCPServer(extensions=[...])` works as before. One component per
+  server on either framework.
+
+- **`SynapseComponent`**, exported from `nimblebrain_synapse`: the base of both
+  classes, holding the HTML, `render_html`, `tool_meta` and the new
+  `resource_meta()`, which returns the `_meta` the `ui://` resource is served with.
+  Annotate with it for code that accepts a component for either framework.
+
 ### Changed
 
-- **The vendored UI client is `@nimblebrain/synapse` 0.31.0.** It also applies the
-  theme variables a NimbleBrain host sends in `hostContext["ai.nimblebrain/styles"]`
-  (the accent text and the processing pair), so they follow a theme toggle. Nothing
-  changes on other hosts.
+- **The vendored UI client is `@nimblebrain/synapse` 0.39.0**, up from 0.30.0
+  (`__client_version__ = "0.39.0"`). Among the changes, it applies the theme variables
+  a NimbleBrain host sends in `hostContext["ai.nimblebrain/styles"]` (the accent text
+  and the processing pair), so they follow a theme toggle. The npm `CHANGELOG.md` has
+  the notes for each release in between.
 
 ## [0.9.0]
 

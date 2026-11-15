@@ -140,6 +140,11 @@ jobs:
       - run: uv run ruff format --check nimblebrain_synapse tests
       - run: uv run ty check nimblebrain_synapse # py.typed is a promise; keep it honest
       - run: uv run pytest -q
+        env:
+          # tests/test_fastmcp.py skips when FastMCP is absent, which is right for
+          # the mcp-floor run below and wrong here: with this set, a FastMCP that
+          # failed to install fails the import instead of skipping the FastMCP path.
+          REQUIRE_FASTMCP: "1"
       - name: Tests pass at the declared mcp floor
         # Default resolution installs the newest mcp, so the >= floor is never
         # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
@@ -159,10 +164,27 @@ jobs:
              print(re.search(r'>=\s*([0-9][0-9.a-z]*)', spec).group(1))")
           uv run --isolated --no-project --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
             --with-editable . pytest -q
+      - name: Tests pass at the declared fastmcp floor
+        # Same reason as the mcp floor, for the `fastmcp` extra: the default
+        # resolution installs the newest FastMCP 4, so the floor is otherwise never
+        # run. mcp is left to resolve, since FastMCP 4 sets its own mcp floor above
+        # this package's.
+        env:
+          REQUIRE_FASTMCP: "1"
+        run: |
+          FLOOR=$(python3 -c \
+            "import tomllib,pathlib,re; \
+             deps=tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['optional-dependencies']['fastmcp']; \
+             spec=next(d for d in deps if re.match(r'fastmcp[^\w-]', d)); \
+             print(re.search(r'>=\s*([0-9][0-9.a-z]*)', spec).group(1))")
+          uv run --isolated --no-project --with "fastmcp==$FLOOR" --with pytest --with pytest-asyncio \
+            --with-editable . pytest -q
       - name: Tests pass on the minimum supported Python
         # requires-python is >=3.11 and the classifiers promise 3.11–3.13, but the
         # default resolution runs one interpreter — exercise the floor too.
-        run: uv run --python 3.11 --isolated --no-project --with-editable . --with pytest --with pytest-asyncio pytest -q
+        env:
+          REQUIRE_FASTMCP: "1"
+        run: uv run --python 3.11 --isolated --no-project --with-editable ".[fastmcp]" --with pytest --with pytest-asyncio pytest -q
       - run: uv build # catch packaging breakage before a release tag is cut
       - name: Built artifacts pass a publisher-grade check
         # `uv build` produces a wheel; it does not say whether the publisher will
@@ -184,7 +206,13 @@ jobs:
         # Import from the installed wheel (python -P keeps the source tree off
         # sys.path) so a missing _assets/ fails here, not after an irreversible
         # publish — pytest runs against source and would not catch it.
+        #
+        # The first run installs the wheel without the `fastmcp` extra, so it also
+        # holds the core import free of FastMCP. The second installs the extra the
+        # wheel declares and imports the one module that needs it.
         run: |
           WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
           uv run --isolated --no-project --with "$WHEEL" \
             python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"
+          uv run --isolated --no-project --with "nimblebrain-synapse[fastmcp] @ file://$WHEEL" \
+            python -P -c "from nimblebrain_synapse.fastmcp import FastMCPSynapseUI"

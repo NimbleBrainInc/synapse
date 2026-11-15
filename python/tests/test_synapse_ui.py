@@ -7,7 +7,7 @@ contributes), and the sign-in error result.
 
 from __future__ import annotations
 
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 import pytest
 from mcp import Client, types
@@ -324,6 +324,37 @@ async def test_against_a_real_server_over_a_real_client():
             "company": {"name": "Example Co"},
         }
         assert all(not isinstance(c, types.EmbeddedResource) for c in result.content)
+
+
+@pytest.mark.parametrize(
+    ("mode", "protocol_version"),
+    [("auto", "2026-07-28"), ("legacy", "2025-11-25")],
+    ids=["modern", "legacy"],
+)
+async def test_the_resource_and_binding_reach_a_client_on_either_protocol_era(
+    mode: Literal["auto", "legacy"], protocol_version: str
+):
+    """``auto`` negotiates the modern era over ``server/discover`` and ``legacy``
+    runs the initialize handshake; a host on either reads the same component."""
+    ui = _ui()
+    mcp = MCPServer("test", extensions=[ui])
+
+    @mcp.tool(meta=ui.tool_meta())
+    def analyze(domain: str) -> _IntegrationReport:
+        return _IntegrationReport(domain=domain, company={})
+
+    async with Client(mcp, mode=mode) as client:
+        assert client.protocol_version == protocol_version
+        (read,) = (await client.read_resource(UI_URI)).contents
+        assert isinstance(read, types.TextResourceContents)
+        assert read.mime_type == "text/html;profile=mcp-app"
+        assert read.meta == {
+            "ui": {"prefersBorder": True, "csp": {"connectDomains": [], "resourceDomains": []}},
+            "openai/widgetCSP": {"connect_domains": [], "resource_domains": []},
+            "openai/widgetPrefersBorder": True,
+        }
+        (tool,) = (await client.list_tools()).tools
+        assert tool.meta == ui.tool_meta()
 
 
 async def test_auth_error_result_reaches_the_client_through_a_real_server():

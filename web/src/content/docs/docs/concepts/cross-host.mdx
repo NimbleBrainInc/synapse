@@ -75,8 +75,9 @@ hidden until it gets `ui/initialize` and a size report, so call `resize()`.
 ## The server half
 
 The component's server side is the Python
-[`nimblebrain-synapse`](/docs/quickstart-python) package. From one `SynapseUI`
-declaration — handed to the server as an MCP extension — it contributes the
+[`nimblebrain-synapse`](/docs/quickstart-python) package. From one declaration
+(`FastMCPSynapseUI` on a FastMCP server, `SynapseUI` on the MCP SDK's `MCPServer`),
+handed to the server as an MCP extension, it contributes the
 component as one `ui://` resource under the MCP Apps MIME, `text/html;profile=mcp-app`,
 which ChatGPT and Claude both render. Plain MCP clients that render no UI still read
 the tool's `structuredContent`.

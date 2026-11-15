@@ -1,7 +1,9 @@
 """nimblebrain-synapse — the server (Python) half of the Synapse cross-host UI framework.
 
 Pairs with the `@nimblebrain/synapse` client (`connectUI` / `window.SynapseUI`).
-See `SynapseUI` in `nimblebrain_synapse.server`.
+`SynapseUI` registers a component on the `mcp` SDK's `MCPServer`;
+`nimblebrain_synapse.fastmcp.FastMCPSynapseUI` registers one on a FastMCP server
+and is imported from its own module, the only one that needs FastMCP installed.
 """
 
 from __future__ import annotations
@@ -12,11 +14,13 @@ from .auth import BearerError, auth_error_result
 from .server import (
     DEFAULT_DATA_ELEMENT_ID,
     MCPAPP_MIME,
+    SynapseComponent,
     SynapseUI,
 )
 
 __all__ = [
     "SynapseUI",
+    "SynapseComponent",
     "auth_error_result",
     "BearerError",
     "MCPAPP_MIME",

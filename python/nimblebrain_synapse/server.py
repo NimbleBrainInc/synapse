@@ -3,7 +3,10 @@
 One declaration wires a self-contained HTML component into every host bridge a
 Synapse app can render in, replacing the hand-rolled per-app shim. `SynapseUI` is
 an MCP **extension** (SEP-2133): hand the instance to
-``MCPServer(..., extensions=[ui])`` and it contributes everything below.
+``MCPServer(..., extensions=[ui])`` and it contributes everything below. A FastMCP
+server registers the same declaration as
+``nimblebrain_synapse.fastmcp.FastMCPSynapseUI``; `SynapseComponent` holds what the
+two share.
 
 - One data-free ``ui://`` **resource** (SDK inlined) under the MCP Apps MIME
   (``text/html;profile=mcp-app``). Every host reads it — ChatGPT and Claude both
@@ -44,7 +47,7 @@ from mcp.server.mcpserver.resources import TextResource
 if TYPE_CHECKING:
     from collections.abc import Mapping, Sequence
 
-__all__ = ["SynapseUI"]
+__all__ = ["SynapseComponent", "SynapseUI"]
 
 # Every audience a tool can be visible to, which is also the spec's default.
 _ALL_AUDIENCES: tuple[Visibility, ...] = ("model", "app")
@@ -78,12 +81,15 @@ def _load_bundled_sdk() -> str:
     )
 
 
-class SynapseUI(Extension):
-    """A cross-host `ui://` component declared once and wired into every bridge.
+class SynapseComponent:
+    """A cross-host `ui://` component: its HTML and the `_meta` every host reads.
 
-    Pass the instance to ``MCPServer(..., extensions=[ui])``. The component's
-    resource is built here, at construction, and contributed from
-    :meth:`resources`. A tool binds to it through :meth:`tool_meta`.
+    This class knows no server framework. `SynapseUI` registers it on the `mcp`
+    SDK's ``MCPServer`` and ``nimblebrain_synapse.fastmcp.FastMCPSynapseUI`` on a
+    FastMCP server; both take the arguments below, and a tool binds to either
+    through :meth:`tool_meta`. The two frameworks' extension base classes are
+    different types with different registration hooks, so the framework is chosen
+    by class and the wire output comes from this one.
 
     Args:
         uri: The ``ui://`` resource URI every host reads.
@@ -118,10 +124,6 @@ class SynapseUI(Extension):
             component with a ``data:``-URL font declares ``"data:"`` here.
     """
 
-    #: The MCP Apps extension this implements, advertised under
-    #: ``ServerCapabilities.extensions``. Taken from the SDK so it cannot drift.
-    identifier = EXTENSION_ID
-
     def __init__(
         self,
         *,
@@ -147,7 +149,6 @@ class SynapseUI(Extension):
         self.connect_domains = connect_domains or []
         self.resource_domains = resource_domains or []
         self._template = self._inline_sdk(template, sdk_source) if inline_sdk else template
-        self._resources = [self._build_resource()]
 
     # -- HTML -------------------------------------------------------------
 
@@ -251,8 +252,6 @@ class SynapseUI(Extension):
             meta["openai/toolInvocation/invoked"] = invoked
         return meta
 
-    # -- Extension contributions ------------------------------------------
-
     def _ui_resource_meta(self) -> dict[str, Any]:
         """The ext-apps ``ui.*`` keys for the resource, camelCase.
 
@@ -274,25 +273,47 @@ class SynapseUI(Extension):
             ui["domain"] = self.mcp_app_domain
         return ui
 
-    def _build_resource(self) -> ResourceBinding:
-        """The ``ui://`` resource (data-free, SDK inlined) every host reads."""
+    def resource_meta(self) -> dict[str, Any]:
+        """`_meta` for the ``ui://`` resource: the frame's policy in both dialects.
+
+        The ext-apps ``ui.*`` keys, ChatGPT's aliases for them (see
+        ``_chatgpt_resource_aliases``), and ``openai/widgetDomain`` when
+        ``widget_domain`` was given.
+        """
         ui = self._ui_resource_meta()
         meta: dict[str, Any] = {"ui": ui, **_chatgpt_resource_aliases(ui)}
         if self.widget_domain is not None:
             meta["openai/widgetDomain"] = self.widget_domain
+        return meta
+
+
+class SynapseUI(SynapseComponent, Extension):
+    """A `SynapseComponent` for the `mcp` SDK's ``MCPServer``.
+
+    Pass the instance to ``MCPServer(..., extensions=[ui])``, which reads the
+    component's resource from :meth:`resources`. A tool binds to it through
+    :meth:`tool_meta`. The arguments are `SynapseComponent`'s.
+    """
+
+    #: The MCP Apps extension this implements, advertised under
+    #: ``ServerCapabilities.extensions``. Taken from the SDK so it cannot drift.
+    identifier = EXTENSION_ID
+
+    def _build_resource(self) -> ResourceBinding:
+        """The ``ui://`` resource (data-free, SDK inlined) every host reads."""
         return ResourceBinding(
             resource=TextResource(
                 uri=self.uri,
                 name=self.uri,
                 mime_type=MCPAPP_MIME,
-                meta=meta,
+                meta=self.resource_meta(),
                 text=self.template_html(),
             )
         )
 
     def resources(self) -> Sequence[ResourceBinding]:
         """The ``ui://`` resource, consumed at server construction."""
-        return self._resources
+        return [self._build_resource()]
 
 
 # -- ChatGPT (OpenAI Apps SDK) compatibility ------------------------------------

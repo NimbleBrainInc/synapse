@@ -1,13 +1,13 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.9.0"
+version = "0.10.0"
 description = "Server half of the Synapse cross-host UI framework: declare one self-contained ui:// component as an MCP extension and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "NimbleBrain Inc." }]
-keywords = ["mcp", "mcpserver", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
+keywords = ["mcp", "mcpserver", "fastmcp", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -32,6 +32,14 @@ dependencies = [
     "mcp>=2.1.0,<3",
 ]
 
+[project.optional-dependencies]
+# `nimblebrain_synapse.fastmcp` (FastMCPSynapseUI) is the only module that imports
+# FastMCP, so a server on the `mcp` SDK's MCPServer installs without it. The floor
+# is 4: FastMCP 3 runs on mcp 1.x, which this package does not support. Capped
+# below 5 for the same reason mcp is capped, and because FastMCPSynapseUI registers
+# its resource from `ServerExtension._bind`, a hook FastMCP does not document.
+fastmcp = ["fastmcp>=4.0.0,<5"]
+
 [project.urls]
 Homepage = "https://github.com/NimbleBrainInc/synapse"
 Repository = "https://github.com/NimbleBrainInc/synapse"
@@ -44,6 +52,9 @@ dev = [
     "ty==0.0.61",
     "pytest>=8.3",
     "pytest-asyncio>=0.25",
+    # The FastMCP path's tests and type check. Without it tests/test_fastmcp.py
+    # skips, so CI also asserts the module ran.
+    "fastmcp>=4.0.0,<5",
 ]
 
 [build-system]

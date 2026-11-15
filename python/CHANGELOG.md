@@ -8,6 +8,13 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.1]
+
+### Changed
+
+- The package's PyPI summary is one short sentence, and its project links include
+  the Python quickstart on synapse.nimblebrain.ai as Documentation.
+
 ## [0.10.0]
 
 ### Added

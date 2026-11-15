@@ -1,7 +1,7 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.10.0"
-description = "Server half of the Synapse cross-host UI framework: declare one self-contained ui:// component as an MCP extension and render it in ChatGPT (OpenAI Apps SDK), Claude (MCP Apps), and the NimbleBrain runtime."
+version = "0.10.1"
+description = "Serve a Synapse UI from your MCP server: one self-contained ui:// component for every MCP Apps host."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -41,6 +41,7 @@ dependencies = [
 fastmcp = ["fastmcp>=4.0.0,<5"]
 
 [project.urls]
+Documentation = "https://synapse.nimblebrain.ai/docs/quickstart-python/"
 Homepage = "https://github.com/NimbleBrainInc/synapse"
 Repository = "https://github.com/NimbleBrainInc/synapse"
 Issues = "https://github.com/NimbleBrainInc/synapse/issues"

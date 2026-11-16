@@ -413,6 +413,65 @@ describe("useDataSync", () => {
       expect(cb, "a second short of the interval still waits").toHaveBeenCalledTimes(1);
     });
 
+    it("test_changing_min_interval_keeps_a_queued_notice", async () => {
+      const cb = vi.fn();
+      const { rerender } = renderHook(({ ms }) => useDataSync(cb, { minIntervalMs: ms }), {
+        wrapper: createWrapper(),
+        initialProps: { ms: 30 },
+      });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        await burst(1, () => ({ _meta: { n: "last" } }));
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      rerender({ ms: 40 });
+      await act(async () => {
+        await elapse(60);
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+      expect(cb).toHaveBeenLastCalledWith({ _meta: { n: "last" } });
+    });
+
+    it("test_changing_min_interval_keeps_waiting_on_the_call_in_flight", async () => {
+      const calls: ReturnType<typeof deferred>[] = [];
+      const cb = vi.fn((_params: unknown) => {
+        const d = deferred();
+        calls.push(d);
+        return d.promise;
+      });
+      const { rerender } = renderHook(({ ms }) => useDataSync(cb, { minIntervalMs: ms }), {
+        wrapper: createWrapper(),
+        initialProps: { ms: 30 },
+      });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      rerender({ ms: 0 });
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        await elapse(10);
+      });
+      expect(cb, "the first call has not settled").toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        calls[0]?.resolve();
+        await flush();
+        await elapse(10);
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+
     it("test_min_interval_zero_runs_back_to_back", async () => {
       const cb = vi.fn();
       renderHook(() => useDataSync(cb, { minIntervalMs: 0 }), { wrapper: createWrapper() });

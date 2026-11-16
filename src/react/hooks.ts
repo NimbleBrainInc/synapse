@@ -266,7 +266,10 @@ export function useDataSync(
   const app = useAppContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
-  const minIntervalMs = Math.max(0, options.minIntervalMs ?? DATA_SYNC_MIN_INTERVAL_MS);
+  // Read through a ref, like the callback, so a changed interval keeps the
+  // scheduler's state (a notice owed, a call in flight) instead of resubscribing.
+  const minIntervalRef = useRef(0);
+  minIntervalRef.current = Math.max(0, options.minIntervalMs ?? DATA_SYNC_MIN_INTERVAL_MS);
 
   useEffect(() => {
     let active = true;
@@ -281,7 +284,7 @@ export function useDataSync(
     // the interval since the last call started.
     const schedule = () => {
       if (timer !== undefined || inFlight || document.hidden) return;
-      const wait = lastRunAt === undefined ? 0 : lastRunAt + minIntervalMs - Date.now();
+      const wait = lastRunAt === undefined ? 0 : lastRunAt + minIntervalRef.current - Date.now();
       timer = setTimeout(run, Math.max(0, wait));
     };
 
@@ -332,7 +335,7 @@ export function useDataSync(
       document.removeEventListener("visibilitychange", onVisibility);
       off();
     };
-  }, [app, minIntervalMs]);
+  }, [app]);
 }
 
 // -----------------------------------------------------------------------------

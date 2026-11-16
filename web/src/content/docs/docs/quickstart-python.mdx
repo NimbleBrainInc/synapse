@@ -1,168 +1,183 @@
 ---
-title: "Quickstart: Python server"
-description: "Add one ui:// component to an MCP server with nimblebrain-synapse, and render it across ChatGPT, Claude, and NimbleBrain from a single declaration."
+title: "Serve a Synapse UI from a FastMCP server"
+description: "Build a Synapse UI as one self-contained HTML file, serve it as a ui:// resource with FastMCP's AppConfig, and bind tools to it so it renders in ChatGPT, Claude, and NimbleBrain."
 ---
 
-import { Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Steps } from "@astrojs/starlight/components";
 
-Synapse has two halves. The [React quickstart](/docs/quickstart-react) covers the
-client. This one covers the server: `nimblebrain-synapse`, the PyPI package that
-attaches a self-contained `ui://` component to a [FastMCP](https://gofastmcp.com) 4
-server or to an [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
-`MCPServer`. From one declaration the component renders in any MCP Apps host (ChatGPT,
-Claude, and the NimbleBrain runtime), with the client SDK inlined so the component
-ships as one asset.
+A Synapse app has two halves. The browser half is `@nimblebrain/synapse`, covered in the
+[React quickstart](/docs/quickstart-react). The server half is the MCP Apps standard, which
+[FastMCP](https://gofastmcp.com) 4 implements natively in `fastmcp.apps`: a tool names a
+`ui://` resource, and a host renders that resource with the tool's result. This page
+connects the two.
 
-This walks you from an empty server to a tool whose result renders in a UI. It
-assumes you already have a server, or can start one. Each step shows both
-frameworks; pick yours once and the tabs follow. The package requires **mcp 2.x**,
-which is what FastMCP 4 runs on; on mcp 1.x, use `nimblebrain-synapse` 0.5.x
-instead.
+The result is one HTML file that every MCP Apps host renders (ChatGPT, Claude, and the
+NimbleBrain runtime), served by a FastMCP server that needs no Synapse package of its own.
 
 <Steps>
 
-1. **Install the package.**
+1. **Build the UI as one self-contained HTML file.**
 
-   <Tabs syncKey="python-server">
-   <TabItem label="FastMCP">
-
-   ```bash
-   pip install "nimblebrain-synapse[fastmcp]"   # or: uv add "nimblebrain-synapse[fastmcp]"
-   ```
-
-   The `fastmcp` extra installs FastMCP 4, which you use to define the server and
-   its tools.
-
-   </TabItem>
-   <TabItem label="MCPServer">
+   A host loads a `ui://` resource as a single document and fetches nothing else for it,
+   so scripts, styles and fonts go inside the file. Build the React app from the
+   [React quickstart](/docs/quickstart-react) with Vite and
+   [`vite-plugin-singlefile`](https://github.com/richardtallent/vite-plugin-singlefile),
+   which inlines every chunk into `index.html`:
 
    ```bash
-   pip install nimblebrain-synapse   # or: uv add nimblebrain-synapse
+   npm install @nimblebrain/synapse react react-dom
+   npm install -D vite @vitejs/plugin-react vite-plugin-singlefile
    ```
 
-   It pairs with the `mcp` Python package (2.x), which you use to define the
-   server and its tools.
+   ```ts
+   // ui/vite.config.ts
+   import { defineConfig } from "vite";
+   import react from "@vitejs/plugin-react";
+   import { viteSingleFile } from "vite-plugin-singlefile";
 
-   </TabItem>
-   </Tabs>
+   export default defineConfig({
+     plugins: [react(), viteSingleFile()],
+     build: { outDir: "dist", assetsInlineLimit: Infinity },
+   });
+   ```
 
-2. **Write a data-free template.**
+   `npm run build` writes `ui/dist/index.html`, the whole app in one file. The HTML holds
+   no data: the component receives the tool result from the host at runtime.
+   Add the [Vite plugin](/docs/guides/local-dev/) (`synapseVite()`) to the same config to
+   preview against your running server.
 
-   The component's HTML carries no data. It carries two markers the package fills
-   in: one for the inlined client SDK, one for the data slot.
+2. **Read the file once at start.**
 
    ```python
-   TEMPLATE = """
-   <div id="root"></div>
-   <!--__SYNAPSE_SDK__-->
-   <script type="application/json" id="synapse-ui-data">/*__SYNAPSE_DATA__*/</script>
-   """
+   import hashlib
+   from pathlib import Path
+
+   UI_HTML = (Path(__file__).parent / "ui" / "dist" / "index.html").read_text("utf-8")
+   UI_BUILD = hashlib.sha256(UI_HTML.encode("utf-8")).hexdigest()[:12]
    ```
 
-   `<!--__SYNAPSE_SDK__-->` is replaced with the inlined client SDK `<script>`, so
-   the component is self-contained (no CDN, CSP-safe). The
-   `synapse-ui-data` script is the data slot: the served copy leaves the marker in
-   place, so the client reads `null` and takes the host's push. A template without
-   `<!--__SYNAPSE_SDK__-->` is refused with a `ValueError`.
+   Ship the built file with the server: commit it, or copy it into the wheel with a build
+   hook. A server that cannot find it should serve a short "UI is not built" page rather
+   than fail to start, so its tools keep working.
 
-3. **Declare the component.**
-
-   <Tabs syncKey="python-server">
-   <TabItem label="FastMCP">
-
-   ```python
-   from nimblebrain_synapse.fastmcp import FastMCPSynapseUI
-
-   forecast_ui = FastMCPSynapseUI(
-       uri="ui://weather/forecast",
-       template=TEMPLATE,
-   )
-   ```
-
-   </TabItem>
-   <TabItem label="MCPServer">
-
-   ```python
-   from nimblebrain_synapse import SynapseUI
-
-   forecast_ui = SynapseUI(
-       uri="ui://weather/forecast",
-       template=TEMPLATE,
-   )
-   ```
-
-   </TabItem>
-   </Tabs>
-
-   `uri` is the resource id the host loads. The two classes take the same
-   arguments and put the same resource and tool `_meta` on the wire; they differ
-   only in which framework's extension type they are.
-
-4. **Hand the component to the server as an extension.**
-
-   <Tabs syncKey="python-server">
-   <TabItem label="FastMCP">
+3. **Serve it as a `ui://` resource.**
 
    ```python
    from fastmcp import FastMCP
+   from fastmcp.apps import AppConfig, ResourceCSP
 
    mcp = FastMCP("weather")
-   mcp.add_extension(forecast_ui)
 
-   @mcp.tool(
-       meta=forecast_ui.tool_meta(invoking="Checking the forecast", invoked="Forecast ready"),
-   )
-   async def get_forecast(city: str) -> dict:
-       return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
+   UI_URI = "ui://weather/forecast"
+   UI_APP = AppConfig(prefers_border=True, csp=ResourceCSP())
+
+   @mcp.resource(UI_URI, app=UI_APP)
+   def forecast_ui() -> str:
+       """The forecast UI: static HTML that an MCP Apps host renders in a frame."""
+       return UI_HTML
    ```
 
-   </TabItem>
-   <TabItem label="MCPServer">
+   FastMCP serves a `ui://` resource under the MCP Apps MIME,
+   `text/html;profile=mcp-app`, and writes `app=` to the resource's `_meta.ui`.
+   `ResourceCSP()` with no origins is the frame's policy for a self-contained file: reach
+   nothing. List an origin only for something the UI actually loads or calls:
+   `connect_domains` for `fetch`, `resource_domains` for images, fonts and scripts. A UI
+   whose bundle inlines fonts as `data:` URLs declares `resource_domains=["data:"]`, or a
+   host's default policy drops the fonts and the UI falls back to system faces.
+
+   Leave `domain` unset. `_meta.ui.domain` is checked by each host against an origin of
+   its own (Claude derives one from the connector URL and rejects any other value), so
+   one value cannot satisfy every host, and omitting it gives each host its default
+   sandbox origin.
+
+4. **Bind tools to it with `AppConfig(resource_uri=...)`.**
 
    ```python
-   from mcp.server.mcpserver import MCPServer
-
-   mcp = MCPServer("weather", extensions=[forecast_ui])
-
-   @mcp.tool(
-       meta=forecast_ui.tool_meta(invoking="Checking the forecast", invoked="Forecast ready"),
-   )
+   @mcp.tool(app=AppConfig(resource_uri=UI_URI, visibility=["model", "app"]))
    async def get_forecast(city: str) -> dict:
+       """Get the forecast for a city."""
        return {"city": city, "high": 78, "low": 61, "summary": "Sunny"}
    ```
 
-   </TabItem>
-   </Tabs>
+   FastMCP writes `_meta.ui.resourceUri` and `_meta.ui.visibility` on the tool. A host
+   reads the resource, renders it, and pushes the tool's result to it; the component
+   reads that with `useToolResult()`. `visibility` names who may call the tool: `"model"`
+   (the agent) and `"app"` (the component, over `tools/call`). A tool the UI calls but
+   the agent should not see is `["app"]`.
 
-   Registering the extension serves the `ui://` resource, under the MCP Apps MIME
-   `text/html;profile=mcp-app`, with the client SDK inlined. `tool_meta` points the
-   tool at that resource (`ui.resourceUri`), which is all a host needs: it reads the
-   component and renders it with the tool's `structuredContent`, and no UI HTML
-   rides in the model-facing content. It also attaches the status strings ChatGPT
-   shows while the tool runs and after it finishes.
+   A plain MCP client that renders no UI ignores the binding and reads the tool's
+   `structuredContent`, so the same server works everywhere.
 
-5. **Run the server.** Start it however you normally run it (stdio or HTTP).
-   In a host that supports embedded UIs, calling `get_forecast` now renders your
-   component. A plain MCP client that renders no UI ignores the resource and
-   still reads the tool's `structuredContent`, so the same server works everywhere.
+5. **Key the bound URI to the build.**
+
+   A host may cache a `ui://` resource by its URI, so a new build served under the old
+   URI can render as the old UI. Put the build hash in the URI the tools bind to, and
+   serve every build key from one template:
+
+   ```python
+   UI_BOUND_URI = f"{UI_URI}/{UI_BUILD}"
+
+   @mcp.resource(f"{UI_URI}/{{build}}", app=UI_APP)
+   def forecast_ui_build(build: str) -> str:
+       """The forecast UI under a build key. Every key serves the current build."""
+       del build
+       return UI_HTML
+
+   @mcp.tool(app=AppConfig(resource_uri=UI_BOUND_URI, visibility=["model", "app"]))
+   async def get_forecast(city: str) -> dict: ...
+   ```
+
+   A new build is then a new URI, and the host fetches it. Any key resolves to the
+   current file, so a conversation that names an older build still renders. Keep the
+   unkeyed `ui://weather/forecast` listed too: a host placement that names the resource
+   (a NimbleBrain sidebar view, in a bundle manifest) stays valid across builds.
+
+6. **Run the server.** Start it as you normally do (stdio or HTTP) and call
+   `get_forecast` from a host that supports MCP Apps. To check what each host will see
+   before you connect it, run [`synapse check`](/docs/api/cli/#synapse-check):
+
+   ```bash
+   npx synapse check --target claude,chatgpt http://localhost:8000/mcp
+   ```
 
 </Steps>
 
+## Rendering in ChatGPT
+
+ChatGPT renders the same resource from `ui.resourceUri`, and reads a few keys of its own
+beside it. The one most servers need is `openai/widgetAccessible: True` on every tool the
+UI calls: ChatGPT defaults it to false, which leaves the UI read-only there.
+
+```python
+CHATGPT_TOOL_META = {"openai/widgetAccessible": True}
+
+@mcp.tool(
+    app=AppConfig(resource_uri=UI_BOUND_URI, visibility=["model", "app"]),
+    meta=CHATGPT_TOOL_META,
+)
+async def get_forecast(city: str) -> dict: ...
+```
+
+[ChatGPT compatibility](/docs/guides/chatgpt/) covers each key, which host reads it, and
+how to ask a signed-out user to sign in from a single tool.
+
 ## What just happened
 
-- `FastMCPSynapseUI` (or `SynapseUI`, on `MCPServer`) described one component
-  once: a URI and a data-free template.
-- Registering it as an extension published it as a `ui://` resource with the
-  client SDK inlined, so the component is fully self-contained.
-- `tool_meta` wired the component to a tool, so its result is delivered
-  both as `structuredContent` (for any MCP client) and as a rendered UI (for hosts
-  that support it).
+- Vite built the UI, `@nimblebrain/synapse` included, into one HTML file with nothing to
+  fetch.
+- FastMCP served that file as a `ui://` resource under the MCP Apps MIME, with the frame's
+  policy and border preference in `_meta.ui`.
+- `AppConfig(resource_uri=...)` bound the tool to the resource, so a host renders the
+  result in the UI, and the build-keyed URI keeps hosts from rendering a cached build.
 
-Because the component is self-contained and the wiring is declarative, the same
-server renders across ChatGPT, Claude, and NimbleBrain without per-host code.
+A complete server built this way is
+[Todos for Agents](https://github.com/NimbleBrainInc/todosforagents): its `server.py`
+serves the board UI with `AppConfig` and a build-keyed URI, and its `ui/` builds the board
+with Vite and `vite-plugin-singlefile`.
 
 ## Related
 
-- [Cross-host architecture](/docs/concepts/cross-host): how one component reaches three different host bridges.
-- [Quickstart: React app](/docs/quickstart-react): the client half of the same app.
-- [The portable-app contract](/docs/concepts/degradation): what each call does on a host that lacks a capability.
+- [ChatGPT compatibility](/docs/guides/chatgpt/): ChatGPT's own `_meta` keys and per-tool sign-in.
+- [Quickstart: React app](/docs/quickstart-react): the browser half of the same app.
+- [Develop locally with the Vite plugin](/docs/guides/local-dev/): preview the UI against your server.
+- [Cross-host architecture](/docs/concepts/cross-host): how one component reaches each host's bridge.

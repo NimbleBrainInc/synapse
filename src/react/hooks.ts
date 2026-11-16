@@ -185,8 +185,24 @@ export function useCallTool<TOutput = unknown>(toolName: string): UseCallToolRes
  */
 const RESUME_REFRESH_AFTER_MS = 60_000;
 
+/**
+ * The least time, in milliseconds, from the start of one `useDataSync` call to
+ * the start of the next, unless the caller sets its own (`minIntervalMs`).
+ */
+export const DATA_SYNC_MIN_INTERVAL_MS = 3_000;
+
 /** The params `useDataSync` hands its callback: the notification's, or `{}`. */
 type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
+
+/** Options for `useDataSync`. */
+export interface DataSyncOptions {
+  /**
+   * The least time from the start of one call to the start of the next, in
+   * milliseconds. Defaults to `DATA_SYNC_MIN_INTERVAL_MS`; `0` runs the next
+   * call as soon as the last settles.
+   */
+  minIntervalMs?: number;
+}
 
 /**
  * Run `callback` when the app's own MCP server announces that its data changed.
@@ -208,6 +224,16 @@ type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
  *   run no new call. Once it settles, resolved or rejected, the callback runs
  *   once more if any notice arrived meanwhile, so the last change is never
  *   missed. Return the re-read's promise (`() => call()`) to get this.
+ * - Calls start at least `minIntervalMs` apart (`DATA_SYNC_MIN_INTERVAL_MS`
+ *   unless set). A server announces from every write, so an agent writing in
+ *   bulk announces every few seconds for as long as it runs, and each call is
+ *   a re-read. Back to back, those re-reads can spend the user's whole request
+ *   budget at the host, which then refuses the reads the view is showing. The
+ *   first notice after a quiet spell still runs at once; a stream of them runs
+ *   once per interval, with the latest params.
+ * - While the document is hidden, nothing runs. Notices that arrive meanwhile
+ *   are owed, and run once when it is shown again: nobody is looking, and every
+ *   open tab of a view receives every notice.
  *
  * The callback's return type is `unknown` rather than `void | Promise<void>`
  * so that every callback that type-checked against `() => void` still does,
@@ -233,10 +259,14 @@ type DataSyncParams = NonNullable<ResourceListChangedNotification["params"]>;
  * runs only on resume. Nothing fails: between resumes the app shows what it
  * last loaded until the user or the app reloads it.
  */
-export function useDataSync(callback: (params: DataSyncParams) => unknown): void {
+export function useDataSync(
+  callback: (params: DataSyncParams) => unknown,
+  options: DataSyncOptions = {},
+): void {
   const app = useAppContext();
   const callbackRef = useRef(callback);
   callbackRef.current = callback;
+  const minIntervalMs = Math.max(0, options.minIntervalMs ?? DATA_SYNC_MIN_INTERVAL_MS);
 
   useEffect(() => {
     let active = true;
@@ -244,9 +274,15 @@ export function useDataSync(callback: (params: DataSyncParams) => unknown): void
     let inFlight = false;
     // The latest notice not yet handed to a call; set means a call is owed.
     let pending: DataSyncParams | undefined;
+    // When the last call started; unset before the first.
+    let lastRunAt: number | undefined;
 
+    // Owed calls wait for a visible document, for the call in flight, and for
+    // the interval since the last call started.
     const schedule = () => {
-      if (timer === undefined && !inFlight) timer = setTimeout(run, 0);
+      if (timer !== undefined || inFlight || document.hidden) return;
+      const wait = lastRunAt === undefined ? 0 : lastRunAt + minIntervalMs - Date.now();
+      timer = setTimeout(run, Math.max(0, wait));
     };
 
     const settle = () => {
@@ -257,8 +293,11 @@ export function useDataSync(callback: (params: DataSyncParams) => unknown): void
     function run() {
       timer = undefined;
       if (!active || pending === undefined) return;
+      // Hidden since this was scheduled: it runs when the document is shown.
+      if (document.hidden) return;
       const params = pending;
       pending = undefined;
+      lastRunAt = Date.now();
       const result = callbackRef.current(params);
       if (result && typeof (result as PromiseLike<void>).then === "function") {
         inFlight = true;
@@ -281,10 +320,9 @@ export function useDataSync(callback: (params: DataSyncParams) => unknown): void
       }
       const since = hiddenAt;
       hiddenAt = undefined;
-      if (since === undefined || Date.now() - since < RESUME_REFRESH_AFTER_MS) return;
-      // A notice already owed keeps its params.
-      pending ??= {};
-      schedule();
+      // A long hide owes a call even with no notice; a notice already owed keeps its params.
+      if (since !== undefined && Date.now() - since >= RESUME_REFRESH_AFTER_MS) pending ??= {};
+      if (pending !== undefined) schedule();
     };
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -294,7 +332,7 @@ export function useDataSync(callback: (params: DataSyncParams) => unknown): void
       document.removeEventListener("visibilitychange", onVisibility);
       off();
     };
-  }, [app]);
+  }, [app, minIntervalMs]);
 }
 
 // -----------------------------------------------------------------------------

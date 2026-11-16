@@ -37,9 +37,12 @@ npm install @nimblebrain/synapse
 
 **Peer dependencies:** `@modelcontextprotocol/ext-apps@^2.0.0`, `@modelcontextprotocol/client@^2.0.0`, `@modelcontextprotocol/core@^2.0.0` (and `zod@^4.2.0`, which ext-apps requires)
 
-**Building a Python MCP server?** The server half — one self-contained `ui://`
-component rendered across ChatGPT, Claude, and NimbleBrain — ships as the
-[`nimblebrain-synapse`](python/README.md) PyPI package (`pip install nimblebrain-synapse`).
+**Serving the UI from your MCP server?** This package is the browser side. The server
+side is the MCP Apps standard, which needs no Synapse package: build the UI to one HTML
+file, serve it as a `ui://` resource, and bind tools to it. On FastMCP 4 that is
+`fastmcp.apps.AppConfig`; see
+[Serve a Synapse UI from a FastMCP server](https://synapse.nimblebrain.ai/docs/quickstart-python/)
+and [ChatGPT compatibility](https://synapse.nimblebrain.ai/docs/guides/chatgpt/).
 
 ## Package Exports
 

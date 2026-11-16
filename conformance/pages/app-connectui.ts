@@ -1,11 +1,10 @@
 /**
- * The cross-host UI client as an app — the **vendored IIFE**, not the source.
+ * The cross-host UI client as an app — the **built IIFE**, not the source.
  *
  * This page deliberately imports nothing. It reads `window.SynapseUI`, which the
- * page's first `<script>` defines from
- * `python/nimblebrain_synapse/_assets/synapse-ui.iife.js` — the artifact the
- * Python package actually ships and a self-contained `ui://` component actually
- * inlines. Bundling the TypeScript instead would test a build no server serves.
+ * page's first `<script>` defines from `dist/synapse-ui.iife.global.js` — the
+ * artifact npm publishes and a self-contained `ui://` component actually inlines.
+ * Bundling the TypeScript instead would test a build no server serves.
  */
 
 interface SynapseUIClient {
@@ -39,7 +38,7 @@ const host = window as unknown as {
 };
 
 if (!host.SynapseUI) {
-  results.connect = { ok: false, error: "window.SynapseUI is undefined — vendored IIFE missing" };
+  results.connect = { ok: false, error: "window.SynapseUI is undefined — built IIFE missing" };
   results.finished = true;
 } else {
   // No `host` override: the client must detect a framed context and pick the
@@ -76,6 +75,6 @@ if (!host.SynapseUI) {
   results.finished = true;
 }
 
-// This page imports nothing on purpose (it reads the vendored global), so an
+// This page imports nothing on purpose (it reads the IIFE's global), so an
 // empty export is what makes it a module and allows the top-level awaits above.
 export {};

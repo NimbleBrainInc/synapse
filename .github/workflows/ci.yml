@@ -5,7 +5,6 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
-  workflow_call: # reused as the pre-publish gate by publish-python.yml (tag path)
 
 permissions:
   contents: read
@@ -72,19 +71,6 @@ jobs:
       - name: Bundle-size budget
         # Limits and the reason for each are in the script.
         run: npm run size
-      - name: Vendored Python IIFE is fresh (fail on drift from the build)
-        run: diff dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
-      - name: Client version pin matches the npm package
-        # The vendored IIFE is forced to the current tree's build (step above),
-        # whose version is package.json's — so the recorded provenance pin must
-        # equal it, or it silently lies after the next npm release.
-        run: |
-          PIN=$(sed -n 's/^__client_version__ = "\([^"]*\)".*/\1/p' python/nimblebrain_synapse/__init__.py)
-          NPM=$(node -p "require('./package.json').version")
-          if [ "$PIN" != "$NPM" ]; then
-            echo "::error::nimblebrain_synapse.__client_version__ ('$PIN') != @nimblebrain/synapse package.json ('$NPM') — re-vendor the IIFE and bump __client_version__"
-            exit 1
-          fi
 
   conformance:
     name: Conformance (spec host, real browser)
@@ -99,10 +85,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      # No `npm run build` step: the suite bundles the pages itself and reads
-      # the committed vendored client. That the vendored copy matches the build
-      # is the `build` job's gate, and duplicating it here would only hide which
-      # of the two failed.
+      # The suite bundles its pages itself, and loads the cross-host client from
+      # the build output: dist/synapse-ui.iife.global.js, the file npm publishes.
+      - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run conformance
 
@@ -125,94 +110,3 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci
       - run: npm run build
-
-  python:
-    name: Python (nimblebrain-synapse)
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: python
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.3.2
-      - run: uv sync
-      - run: uv run ruff check nimblebrain_synapse tests
-      - run: uv run ruff format --check nimblebrain_synapse tests
-      - run: uv run ty check nimblebrain_synapse # py.typed is a promise; keep it honest
-      - run: uv run pytest -q
-        env:
-          # tests/test_fastmcp.py skips when FastMCP is absent, which is right for
-          # the mcp-floor run below and wrong here: with this set, a FastMCP that
-          # failed to install fails the import instead of skipping the FastMCP path.
-          REQUIRE_FASTMCP: "1"
-      - name: Tests pass at the declared mcp floor
-        # Default resolution installs the newest mcp, so the >= floor is never
-        # exercised. Pin mcp to exactly the declared floor and re-run, so adopting
-        # a newer mcp API without raising the floor fails here, not for a consumer.
-        run: |
-          # The floor comes out of the parsed metadata, not a text match on the file.
-          # A pattern over the raw text can find nothing (a spacing or ordering it did
-          # not anticipate) or two floors (the same range quoted in a nearby comment),
-          # and either one reaches uv as a malformed specifier — an error that reads
-          # like a bad dependency rather than like a broken extraction. Parsing fails
-          # loudly instead, naming pyproject.toml. Same idiom as publish-python.yml's
-          # tag/version gate.
-          FLOOR=$(python3 -c \
-            "import tomllib,pathlib,re; \
-             deps=tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['dependencies']; \
-             spec=next(d for d in deps if re.match(r'mcp[^\w-]', d)); \
-             print(re.search(r'>=\s*([0-9][0-9.a-z]*)', spec).group(1))")
-          uv run --isolated --no-project --with "mcp==$FLOOR" --with pytest --with pytest-asyncio \
-            --with-editable . pytest -q
-      - name: Tests pass at the declared fastmcp floor
-        # Same reason as the mcp floor, for the `fastmcp` extra: the default
-        # resolution installs the newest FastMCP 4, so the floor is otherwise never
-        # run. mcp is left to resolve, since FastMCP 4 sets its own mcp floor above
-        # this package's.
-        env:
-          REQUIRE_FASTMCP: "1"
-        run: |
-          FLOOR=$(python3 -c \
-            "import tomllib,pathlib,re; \
-             deps=tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['optional-dependencies']['fastmcp']; \
-             spec=next(d for d in deps if re.match(r'fastmcp[^\w-]', d)); \
-             print(re.search(r'>=\s*([0-9][0-9.a-z]*)', spec).group(1))")
-          uv run --isolated --no-project --with "fastmcp==$FLOOR" --with pytest --with pytest-asyncio \
-            --with-editable . pytest -q
-      - name: Tests pass on the minimum supported Python
-        # requires-python is >=3.11 and the classifiers promise 3.11–3.13, but the
-        # default resolution runs one interpreter — exercise the floor too.
-        env:
-          REQUIRE_FASTMCP: "1"
-        run: uv run --python 3.11 --isolated --no-project --with-editable ".[fastmcp]" --with pytest --with pytest-asyncio pytest -q
-      - run: uv build # catch packaging breakage before a release tag is cut
-      - name: Built artifacts pass a publisher-grade check
-        # `uv build` produces a wheel; it does not say whether the publisher will
-        # accept it. twine validates the core metadata and the long-description
-        # render, and the publish action runs `twine check` (non-strict) as its
-        # last gate before uploading — so a malformed artifact caught here is one
-        # that would otherwise surface at the tag, where the only way forward is
-        # to move a tag that already fired. `--strict` is deliberately tighter
-        # than that gate: a render warning should cost a red PR, not a bad page
-        # on PyPI.
-        #
-        # What this cannot catch: the action bundles its own twine, while `uvx`
-        # resolves the newest. Core metadata the bundled twine predates passes
-        # here and fails there — which is exactly how 0.6.0 broke. Nothing pins
-        # the two together; keep the action's SHA current (see
-        # publish-python.yml).
-        run: uvx twine check --strict dist/*
-      - name: Built wheel ships and loads the client asset
-        # Import from the installed wheel (python -P keeps the source tree off
-        # sys.path) so a missing _assets/ fails here, not after an irreversible
-        # publish — pytest runs against source and would not catch it.
-        #
-        # The first run installs the wheel without the `fastmcp` extra, so it also
-        # holds the core import free of FastMCP. The second installs the extra the
-        # wheel declares and imports the one module that needs it.
-        run: |
-          WHEEL=$(ls "$PWD"/dist/*.whl | head -1)
-          uv run --isolated --no-project --with "$WHEEL" \
-            python -P -c "from nimblebrain_synapse import SynapseUI; from nimblebrain_synapse.server import _load_bundled_sdk; assert 'SynapseUI' in _load_bundled_sdk()"
-          uv run --isolated --no-project --with "nimblebrain-synapse[fastmcp] @ file://$WHEEL" \
-            python -P -c "from nimblebrain_synapse.fastmcp import FastMCPSynapseUI"

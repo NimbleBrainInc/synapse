@@ -28,12 +28,10 @@ permissions:
 jobs:
   announce:
     runs-on: ubuntu-latest
-    # This announces the npm package only (`v*` tags). The Python package
-    # (`nimblebrain-synapse-v*`) publishes on its own track and is not announced
-    # here. The load-bearing guard is the `^v[0-9]` filter on PREV below; this
-    # `if` is mostly defensive, since a `nimblebrain-synapse-v*` release cut by
-    # publish-python.yml with GITHUB_TOKEN does not fire `release: published`
-    # anyway (it only covers a hand-cut release or a manual dispatch).
+    # This announces the npm package only (`v*` tags). The release list also
+    # holds the `nimblebrain-synapse-v*` releases of the deprecated Python
+    # package, which this skips if one is dispatched by hand; the `^v[0-9]`
+    # filter on PREV below keeps them out of the compare link.
     if: ${{ !startsWith(github.event.release.tag_name || github.event.inputs.tag, 'nimblebrain-synapse-') }}
     steps:
       - uses: actions/checkout@v6
@@ -50,9 +48,9 @@ jobs:
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" \
             --json tagName,name,body,url,publishedAt > release.json
           # Previous release tag for the compare link: the newest non-current
-          # published release on the npm track (`v*` only — the Python
-          # `nimblebrain-synapse-v*` track is excluded so the compare link never
-          # crosses tracks). Assumes single-track sequential releases within npm
+          # published release on the npm track (`v*` only — the deprecated
+          # Python package's `nimblebrain-synapse-v*` releases are excluded so
+          # the compare link never crosses tracks). Assumes single-track sequential releases within npm
           # (semver order matches publish order). A backport published after a
           # higher version would yield a cosmetically backwards compare link;
           # switch the pipe to `sort -V` if synapse ever ships out of order.

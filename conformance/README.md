@@ -21,18 +21,17 @@ It is not a vitest file because the failures it catches are about frame
 | Scenario | Under test | Driven by |
 |---|---|---|
 | `connect()` | `src/` — the React path's client | the spec's `AppBridge` |
-| `connectUI (vendored IIFE)` | `python/nimblebrain_synapse/_assets/synapse-ui.iife.js` | the spec's `AppBridge` |
+| `connectUI (built IIFE)` | `dist/synapse-ui.iife.global.js` | the spec's `AppBridge` |
 | `preview host` | `src/preview/server.ts` — our dev host | the spec's `App` |
 
 The third runs the other direction on purpose. The first two ask whether our
 clients are correct; only pointing the spec's *client* at our *host* can ask
 whether an app built on the official SDK renders in preview at all.
 
-The `connectUI` scenario deliberately loads the **vendored** bundle rather than
-bundling the TypeScript. That file is what the Python package ships and what a
-self-contained `ui://` component inlines, and it is refreshed by hand from
-`dist/` — so testing the source instead would test a build nobody serves. The
-first thing this suite caught was a stale vendored copy.
+The `connectUI` scenario deliberately loads the **built** bundle rather than
+bundling the TypeScript. That file is what npm publishes as `@nimblebrain/synapse/iife/ui`
+and what a self-contained `ui://` component inlines, so testing the source instead would
+test a build nobody serves. Run `npm run build` before `npm run conformance`.
 
 ## The tasks rows
 

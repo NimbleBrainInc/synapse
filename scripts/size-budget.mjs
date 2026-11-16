@@ -42,11 +42,8 @@ const BUDGETS = [
   },
   {
     // The cross-host `window.SynapseUI` client that a self-contained `ui://`
-    // resource inlines, and that the Python package vendors. Its size is the
-    // reason it is hand-written rather than built on `App`, so it has the
-    // tightest limit. This reads the build output, not the vendored copy, so a
-    // local run sees the size before anyone re-vendors; CI's drift check holds
-    // the two byte-identical.
+    // resource inlines. Its size is the reason it is hand-written rather than
+    // built on `App`, so it has the tightest limit.
     name: "cross-host IIFE (dist/synapse-ui.iife.global.js)",
     limit: 4_100,
     measure: () => readFileSync(resolve(root, "dist/synapse-ui.iife.global.js")),

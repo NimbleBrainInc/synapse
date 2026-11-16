@@ -12,7 +12,7 @@
  * Three scenarios:
  *
  *  1. `connect()` (source) as an app, under the spec's `AppBridge`.
- *  2. The vendored `connectUI` IIFE as an app, under the same host.
+ *  2. The built `connectUI` IIFE as an app, under the same host.
  *  3. The spec's own `App` as an app, against the Synapse dev preview host —
  *     the one direction the other two cannot cover, because the thing in
  *     question is our host, not our client.
@@ -33,8 +33,8 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = join(HERE, "..");
 const OUT = join(HERE, ".out");
 
-/** The artifact the Python package ships and a `ui://` component inlines. */
-const VENDORED_IIFE = join(REPO, "python/nimblebrain_synapse/_assets/synapse-ui.iife.js");
+/** The artifact npm publishes as `@nimblebrain/synapse/iife/ui`, and a `ui://` component inlines. */
+const BUILT_IIFE = join(REPO, "dist/synapse-ui.iife.global.js");
 
 const PAGES = ["host", "app-connect", "app-connectui", "app-official"];
 
@@ -48,7 +48,7 @@ ${scripts.map((s) => `    <script type="module" src="${s}"></script>`).join("\n"
 </html>
 `;
 
-// The connectUI page loads the vendored bundle as a classic script first, so
+// The connectUI page loads the built bundle as a classic script first, so
 // `window.SynapseUI` exists before the module runs — exactly the order a
 // self-contained component uses. It defines `window.openai` before either,
 // because ChatGPT injects it into every frame it serves, spec-only components
@@ -84,15 +84,13 @@ async function build() {
   await writeFile(join(OUT, "app-official.html"), page("app-official", ["app-official.js"]));
   await writeFile(join(OUT, "app-connectui.html"), connectUiPage);
 
-  let vendored;
+  let built;
   try {
-    vendored = await readFile(VENDORED_IIFE);
+    built = await readFile(BUILT_IIFE);
   } catch {
-    throw new Error(
-      `vendored client not found at ${VENDORED_IIFE} — it is a committed file, refreshed by hand from dist/synapse-ui.iife.global.js`,
-    );
+    throw new Error(`client bundle not found at ${BUILT_IIFE}: run \`npm run build\` first`);
   }
-  await writeFile(join(OUT, "synapse-ui.iife.js"), vendored);
+  await writeFile(join(OUT, "synapse-ui.iife.js"), built);
 }
 
 const MIME = {
@@ -462,14 +460,14 @@ try {
     });
   }
 
-  // 2. The vendored connectUI IIFE, under the same host.
+  // 2. The built connectUI IIFE, under the same host.
   {
     const { report, consoleErrors } = await drive(
       browser,
       `${base}/host.html?app=connectui`,
       "__conformance",
     );
-    assertSpecHostScenario("connectUI (vendored IIFE)", report, {
+    assertSpecHostScenario("connectUI (built IIFE)", report, {
       hostContextChanged: (app) =>
         app?.themeChanged === "dark" || `themeChanged was ${JSON.stringify(app?.themeChanged)}`,
       extra: [

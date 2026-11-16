@@ -18,24 +18,6 @@ both as separate jobs. Run it by hand whenever you touch a transport, a
 handshake, an adapter, or the preview host — see `conformance/README.md` for
 what it covers and how to add a row.
 
-**Re-vendor the Python client asset whenever the build output moves.** The
-trigger is not "a change under `src/host/`": the bundle reaches outside it —
-`src/host/adapters/mcpapps.ts` imports from `src/detection.ts`, and
-`src/host/theme.ts` from `src/theme-defaults.ts` — and esbuild assigns minified names across the whole output, so deleting an
-unrelated export from a module it touches re-mangles the bundle at an unchanged
-size. Diff it rather than reasoning about which files matter, and never take a
-byte count as evidence the bundle is unchanged. The build writes
-`dist/synapse-ui.iife.global.js`; the copy the Python package ships is a
-committed file that nothing updates for you:
-
-```bash
-npm run build && cp dist/synapse-ui.iife.global.js python/nimblebrain_synapse/_assets/synapse-ui.iife.js
-```
-
-CI's `build` job diffs the two, and the conformance suite runs the *vendored*
-copy — so a forgotten re-vendor shows up as a conformance failure describing
-behaviour you already fixed.
-
 ### Testing UI components — what the test DOM cannot see
 
 `happy-dom` **drops every CSS declaration whose value contains `var(...)`**, shorthand and
@@ -89,8 +71,6 @@ The version-match check at workflow time is the load-bearing safety: a tag of `v
 Releases are public and provenance-attested — published artifacts carry a signed link back to the workflow run that produced them. Don't run `npm publish` from a local machine; do it through tags so provenance is preserved. Don't create the GitHub Release by hand either; the workflow handles it (and skips cleanly if the Release already exists, so manual reruns are safe).
 
 **Pre-releases.** A version with a pre-release suffix (e.g. `0.12.0-rc.0`) publishes under the npm `next` dist-tag, not `latest`, and the GitHub Release is marked prerelease with notes read from the target stable `## [<base>]` section (the rc rarely has its own). So `v0.12.0-rc.0` → `next`, soak, then `v0.12.0` → `latest`. `npm install @nimblebrain/synapse` still resolves to the last stable `latest` throughout.
-
-**Downstream CI right after a publish (Python).** The `nimblebrain-synapse` PyPI package publishes on a `nimblebrain-synapse-v*` tag (`publish-python.yml`), independent of the npm cadence. When you bump a *consumer's* pin to the version you just released, its CI can fail to resolve for ~1–2 min — PyPI's JSON API reflects the new version before the simple index `uv`/`pip` actually resolve against. Confirm propagation before re-running the consumer's CI (`uv run --isolated --no-project --with "nimblebrain-synapse>=<v>" python -c ""`) rather than reading a red run as a real break.
 
 ## Hard Rules
 
@@ -167,42 +147,14 @@ the `window.SynapseUI` IIFE a self-contained `ui://` component inlines stays sma
   and rejects any other value), so pass that exact value or omit it (the host then
   defaults the origin). Reproduce locally by loading the embedded resource top-level
   (`host=generic`) and in a sandboxed iframe (`host=claude`), reading the console.
-- The server half is the Python `nimblebrain-synapse` package (`python/`). A component
-  is declared once and registered as an MCP extension (SEP-2133) by the class for the
-  server's framework: `SynapseUI` for the `mcp` SDK's `MCPServer(extensions=[...])`,
-  and `FastMCPSynapseUI` (`nimblebrain_synapse/fastmcp.py`, the only module that
-  imports FastMCP, behind the `fastmcp` extra) for `FastMCP.add_extension`. The two
-  frameworks' extension base classes are unrelated types, so each has its class, and
-  `SynapseComponent` in `server.py` holds everything that reaches the wire: add an
-  input or a `_meta` key there, never on one subclass, and run a test for it on both
-  protocol eras (`Client(..., mode="auto")` and `mode="legacy"`). Either class
-  contributes the component as **one `ui://` resource** under
+- The server half is the MCP Apps standard, served by the MCP server itself (on
+  FastMCP 4, `fastmcp.apps.AppConfig`); no package from this repo runs on the server.
+  The server serves the component as **one `ui://` resource** under
   `text/html;profile=mcp-app`, which every host renders (ChatGPT resolves
-  `ui.resourceUri` itself), emits the tool `_meta` (`ui.resourceUri` and
-  `ui.visibility`) and the resource `_meta` (`ui.csp`, `ui.prefersBorder`), each with
-  ChatGPT's alias for it, kept in one marked section of `server.py` whose comment says
-  why; plus the `<script>`-safe embed (XSS defense) that `render_html` uses to bake
-  a payload into the template. Never add a second copy of the resource under another MIME. **A host-specific key
-  that mirrors a spec value is emitted always, derived from that value** — ChatGPT's
-  documented default for a missing `openai/widgetAccessible` is *not app-accessible*,
-  so an omitted alias is a silent change of behaviour rather than a fallback. OpenAI
-  documents `ui.csp` as generally preferred for new UI and `openai/widgetCSP` as a
-  legacy compatibility key, still the only way to declare `redirect_domains`, so emit
-  both. **Neither is known to change what ChatGPT enforces**: measured 2026-09-18 in
-  developer mode, a frame whose resource carried both dialects ran under ChatGPT's own
-  default sandbox CSP — a boilerplate allowlist on the sandbox shell, inherited by the
-  frame the component is injected into, which is what the `CSP off` badge reports. Emit
-  them for the documented requirement, and state what was measured rather than a
-  property of the host. A host-specific key carrying a **developer-declared
-  input** (`widget_domain`, `invoking`/`invoked`) is emitted only when that input is
-  given. Mind the dialects: `openai/widgetCSP` spells its origin lists
-  `connect_domains`/`resource_domains`, and OpenAI documents no camelCase spelling for
-  it. `synapse check --target chatgpt` reports both, at `warn`. Its vendored client IIFE
-  (`python/nimblebrain_synapse/_assets/synapse-ui.iife.js`) is regenerated from
-  `dist/synapse-ui.iife.global.js` — rebuild and re-copy when the client changes (the CI
-  freshness gate enforces the copy). A **version bump** to `package.json` also requires
-  updating `python/nimblebrain_synapse/__init__.py` `__client_version__` to the new
-  version — CI fails until it equals `package.json`.
+  `ui.resourceUri` itself). ChatGPT also reads `openai/*` keys of its own;
+  `web/src/content/docs/docs/guides/chatgpt.mdx` documents each, and whether it was
+  measured or only documented. State what was measured rather than a property of the
+  host. `synapse check --target chatgpt` reports what that host sees.
 
 ## The connection
 
@@ -293,8 +245,7 @@ daily and on a pull request that touches the snapshot, and fails when the snapsh
 differs from the published document; it is not a required check, so a host release
 never blocks an unrelated change. A new extension, or a new bound applied before
 sending, gets a row
-in that test. The Python package holds none of these in source; it carries them only
-inside the vendored client.
+in that test.
 
 ## IIFE builds
 

@@ -1,0 +1,232 @@
+---
+title: ChatGPT compatibility
+description: "The OpenAI-specific _meta keys a FastMCP server adds so its Synapse UI works in ChatGPT, which host reads each one and how it was verified, and per-tool sign-in for servers that mix anonymous and signed-in tools."
+---
+
+ChatGPT renders an MCP Apps UI the way every other host does: it resolves the tool's
+`ui.resourceUri` and renders the `text/html;profile=mcp-app` resource it names. It also
+reads a few keys of its own, all prefixed `openai/`. FastMCP's `AppConfig` writes the
+spec's `ui.*` keys and does not know ChatGPT's, so a server adds them as plain `_meta`
+beside `app=`. Other hosts ignore them.
+
+This page assumes the server from
+[Serve a Synapse UI from a FastMCP server](/docs/quickstart-python/). OpenAI's
+[Apps SDK reference](https://developers.openai.com/apps-sdk/reference) is the source of
+truth for every key below.
+
+## The keys, by host
+
+"Documented" means OpenAI's reference states the behaviour and we have not measured it
+ourselves. "Measured" means we observed it in ChatGPT developer mode, with the date.
+
+| Key | Where | Read by | What it does | How it was verified |
+|---|---|---|---|---|
+| `ui.resourceUri` | tool | ChatGPT, Claude, NimbleBrain | Names the UI the tool renders | Measured: ChatGPT renders the one MCP Apps resource from it, with no ChatGPT key |
+| `ui.visibility` | tool | ChatGPT, Claude, NimbleBrain | Who may call the tool: the model, the UI, or both | Measured: ChatGPT enforces it in developer mode |
+| `openai/widgetAccessible` | tool | ChatGPT | Whether the UI may call the tool. **Defaults to false** | Documented |
+| `openai/toolInvocation/invoking`, `…/invoked` | tool | ChatGPT | Status text while the tool runs and after | Documented |
+| `ui.csp` | resource | Claude, NimbleBrain | The frame's allowed origins | Spec; Claude and NimbleBrain read it |
+| `openai/widgetCSP` | resource | ChatGPT (documented) | ChatGPT's spelling of the frame's allowed origins | Measured 2026-09-18: no change to what ChatGPT enforces (below) |
+| `ui.domain` | resource | Claude, NimbleBrain | A dedicated sandbox origin, **validated by the host** | Measured: Claude rejects any value but the one it derives |
+| `openai/widgetDomain` | resource | ChatGPT | The origin ChatGPT keys the UI to; asked for when an app is submitted | Documented as ChatGPT's alias for `ui.domain` |
+| `openai/outputTemplate` | tool | ChatGPT | ChatGPT's older way to name a UI | Keep it absent; `ui.resourceUri` covers it (measured) |
+| `securitySchemes` | tool | ChatGPT | The auth a tool accepts, before it is called | Documented in the [authentication guide](https://developers.openai.com/apps-sdk/build/auth) |
+| `mcp/www_authenticate` | tool result | ChatGPT | A sign-in challenge for one call | Documented in the [authentication guide](https://developers.openai.com/apps-sdk/build/auth) |
+
+## `openai/widgetAccessible`: let the UI call tools
+
+ChatGPT lets a UI call a tool only when the tool carries `openai/widgetAccessible: true`,
+and treats a missing key as false. A UI that reads its first result and then calls
+nothing works without it; one that refreshes, pages or changes anything is read-only in
+ChatGPT until the key is set. Set it on every tool the UI calls, which is every tool whose
+`ui.visibility` includes `"app"`:
+
+```python
+from fastmcp.apps import AppConfig
+
+CHATGPT_TOOL_META = {"openai/widgetAccessible": True}
+
+@mcp.tool(
+    app=AppConfig(resource_uri=UI_BOUND_URI, visibility=["model", "app"]),
+    meta={
+        **CHATGPT_TOOL_META,
+        "openai/toolInvocation/invoking": "Checking the forecast",
+        "openai/toolInvocation/invoked": "Forecast ready",
+    },
+)
+async def get_forecast(city: str) -> dict: ...
+
+@mcp.tool(meta=CHATGPT_TOOL_META)  # called from the UI, renders nothing itself
+async def refresh_forecast(city: str) -> dict: ...
+```
+
+Keep the key consistent with `ui.visibility`: `true` where it includes `"app"`. A tool for
+the UI alone (`visibility=["app"]`) also carries `"openai/visibility": "private"`, ChatGPT's
+spelling for hiding it from the model.
+
+## `openai/widgetDomain`, and why not `ui.domain`
+
+ChatGPT asks for a domain when an app with a UI is submitted. OpenAI documents
+`openai/widgetDomain` as ChatGPT's alias for the spec's `_meta.ui.domain`, and the value is
+your product's origin:
+
+```python
+CHATGPT_UI_META = {"openai/widgetDomain": "https://example.com"}
+
+@mcp.resource(UI_URI, app=UI_APP, meta=CHATGPT_UI_META)
+def forecast_ui() -> str: ...
+
+@mcp.resource(f"{UI_URI}/{{build}}", app=UI_APP, meta=CHATGPT_UI_META)
+def forecast_ui_build(build: str) -> str: ...
+```
+
+Put it on every resource that serves the UI, the build-keyed template included, since the
+tools bind to that one.
+
+The value cannot go in `ui.domain`. The spec makes `ui.domain` host-validated, and each
+host has its own format: Claude derives the origin from the connector URL
+(`sha256(<connector URL>)[:32] + ".claudemcpcontent.com"`) and refuses to render a resource
+that names any other, showing "There was a problem displaying content". One value cannot
+satisfy every host. Leave `ui.domain` unset, so each host uses its default sandbox origin,
+and put ChatGPT's origin in the alias, which only ChatGPT reads.
+
+## `openai/widgetCSP` versus `ui.csp`
+
+`ui.csp` is the spec's frame policy, set by `AppConfig(csp=ResourceCSP(...))`. Claude and
+NimbleBrain read it. OpenAI documents `ui.csp` as preferred for new UIs and
+`openai/widgetCSP` as a legacy compatibility key.
+
+What ChatGPT enforces did not change with either key. Measured on 2026-09-18 in developer
+mode, a frame whose resource carried both ran under ChatGPT's own default sandbox policy, a
+fixed allowlist on the sandbox shell that the injected UI inherits. So:
+
+- **A self-contained UI needs nothing.** `ResourceCSP()` with no origins covers the hosts
+  that read `ui.csp`, and ChatGPT applies its default either way.
+- **A UI that loads or calls an origin** lists it in `ResourceCSP` and, for the documented
+  requirement, in `openai/widgetCSP` too. The spellings differ: `ui.csp` uses camelCase
+  (`connectDomains`, which FastMCP writes from `connect_domains`), and `openai/widgetCSP`
+  uses snake_case (`connect_domains`, `resource_domains`). ChatGPT ignores a camelCase
+  `openai/widgetCSP`.
+- **A UI that opens an external link** with `window.openai.openExternal()` declares the
+  target in `openai/widgetCSP.redirect_domains`, which has no `ui.csp` equivalent.
+
+```python
+UI_APP = AppConfig(
+    prefers_border=True,
+    csp=ResourceCSP(connect_domains=["https://api.example.com"], resource_domains=["data:"]),
+)
+CHATGPT_UI_META = {
+    "openai/widgetDomain": "https://example.com",
+    "openai/widgetCSP": {
+        "connect_domains": ["https://api.example.com"],
+        "resource_domains": ["data:"],
+    },
+}
+```
+
+Build both from one list, so the two dialects cannot name different origins.
+
+## `openai/outputTemplate`: keep it absent
+
+Before ChatGPT read the MCP Apps keys, a tool named its UI with `openai/outputTemplate`,
+pointing at a resource served as `text/html+skybridge`. ChatGPT now resolves
+`ui.resourceUri` and renders the MCP Apps MIME, so a server serves one resource and binds it
+once. A second copy under the old MIME is a second resource to keep in step, and it buys
+nothing.
+
+## Sign-in for one tool
+
+A server where every tool needs a signed-in user challenges at the transport: an
+unauthenticated request gets HTTP `401` with a `WWW-Authenticate` header, and ChatGPT signs
+the user in when they connect. That needs nothing on this page.
+
+A server that mixes anonymous and signed-in tools cannot do that, because the anonymous
+tools must keep working. ChatGPT handles it per tool, from two halves:
+
+1. **`securitySchemes` on each tool** says what it accepts, before it is called:
+   `oauth2` alone for a tool that needs a user, `oauth2` and `noauth` for one where signing
+   in is optional.
+2. **A `mcp/www_authenticate` challenge in the tool result** answers a call that arrived
+   without the credentials it needs. It is the challenge a `401` would carry, moved into
+   `_meta` because the call still completes as a JSON-RPC result. ChatGPT reads it to offer
+   sign-in in the middle of the conversation. Its text content still says why, for a client
+   that reads only that.
+
+FastMCP challenges only at the HTTP layer, so the server builds the per-call result
+itself:
+
+```python
+from fastmcp.server.dependencies import get_access_token
+from fastmcp.tools import ToolResult
+from mcp.types import TextContent
+
+#: The server's OAuth protected-resource metadata (RFC 9728).
+PRM_URL = "https://example.com/.well-known/oauth-protected-resource/mcp"
+SCOPES = ["reports.read"]
+
+SIGNED_IN = {"securitySchemes": [{"type": "oauth2", "scopes": SCOPES}]}
+SIGN_IN_OPTIONAL = {
+    "securitySchemes": [{"type": "oauth2", "scopes": SCOPES}, {"type": "noauth"}]
+}
+
+
+def _quoted(value: str) -> str:
+    """An RFC 9110 quoted-string: a quote or backslash in `value` cannot end it early."""
+    return '"' + value.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def sign_in_required(description: str) -> ToolResult:
+    """A failed result carrying the challenge a 401 would, for ChatGPT to act on."""
+    challenge = (
+        f"Bearer resource_metadata={_quoted(PRM_URL)}, "
+        f'error="insufficient_scope", error_description={_quoted(description)}'
+    )
+    return ToolResult(
+        content=[TextContent(type="text", text=description)],
+        is_error=True,
+        meta={"mcp/www_authenticate": [challenge]},
+    )
+
+
+@mcp.tool(meta=SIGN_IN_OPTIONAL)
+async def search_reports(query: str) -> str:
+    """Anyone may search; a signed-in user also sees their private reports."""
+    ...
+
+
+@mcp.tool(meta=SIGNED_IN)
+async def save_report(report_id: str) -> str:
+    """Save a report to your account."""
+    if get_access_token() is None:
+        return sign_in_required("Sign in to save reports to your account.")  # ty: ignore[invalid-return-type]
+    ...
+```
+
+A few rules keep the two halves honest:
+
+- **Derive `securitySchemes` from the configuration the server enforces.** A server with no
+  authorization server configured omits the key, rather than advertising a sign-in that
+  goes nowhere. Under a transport gate, `noauth` is never true and should not be declared.
+- **`insufficient_scope` is the error code** OpenAI's guide uses for a call that arrived
+  with no token at all. `resource_metadata` names the same document the transport's `401`
+  names.
+- **Return the result, don't raise.** A raised error becomes a generic tool error, without
+  the `_meta` ChatGPT reads. FastMCP passes a returned `ToolResult` through unchanged, so a
+  tool declared `-> str` can return one; type the union one level down, or suppress the
+  return check where it is returned, as above.
+
+## Check a server
+
+[`synapse check --target chatgpt`](/docs/api/cli/#synapse-check) connects to a running
+server and reports what ChatGPT will see, `openai/widgetCSP` and `securitySchemes` among
+it:
+
+```bash
+npx synapse check --target chatgpt https://example.com/mcp
+```
+
+## Related
+
+- [Serve a Synapse UI from a FastMCP server](/docs/quickstart-python/): the server this page extends.
+- [Cross-host architecture](/docs/concepts/cross-host): how one component reaches each host's bridge.
+- [CLI: `synapse check`](/docs/api/cli/#synapse-check): every check, and which target it counts for.

@@ -74,16 +74,17 @@ hidden until it gets `ui/initialize` and a size report, so call `resize()`.
 
 ## The server half
 
-The component's server side is the Python
-[`nimblebrain-synapse`](/docs/quickstart-python) package. From one declaration
-(`FastMCPSynapseUI` on a FastMCP server, `SynapseUI` on the MCP SDK's `MCPServer`),
-handed to the server as an MCP extension, it contributes the
-component as one `ui://` resource under the MCP Apps MIME, `text/html;profile=mcp-app`,
-which ChatGPT and Claude both render. Plain MCP clients that render no UI still read
-the tool's `structuredContent`.
+The server serves the component as one `ui://` resource under the MCP Apps MIME,
+`text/html;profile=mcp-app`, and binds each tool to it with `ui.resourceUri`. ChatGPT,
+Claude, and NimbleBrain all render it from that. On a FastMCP 4 server that is
+`fastmcp.apps.AppConfig`, on the resource and on each tool; no Synapse package runs on
+the server. [Serve a Synapse UI from a FastMCP server](/docs/quickstart-python) walks
+through it, and [ChatGPT compatibility](/docs/guides/chatgpt) covers the keys only ChatGPT
+reads. Plain MCP clients that render no UI still read the tool's `structuredContent`.
 
 ## Related
 
 - [Render one component across hosts](/docs/guides/cross-host): the how-to for `connectUI`.
 - [The portable-app contract](/docs/concepts/degradation): what each call does on a host that lacks a capability.
-- [Quickstart: Python server](/docs/quickstart-python): declaring the `ui://` component on a Python MCP server.
+- [Serve a Synapse UI from a FastMCP server](/docs/quickstart-python): serving the `ui://` component from a Python MCP server.
+- [ChatGPT compatibility](/docs/guides/chatgpt): the `openai/*` keys and per-tool sign-in.

@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isSuspensionError } from "../../errors.js";
 import { AppProvider } from "../../react/app-provider.js";
 import {
+  DATA_SYNC_MIN_INTERVAL_MS,
   useCallTool,
   useDataSync,
   useFileUpload,
@@ -252,6 +253,7 @@ describe("useDataSync", () => {
     expect(cb).toHaveBeenCalledTimes(1);
 
     await act(async () => {
+      now += DATA_SYNC_MIN_INTERVAL_MS;
       await burst(5);
       await nextTask();
     });
@@ -284,6 +286,7 @@ describe("useDataSync", () => {
     expect(cb).toHaveBeenCalledTimes(1);
 
     await act(async () => {
+      now += DATA_SYNC_MIN_INTERVAL_MS;
       calls[0]?.resolve();
       await flush();
       await nextTask();
@@ -319,6 +322,7 @@ describe("useDataSync", () => {
     expect(cb).toHaveBeenCalledTimes(1);
 
     await act(async () => {
+      now += DATA_SYNC_MIN_INTERVAL_MS;
       calls[0]?.reject(new Error("re-read failed"));
       await flush();
       await nextTask();
@@ -361,6 +365,168 @@ describe("useDataSync", () => {
       await nextTask();
     });
     expect(cb).toHaveBeenCalledTimes(1);
+  });
+
+  describe("spacing", () => {
+    /** Wait `ms` of real time: the hook's timer runs on the real clock. */
+    const elapse = async (ms: number) => {
+      await new Promise((resolve) => setTimeout(resolve, ms));
+      await flush();
+    };
+
+    it("test_notice_within_min_interval_waits_then_runs_once_with_latest_params", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb, { minIntervalMs: 30 }), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb, "the first notice after a quiet spell runs at once").toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await burst(3, (i) => ({ _meta: { n: i } }));
+        await nextTask();
+      });
+      expect(cb, "a notice inside the interval waits").toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await elapse(40);
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+      expect(cb).toHaveBeenLastCalledWith({ _meta: { n: 2 } });
+    });
+
+    it("test_min_interval_defaults_to_the_exported_constant", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        now += DATA_SYNC_MIN_INTERVAL_MS - 1_000;
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb, "a second short of the interval still waits").toHaveBeenCalledTimes(1);
+    });
+
+    it("test_changing_min_interval_keeps_a_queued_notice", async () => {
+      const cb = vi.fn();
+      const { rerender } = renderHook(({ ms }) => useDataSync(cb, { minIntervalMs: ms }), {
+        wrapper: createWrapper(),
+        initialProps: { ms: 30 },
+      });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        await burst(1, () => ({ _meta: { n: "last" } }));
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      rerender({ ms: 40 });
+      await act(async () => {
+        await elapse(60);
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+      expect(cb).toHaveBeenLastCalledWith({ _meta: { n: "last" } });
+    });
+
+    it("test_changing_min_interval_keeps_waiting_on_the_call_in_flight", async () => {
+      const calls: ReturnType<typeof deferred>[] = [];
+      const cb = vi.fn((_params: unknown) => {
+        const d = deferred();
+        calls.push(d);
+        return d.promise;
+      });
+      const { rerender } = renderHook(({ ms }) => useDataSync(cb, { minIntervalMs: ms }), {
+        wrapper: createWrapper(),
+        initialProps: { ms: 30 },
+      });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+
+      rerender({ ms: 0 });
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        await elapse(10);
+      });
+      expect(cb, "the first call has not settled").toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        calls[0]?.resolve();
+        await flush();
+        await elapse(10);
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+
+    it("test_min_interval_zero_runs_back_to_back", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb, { minIntervalMs: 0 }), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        await nextTask();
+        await burst(1);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("while hidden", () => {
+    it("test_notice_while_hidden_runs_once_when_shown", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        setHidden(true);
+        await burst(4, (i) => ({ _meta: { n: i } }));
+        await nextTask();
+      });
+      expect(cb, "nothing runs while nobody is looking").not.toHaveBeenCalled();
+
+      await act(async () => {
+        now += 1_000;
+        setHidden(false);
+        await nextTask();
+      });
+      expect(cb, "a short hide with a notice owed still runs it").toHaveBeenCalledTimes(1);
+      expect(cb).toHaveBeenCalledWith({ _meta: { n: 3 } });
+    });
+
+    it("test_call_scheduled_then_hidden_waits_for_shown", async () => {
+      const cb = vi.fn();
+      renderHook(() => useDataSync(cb), { wrapper: createWrapper() });
+      await settle();
+
+      await act(async () => {
+        await burst(1);
+        setHidden(true);
+        await nextTask();
+      });
+      expect(cb).not.toHaveBeenCalled();
+
+      await act(async () => {
+        setHidden(false);
+        await nextTask();
+      });
+      expect(cb).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("on resume", () => {

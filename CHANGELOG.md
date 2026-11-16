@@ -6,6 +6,10 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **`useDataSync` starts calls at least 3 seconds apart, and runs none while the document is hidden.** A server announces from every write, so an agent writing in bulk announces every few seconds for as long as it runs. Each call is a re-read, and back to back they could spend the user's whole request budget at the host, which then refused the reads the view was showing. The first notice after a quiet spell still runs at once; a stream of them now runs once per interval, with the latest params. Notices that arrive while the document is hidden run once when it is shown again, after any hide, short or long. Pass `{ minIntervalMs }` as the second argument to set the interval (`0` restores calls back to back). `DATA_SYNC_MIN_INTERVAL_MS` and the `DataSyncOptions` type are exported from `@nimblebrain/synapse/react`.
+
 ## [0.39.0] - 2026-10-31
 
 ### Added

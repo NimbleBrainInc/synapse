@@ -1,5 +1,7 @@
 export { AppProvider, type AppProviderProps } from "./app-provider.js";
 export {
+  DATA_SYNC_MIN_INTERVAL_MS,
+  type DataSyncOptions,
   type UseCallToolAsTaskResult,
   type UseCallToolResult,
   type UseFileUploadResult,

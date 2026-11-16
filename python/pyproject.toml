@@ -1,7 +1,7 @@
 [project]
 name = "nimblebrain-synapse"
-version = "0.10.1"
-description = "Serve a Synapse UI from your MCP server: one self-contained ui:// component for every MCP Apps host."
+version = "0.11.0"
+description = "Deprecated: serve MCP Apps UIs with FastMCP 4's fastmcp.apps instead. See synapse.nimblebrain.ai/docs/quickstart-python"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -9,7 +9,7 @@ license-files = ["LICENSE"]
 authors = [{ name = "NimbleBrain Inc." }]
 keywords = ["mcp", "mcpserver", "fastmcp", "mcp-apps", "openai-apps", "synapse", "ui", "widget"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 7 - Inactive",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",

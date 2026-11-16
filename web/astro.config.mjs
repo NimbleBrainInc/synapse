@@ -43,7 +43,7 @@ export default defineConfig({
             items: [
               { label: "What is Synapse?", slug: "docs" },
               { label: "Quickstart: React app", slug: "docs/quickstart-react" },
-              { label: "Quickstart: Python server", slug: "docs/quickstart-python" },
+              { label: "Quickstart: FastMCP server", slug: "docs/quickstart-python" },
             ],
           },
           {
@@ -59,6 +59,7 @@ export default defineConfig({
               { slug: "docs/guides/local-dev" },
               { slug: "docs/guides/codegen" },
               { slug: "docs/guides/cross-host" },
+              { slug: "docs/guides/chatgpt" },
               { slug: "docs/guides/script-tag" },
             ],
           },

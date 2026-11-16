@@ -8,6 +8,30 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0]
+
+### Deprecated
+
+- **`nimblebrain-synapse` is deprecated, and this is its last release.** FastMCP 4
+  implements the MCP Apps standard natively in `fastmcp.apps`, which is what this package
+  existed to provide. Importing `nimblebrain_synapse` now raises a `DeprecationWarning`
+  that names the replacement. The API is otherwise unchanged, and the package stays
+  installable.
+
+  To move off it:
+
+  - Build the UI as one self-contained HTML file with `@nimblebrain/synapse` and a Vite
+    single-file build, in place of the template this package inlined the SDK into.
+  - Serve it as a `ui://` resource with `fastmcp.apps.AppConfig` and `ResourceCSP`, and
+    bind tools with `AppConfig(resource_uri=...)`, in place of `FastMCPSynapseUI` and
+    `tool_meta()`.
+  - Add ChatGPT's `openai/*` keys as plain `_meta`, and build the per-tool
+    `mcp/www_authenticate` challenge in the server, in place of `auth_error_result`.
+
+  [Serve a Synapse UI from a FastMCP server](https://synapse.nimblebrain.ai/docs/quickstart-python/)
+  and [ChatGPT compatibility](https://synapse.nimblebrain.ai/docs/guides/chatgpt/) cover
+  each step. `@nimblebrain/synapse`, the browser SDK, is unchanged and still maintained.
+
 ## [0.10.1]
 
 ### Changed

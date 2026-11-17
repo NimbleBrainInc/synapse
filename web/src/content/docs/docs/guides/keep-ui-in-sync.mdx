@@ -117,6 +117,17 @@ accordingly.
   returned is pending, further notifications only mark the view stale. When it
   settles, resolved or rejected, the callback runs once more if anything arrived
   meanwhile, so the view always ends on a read taken after the last change.
+- **Runs start at least 3 seconds apart.** A server announces from every write,
+  so an agent writing in bulk announces every few seconds for as long as it runs,
+  and each run is a re-read. Back to back, those re-reads can spend the user's
+  whole request budget at the host, which then refuses the reads the view is
+  showing. The first notification after a quiet spell still runs at once; a
+  stream of them runs once per interval, with the latest params. Pass
+  `{ minIntervalMs }` as the second argument to change the interval
+  (`DATA_SYNC_MIN_INTERVAL_MS` is the default); `0` runs back to back.
+- **Nothing runs while the document is hidden.** Notifications that arrive
+  meanwhile run once when the view is shown again. Every open tab of a view
+  receives every notification, and nobody is looking at a background one.
 
 A callback that returns nothing still gets the first rule. Return the re-read's
 promise (`() => call()`) to get the second. The hook only waits on that promise
@@ -132,8 +143,8 @@ flight fails, and nothing arrives on resume to say the data moved. So
 visible after staying hidden for at least a minute. It goes through the same path
 as a notification: notices queued on resume join it, and a re-read already in
 flight holds it, so a resume costs at most one re-read. A short hide (switching
-tabs and back) runs nothing, and neither does mounting: the view does its own
-first read.
+tabs and back) runs nothing unless a notification arrived during it, and mounting
+runs nothing: the view does its own first read.
 
 This is on for every `useDataSync`, and on a host that sends no notifications at
 all. A callback that is right for "the data changed" is right for "the data may

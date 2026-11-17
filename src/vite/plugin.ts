@@ -9,6 +9,7 @@ import {
   RESOURCE_LIST_CHANGED_METHOD,
   TOOLS_CALL_METHOD,
 } from "../event-map.js";
+import { PREVIEW_APPLY_THEME_JS, PREVIEW_CHROME_CSS } from "../preview/themes.js";
 
 /**
  * The server-bound requests this host proxies, which is exactly what its
@@ -323,14 +324,13 @@ export function vitePreviewHostHtml(appName: string): string {
   <title>${appName} — Synapse Preview</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; }
-    header { padding: 10px 16px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 10px; font-size: 13px; }
-    header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+${PREVIEW_CHROME_CSS}
+    header { padding: 10px 16px; gap: 10px; font-size: 13px; }
     header .name { font-weight: 600; }
     header .spacer { flex: 1; }
-    header button { background: #334155; border: none; color: #e2e8f0; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-    header .url { color: #64748b; font-size: 11px; font-family: monospace; }
-    iframe { width: 100%; height: calc(100vh - 41px); border: none; }
+    header button { padding: 3px 8px; }
+    header .url { color: var(--color-text-tertiary); font-size: 11px; font-family: monospace; }
+    iframe { height: calc(100vh - 41px); }
   </style>
 </head>
 <body>
@@ -349,27 +349,17 @@ export function vitePreviewHostHtml(appName: string): string {
     var PROXIED = ${JSON.stringify(PROXIED_SERVER_METHODS)};
     var OPENS = ["ai.nimblebrain/open","ai.nimblebrain/open-connector-settings"];
 
-    // Every key here is one the spec's style-variable enum names. That enum is
-    // a strict record, so a single extra key makes a spec client reject the
-    // whole \`ui/initialize\` result and refuse to connect — not just ignore the
-    // key. The kit's own neutral defaults back anything a host leaves out.
+    // The variables sent are \`PREVIEW_THEMES\` (src/preview/themes.ts), plus the
+    // font stack, which is a spec key too.
+${PREVIEW_APPLY_THEME_JS}
     function getTokens(d) {
-      return d ? {
-        "--color-background-primary":"#0f172a","--color-background-secondary":"#1e293b",
-        "--color-background-tertiary":"#2a374a","--color-text-primary":"#e2e8f0",
-        "--color-text-secondary":"#94a3b8","--color-text-tertiary":"#64748b",
-        "--color-border-primary":"#334155","--color-border-secondary":"#475569",
-        "--color-ring-primary":"#6366f1",
-        "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
-      } : {
-        "--color-background-primary":"#ffffff","--color-background-secondary":"#f8fafc",
-        "--color-background-tertiary":"#f1f5f9","--color-text-primary":"#0f172a",
-        "--color-text-secondary":"#64748b","--color-text-tertiary":"#94a3b8",
-        "--color-border-primary":"#e2e8f0","--color-border-secondary":"#cbd5e1",
-        "--color-ring-primary":"#6366f1",
-        "--border-radius-sm":"0.5rem","--font-sans":"-apple-system,BlinkMacSystemFont,sans-serif"
-      };
+      var vars = applyTheme(d);
+      var out = {};
+      for (var key in vars) out[key] = vars[key];
+      out["--font-sans"] = "-apple-system,BlinkMacSystemFont,sans-serif";
+      return out;
     }
+    applyTheme(dark);
 
     function post(msg) { iframe.contentWindow.postMessage(msg, "*"); }
 
@@ -433,7 +423,6 @@ export function vitePreviewHostHtml(appName: string): string {
 
     document.getElementById("toggle").onclick = function() {
       dark = !dark;
-      document.body.style.background = dark ? "#0f172a" : "#f1f5f9";
       post({jsonrpc:"2.0",method:"ui/notifications/host-context-changed",params:{theme:dark?"dark":"light",styles:{variables:getTokens(dark)}}});
     };
 

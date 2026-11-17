@@ -13,6 +13,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
+import { PREVIEW_APPLY_THEME_JS, PREVIEW_CHROME_CSS } from "./themes.js";
 
 export interface PreviewOptions {
   /** Shell command to start the MCP server in HTTP mode */
@@ -42,13 +43,12 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
   <title>Synapse Preview</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #0f172a; color: #e2e8f0; }
-    header { padding: 12px 20px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; align-items: center; gap: 12px; }
+${PREVIEW_CHROME_CSS}
+    header { padding: 12px 20px; gap: 12px; }
     header h1 { font-size: 14px; font-weight: 500; }
-    header .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
-    header .info { font-size: 12px; color: #94a3b8; margin-left: auto; }
-    .theme-toggle { background: #334155; border: none; color: #e2e8f0; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; }
-    iframe { width: 100%; height: calc(100vh - 45px); border: none; }
+    header .info { font-size: 12px; color: var(--color-text-secondary); margin-left: auto; }
+    header button { padding: 4px 10px; }
+    iframe { height: calc(100vh - 45px); }
   </style>
 </head>
 <body>
@@ -64,29 +64,10 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
     var iframe = document.getElementById("app");
     var darkMode = true;
 
-    // Minimal NimbleBrain bridge host — just enough to make Synapse work.
-    //
-    // Every key here is one the spec's style-variable enum names. That enum is
-    // a strict record, so a single extra key makes a spec client reject the
-    // whole \`ui/initialize\` result and refuse to connect — not just ignore the
-    // key. The kit's own neutral defaults back anything a host leaves out, so
-    // the accent and danger colours still render; they come from the cascade
-    // layer instead of the wire.
-    var tokens = darkMode ? {
-      "--color-background-primary": "#0f172a", "--color-background-secondary": "#1e293b",
-      "--color-background-tertiary": "#2a374a", "--color-text-primary": "#e2e8f0",
-      "--color-text-secondary": "#94a3b8", "--color-text-tertiary": "#64748b",
-      "--color-border-primary": "#334155", "--color-border-secondary": "#475569",
-      "--color-ring-primary": "#6366f1",
-      "--border-radius-sm": "0.5rem",
-    } : {
-      "--color-background-primary": "#ffffff", "--color-background-secondary": "#f9fafb",
-      "--color-background-tertiary": "#f1f5f9", "--color-text-primary": "#1a1a1a",
-      "--color-text-secondary": "#6b7280", "--color-text-tertiary": "#94a3b8",
-      "--color-border-primary": "#e5e7eb", "--color-border-secondary": "#cbd5e1",
-      "--color-ring-primary": "#6366f1",
-      "--border-radius-sm": "0.5rem",
-    };
+    // Minimal NimbleBrain bridge host — just enough to make Synapse work. The
+    // variables it sends are \`PREVIEW_THEMES\` (src/preview/themes.ts).
+${PREVIEW_APPLY_THEME_JS}
+    var tokens = applyTheme(darkMode);
 
     function post(msg) { iframe.contentWindow.postMessage(msg, "*"); }
 
@@ -175,22 +156,7 @@ export const previewHostHtml = (uiPort: number, serverPort: number) => `<!DOCTYP
     // Theme toggle
     document.getElementById("toggle").addEventListener("click", function () {
       darkMode = !darkMode;
-      document.body.style.background = darkMode ? "#0f172a" : "#f1f5f9";
-      tokens = darkMode ? {
-        "--color-background-primary": "#0f172a", "--color-background-secondary": "#1e293b",
-        "--color-background-tertiary": "#2a374a", "--color-text-primary": "#e2e8f0",
-        "--color-text-secondary": "#94a3b8", "--color-text-tertiary": "#64748b",
-        "--color-border-primary": "#334155", "--color-border-secondary": "#475569",
-        "--color-ring-primary": "#6366f1",
-        "--border-radius-sm": "0.5rem",
-      } : {
-        "--color-background-primary": "#ffffff", "--color-background-secondary": "#f9fafb",
-        "--color-background-tertiary": "#f1f5f9", "--color-text-primary": "#1a1a1a",
-        "--color-text-secondary": "#6b7280", "--color-text-tertiary": "#94a3b8",
-        "--color-border-primary": "#e5e7eb", "--color-border-secondary": "#cbd5e1",
-        "--color-ring-primary": "#6366f1",
-        "--border-radius-sm": "0.5rem",
-      };
+      tokens = applyTheme(darkMode);
       post({ jsonrpc: "2.0", method: "ui/notifications/host-context-changed", params: { theme: darkMode ? "dark" : "light", styles: { variables: tokens } } });
     });
   </script>

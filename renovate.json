@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["local>NimbleBrainInc/renovate-config"],
+  "description": "Three npm projects (the SDK at the root, the docs site in web/, the UI gallery in gallery/), GitHub Actions, and the Biome version ci.yml pins. CI gates the root and web/; nothing builds gallery/ in CI, so its pull requests carry no check of their own. Lock-file refreshes stay off (the shared default): npm cannot hold a refresh to the 14-day wait.",
+  "enabledManagers": ["npm", "github-actions", "custom.regex"],
+  "packageRules": [
+    {
+      "description": "peerDependencies are the ranges every consumer of the published package installs against. Widening or raising one is a release decision recorded in the CHANGELOG, never a bot update.",
+      "matchManagers": ["npm"],
+      "matchDepTypes": ["peerDependencies"],
+      "enabled": false
+    },
+    {
+      "matchFileNames": ["package.json"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "sdk dev dependencies"
+    },
+    {
+      "description": "web/ is the docs site, gated by the Docs site build job.",
+      "matchFileNames": ["web/package.json"],
+      "groupName": "docs site"
+    },
+    {
+      "matchFileNames": ["gallery/package.json"],
+      "groupName": "gallery"
+    },
+    {
+      "description": "The SDK speaks the ext-apps protocol through these packages, and the client, core, server and ext-apps packages release against one another.",
+      "matchFileNames": ["package.json"],
+      "matchPackageNames": ["@modelcontextprotocol/**"],
+      "groupName": "mcp sdk"
+    },
+    {
+      "description": "ci.yml pins setup-biome to the @biomejs/biome devDependency, so both move in one pull request.",
+      "matchPackageNames": ["@biomejs/biome"],
+      "groupName": "biome"
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "The Biome version the Lint job installs, which Renovate's github-actions manager does not read.",
+      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
+      "matchStrings": [
+        "biomejs/setup-biome@\\S+\\s*\\n\\s*with:\\s*\\n\\s*version:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "depNameTemplate": "@biomejs/biome",
+      "datasourceTemplate": "npm"
+    }
+  ]
+}

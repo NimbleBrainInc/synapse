@@ -1,8 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>NimbleBrainInc/renovate-config"],
-  "description": "Three npm projects (the SDK at the root, the docs site in web/, the UI gallery in gallery/), GitHub Actions, and the Biome version ci.yml pins. CI gates the root and web/; nothing builds gallery/ in CI, so its pull requests carry no check of their own. Lock-file refreshes stay off (the shared default): npm cannot hold a refresh to the 14-day wait.",
-  "enabledManagers": ["npm", "github-actions", "custom.regex"],
+  "description": "Three npm projects (the SDK at the root, the docs site in web/, the UI gallery in gallery/) and GitHub Actions, which also reads the Biome version ci.yml passes to setup-biome. CI gates the root and web/; nothing builds gallery/ in CI, so its pull requests carry no check of their own. Lock-file refreshes stay off (the shared default): npm cannot hold a refresh to the 14-day wait.",
+  "enabledManagers": ["npm", "github-actions"],
   "packageRules": [
     {
       "description": "peerDependencies are the ranges every consumer of the published package installs against. Widening or raising one is a release decision recorded in the CHANGELOG, never a bot update.",
@@ -31,21 +31,9 @@
       "groupName": "mcp sdk"
     },
     {
-      "description": "ci.yml pins setup-biome to the @biomejs/biome devDependency, so both move in one pull request.",
+      "description": "ci.yml pins setup-biome to the @biomejs/biome devDependency. The github-actions manager reports that pin under the same name, so this group moves both in one pull request.",
       "matchPackageNames": ["@biomejs/biome"],
       "groupName": "biome"
-    }
-  ],
-  "customManagers": [
-    {
-      "customType": "regex",
-      "description": "The Biome version the Lint job installs, which Renovate's github-actions manager does not read.",
-      "managerFilePatterns": ["/^\\.github/workflows/ci\\.yml$/"],
-      "matchStrings": [
-        "biomejs/setup-biome@\\S+\\s*\\n\\s*with:\\s*\\n\\s*version:\\s*(?<currentValue>\\d+\\.\\d+\\.\\d+)"
-      ],
-      "depNameTemplate": "@biomejs/biome",
-      "datasourceTemplate": "npm"
     }
   ]
 }

@@ -18,8 +18,11 @@
  *
  * Not covered, because Synapse holds no value to compare: the notice title and
  * description lengths, the notice burst limit and the trail `id` length are
- * enforced by the host alone and appear here only in doc comments, and the
- * notice levels are a type (`NoticeLevel`), which a runtime test cannot read.
+ * enforced by the host alone and appear here only in doc comments; the
+ * notice levels are a type (`NoticeLevel`), which a runtime test cannot read;
+ * and the rate-limited error (`errors.rateLimited` with
+ * `errors.retryAfterDataField`) reaches an app as a JSON-RPC error that
+ * Synapse passes through without reading.
  */
 import { describe, expect, it } from "vitest";
 import { HOST_STYLES_EXTENSION } from "../detection.js";

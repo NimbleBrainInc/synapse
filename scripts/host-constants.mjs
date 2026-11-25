@@ -15,7 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const HOST_CONSTANTS_URL =
   process.env.HOST_CONSTANTS_URL ??
-  "https://schemas.nimblebrain.ai/v1/nimblebrain-host-bridge.constants.json";
+  "https://schemas.nimblebrain.ai/host-bridge/v1/constants.json";
 const SNAPSHOT = fileURLToPath(
   new URL("../src/__tests__/host-constants/nimblebrain-host.constants.json", import.meta.url),
 );
